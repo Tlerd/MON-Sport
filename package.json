@@ -1,0 +1,28 @@
+{
+  "name": "monsport",
+  "private": true,
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=24.15.0 <27.0.0"
+  },
+  "packageManager": "pnpm@12.3.4",
+  "scripts": {
+    "dev": "pnpm --parallel -r --filter \"./apps/*\" run dev",
+    "db:reset": "pnpm --filter api run db:reset",
+    "lint": "eslint . && prettier --check .",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "build": "pnpm -r run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.6",
+    "globals": "17.12.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0"
+  }
+}

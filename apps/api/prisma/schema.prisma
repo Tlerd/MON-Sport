@@ -1,0 +1,264 @@
+// Nguon: docs/PROMPT.md muc 2. Toan bo mo hinh du lieu dung mot lan cho ca
+// v0.1 (nguoi & san & tran) va v0.2 (giai dau). Khong co bang nao cho tien.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- v0.1: nguoi & san & tran ----------
+
+model User {
+  id            String          @id @default(cuid())
+  zaloId        String          @unique
+  name          String
+  phone         String?
+  avatarUrl     String?
+  role          Role            @default(PLAYER)
+  createdAt     DateTime        @default(now())
+  skills        PlayerSkill[]
+  hostedMatches Match[]         @relation("host")
+  entries       MatchEntry[]
+  notifications Notification[]
+}
+
+// Ho so trinh do tach rieng vi MOT nguoi co nhieu mon, moi mon mot trinh do.
+model PlayerSkill {
+  id     String     @id @default(cuid())
+  userId String
+  sport  Sport
+  level  SkillLevel
+  user   User       @relation(fields: [userId], references: [id])
+
+  @@unique([userId, sport])
+}
+
+model Venue {
+  id           String   @id @default(cuid())
+  name         String
+  commune      String
+  district     String
+  address      String
+  sports       Sport[]
+  pricePerHour Int
+  courts       Court[]
+}
+
+model Court {
+  id      String  @id @default(cuid())
+  venueId String
+  name    String
+  sport   Sport
+  venue   Venue   @relation(fields: [venueId], references: [id])
+  matches Match[]
+}
+
+model Match {
+  id           String       @id @default(cuid())
+  courtId      String
+  hostId       String
+  sport        Sport
+  startAt      DateTime
+  endAt        DateTime
+  capacity     Int
+  pricePerSlot Int
+  minLevel     SkillLevel?
+  maxLevel     SkillLevel?
+  note         String?
+  status       MatchStatus  @default(OPEN)
+  host         User         @relation("host", fields: [hostId], references: [id])
+  court        Court        @relation(fields: [courtId], references: [id])
+  entries      MatchEntry[]
+
+  @@index([startAt, sport])
+}
+
+model MatchEntry {
+  id       String   @id @default(cuid())
+  matchId  String
+  userId   String
+  joinedAt DateTime @default(now())
+  match    Match    @relation(fields: [matchId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([matchId, userId])
+}
+
+// ---------- v0.2: giai dau ----------
+
+model Tournament {
+  id              String     @id @default(cuid())
+  slug            String     @unique
+  name            String
+  sport           Sport
+  commune         String
+  organizerId     String
+  format          Format
+  teamLimit       Int
+  groupCount      Int?
+  advancePerGroup Int?
+  regOpenAt       DateTime
+  regCloseAt      DateTime
+  startAt         DateTime
+  rules           String?
+  drawSeed        Int?
+  winPoints       Int        @default(3)
+  drawPoints      Int        @default(1)
+  losePoints      Int        @default(0)
+  status          TStatus    @default(DRAFT)
+  teams           Team[]
+  groups          Group[]
+  fixtures        Fixture[]
+}
+
+model Team {
+  id           String     @id @default(cuid())
+  tournamentId String
+  name         String
+  logoUrl      String?
+  captainName  String
+  captainPhone String
+  seed         Int?
+  status       TeamStatus @default(PENDING)
+  rejectReason String?
+  groupId      String?
+  players      Player[]
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  group        Group?     @relation(fields: [groupId], references: [id])
+
+  @@unique([tournamentId, name])
+}
+
+model Player {
+  id        String  @id @default(cuid())
+  teamId    String
+  name      String
+  number    Int?
+  birthYear Int?
+  userId    String?
+  team      Team    @relation(fields: [teamId], references: [id])
+}
+
+model Group {
+  id           String     @id @default(cuid())
+  tournamentId String
+  name         String
+  teams        Team[]
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+}
+
+model Fixture {
+  id                   String        @id @default(cuid())
+  tournamentId         String
+  groupId              String?
+  round                Int
+  stage                Stage
+  order                Int
+  homeTeamId           String?
+  awayTeamId           String?
+  homeSourceFixtureId  String?
+  awaySourceFixtureId  String?
+  scheduledAt          DateTime?
+  courtId              String?
+  homeScore            Int?
+  awayScore            Int?
+  winnerTeamId         String?
+  note                 String?
+  status               FixtureStatus @default(SCHEDULED)
+  events               MatchEvent[]
+  tournament           Tournament    @relation(fields: [tournamentId], references: [id])
+}
+
+// Gop ban thang va the vao mot bang: cung la "chuyen xay ra trong tran",
+// tach hai bang chi de roi join lai khi tinh vua pha luoi.
+model MatchEvent {
+  id        String    @id @default(cuid())
+  fixtureId String
+  playerId  String
+  teamId    String
+  minute    Int?
+  type      EventType
+  fixture   Fixture   @relation(fields: [fixtureId], references: [id])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+// ---------- enum ----------
+
+enum Role {
+  PLAYER
+  ORGANIZER
+  ADMIN
+}
+
+enum Sport {
+  FOOTBALL
+  BADMINTON
+  VOLLEYBALL
+  PICKLEBALL
+}
+
+enum SkillLevel {
+  NEW
+  AVERAGE
+  GOOD
+  STRONG
+}
+
+enum MatchStatus {
+  OPEN
+  FULL
+  CANCELLED
+  FINISHED
+}
+
+enum Format {
+  ROUND_ROBIN
+  KNOCKOUT
+  GROUP_KNOCKOUT
+}
+
+enum TStatus {
+  DRAFT
+  REGISTERING
+  DRAWN
+  RUNNING
+  FINISHED
+}
+
+enum TeamStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Stage {
+  GROUP
+  KNOCKOUT
+}
+
+enum FixtureStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+}
+
+enum EventType {
+  GOAL
+  OWN_GOAL
+  YELLOW
+  RED
+}

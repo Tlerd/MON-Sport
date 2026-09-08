@@ -1,0 +1,9 @@
+dist
+build
+coverage
+pnpm-lock.yaml
+node_modules
+apps/api/prisma/migrations
+# Tai lieu markdown giu nguyen dinh dang tay, README.md la file duoc bo sung
+# thu cong theo dung yeu cau, khong de Prettier viet lai.
+*.md

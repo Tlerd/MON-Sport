@@ -23,6 +23,7 @@ uploads/
 # logs / cache
 *.log
 npm-debug.log*
+pnpm-debug.log*
 .cache/
 coverage/
 

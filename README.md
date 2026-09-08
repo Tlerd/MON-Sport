@@ -32,17 +32,44 @@ cd MON-Sport
 
 ## 3. Chạy dự án
 
-> ⏳ Phần này sẽ đầy đủ sau khi xong **Mốc M0**. Hiện repo mới chỉ có tài liệu.
-
-Khi đã xong M0:
+**Mốc M0 đã xong.** Đúng 3 lệnh sau khi `git clone`:
 
 ```bash
 pnpm install
-docker compose up -d      # Postgres
-cp .env.example .env
+docker compose up -d      # Postgres, doc bien tu .env — chay `cp .env.example .env` truoc neu chua co .env
 pnpm db:reset             # migrate + seed
 pnpm dev                  # api + web
 ```
+
+Sau khi `pnpm dev` chạy: web ở `http://localhost:5173`, API ở `http://localhost:3000`,
+Swagger tại `http://localhost:3000/api/docs`.
+
+### Phiên bản thực tế (M0, 2026-09-08)
+
+| Công cụ | Phiên bản | Ghi chú |
+|---|---|---|
+| Node.js | 24.15.0 | Tạm thời — mục tiêu Node **26 LTS**, xem `docs/quyet-dinh.md` mục 1. Nâng theo bảng ở mục 1 phía trên rồi cập nhật `.nvmrc` |
+| pnpm | 12.3.4 | |
+| TypeScript | 6.0.3 | Không dùng bản `latest` (7.x) — chưa tương thích `typescript-eslint`, xem `docs/quyet-dinh.md` mục 12 |
+| NestJS | 12.0.1 | |
+| Prisma | 6.19.3 | Không dùng bản `latest` — Prisma 7 đổi cách cấu hình kết nối DB, xem `docs/quyet-dinh.md` mục 13 |
+| React | 19.2.8 | |
+| Vite | 8.2.2 | |
+
+### Sơ đồ thư mục (rút gọn)
+
+```
+apps/api/          # NestJS — prisma/schema.prisma, src/{common,main.ts}
+apps/web/          # React + Vite — src/{pages,i18n,routes.tsx}
+packages/shared/   # Zod schema + type + port interface dung chung (bat dau tu M1)
+docker-compose.yml # chi Postgres
+```
+
+### Tài khoản seed để đăng nhập thử
+
+Seed ở M0 mới tối giản (chưa có tính năng đăng nhập — xem `docs/quyet-dinh.md` mục 3),
+gồm 2 user: `mock-admin` (ADMIN, Nguyễn Văn Quân) và `mock-player-1` (PLAYER, Trần Thị
+Bình). Danh sách tài khoản seed đầy đủ để đăng nhập thử sẽ có từ **Mốc M1**.
 
 ## 4. Quy trình git của đội
 
