@@ -48,11 +48,11 @@ Swagger tại `http://localhost:3000/api/docs`.
 
 | Công cụ | Phiên bản | Ghi chú |
 |---|---|---|
-| Node.js | 24.15.0 | Tạm thời — mục tiêu Node **26 LTS**, xem `docs/quyet-dinh.md` mục 1. Nâng theo bảng ở mục 1 phía trên rồi cập nhật `.nvmrc` |
+| Node.js | 26.7.0 | Đã nâng lên **26 LTS** đúng bản chốt ở mục 1 phía trên |
 | pnpm | 12.3.4 | |
-| TypeScript | 6.0.3 | Không dùng bản `latest` (7.x) — chưa tương thích `typescript-eslint`, xem `docs/quyet-dinh.md` mục 12 |
+| TypeScript | 6.0.3 | Không dùng bản `latest` (7.x) — chưa tương thích `typescript-eslint`, xem `docs/quyet-dinh.md` mục 11 |
 | NestJS | 12.0.1 | |
-| Prisma | 6.19.3 | Không dùng bản `latest` — Prisma 7 đổi cách cấu hình kết nối DB, xem `docs/quyet-dinh.md` mục 13 |
+| Prisma | 6.19.3 | Không dùng bản `latest` — Prisma 7 đổi cách cấu hình kết nối DB, xem `docs/quyet-dinh.md` mục 12 |
 | React | 19.2.8 | |
 | Vite | 8.2.2 | |
 
@@ -67,7 +67,7 @@ docker-compose.yml # chi Postgres
 
 ### Tài khoản seed để đăng nhập thử
 
-Seed ở M0 mới tối giản (chưa có tính năng đăng nhập — xem `docs/quyet-dinh.md` mục 3),
+Seed ở M0 mới tối giản (chưa có tính năng đăng nhập — xem `docs/quyet-dinh.md` mục 2),
 gồm 2 user: `mock-admin` (ADMIN, Nguyễn Văn Quân) và `mock-player-1` (PLAYER, Trần Thị
 Bình). Danh sách tài khoản seed đầy đủ để đăng nhập thử sẽ có từ **Mốc M1**.
 
