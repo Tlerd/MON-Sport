@@ -34,6 +34,29 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # Tu M1: test e2e dang nhap can DB that co seed (xem docs/quyet-dinh.md muc M1).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: monsport
+          POSTGRES_PASSWORD: monsport
+          POSTGRES_DB: monsport
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U monsport"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # CI khong co file .env (chi co .env.example da commit) — dat thang bien
+      # moi truong o day, khong qua script boc dotenv-cli.
+      DATABASE_URL: 'postgresql://monsport:monsport@localhost:5432/monsport?schema=public'
+      JWT_SECRET: 'ci-test-secret-khong-dung-that'
+      JWT_EXPIRES_IN: '604800'
+      CORS_ORIGIN: 'http://localhost:5173'
+      AUTH_PROVIDER: 'mock'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -42,7 +65,8 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter api exec prisma generate --schema prisma/schema.prisma
+      # migrate reset (khong phai migrate deploy) vi test can du lieu seed that.
+      - run: pnpm --filter api exec prisma migrate reset --force --schema prisma/schema.prisma
       - run: pnpm run test
 
   build:

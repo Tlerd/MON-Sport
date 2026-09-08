@@ -67,9 +67,24 @@ docker-compose.yml # chi Postgres
 
 ### Tài khoản seed để đăng nhập thử
 
-Seed ở M0 mới tối giản (chưa có tính năng đăng nhập — xem `docs/quyet-dinh.md` mục 2),
-gồm 2 user: `mock-admin` (ADMIN, Nguyễn Văn Quân) và `mock-player-1` (PLAYER, Trần Thị
-Bình). Danh sách tài khoản seed đầy đủ để đăng nhập thử sẽ có từ **Mốc M1**.
+Vào `http://localhost:5173/dang-nhap`, chọn 1 trong 10 tài khoản dưới đây — đăng nhập
+mock không cần mật khẩu (`docs/PROMPT.md` mục 1.3).
+
+| Tên | Vai | zaloId |
+|---|---|---|
+| Nguyễn Văn Quân | ADMIN | `mock-admin` |
+| Lê Thị Hương | ORGANIZER | `mock-organizer-1` |
+| Phạm Văn Tùng | ORGANIZER | `mock-organizer-2` |
+| Trần Thị Bình | PLAYER | `mock-player-1` |
+| Hoàng Văn Nam | PLAYER | `mock-player-2` |
+| Vũ Thị Lan | PLAYER | `mock-player-3` |
+| Đặng Văn Hùng | PLAYER | `mock-player-4` |
+| Bùi Thị Mai | PLAYER | `mock-player-5` |
+| Ngô Văn Sơn | PLAYER | `mock-player-6` |
+| Đỗ Thị Thu | PLAYER | `mock-player-7` |
+
+Bộ 40 user + Venue/Tournament đầy đủ ở `docs/PROMPT.md` mục 7 dựng dần ở các mốc
+sau (M2 cần Venue thật, M4/M5 cần Tournament thật).
 
 ## 4. Quy trình git của đội
 

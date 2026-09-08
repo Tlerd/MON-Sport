@@ -7,12 +7,12 @@
   },
   "packageManager": "pnpm@12.3.4",
   "scripts": {
-    "dev": "pnpm --parallel -r --filter \"./apps/*\" run dev",
+    "dev": "pnpm --filter @monsport/shared run build && pnpm --parallel -r --filter \"./apps/*\" run dev",
     "db:reset": "pnpm --filter api run db:reset",
     "lint": "eslint . && prettier --check .",
-    "typecheck": "pnpm -r run typecheck",
-    "test": "pnpm -r run test",
-    "build": "pnpm -r run build"
+    "typecheck": "pnpm --filter @monsport/shared run build && pnpm -r run typecheck",
+    "test": "pnpm --filter @monsport/shared run build && pnpm -r run test",
+    "build": "pnpm --filter @monsport/shared run build && pnpm -r --filter \"./apps/*\" run build"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

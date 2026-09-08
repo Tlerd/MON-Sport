@@ -42,6 +42,17 @@ export default tseslint.config(
     },
   },
   {
+    // DTO Zod: class rong + interface cung ten merge field vao (ky thuat giong
+    // nestjs-zod createZodDto) — day la cach lay static `schema` cho
+    // ZodValidationPipe ma van co kieu du lieu day du cho @Body(), khong phai
+    // loi that.
+    files: ['apps/api/src/**/dto/*.dto.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-declaration-merging': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+    },
+  },
+  {
     files: ['apps/web/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },

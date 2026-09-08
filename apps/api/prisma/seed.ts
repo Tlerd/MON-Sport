@@ -1,10 +1,80 @@
-// Seed tối giản cho M0: chỉ đủ để chứng minh pipeline `prisma migrate reset`
-// chạy lại được nhiều lần trên toàn bộ schema. Bộ dữ liệu đầy đủ theo
-// docs/PROMPT.md mục 7 (40 user, 6 sân, 3 giải...) dựng dần theo từng mốc
-// cần tới nó (M1 cần user thật để đăng nhập, M4/M5 cần giải...).
-import { PrismaClient } from '@prisma/client';
+// Seed M1: nang tu 2 len 10 user (1 ADMIN + 2 ORGANIZER + 7 PLAYER), du de dang
+// nhap thu nhieu vai va rai deu 4 muc trinh do (docs/quyet-dinh.md muc M1). Bo du
+// lieu day du 40 user o docs/PROMPT.md muc 7 dung dan theo tung moc can toi no
+// (Venue/Tournament thuc su o M2/M4).
+import { PrismaClient, type Role, type Sport, type SkillLevel } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+interface SeedUser {
+  zaloId: string;
+  name: string;
+  role: Role;
+  skill?: { sport: Sport; level: SkillLevel };
+}
+
+const SEED_USERS: SeedUser[] = [
+  {
+    zaloId: 'mock-admin',
+    name: 'Nguyễn Văn Quân',
+    role: 'ADMIN',
+    skill: { sport: 'FOOTBALL', level: 'STRONG' },
+  },
+  {
+    zaloId: 'mock-player-1',
+    name: 'Trần Thị Bình',
+    role: 'PLAYER',
+    skill: { sport: 'FOOTBALL', level: 'AVERAGE' },
+  },
+  {
+    zaloId: 'mock-organizer-1',
+    name: 'Lê Thị Hương',
+    role: 'ORGANIZER',
+    skill: { sport: 'BADMINTON', level: 'GOOD' },
+  },
+  {
+    zaloId: 'mock-organizer-2',
+    name: 'Phạm Văn Tùng',
+    role: 'ORGANIZER',
+    skill: { sport: 'FOOTBALL', level: 'STRONG' },
+  },
+  {
+    zaloId: 'mock-player-2',
+    name: 'Hoàng Văn Nam',
+    role: 'PLAYER',
+    skill: { sport: 'FOOTBALL', level: 'NEW' },
+  },
+  {
+    zaloId: 'mock-player-3',
+    name: 'Vũ Thị Lan',
+    role: 'PLAYER',
+    skill: { sport: 'VOLLEYBALL', level: 'GOOD' },
+  },
+  {
+    zaloId: 'mock-player-4',
+    name: 'Đặng Văn Hùng',
+    role: 'PLAYER',
+    skill: { sport: 'PICKLEBALL', level: 'STRONG' },
+  },
+  {
+    zaloId: 'mock-player-5',
+    name: 'Bùi Thị Mai',
+    role: 'PLAYER',
+    skill: { sport: 'BADMINTON', level: 'NEW' },
+  },
+  {
+    zaloId: 'mock-player-6',
+    name: 'Ngô Văn Sơn',
+    role: 'PLAYER',
+    skill: { sport: 'FOOTBALL', level: 'GOOD' },
+  },
+  {
+    zaloId: 'mock-player-7',
+    name: 'Đỗ Thị Thu',
+    role: 'PLAYER',
+    skill: { sport: 'VOLLEYBALL', level: 'AVERAGE' },
+  },
+];
 
 async function clear(): Promise<void> {
   // Xóa theo thứ tự ngược với khóa ngoại để không vi phạm ràng buộc FK.
@@ -26,24 +96,24 @@ async function clear(): Promise<void> {
 async function main(): Promise<void> {
   await clear();
 
-  const admin = await prisma.user.create({
-    data: {
-      zaloId: 'mock-admin',
-      name: 'Nguyễn Văn Quân',
-      role: 'ADMIN',
-    },
-  });
+  const users = await Promise.all(
+    SEED_USERS.map((seedUser) =>
+      prisma.user.create({
+        data: {
+          zaloId: seedUser.zaloId,
+          name: seedUser.name,
+          role: seedUser.role,
+          skills: seedUser.skill ? { create: [seedUser.skill] } : undefined,
+        },
+      }),
+    ),
+  );
 
-  const player = await prisma.user.create({
-    data: {
-      zaloId: 'mock-player-1',
-      name: 'Trần Thị Bình',
-      role: 'PLAYER',
-      skills: {
-        create: [{ sport: 'FOOTBALL', level: 'AVERAGE' }],
-      },
-    },
-  });
+  const admin = users.find((user) => user.zaloId === 'mock-admin');
+  const player = users.find((user) => user.zaloId === 'mock-player-1');
+  if (!admin || !player) {
+    throw new Error('Seed lỗi: thiếu user mock-admin hoặc mock-player-1.');
+  }
 
   const venue = await prisma.venue.create({
     data: {
@@ -80,7 +150,7 @@ async function main(): Promise<void> {
     },
   });
 
-  console.log('Seed tối giản M0 xong: 2 người dùng, 1 sân, 1 trận.');
+  console.log(`Seed M1 xong: ${String(users.length)} người dùng, 1 sân, 1 trận.`);
 }
 
 main()
