@@ -21,7 +21,9 @@ Kế hoạch kinh doanh nằm ở vault riêng `projectMONSPORT`, không nằm t
 > Không cài được Docker? Không sao — tạo một project Supabase free của riêng mình rồi
 > đổi `DATABASE_URL` trong `.env`. Code không đổi một dòng nào.
 >
-> Không cần cài `psql`. Xem dữ liệu bằng `pnpm prisma studio`.
+> Không cần cài `psql`. Xem dữ liệu bằng `pnpm db:studio` (chạy ở thư mục gốc —
+> tự nạp `.env`; gõ thẳng `npx prisma studio` trong `apps/api` sẽ thiếu
+> `DATABASE_URL`).
 
 ## 2. Lấy code về
 

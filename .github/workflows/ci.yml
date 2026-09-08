@@ -16,6 +16,9 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      # ESLint doc kieu tu @prisma/client that (khong phai stub rong) de bat
+      # dung loi no-unsafe-* tren seed.ts — thieu buoc nay se bao "any" gia.
+      - run: pnpm --filter api exec prisma generate --schema prisma/schema.prisma
       - run: pnpm run lint
 
   typecheck:

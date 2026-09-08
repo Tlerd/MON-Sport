@@ -157,3 +157,16 @@ rồi đi tiếp, không dừng lại hỏi.
 18. **Ảnh đại diện ở M1 chỉ là ô nhập link (URL) thô**, chưa có upload file
     thật — `FileStoragePort` chưa dựng (đúng lịch, xem mục 1.3 đặc tả), làm
     upload thật ở đây là vượt phạm vi mốc.
+
+## Sửa lỗi vận hành — 2026-09-08
+
+1. **Job `lint` trong CI thiếu bước `prisma generate`** — chỉ `typecheck` và
+   `build` có bước này, `lint` thì không, nên trên checkout sạch của CI
+   (chưa từng generate) `PrismaClient` là kiểu `any`, ESLint bắt lỗi
+   `no-unsafe-*` ở `seed.ts`. Máy dev đã generate sẵn nên không lộ ra khi
+   chạy `pnpm lint` local. Thêm đúng bước `prisma generate` như 2 job kia.
+2. **Thêm script `studio` (bọc `dotenv`) ở `apps/api/package.json`** và
+   `db:studio` ở root — trước đó README bảo chạy `pnpm prisma studio` nhưng
+   không có script nào bọc sẵn `.env`, gõ trực tiếp sẽ thiếu `DATABASE_URL`
+   (cùng lỗi dạng đã gặp với các lệnh Prisma khác — luôn phải đi qua
+   `dotenv -e ../../.env --`).

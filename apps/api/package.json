@@ -8,7 +8,8 @@
     "build": "nest build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "dotenv -e ../../.env -- vitest run",
-    "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force --schema prisma/schema.prisma"
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force --schema prisma/schema.prisma",
+    "studio": "dotenv -e ../../.env -- prisma studio --schema prisma/schema.prisma"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
