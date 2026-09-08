@@ -10,7 +10,7 @@
     "dev": "pnpm --filter @monsport/shared run build && pnpm --parallel -r --filter \"./apps/*\" run dev",
     "db:reset": "pnpm --filter api run db:reset",
     "db:studio": "pnpm --filter api run studio",
-    "lint": "eslint . && prettier --check .",
+    "lint": "pnpm --filter @monsport/shared run build && eslint . && prettier --check .",
     "typecheck": "pnpm --filter @monsport/shared run build && pnpm -r run typecheck",
     "test": "pnpm --filter @monsport/shared run build && pnpm -r run test",
     "build": "pnpm --filter @monsport/shared run build && pnpm -r --filter \"./apps/*\" run build"

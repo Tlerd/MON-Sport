@@ -170,3 +170,11 @@ rồi đi tiếp, không dừng lại hỏi.
    không có script nào bọc sẵn `.env`, gõ trực tiếp sẽ thiếu `DATABASE_URL`
    (cùng lỗi dạng đã gặp với các lệnh Prisma khác — luôn phải đi qua
    `dotenv -e ../../.env --`).
+3. **Script `lint` ở root thiếu bước build `packages/shared` trước** — 3 script
+   kia (`typecheck`/`test`/`build`) đều build `packages/shared` trước khi
+   chạy, riêng `lint` thì không. Trên checkout sạch (`dist/` chưa tồn tại),
+   ESLint (dùng typed linting, cần `.d.ts` thật) không resolve được type từ
+   `@monsport/shared`, biến mọi chỗ import nó thành "error type", lan ra
+   hàng loạt lỗi `no-unsafe-*` khắp `apps/api` và `apps/web`. Máy dev lint
+   xanh vì `dist/` cũ còn sẵn từ lần chạy `typecheck`/`build` trước đó — chỉ
+   lộ ra khi xoá `dist/` rồi lint lại (đúng mô phỏng checkout sạch của CI).
