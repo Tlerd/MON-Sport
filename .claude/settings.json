@@ -1,0 +1,14 @@
+{
+  "enabledPlugins": {
+    "playwright@claude-plugins-official": true,
+    "ba-kit@ba-kit": true
+  },
+  "extraKnownMarketplaces": {
+    "ba-kit": {
+      "source": {
+        "source": "github",
+        "repo": "Tlerd/BA-Microsoft"
+      }
+    }
+  }
+}
