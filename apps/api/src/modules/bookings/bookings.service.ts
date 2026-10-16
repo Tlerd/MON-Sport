@@ -11,7 +11,7 @@ import {
 } from '@monsport/shared';
 import type { Booking } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
-import { isExclusionViolation, isRetryableConflict, PrismaService } from '../database/prisma.service.js';
+import { isExclusionViolation, PrismaService } from '../database/prisma.service.js';
 
 const TAKEN = 'Khung giờ này vừa có người đặt';
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -56,27 +56,26 @@ export class BookingsService {
     const deadline = confirmDeadline(now, startAt); // BR-7
     if (deadline < now) throw new BadRequestException('Đã quá hạn đặt trong app. Hãy gọi chủ sân'); // BR-9
 
-    for (let attempt = 1; ; attempt++) {
-      try {
-        return toView(await this.insertRequest(userId, court, startAt, endAt, deadline, now));
-      } catch (error) {
-        if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
-        if (isRetryableConflict(error) && attempt < 3) continue;
-        throw error;
-      }
+    try {
+      return toView(await this.insertRequest(userId, court, startAt, endAt, deadline, now));
+    } catch (error) {
+      if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
+      throw error;
     }
   }
 
-  // One attempt: expire, then insert, in one transaction. The batch form holds no
-  // interactive transaction open, so 50 parallel requests do not wait for a free connection.
-  private async insertRequest(userId: string, court: { id: string; priceNormal: number; pricePeak: number }, startAt: Date, endAt: Date, deadline: Date, now: Date) {
-    const [, booking] = await this.prisma.$transaction([
+  // Requests on one court queue on its row lock before they insert. Without the lock, overlapping
+  // inserts wait on each other inside the EXCLUDE check and Postgres ends some with 40P01 (review of PR #7).
+  // EXCLUDE stays the last guard: the request after the winner gets 23P01.
+  private insertRequest(userId: string, court: { id: string; priceNormal: number; pricePeak: number }, startAt: Date, endAt: Date, deadline: Date, now: Date) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${court.id}::uuid FOR UPDATE`;
       // BR-8 without a job: expired requests on this court stop holding their time before the insert.
-      this.prisma.booking.updateMany({
+      await tx.booking.updateMany({
         where: { courtId: court.id, status: 'PENDING', confirmDeadline: { lt: now } },
         data: { status: 'EXPIRED' },
-      }),
-      this.prisma.booking.create({
+      });
+      return tx.booking.create({
         data: {
           courtId: court.id,
           startAt,
@@ -88,9 +87,8 @@ export class BookingsService {
           confirmDeadline: deadline,
           createdAt: now,
         },
-      }),
-    ]);
-    return booking;
+      });
+    });
   }
 
   async mine(userId: string): Promise<BookingView[]> {
@@ -100,7 +98,7 @@ export class BookingsService {
 
   /** UC-4: the requests on the venues of one owner (BR-23). */
   async forOwner(ownerId: string, status: Booking['status']): Promise<OwnerBookingView[]> {
-    await this.expire({ court: { venue: { ownerId } } });
+    await this.expire({ court: { venue: { ownerId } } }, this.clock.now());
     const rows = await this.prisma.booking.findMany({
       where: { status, court: { venue: { ownerId } } },
       include: { createdBy: true },
@@ -120,10 +118,11 @@ export class BookingsService {
     const booking = await this.prisma.booking.findUnique({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
     if (!booking) throw new NotFoundException('Không tìm thấy booking');
     if (booking.court.venue.ownerId !== ownerId) throw new ForbiddenException('Bạn không có quyền làm việc này'); // BR-23
-    await this.expire({ id: bookingId });
     const now = this.clock.now();
+    await this.expire({ id: bookingId }, now);
+    // The deadline is in the condition too, so a confirm cannot pass between the expire and this update.
     const result = await this.prisma.booking.updateMany({
-      where: { id: bookingId, status: 'PENDING' },
+      where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
       data: decision === 'CONFIRMED' ? { status: 'CONFIRMED', confirmedAt: now } : { status: 'REJECTED' },
     });
     if (result.count === 0) {
@@ -134,9 +133,9 @@ export class BookingsService {
   }
 
   // BR-8: a request past its deadline becomes EXPIRED. The conditional update is safe to run twice.
-  private async expire(where: object): Promise<void> {
+  private async expire(where: object, now: Date): Promise<void> {
     await this.prisma.booking.updateMany({
-      where: { ...where, status: 'PENDING', confirmDeadline: { lt: this.clock.now() } },
+      where: { ...where, status: 'PENDING', confirmDeadline: { lt: now } },
       data: { status: 'EXPIRED' },
     });
   }

@@ -32,7 +32,12 @@ export function readSession(value: string | undefined, now: Date): string | null
 export function cookieValue(header: string | undefined, name: string): string | undefined {
   for (const part of header?.split(';') ?? []) {
     const [key, ...rest] = part.trim().split('=');
-    if (key === name) return decodeURIComponent(rest.join('='));
+    if (key !== name) continue;
+    try {
+      return decodeURIComponent(rest.join('='));
+    } catch {
+      return undefined; // A malformed value is no session: the guard answers 401, not 500.
+    }
   }
   return undefined;
 }
