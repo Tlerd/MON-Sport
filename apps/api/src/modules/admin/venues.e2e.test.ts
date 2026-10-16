@@ -10,6 +10,7 @@ import { setupApp } from '../../setup-app.js';
 import { issueSession } from '../auth/session.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { isHoursViolation } from './db-errors.js';
 
 // Data of brief F-003: Bình runs "Cầu lông A" (06:00-23:00, "Sân 1" and "Sân 2" at 80.000đ and 120.000đ), Dũng runs "Cầu lông B".
 const NOW = new Date('2026-10-17T10:00:00+07:00');
@@ -145,6 +146,31 @@ describe('admin venues and courts', () => {
     expect(grid.body.message).toBe('Giờ phải theo bước 30 phút');
     const price = await as('admin').post(`/api/admin/venues/${ids.venueA}/courts`, { ...court('Sân 3'), priceNormal: 0 }).expect(400);
     expect(price.body.message).toBe('Giá phải lớn hơn 0');
+  });
+
+  it('keeps every one of parallel updates of different fields', async () => {
+    await Promise.all([
+      as('admin').patch(`/api/admin/venues/${ids.venueA}`, { opensAt: 420 }).expect(200),
+      as('admin').patch(`/api/admin/venues/${ids.venueA}`, { address: '99 Trần Phú' }).expect(200),
+      as('admin').patch(`/api/admin/venues/${ids.venueA}`, { closesAt: 1320 }).expect(200),
+    ]);
+    expect(await db.venue.findUniqueOrThrow({ where: { id: ids.venueA } })).toMatchObject({ opensAt: 420, address: '99 Trần Phú', closesAt: 1320 });
+  });
+
+  it('moves a venue to another owner at once, and refuses a locked owner', async () => {
+    await as('admin').patch(`/api/admin/venues/${ids.venueA}`, { ownerId: ids.Giang }).expect(200);
+    expect((await as('Giang').get('/api/owner/venues').expect(200)).body.map((v: VenueView) => v.name)).toEqual(['Cầu lông A']);
+    expect((await as('Bình').get('/api/owner/venues').expect(200)).body).toEqual([]);
+    await db.user.update({ where: { id: ids['Dũng'] }, data: { lockedAt: NOW } });
+    const res = await as('admin').patch(`/api/admin/venues/${ids.venueA}`, { ownerId: ids['Dũng'] }).expect(400);
+    expect(res.body.message).toBe('Chủ sân không hợp lệ');
+  });
+
+  it('recognises the hours CHECK error of the database, and only that one', async () => {
+    const hours = await db.venue.update({ where: { id: ids.venueA }, data: { closesAt: 300 } }).catch((e: unknown) => e);
+    expect(isHoursViolation(hours)).toBe(true);
+    const price = await db.court.update({ where: { id: ids['Sân 1'] }, data: { priceNormal: 0 } }).catch((e: unknown) => e);
+    expect(isHoursViolation(price)).toBe(false);
   });
 
   it('lists every venue with its owner for the admin', async () => {

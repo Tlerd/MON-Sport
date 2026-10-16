@@ -1,35 +1,21 @@
 import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { type AdminVenueView, CourtInput, CourtUpdate, type CourtView, errorMessage, Messages, VenueInput, VenueUpdate } from '@monsport/shared';
-import type { Court, User, Venue } from '../../generated/prisma/client.js';
+import type { Court, Venue } from '../../generated/prisma/client.js';
 import { isUniqueViolation } from '../auth/accounts.service.js';
 import { Roles, SessionGuard } from '../auth/session.guard.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { toCourtView, toVenueView } from '../venues/venue-view.js';
+import { isHoursViolation } from './db-errors.js';
 
 const BAD_OWNER = 'Chủ sân không hợp lệ';
 const COURT_TAKEN = 'Tên sân đã có trong đơn vị này';
-const WITH_COURTS = { courts: { orderBy: { name: 'asc' } }, owner: true } as const;
+// The owner is read with 3 fields only, so a later change cannot return the password hash by mistake.
+const WITH_COURTS = { courts: { orderBy: { name: 'asc' } }, owner: { select: { id: true, name: true, phone: true } } } as const;
 
-function toAdminView(v: Venue & { courts: Court[]; owner: User }): AdminVenueView {
-  const { owner, ...venue } = v;
+type OwnerView = AdminVenueView['owner'];
+
+function toAdminView({ owner, ...venue }: Venue & { courts: Court[]; owner: OwnerView }): AdminVenueView {
   return { ...toVenueView(venue), owner: { id: owner.id, name: owner.name, phone: owner.phone } };
-}
-
-// The CHECK "Venue_hours_check" of migration f003 refused the row. The app checks first, so this means two
-// parallel updates. Only this constraint maps to the hours text; any other error stays a 500.
-function isHoursViolation(error: unknown): boolean {
-  for (let e: unknown = error, depth = 0; e && typeof e === 'object' && depth < 5; depth++) {
-    const o = e as { message?: unknown; constraint?: unknown; meta?: unknown; cause?: unknown };
-    let meta = '';
-    try {
-      meta = JSON.stringify(o.meta) ?? '';
-    } catch {
-      // A circular meta object holds no constraint name worth reading.
-    }
-    if (/Venue_hours_check/.test(`${String(o.message ?? '')} ${String(o.constraint ?? '')} ${meta}`)) return true;
-    e = o.cause;
-  }
-  return false;
 }
 
 // A malformed id gets the Vietnamese generic text, not the English text of the pipe.
@@ -56,19 +42,26 @@ export class AdminVenuesController {
     return toAdminView(await this.prisma.venue.create({ data: input.data, include: WITH_COURTS }));
   }
 
-  /** The body is merged into the stored venue, and the result is checked as a whole (AC-19). */
+  /**
+   * The body is merged into the stored venue, and the result is checked as a whole (AC-19). The row stays locked
+   * from the read to the write, and only the fields of the body are written. So two parallel updates of different
+   * fields both stay, and a parallel update cannot write back an old owner (BR-20, BR-23).
+   */
   @Patch('venues/:id')
   async update(@Param('id', Id) id: string, @Body() body: unknown): Promise<AdminVenueView> {
     const patch = VenueUpdate.safeParse(body);
     if (!patch.success) throw new BadRequestException(errorMessage(patch.error));
-    const stored = await this.prisma.venue.findUnique({ where: { id } });
-    if (!stored) throw new NotFoundException('Không tìm thấy đơn vị');
-    const { id: _id, ...fields } = stored;
-    const merged = VenueInput.safeParse({ ...fields, ...patch.data });
-    if (!merged.success) throw new BadRequestException(errorMessage(merged.error));
-    await this.assertOwner(merged.data.ownerId);
     try {
-      return toAdminView(await this.prisma.venue.update({ where: { id }, data: merged.data, include: WITH_COURTS }));
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "Venue" WHERE id = ${id}::uuid FOR UPDATE`;
+        const stored = await tx.venue.findUnique({ where: { id } });
+        if (!stored) throw new NotFoundException('Không tìm thấy đơn vị');
+        const { id: _id, ...fields } = stored;
+        const merged = VenueInput.safeParse({ ...fields, ...patch.data });
+        if (!merged.success) throw new BadRequestException(errorMessage(merged.error));
+        if (patch.data.ownerId && patch.data.ownerId !== stored.ownerId) await this.assertOwner(patch.data.ownerId, tx);
+        return toAdminView(await tx.venue.update({ where: { id }, data: patch.data, include: WITH_COURTS }));
+      });
     } catch (error) {
       if (isHoursViolation(error)) throw new BadRequestException(Messages.hours);
       throw error;
@@ -101,9 +94,9 @@ export class AdminVenuesController {
     }
   }
 
-  /** Venue.ownerId points to an OWNER account (data dictionary). */
-  private async assertOwner(ownerId: string): Promise<void> {
-    const owner = await this.prisma.user.findUnique({ where: { id: ownerId } });
-    if (!owner || owner.role !== 'OWNER' || owner.deletedAt) throw new BadRequestException(BAD_OWNER);
+  /** Venue.ownerId points to an active OWNER account (data dictionary). A locked owner cannot take a venue. */
+  private async assertOwner(ownerId: string, db: Pick<PrismaService, 'user'> = this.prisma): Promise<void> {
+    const owner = await db.user.findUnique({ where: { id: ownerId } });
+    if (!owner || owner.role !== 'OWNER' || owner.deletedAt || owner.lockedAt) throw new BadRequestException(BAD_OWNER);
   }
 }
