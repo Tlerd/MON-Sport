@@ -10,5 +10,19 @@
         "repo": "Tlerd/BA-Microsoft"
       }
     }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/scripts/check.mjs", "--hook"],
+            "timeout": 300
+          }
+        ]
+      }
+    ]
   }
 }

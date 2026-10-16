@@ -1,48 +1,42 @@
-# MONSPORT: rules for agents
+# MONSPORT
 
-These rules apply to every coding agent in this repo (Claude Code, Codex, and others). Sections 1 to 4 are adapted from
-`forrestchang/andrej-karpathy-skills` (MIT). For a very small task, use judgement instead of every step.
+Web and mobile app to book sports courts, join matches, and pay. One developer builds it with coding agents. This file is the map for every agent.
 
-## 1. Think before you code
+## Commands
 
-- State your assumptions. When a request has more than one reading, present the readings and let the user choose.
-- When a simpler way exists, say so. Push back when you have a reason.
-- A small unclear point: take the simplest reading, record the assumption, and continue.
-- An unclear point that touches the data model or a business rule: stop and ask **before you start**.
+- `pnpm install`: installs the tools and turns on the git hook.
+- `pnpm check`: runs the tests, the type-check, and the import rules. It prints one line when all pass, and the failing lines when one fails.
 
-## 2. Simple first
+Work is done when `pnpm check` passes. The git hook and CI run the same command.
 
-- Write the minimum code that solves the request. Add a feature, a setting, or an abstraction only when someone asked for it.
-- Handle only the errors that can happen.
-- When 200 lines can be 50 lines, rewrite them.
+## Layout
 
-## 3. Change only what the task needs
+A folder appears when its first feature needs it.
 
-- Every changed line traces back to the request. Leave nearby code, comments, and formatting as they are.
-- Keep the existing style of the file.
-- Remove only the imports, variables, and functions that your own change made unused. Report dead code that was already there, and leave it in place.
-- For a small change, edit locally. Keep the rest of the file.
+```
+apps/api/src/modules/<name>/           one NestJS module for each domain
+apps/web/src/features/<name>/          one folder for each feature
+apps/web/src/app/                      routes and providers; composes the features
+apps/web/src/{components,hooks,lib}/   code that every feature can use
+packages/shared/src/                   Zod schemas: the one source of the API contract
+```
 
-## 4. Work toward a goal you can verify
+`.dependency-cruiser.cjs` holds the import rules. A violation prints its own fix.
 
-- Turn the request into criteria you can check. Bug fix: write a test that reproduces the bug, then make it pass. Refactor: tests are green before and after.
-- Multi-step work: state a short plan, with a check for each step.
+## Specification
 
-## 5. Verify for real before you report done
+`docs/spec/dac-ta-ky-thuat.md`, in Vietnamese, is the source of truth for the technical design (`docs/adr/0001-nguon-su-that-dac-ta.md`). Its table "Quyết định khác bản gốc" overrides the sections below it.
 
-- After a change to runnable code, run the related tests, type-check, or build, then report done. A syntax check is not enough.
-- When something cannot run, say what did not run and why.
+- Code a feature from its brief in `docs/briefs/`. The brief gives the acceptance criteria, the contract, the build order, and the paths you may edit.
+- Before you code a feature, read its design (§4), the data model (§5), and the API (§6).
+- Give each acceptance criterion a test whose name starts with its label, for example `AC-1`.
+- Take the names of tables, types, and fields from §5.
+- Ask before you start when a request conflicts with the specification or its brief, or leaves the data model or a business rule unclear.
+- A change to money, concurrency, or the schema gets a review from a fresh session before merge.
+- Record a decision that is costly to reverse as a new file in `docs/adr/`.
 
-## 6. Finish the work
+## State
 
-- Once you start, complete the whole request before you stop. Stop to ask only when you are blocked, or before an action that is hard to undo.
-- Put extra findings (nearby bugs, cleanup, documentation) at the end of your report. Leave them for the user to assign.
+Git and the tests hold the state. To see where the work stands, read `git log --oneline -15` and run `pnpm check`. A criterion with a passing `AC-n` test is done.
 
-## 7. Follow the specification
-
-Project specification: `D:\projectMONSPORT\Plan Project\Markdown\9. ke-hoach-web-app-dat-san-ghep-nguoi-thanh-toan.md`. It is written in Vietnamese.
-
-- Before you code a feature, read its design section (§4), the data model (§5), and the API (§6). The acceptance criteria in §9 are the tests to write.
-- A request that conflicts with the specification, or that touches an open decision in §2: stop and ask.
-- Work larger than one session: split it into vertical slices (schema → API → UI → test), each one runnable on its own. Write the list to `docs/tien-do.md`, then do the first slice.
-- At the start of a session, read `docs/tien-do.md`. After each slice, record which slice is done, which criteria are green, and what comes next.
+`PROGRESS.md` holds what they cannot show: the next step and the open decisions. Read it when you start. Rewrite it in place when either changes.
