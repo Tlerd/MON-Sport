@@ -32,8 +32,30 @@ packages/shared/src/                   Zod schemas: the one source of the API co
 - Give each acceptance criterion a test whose name starts with its label, for example `AC-1`.
 - Use the terms of the table "Tên gọi" in the intake. Take the names of tables, types, and fields from the data model in `docs/requirements/` when it exists.
 - Ask before you start when a request conflicts with the intake or its brief, or leaves the data model or a business rule unclear.
-- A change to money, concurrency, or the schema gets a review from a fresh session before merge.
 - Record a decision that is costly to reverse as a new file in `docs/adr/`.
+
+## Agent roles
+
+Each tool maps these roles to its own models. Claude Code maps them in `.claude/settings.json` and `.claude/agents/`.
+
+| Role | Does | Never |
+|---|---|---|
+| Planner | Reads the brief and the code. Writes a plan that lists each file to change. Waits until the user approves the plan | Edits a file |
+| Reader | Finds and reads files for the planner and the coder. Use a cheap read-only agent when a search spans several files | Edits a file, or runs a command that changes state |
+| Coder | Writes the tests first, then the code, after the user approves the plan. Runs `pnpm check` | Edits a path that the brief does not list |
+| Reviewer | A fresh session. Reviews a pull request against its brief and the intake | Pushes to the branch it reviews |
+
+## Workflow
+
+1. Write the brief with the skill `feature-brief`. The user accepts it.
+2. Open one issue for the brief from `.github/ISSUE_TEMPLATE/feature.md`, with the label `enhancement`. The issue links the brief.
+3. Give each step of the build order its own branch from `main`: `feat/<issue>-<step>-<slug>`, for example `feat/12-1-booking-schema`.
+4. Open one pull request for each step with `gh pr create`. Fill in `.github/pull_request_template.md`. Write `Refs #<issue>` on each step, and `Closes #<issue>` on the last step only.
+5. Merge a pull request only when CI passes. Ask the user before you merge.
+6. A change to money, concurrency, or the schema gets a review from a fresh session before merge. The pull request links that review.
+7. When the next step or an open decision changes, rewrite `PROGRESS.md` in the same pull request, before the merge.
+
+A fix, a chore, or a docs change that no brief covers needs no issue. Its branch is `fix/<slug>`, `chore/<slug>`, or `docs/<slug>`, and it still goes through a pull request.
 
 ## State
 

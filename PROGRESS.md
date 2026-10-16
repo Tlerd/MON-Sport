@@ -17,6 +17,7 @@ Updated: 2026-10-16
 - The first version: roles admin, venue owner (chủ sân), and user. Users book, owners confirm by hand, and the app takes no payment. Hosts open matches in a lichess-style lobby. A pilot at 3 venues becomes the real product.
 - The stack stays: NestJS, React + Vite, PostgreSQL on Supabase, Prisma 7, Zod. Real-time updates use SSE.
 - Claude Code model split: `opusplan` (Opus plans, Sonnet codes), every chat starts in plan mode, and the `Explore` subagent reads files on Haiku.
+- `AGENTS.md` names four agent roles and the workflow brief → issue → one branch and one pull request for each build step → CI → merge after the user agrees. The issue and pull request templates are in `.github/`. An A/B run with 10 subagents chose this version over the old one.
 
 ## Open decisions
 
