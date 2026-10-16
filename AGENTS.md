@@ -33,31 +33,44 @@ packages/shared/src/                   Zod schemas: the one source of the API co
 - Code a feature from its brief in `docs/briefs/`. The brief traces to the intake, and gives the acceptance criteria, the contract, the build order, and the paths you may edit.
 - Give each acceptance criterion a test whose name starts with its label, for example `AC-1`.
 - Use the terms of the table "Tên gọi" in the intake. Take the names of tables, types, and fields from the data model in `docs/requirements/` when it exists.
-- Ask before you start when a request conflicts with the intake or its brief, or leaves the data model or a business rule unclear.
+- When the intake or a brief leaves a field or a business rule open, decide as "Autonomy" says. Do not invent a rule that conflicts with the intake.
 - Record a decision that is costly to reverse as a new file in `docs/adr/`.
 
 ## Agent roles
 
-Each tool maps these roles to its own models. Claude Code maps them in `.claude/settings.json` and `.claude/agents/`.
+Each tool maps these roles to its own models. Claude Code maps them in `.claude/settings.json` and `.claude/agents/`. Antigravity maps them in `.agents/rules/model-routing.md`.
 
 | Role | Does | Never |
 |---|---|---|
-| Planner | Reads the brief and the code. Writes a plan that lists each file to change. Waits until the user approves the plan | Edits a file |
+| Planner | Reads the brief and the code. Writes a plan that lists each file to change, then hands it to the coder | Edits a file |
 | Reader | Finds and reads files for the planner and the coder. Use a cheap read-only agent when a search spans several files | Edits a file, or runs a command that changes state |
-| Coder | Writes the tests first, then the code, after the user approves the plan. Runs `pnpm check` | Edits a path that the brief does not list |
-| Reviewer | A fresh session. Reviews a pull request against its brief and the intake | Pushes to the branch it reviews |
+| Coder | Writes the tests first, then the code that the plan lists. Runs `pnpm check` | Edits a path that the brief does not list |
+| Reviewer | A fresh session, on the strongest model for money, concurrency, schema, or personal data. Reviews a brief or a pull request against the intake. Rates each finding high, medium, or low | Edits, commits, or pushes |
 
 ## Workflow
 
-1. Write the brief with the skill `feature-brief`. The user accepts it.
+1. Write the brief with the skill `feature-brief`. A Reviewer checks it. The brief is accepted when no finding of medium or higher stays open.
 2. Open one issue for the brief from `.github/ISSUE_TEMPLATE/feature.md`, with the label `enhancement`. The issue links the brief.
 3. Give each step of the build order its own branch from `main`: `feat/<issue>-<step>-<slug>`, for example `feat/12-1-booking-schema`.
 4. Open one pull request for each step with `gh pr create`. Fill in `.github/pull_request_template.md`. Write `Refs #<issue>` on each step, and `Closes #<issue>` on the last step only.
-5. Merge a pull request only when CI passes. Ask the user before you merge.
-6. A change to money, concurrency, or the schema gets a review from a fresh session before merge. The pull request links that review.
+5. A Reviewer reviews each pull request. Post its findings as a pull request comment. Fix each finding of medium or higher.
+6. Merge with `gh pr merge --merge --delete-branch` when all are true: CI passes, no finding of medium or higher stays open, and the pull request changes only the paths that its brief allows. Never push to `main`. Never force push.
 7. When the next step or an open decision changes, rewrite `PROGRESS.md` in the same pull request, before the merge.
 
 A fix, a chore, or a docs change that no brief covers needs no issue. Its branch is `fix/<slug>`, `chore/<slug>`, or `docs/<slug>`, and it still goes through a pull request.
+
+## Autonomy
+
+The user starts work with "tiếp tục", "continue", or a goal. Then plan and work without asking until the goal is met and `pnpm check` passes on `main`.
+
+- Without a goal, do the next step in `PROGRESS.md`, then the step after it. Pick the next slice by the launch order in the intake.
+- When a decision is open, choose the option that the intake supports best, or else the safer one. Write it under "Assumptions" in the brief or the pull request, with the reason. The user corrects it later.
+- Stop and ask only for these:
+  - an action that costs money or changes a cloud account, for example a deploy;
+  - an action that deletes data or history that this task did not create;
+  - a secret, a password, or a legal question with no safe default;
+  - a finding of medium or higher that stays open after 2 review rounds, or an autofix that gave up.
+- End each run with a short report: what is done, the assumptions you made, and what is next.
 
 ## State
 

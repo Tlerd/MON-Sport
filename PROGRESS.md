@@ -2,7 +2,7 @@
 
 This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git.
 
-Updated: 2026-10-16
+Updated: 2026-10-17
 
 ## Current state
 
@@ -19,7 +19,7 @@ Updated: 2026-10-16
 - `docs/requirements/intake-monsport-v1.md` is the source of truth (ADR 0002).
 - The stack: NestJS 12, React 19 + Vite 8, PostgreSQL (18 locally and in CI), Prisma 7 from pull request 1, Zod 4, SSE for real-time updates.
 - The API is ESM and builds with SWC, because Nest needs decorator metadata. `packages/shared` ships TypeScript source.
-- Claude Code: `opusplan`, plan mode by default, and `Explore` on Haiku.
+- Agents work without asking, under "Autonomy" in `AGENTS.md`. Claude Code: Opus, `acceptEdits`, and `Explore` on Haiku. Antigravity: `.agents/rules/model-routing.md`.
 
 ## Open decisions
 
@@ -31,5 +31,6 @@ Updated: 2026-10-16
 
 ## Next step
 
-1. The user picks the next slice. The intake order suggests UC-1 sign-up with UC-10 admin screens, or UC-2 the free-slot grid.
-2. Write its brief with `feature-brief`, open its issue, and build it.
+1. F-003: UC-1 (sign-up and login) with UC-10 (accounts and venues), the first slice of the intake launch order. Write its brief with `feature-brief`, get a Reviewer check, open its issue, and build it.
+2. Until the user answers open decision 4, the safe default is a consent checkbox and a privacy notice at sign-up. Record it as an assumption.
+3. Then F-004: UC-11 (prices and opening hours).
