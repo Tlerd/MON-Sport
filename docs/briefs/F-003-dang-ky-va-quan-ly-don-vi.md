@@ -5,19 +5,19 @@ lang: vi
 
 # F-003: Đăng ký tài khoản, admin quản lý tài khoản và đơn vị
 
-Status: draft
+Status: accepted
 Source: `docs/requirements/use-cases.md` UC-1 (luồng 1.0 đăng ký) và UC-10. `docs/requirements/business-rules.md` BR-20, BR-22, BR-23, BR-24, BR-28 và BR-29 (mới). `docs/requirements/data-dictionary.md`. Intake, mục Acceptance của UC-1 và UC-10, và open item 4. Phiên trước giao brief này ngày 17/10/2026.
 
 ## Goal
 
-Người dùng tự tạo được tài khoản bằng số điện thoại và mật khẩu. Admin tạo được tài khoản chủ sân, đơn vị và sân, và khóa được tài khoản. Chủ sân thấy đơn vị của mình sau khi đăng nhập.
+Người dùng tự đăng ký, và admin tạo được chủ sân, đơn vị, sân và khóa được tài khoản. Kiểm tra bằng cách cho chủ sân mới đăng nhập: chủ sân chỉ thấy đơn vị của mình.
 
 ## Non-goals
 
 | Non-goal | Why it is out | When it comes back |
 |---|---|---|
 | Xác minh số điện thoại bằng OTP | Intake không yêu cầu. OTP cần dịch vụ SMS trả phí | Khi chạy thử thấy có tài khoản giả |
-| Đăng nhập bằng Google | Cần cấu hình OAuth trên Google Cloud | Brief F-004 |
+| Đăng nhập bằng Google | Intake chưa có. Cần cấu hình OAuth trên Google Cloud | Kế hoạch ở brief F-004, theo yêu cầu ngày 17/10/2026. Chưa code |
 | Chủ sân sửa giá và giờ mở cửa (UC-11) | Use case riêng, theo thứ tự ra mắt của intake | Brief của UC-11 |
 | Xóa đơn vị hoặc xóa sân | Booking đã có trỏ tới sân. Xóa làm mất lịch sử | Khi có yêu cầu |
 | Đổi mật khẩu, quên mật khẩu, xóa tài khoản (BR-26) | Cần luồng xác minh riêng | Trước khi có đơn vị thật thứ 4 |
@@ -61,6 +61,8 @@ Test trên dịch vụ thật dùng tên có tiền tố `test-`.
 | AC-26 | Admin đã đăng nhập trên web | Admin tạo chủ sân "Giang", rồi tạo đơn vị "Cầu lông C" cho Giang, rồi thêm "Sân 1" | Danh sách đơn vị trên màn hình hiện "Cầu lông C" với "Sân 1" |
 | AC-27 | Admin đã đăng nhập trên web | Admin tìm số `0901234567` và bấm "Khóa" | Dòng của An hiện "Đã khóa" và nút "Mở khóa" |
 | AC-28 | Bình đã đăng nhập trên web | Màn hình chủ sân mở xong | Mục "Đơn vị của tôi" hiện "Cầu lông A", "Sân 1" và "Sân 2", mỗi sân có "80.000đ" và "120.000đ". Không có đơn vị khác |
+| AC-29 | An bị khóa từ 16/10/2026 10:00 | Admin khóa An lần nữa, rồi khóa một id không có trong DB | Lần đầu nhận 200 với `lockedAt` = 16/10/2026 10:00. Lần sau nhận 404 |
+| AC-30 | Admin đã đăng nhập | Admin tạo đơn vị với `opensAt` = 375, rồi thêm sân với `priceNormal` = 0 vào "Cầu lông A" | Lần đầu nhận 400 "Giờ phải theo bước 30 phút". Lần sau nhận 400 "Giá phải lớn hơn 0" |
 
 ## Contract
 
@@ -92,7 +94,9 @@ Zod trong `packages/shared/src/` là nguồn duy nhất. Mọi route `/api/admin
 
 Ở `PATCH /api/admin/venues/:id`, server gộp body với đơn vị đang lưu. Rồi server kiểm kết quả bằng `VenueInput` và kiểm `ownerId` có vai trò `OWNER`. Server không lưu gì khi một kiểm tra sai.
 
-Lỗi 400 trả câu tiếng Việt của lỗi Zod đầu tiên, theo thứ tự trường. Các câu là: câu ở AC-5, AC-6, AC-12, AC-14, AC-17, AC-18, cùng "Giờ phải theo bước 30 phút" và "Giá phải lớn hơn 0". Lỗi Zod khác trả "Dữ liệu không hợp lệ". Service đổi lỗi unique (`P2002`) của `User.phone` và của (`Court.venueId`, `Court.name`) thành 409.
+Lỗi 400 của Zod trả câu tiếng Việt của lỗi đầu tiên, theo thứ tự trường. Các câu đó là câu ở AC-5, AC-6, AC-14, AC-18 và AC-30. Lỗi Zod khác trả "Dữ liệu không hợp lệ". Service đọc DB và trả hai câu 400 còn lại: "Không khóa được tài khoản admin" và "Chủ sân không hợp lệ".
+
+Service đổi lỗi unique (`P2002`) của `User.phone` và của (`Court.venueId`, `Court.name`) thành 409. Khi hai lần sửa đơn vị chạy cùng lúc, CHECK trong DB có thể chặn lần sau với `23514`. Service đổi lỗi này thành 400 "Giờ đóng cửa phải sau giờ mở cửa".
 
 ## Data
 
@@ -111,8 +115,8 @@ Không thêm bảng.
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
 | 1 | Hợp đồng và schema: Zod của F-003, `PRIVACY_NOTICE`, cột `consentAt`, CHECK của `Venue` và `Court`, BR-29, data dictionary | `packages/shared/src/`, `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/` (thư mục mới), `apps/api/prisma/migration.test.ts`, `docs/requirements/data-dictionary.md`, `docs/requirements/business-rules.md`, file brief này | Test Zod cho AC-5, AC-6, AC-18. AC-23 trên Postgres thật |
-| 2 | Server: đăng ký, tài khoản chủ sân, khóa và mở khóa | `apps/api/src/modules/auth/`, `apps/api/src/modules/admin/` (mới), `apps/api/src/app.module.ts` | AC-1 tới AC-14 |
-| 3 | Server: admin tạo và sửa đơn vị và sân, đơn vị của chủ sân | `apps/api/src/modules/admin/`, `apps/api/src/modules/venues/` | AC-15 tới AC-22 |
+| 2 | Server: đăng ký, tài khoản chủ sân, khóa và mở khóa | `apps/api/src/modules/auth/`, `apps/api/src/modules/admin/` (mới), `apps/api/src/app.module.ts` | AC-1 tới AC-14, AC-29 |
+| 3 | Server: admin tạo và sửa đơn vị và sân, đơn vị của chủ sân | `apps/api/src/modules/admin/`, `apps/api/src/modules/venues/` | AC-15 tới AC-22, AC-30 |
 | 4 | Màn hình: đăng ký, màn admin, mục "Đơn vị của tôi" | `apps/web/src/features/auth/`, `apps/web/src/features/admin/` (mới), `apps/web/src/features/venues/` (mới), `apps/web/src/app/`, `apps/web/src/components/`, `apps/web/src/lib/` | AC-24 tới AC-28 |
 
 Nếu PR 4 vượt khoảng 400 dòng thay đổi, tách thành 4a (đăng ký, đơn vị của tôi) và 4b (màn admin).
@@ -135,7 +139,7 @@ Nếu PR 4 vượt khoảng 400 dòng thay đổi, tách thành 4a (đăng ký, 
 | Bảo mật: leo quyền qua route admin | PR 2, PR 3 | `@Roles('ADMIN')` trên cả controller. AC-13 và AC-22 kiểm mọi route với chủ sân, người dùng và request không có cookie. Review bằng phiên mới |
 | Bảo mật: lộ mật khẩu | PR 2 | Băm argon2 như đăng nhập. `AccountView` không có `passwordHash`. AC-14 kiểm điều này |
 | Bảo mật: admin biết mật khẩu ban đầu của chủ sân | UC-10 bước 1 | Admin đặt mỗi chủ sân một mật khẩu riêng và gửi qua kênh riêng. Chủ sân đổi mật khẩu khi brief đổi mật khẩu xong |
-| Bảo mật: dò số đã đăng ký và đoán mật khẩu | `POST /api/auth/register`, `POST /api/auth/login` | Intake yêu cầu báo "số đã có tài khoản", nên dò số là rủi ro đã chấp nhận. Chưa giới hạn số lần thử. Giới hạn này quay lại trước ngày chạy thử |
+| Bảo mật: dò số đã đăng ký, đoán mật khẩu, và làm hết RAM bằng argon2 | `POST /api/auth/register`, `POST /api/auth/login` | Intake yêu cầu báo "số đã có tài khoản", nên dò số là rủi ro đã chấp nhận. Mỗi lần băm argon2 dùng khoảng 19 MB RAM. Chưa giới hạn số lần thử. `PROGRESS.md` ghi việc này là bước phải xong trước ngày chạy thử (open decision 2) |
 | Đơn vị của chủ sân bị khóa | `GET /api/venues` | Đơn vị vẫn nhận yêu cầu, nhưng không ai xác nhận, nên yêu cầu hết hạn. Admin chuyển đơn vị sang chủ sân khác |
 | Đổi giờ mở cửa khi đã có booking ngoài giờ mới | PR 3 | Booking cũ giữ nguyên. Giờ mới chỉ áp dụng cho yêu cầu mới |
 
@@ -144,9 +148,11 @@ Nếu PR 4 vượt khoảng 400 dòng thay đổi, tách thành 4a (đăng ký, 
 - Open item 4 của intake (Luật 91/2025) chưa có câu trả lời. Lựa chọn an toàn hơn: ô đồng ý bắt buộc và thông báo bảo vệ dữ liệu cá nhân ở màn đăng ký. Server lưu lúc đồng ý vào `User.consentAt`. Bạn và người tư vấn luật sửa nội dung thông báo sau.
 - Chỉ người dùng tự đăng ký mới có `consentAt`. Tài khoản do admin tạo và tài khoản seed có `consentAt` = null.
 - Mật khẩu dài 8–128 ký tự. Intake không ghi độ dài. Đây là quyết định sản phẩm cho người dùng điện thoại. NIST SP 800-63B-4 đòi 15 ký tự cho mật khẩu là yếu tố duy nhất, nên bạn có thể nâng mức này sau.
+- Server chưa so mật khẩu với danh sách mật khẩu phổ biến hoặc đã lộ. Việc này quay lại cùng với giới hạn số lần thử.
 - Đăng ký xong thì đăng nhập luôn (UC-1, bước 3). Cookie và thời hạn phiên giống đăng nhập: 30 ngày.
 - Admin không duyệt danh sách người dùng, vì BR-20 chỉ cho chủ sân của booking và host thấy số điện thoại của người dùng. Admin tìm một tài khoản theo đúng số điện thoại để khóa.
 - Admin không khóa được tài khoản admin. Điều này tránh việc admin tự khóa mình và mất quyền vào trang.
+- Admin mở khóa được tài khoản, vì khóa nhầm thì phải sửa được. Intake chỉ ghi khóa.
 - Khóa tài khoản có hiệu lực ngay, vì guard đọc `lockedAt` ở mỗi request. Phiên cũ của tài khoản bị khóa nhận 401.
 - Admin sửa được giá sân trong slice này, vì UC-10 cho admin sửa sân. Booking cũ giữ giá cũ (BR-6), vì `priceTotal` đã lưu lúc đặt.
 - Admin không đổi được môn của sân, vì trận sau này phải cùng môn với sân (data dictionary, `Match.sport`).
