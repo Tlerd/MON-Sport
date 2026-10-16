@@ -1,28 +1,47 @@
-import { HealthResponse } from '@monsport/shared';
+import type { SessionUser } from '@monsport/shared';
 import { useEffect, useState } from 'react';
+import { LoginForm } from '../features/auth/LoginForm.tsx';
+import { BookingForm } from '../features/bookings/BookingForm.tsx';
+import { MyBookings } from '../features/bookings/MyBookings.tsx';
+import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
+import { api } from '../lib/api.ts';
 
-type State = 'loading' | 'up' | 'down';
-
-const LABEL: Record<State, string> = {
-  loading: 'Đang kiểm tra kết nối…',
-  up: 'Máy chủ và cơ sở dữ liệu đang chạy',
-  down: 'Không kết nối được máy chủ hoặc cơ sở dữ liệu',
-};
-
+/** Composes the features by role. An admin has no screen in F-002. */
 export function App() {
-  const [state, setState] = useState<State>('loading');
+  const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
+  const [booked, setBooked] = useState(0);
 
   useEffect(() => {
-    fetch('/api/health')
-      .then((res) => res.json())
-      .then((body) => setState(HealthResponse.parse(body).db))
-      .catch(() => setState('down'));
+    api<SessionUser>('/api/auth/me').then(setUser, () => setUser(null));
   }, []);
 
+  async function logout() {
+    await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    setUser(null);
+  }
+
   return (
-    <main>
-      <h1>MONSPORT</h1>
-      <p>{LABEL[state]}</p>
-    </main>
+    <div className="shell">
+      <header className="top">
+        <h1>MONSPORT</h1>
+        {user && (
+          <span className="who">
+            {user.name}
+            <button type="button" className="link" onClick={logout}>Đăng xuất</button>
+          </span>
+        )}
+      </header>
+      <main>
+        {user === null && <LoginForm onLogin={setUser} />}
+        {user?.role === 'USER' && (
+          <>
+            <BookingForm onBooked={() => setBooked((n) => n + 1)} />
+            <MyBookings refresh={booked} />
+          </>
+        )}
+        {user?.role === 'OWNER' && <OwnerRequests />}
+        {user?.role === 'ADMIN' && <p className="empty">Màn admin chưa có trong bản này.</p>}
+      </main>
+    </div>
   );
 }
