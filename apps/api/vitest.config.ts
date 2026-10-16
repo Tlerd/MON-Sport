@@ -9,6 +9,8 @@ export default defineConfig({
     name: 'api',
     include: ['src/**/*.test.ts', 'prisma/**/*.test.ts'],
     globalSetup: ['test/migrate.ts'],
+    // The test files share one database, and the booking tests empty its tables.
+    fileParallelism: false,
     env: { DATABASE_URL: TEST_DATABASE_URL },
   },
 });
