@@ -28,6 +28,16 @@ describe('MyVenues', () => {
       expect(within(row as HTMLElement).getByText('80.000đ')).toBeTruthy();
       expect(within(row as HTMLElement).getByText('120.000đ')).toBeTruthy();
     }
+    expect(screen.queryByText('Chưa có sân.')).toBeNull();
+  });
+
+  it('shows each court with its own prices', async () => {
+    const venue = { ...CAU_LONG_A, courts: [CAU_LONG_A.courts[0], { ...CAU_LONG_A.courts[1], priceNormal: 70_000, pricePeak: 100_000 }] };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve([venue]) }));
+    render(<MyVenues />);
+    const row = (await screen.findByText('Sân 2')).closest('li') as HTMLElement;
+    expect(within(row).getByText('70.000đ')).toBeTruthy();
+    expect(within(row).getByText('100.000đ')).toBeTruthy();
   });
 
   it('says so when the owner has no venue yet', async () => {

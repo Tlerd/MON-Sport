@@ -1,6 +1,6 @@
 import type { VenueView } from '@monsport/shared';
 import { useEffect, useState } from 'react';
-import { api } from '../../lib/api.ts';
+import { api, ApiError } from '../../lib/api.ts';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { hhmm } from '../../lib/format.ts';
 
@@ -10,13 +10,14 @@ export function MyVenues() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api<VenueView[]>('/api/owner/venues').then(setVenues, () => setError('Không tải được đơn vị của bạn'));
+    api<VenueView[]>('/api/owner/venues').then(setVenues, (err) => setError(err instanceof ApiError ? err.message : 'Không tải được đơn vị của bạn'));
   }, []);
 
   return (
     <section className="panel">
       <h2>Đơn vị của tôi</h2>
       {error && <p className="error" role="alert">{error}</p>}
+      {venues === null && !error && <p className="empty">Đang tải…</p>}
       {venues?.length === 0 && <p className="empty">Bạn chưa có đơn vị nào. Admin gắn đơn vị cho tài khoản của bạn.</p>}
       <div className="venues">
         {venues?.map((v) => (

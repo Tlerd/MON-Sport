@@ -21,9 +21,12 @@ describe('AuthPanel', () => {
     const submit = screen.getByRole('button', { name: 'Tạo tài khoản' }) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
     for (const paragraph of PRIVACY_NOTICE.split('\n')) expect(screen.getByText(paragraph)).toBeTruthy();
+    const notice = screen.getByRole('region', { name: 'Thông báo bảo vệ dữ liệu cá nhân' });
+    expect(notice.tabIndex).toBe(0);
+    expect(notice.compareDocumentPosition(screen.getByRole('checkbox')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('AC-25: ticking the box and signing up sends the consent and signs the user in', async () => {
+  it('sends the consent with the sign-up and hands the new user to the app', async () => {
     const lan = { id: '0199a1b2-0000-7000-8000-000000000009', name: 'Lan', role: 'USER' };
     const fetch = vi.fn().mockResolvedValue({ ok: true, status: 201, json: () => Promise.resolve(lan) });
     vi.stubGlobal('fetch', fetch);
@@ -53,10 +56,11 @@ describe('AuthPanel', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Số điện thoại này đã có tài khoản');
   });
 
-  it('goes back to the login form', () => {
+  it('goes back to the login form, and moves focus to its heading', () => {
     render(<AuthPanel onLogin={() => undefined} />);
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Tạo tài khoản' }));
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
-    expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Đăng nhập' }));
   });
 });

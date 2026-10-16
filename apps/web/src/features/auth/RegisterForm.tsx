@@ -25,16 +25,19 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
 
   return (
     <>
-      <h2>Tạo tài khoản</h2>
+      <h2 tabIndex={-1}>Tạo tài khoản</h2>
       <form onSubmit={submit} className="stack">
         <label>
           Tên của bạn
           <input autoComplete="name" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
-        <label>
-          Số điện thoại
-          <input inputMode="tel" autoComplete="tel" maxLength={10} value={phone} onChange={(e) => setPhone(e.target.value)} required />
-        </label>
+        <div>
+          <label>
+            Số điện thoại
+            <input type="tel" autoComplete="tel-national" aria-describedby="phone-hint" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+          </label>
+          <p id="phone-hint" className="hint">10 chữ số, bắt đầu bằng 0.</p>
+        </div>
         <div>
           <label>
             Mật khẩu
@@ -43,15 +46,18 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
           </label>
           <p id="password-hint" className="hint">Ít nhất 8 ký tự.</p>
         </div>
-        <div className="privacy" role="region" aria-label="Thông báo bảo vệ dữ liệu cá nhân" tabIndex={0}>
+        <div id="privacy-notice" className="privacy" role="region" aria-label="Thông báo bảo vệ dữ liệu cá nhân" tabIndex={0}>
           {PRIVACY_NOTICE.split('\n').map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
         </div>
         <label className="consent">
-          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+          <input type="checkbox" aria-describedby="privacy-notice" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           Tôi đã đọc và đồng ý với thông báo bảo vệ dữ liệu cá nhân ở trên.
         </label>
         {error && <p className="error" role="alert">{error}</p>}
-        <button type="submit" disabled={!consent || busy}>Tạo tài khoản</button>
+        <div>
+          <button type="submit" disabled={!consent || busy} aria-describedby={consent ? undefined : 'consent-hint'}>Tạo tài khoản</button>
+          {!consent && <p id="consent-hint" className="hint">Tick ô đồng ý để tạo tài khoản.</p>}
+        </div>
       </form>
     </>
   );

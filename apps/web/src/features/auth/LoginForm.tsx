@@ -20,7 +20,7 @@ export function LoginForm({ onLogin }: { onLogin: (user: SessionUser) => void })
 
   return (
     <>
-      <h2>Đăng nhập</h2>
+      <h2 tabIndex={-1}>Đăng nhập</h2>
       <form onSubmit={submit} className="stack">
         <label>
           Số điện thoại

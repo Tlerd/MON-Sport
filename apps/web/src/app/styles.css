@@ -7,6 +7,7 @@
   --line: #fbfbf7;
   --flood: #f2b33d;
   --flood-soft: #fdf0d2;
+  --flood-ink: #7a5410; /* amber text on --flood-soft, 4.5:1 or more */
   --ink: #17201c;
   --muted: #55625c;
   --rule: #c9d4ce;
@@ -97,6 +98,7 @@ button.secondary { background: transparent; color: var(--alert); box-shadow: ins
 button.secondary:hover { background: var(--alert-soft); }
 button.link { min-height: auto; padding: 0; background: none; color: var(--flood); font-weight: 600; text-decoration: underline; }
 button.link:hover { background: none; }
+h2[tabindex='-1']:focus { outline: none; }
 :focus-visible { outline: 3px solid var(--flood); outline-offset: 2px; }
 /* On the white panels amber is too faint for a focus ring (WCAG 1.4.11). */
 .panel :focus-visible { outline-color: var(--court-deep); box-shadow: 0 0 0 6px var(--flood); }
@@ -181,7 +183,7 @@ button.link:hover { background: none; }
 
 /* A venue card, and its courts as rows with the normal and peak price per hour */
 .venues { display: grid; gap: 0.75rem; }
-.venue { display: grid; gap: 0.5rem; padding: 0.875rem; border: 1.5px solid var(--rule); border-radius: 8px; background: #fff; }
+.venue { display: grid; gap: 0.5rem; padding: 0.875rem; border: 1.5px solid var(--rule); border-radius: 8px; background: var(--line); }
 .venue h3 { margin: 0; font-size: 1.125rem; font-weight: 800; color: var(--court-deep); }
 .courts { list-style: none; margin: 0; padding: 0; display: grid; }
 .courts li { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 0 0.75rem; padding: 0.5rem 0; border-top: 1px dashed var(--rule); }
@@ -191,4 +193,4 @@ button.link:hover { background: none; }
 .price small { font-size: 0.6875rem; color: var(--muted); }
 .price b { font-weight: 800; }
 .price.peak { background: var(--flood-soft); }
-.price.peak small { color: #7a5410; }
+.price.peak small { color: var(--flood-ink); }
