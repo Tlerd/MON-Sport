@@ -51,6 +51,15 @@ beforeEach(async () => {
 });
 
 describe('admin accounts', () => {
+  it('creates an OWNER whatever role the body names', async () => {
+    await as('admin').post('/api/admin/owners', { name: 'Giang', phone: '0912345681', password: 'matkhau123', role: 'ADMIN' }).expect(201);
+    expect((await db.user.findUniqueOrThrow({ where: { phone: '0912345681' } })).role).toBe('OWNER');
+  });
+
+  it('answers the Vietnamese generic text for a malformed id', async () => {
+    expect((await as('admin').post('/api/admin/users/abc/lock').expect(400)).body.message).toBe('Dữ liệu không hợp lệ');
+  });
+
   it('AC-7: the admin creates an owner who can sign in', async () => {
     const res = await as('admin').post('/api/admin/owners', { name: 'Giang', phone: '0912345681', password: 'matkhau123' }).expect(201);
     expect(res.body).toEqual({ id: expect.any(String), name: 'Giang', phone: '0912345681', role: 'OWNER', lockedAt: null, createdAt: NOW.toISOString() });
@@ -69,9 +78,10 @@ describe('admin accounts', () => {
   });
 
   it('AC-10: the old session of a locked account gets 401', async () => {
-    await as('An').get('/api/auth/me').expect(200);
+    const session = (await login('0901234567').expect(200)).headers['set-cookie']![0].split(';')[0];
+    await http().get('/api/auth/me').set('Cookie', session).expect(200);
     await as('admin').post(`/api/admin/users/${ids.An}/lock`).expect(200);
-    await as('An').get('/api/auth/me').expect(401);
+    await http().get('/api/auth/me').set('Cookie', session).expect(401);
   });
 
   it('AC-11: an unlocked account signs in again', async () => {

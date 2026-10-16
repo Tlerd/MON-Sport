@@ -1,9 +1,12 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
-import { type AccountView, CreateOwnerRequest, errorMessage, UserSearchRequest } from '@monsport/shared';
+import { type AccountView, CreateOwnerRequest, errorMessage, Messages, UserSearchRequest } from '@monsport/shared';
 import { AccountsService, toAccountView } from '../auth/accounts.service.js';
 import { Roles, SessionGuard } from '../auth/session.guard.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
+
+// A malformed id gets the Vietnamese generic text, not the English text of the pipe.
+const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(Messages.invalid) });
 
 // UC-10: only the ADMIN role reaches these routes (brief F-003).
 @Controller('admin')
@@ -45,18 +48,19 @@ export class AdminAccountsController {
   /** UC-10, flow 10.1 and BR-28. The session guard reads lockedAt on each request, so the lock acts at once. */
   @Post('users/:id/lock')
   @HttpCode(200)
-  async lock(@Param('id', ParseUUIDPipe) id: string): Promise<AccountView> {
+  async lock(@Param('id', Id) id: string): Promise<AccountView> {
+    // One conditional write: a parallel unlock cannot slip between a read and the write, and the first lock time stays.
+    await this.prisma.user.updateMany({ where: { id, lockedAt: null, deletedAt: null, role: { not: 'ADMIN' } }, data: { lockedAt: this.clock.now() } });
     const user = await this.account(id);
     if (user.role === 'ADMIN') throw new BadRequestException('Không khóa được tài khoản admin');
-    if (user.lockedAt) return toAccountView(user);
-    return toAccountView(await this.prisma.user.update({ where: { id }, data: { lockedAt: this.clock.now() } }));
+    return toAccountView(user);
   }
 
   @Post('users/:id/unlock')
   @HttpCode(200)
-  async unlock(@Param('id', ParseUUIDPipe) id: string): Promise<AccountView> {
-    await this.account(id);
-    return toAccountView(await this.prisma.user.update({ where: { id }, data: { lockedAt: null } }));
+  async unlock(@Param('id', Id) id: string): Promise<AccountView> {
+    await this.prisma.user.updateMany({ where: { id, deletedAt: null }, data: { lockedAt: null } });
+    return toAccountView(await this.account(id));
   }
 
   private async account(id: string) {

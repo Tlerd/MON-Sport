@@ -85,5 +85,6 @@ describe('POST /api/auth/register', () => {
   it('ignores a role field, so nobody signs up as an admin', async () => {
     const res = await register({ ...lan, role: 'ADMIN' }).expect(201);
     expect(res.body.role).toBe('USER');
+    expect((await db.user.findUniqueOrThrow({ where: { phone: lan.phone } })).role).toBe('USER');
   });
 });
