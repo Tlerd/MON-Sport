@@ -1,0 +1,55 @@
+name: deploy
+
+# A push to main (a merged pull request) goes live on Cloud Run after the ci run of that commit passes.
+# Google Cloud trusts this repository's main branch through Workload Identity Federation,
+# so GitHub stores no key. docs/deploy-gcp.md shows the setup.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.repository == 'Tlerd/MON-Sport' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # Two merges close together can finish ci out of order. Only the newest main commit deploys.
+      - id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANT: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          head=$(gh api "repos/${{ github.repository }}/commits/main" --jq .sha)
+          if [ "$head" = "$WANT" ]; then echo "deploy=true" >> "$GITHUB_OUTPUT"; else echo "main moved to $head, skip $WANT"; fi
+      - if: steps.latest.outputs.deploy == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - if: steps.latest.outputs.deploy == 'true'
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      # The service keeps its Cloud SQL link, secrets, and memory from the first deploy.
+      - id: deploy
+        if: steps.latest.outputs.deploy == 'true'
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: monsport
+          region: asia-southeast1
+          source: .
+      - name: The service answers
+        if: steps.latest.outputs.deploy == 'true'
+        run: curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "${{ steps.deploy.outputs.url }}/api/health"

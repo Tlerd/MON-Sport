@@ -11,7 +11,7 @@ Updated: 2026-10-17
 - PR #7 merged before its concurrency fix. PR #10 carried the fix (row lock `FOR UPDATE` on `Court`), the `SESSION_SECRET` start-up check, and the security tests.
 - The full flow ran in the browser on 2026-10-16 with the real API.
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
-- `docs/deploy-gcp.md` deploys `main` to Cloud Run and Cloud SQL. CI builds the image and starts it on each pull request.
+- Live at https://monsport-774323404592.asia-southeast1.run.app (Cloud Run + Cloud SQL, demo seed data). Each merge to `main` deploys through `.github/workflows/deploy.yml`.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot.
 - The usage guard (`D:/REPO_GITHUB_TRY/usage-guard`) pauses at 95% of the 5-hour window. At the reset, a scheduled `claude -p "tiếp tục làm"` continues the work, and it reschedules itself when it hits a limit. The desktop app does not write `state.json`, so the agent writes it from the app usage data.
 
@@ -33,5 +33,5 @@ Updated: 2026-10-17
 ## Next step
 
 1. F-003: UC-1 (sign-up and login) with UC-10 (accounts and venues), the first slice of the intake launch order. Write its brief with `feature-brief`, get a Reviewer check, open its issue, and build it.
-2. Until the user answers open decision 4, the safe default is a consent checkbox and a privacy notice at sign-up. Record it as an assumption. Do not deploy F-003 before the user answers decision 4.
+2. Until the user answers open decision 4, the safe default is a consent checkbox and a privacy notice at sign-up. Record it as an assumption.
 3. Then F-004: UC-11 (prices and opening hours).
