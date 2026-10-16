@@ -13,7 +13,8 @@ export type BookingStatus = z.infer<typeof BookingStatus>;
 export const BookingSource = z.enum(['APP', 'PHONE']);
 export type BookingSource = z.infer<typeof BookingSource>;
 
-export const Phone = z.string().regex(/^0\d{9}$/, 'Số điện thoại có 10 chữ số và bắt đầu bằng 0');
+export const PHONE_MESSAGE = 'Số điện thoại có 10 chữ số và bắt đầu bằng 0';
+export const Phone = z.string().regex(/^0\d{9}$/, PHONE_MESSAGE);
 
 const Instant = z.iso.datetime({ offset: true });
 
@@ -37,6 +38,7 @@ export const CourtView = z.object({
   priceNormal: z.int().positive(),
   pricePeak: z.int().positive(),
 });
+export type CourtView = z.infer<typeof CourtView>;
 
 export const VenueView = z.object({
   id: z.uuid(),

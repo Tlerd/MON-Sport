@@ -29,8 +29,8 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | BookingStatus | Trạng thái của booking | enum | — | `PENDING` Chờ xác nhận · `CONFIRMED` Đã xác nhận · `REJECTED` Bị từ chối · `EXPIRED` Hết hạn · `CANCELLED` Đã hủy |
 | Court | Một sân trong một đơn vị | id + venueId + name + sport + priceNormal + pricePeak | — | — |
 | Court.name | Tên sân | text | 1–50 ký tự | Duy nhất trong một đơn vị |
-| Court.priceNormal | Giá một giờ, giờ thường | money | — | Lớn hơn 0 |
-| Court.pricePeak | Giá một giờ, giờ cao điểm | money | — | Lớn hơn 0 (BR-4) |
+| Court.priceNormal | Giá một giờ, giờ thường | money | — | Lớn hơn 0, tối đa 10.000.000 (brief F-003) |
+| Court.pricePeak | Giá một giờ, giờ cao điểm | money | — | Lớn hơn 0, tối đa 10.000.000 (BR-4, brief F-003) |
 | Court.sport | Môn chơi của sân | Sport | — | — |
 | Court.venueId | Đơn vị chứa sân | id của Venue | 36 | — |
 | createdAt | Lúc tạo bản ghi | timestamptz(3) | — | Do hệ thống ghi |
@@ -68,7 +68,8 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | Role | Vai trò tài khoản | enum | — | `ADMIN` · `OWNER` (chủ sân) · `USER` (người dùng) |
 | Sport | Môn chơi | enum | — | `FOOTBALL` bóng đá · `BADMINTON` cầu lông |
 | timestamptz(3) | Thời điểm | timestamp with time zone, mili giây | — | Lưu UTC. Hiển thị theo `Asia/Ho_Chi_Minh` (BR-27) |
-| User | Một tài khoản | id + name + phone + passwordHash + role + (lockedAt) + (deletedAt) + createdAt | — | — |
+| User | Một tài khoản | id + name + phone + passwordHash + role + (lockedAt) + (deletedAt) + (consentAt) + createdAt | — | — |
+| User.consentAt | Lúc người dùng đồng ý với thông báo bảo vệ dữ liệu cá nhân khi đăng ký | timestamptz(3) | — | Có khi người dùng tự đăng ký. Null với tài khoản do admin hoặc seed tạo (brief F-003) |
 | User.deletedAt | Lúc người dùng xóa tài khoản | timestamptz(3) | — | Khi có, `name` và `phone` đã được thay (BR-26) |
 | User.lockedAt | Lúc admin khóa tài khoản | timestamptz(3) | — | Khi có, tài khoản không đăng nhập được (BR-28) |
 | User.name | Tên hiển thị | text | 1–100 ký tự | — |
