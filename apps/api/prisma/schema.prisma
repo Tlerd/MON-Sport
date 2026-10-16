@@ -1,0 +1,100 @@
+// Names follow docs/requirements/data-dictionary.md. Brief F-002 adds User, Venue, Court, and Booking.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "esm"
+  importFileExtension    = "js"
+  generatedFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  OWNER
+  USER
+}
+
+enum Sport {
+  FOOTBALL
+  BADMINTON
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum BookingSource {
+  APP
+  PHONE
+}
+
+model User {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  name         String    @db.VarChar(100)
+  phone        String    @unique @db.VarChar(10)
+  passwordHash String    @db.VarChar(200)
+  role         Role      @default(USER)
+  lockedAt     DateTime? @db.Timestamptz(3)
+  deletedAt    DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  venues       Venue[]
+  bookings     Booking[]
+}
+
+model Venue {
+  id       String  @id @default(uuid(7)) @db.Uuid
+  ownerId  String  @db.Uuid
+  name     String  @db.VarChar(100)
+  address  String  @db.VarChar(200)
+  phone    String  @db.VarChar(10)
+  /// Minutes since 00:00, a multiple of 30.
+  opensAt  Int
+  /// Minutes since 00:00, a multiple of 30, after opensAt.
+  closesAt Int
+  owner    User    @relation(fields: [ownerId], references: [id])
+  courts   Court[]
+}
+
+model Court {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  venueId     String    @db.Uuid
+  name        String    @db.VarChar(50)
+  sport       Sport
+  priceNormal Int
+  pricePeak   Int
+  venue       Venue     @relation(fields: [venueId], references: [id])
+  bookings    Booking[]
+
+  @@unique([venueId, name])
+}
+
+model Booking {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  courtId         String        @db.Uuid
+  startAt         DateTime      @db.Timestamptz(3)
+  endAt           DateTime      @db.Timestamptz(3)
+  status          BookingStatus
+  source          BookingSource
+  createdById     String        @db.Uuid
+  customerName    String?       @db.VarChar(100)
+  customerPhone   String?       @db.VarChar(10)
+  priceTotal      Int
+  paidAtVenue     Boolean       @default(false)
+  confirmDeadline DateTime?     @db.Timestamptz(3)
+  confirmedAt     DateTime?     @db.Timestamptz(3)
+  cancelledAt     DateTime?     @db.Timestamptz(3)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  court           Court         @relation(fields: [courtId], references: [id])
+  createdBy       User          @relation(fields: [createdById], references: [id])
+
+  @@index([courtId, status])
+  @@index([createdById])
+}
