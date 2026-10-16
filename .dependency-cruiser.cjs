@@ -72,9 +72,9 @@ module.exports = {
     },
   ],
   options: {
-    doNotFollow: { path: 'node_modules' },
-    // Prisma generates this client. Its files import each other in circles, and nobody edits them.
-    exclude: { path: '^apps/api/src/generated/' },
+    // Prisma generates the client in apps/api/src/generated/. Its files import each other in circles.
+    // Not following it skips those circles, but an import into it still meets the rules.
+    doNotFollow: { path: ['node_modules', '^apps/api/src/generated/'] },
     tsPreCompilationDeps: true,
   },
 };

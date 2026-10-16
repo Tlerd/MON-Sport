@@ -9,7 +9,10 @@ import pg from 'pg';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 const url = process.env.DATABASE_URL ?? '';
-if (!/@localhost[:/]/.test(url)) throw new Error('The seed runs only against a database on localhost.');
+// Read the real host: a `host` parameter in the query would override the one in the authority.
+const parsed = URL.canParse(url) ? new URL(url) : null;
+if (!parsed || !['localhost', '127.0.0.1'].includes(parsed.hostname) || parsed.searchParams.has('host'))
+  throw new Error('The seed runs only against a database on localhost.');
 
 const SEED_PASSWORD = 'monsport123';
 const passwordHash = await hash(SEED_PASSWORD);
