@@ -13,7 +13,7 @@ Updated: 2026-10-17
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
 - `docs/deploy-gcp.md` deploys `main` to Cloud Run and Cloud SQL. CI builds the image and starts it on each pull request.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot.
-- The usage guard (`D:/REPO_GITHUB_TRY/usage-guard`) has both lines at 100%. The desktop app does not write its `state.json`, so the agent writes it from the app's usage data.
+- The usage guard (`D:/REPO_GITHUB_TRY/usage-guard`) pauses at 95% of the 5-hour window. At the reset, a scheduled `claude -p "tiếp tục làm"` continues the work, and it reschedules itself when it hits a limit. The desktop app does not write `state.json`, so the agent writes it from the app usage data.
 
 ## Decisions settled on 2026-10-16
 

@@ -63,6 +63,7 @@ A fix, a chore, or a docs change that no brief covers needs no issue. Its branch
 
 The user starts work with "tiếp tục", "continue", or a goal. Then plan and work without asking until the goal is met and `pnpm check` passes on `main`.
 
+- Run `git status` first. Finish work in progress on the current branch before anything new.
 - Without a goal, do the steps in `PROGRESS.md` in order until no step is left or a stop item comes up. Pick the next slice by the launch order in the intake.
 - When a decision is open, choose the option that the intake supports best, or else the safer one. Write it under "Assumptions" in the brief or the pull request, with the reason. The user corrects it later.
 - Stop and ask only for these:
