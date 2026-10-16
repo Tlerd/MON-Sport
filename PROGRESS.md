@@ -31,6 +31,8 @@ Updated: 2026-10-16
 4. Whether Luật 91/2025 requires consent at sign-up. Owner: the user, with a legal adviser.
 5. Which Postgres version Supabase gives the production project. Check it when the project is created.
 
+5. Follow-ups from the review of PR #7: check `SESSION_SECRET` at start-up and refuse the default outside tests (item 3); add tests for a wrong phone (same 401), a locked account (403), and a forged or expired cookie (401) (item 6). Also show "1,5 giờ", not "1.5 giờ", in the booking form.
+
 ## Next step
 
 1. Merge PR #7 after its review and CI pass. Then issue #5 is done.
