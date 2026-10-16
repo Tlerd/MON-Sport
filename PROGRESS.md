@@ -7,7 +7,8 @@ Updated: 2026-10-16
 ## Current state
 
 - `main` holds the intake, ADR 0002, the agent roles, the workflow, and the issue and PR templates (PR #1).
-- Branch `chore/skeleton` holds pull request 0: `packages/shared`, `apps/api` (NestJS, `GET /api/health`), `apps/web` (React + Vite), and Postgres 18 in CI.
+- `main` also holds pull request 0 (PR #2): `packages/shared`, `apps/api` (NestJS, `GET /api/health`), `apps/web` (React + Vite), and Postgres 18 in CI.
+- Branch `docs/requirements-v1` holds the glossary, business rules (BR-1 to BR-28), use cases (UC-1 to UC-14), the data dictionary, and the models. The API contract of a feature goes in its brief.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). It needs no password of the system Postgres on 5432. Start it again after a reboot.
 - The usage guard in `D:\REPO_GITHUB_TRY\usage-guard` reads `~/.claude/usage-guard/state.json`. The desktop app does not write it, so the agent writes it from the app's usage data. Headless runs fail until `claude /login`.
 
@@ -28,6 +29,5 @@ Updated: 2026-10-16
 
 ## Next step
 
-1. Merge pull request 0 after CI passes and the user agrees.
-2. Write the requirements documents from the intake with `ba-docs`: use cases, business rules, data model, and API.
-3. Write the first feature brief with `feature-brief`, open its issue, and build it.
+1. Merge the pull request of `docs/requirements-v1` after the user agrees.
+2. Write the first feature brief with `feature-brief`: UC-3 and UC-4 with the `Booking` table and BR-1. Open its issue, then build it.
