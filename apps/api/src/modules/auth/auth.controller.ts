@@ -1,9 +1,10 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, HttpCode, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
-import { LoginRequest, type SessionUser } from '@monsport/shared';
+import { errorMessage, LoginRequest, RegisterRequest, type SessionUser } from '@monsport/shared';
 import { hash, verify } from '@node-rs/argon2';
 import type { Response } from 'express';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { AccountsService } from './accounts.service.js';
 import { issueSession, SESSION_COOKIE, SESSION_MS } from './session.js';
 import { type AuthedRequest, SessionGuard } from './session.guard.js';
 
@@ -15,7 +16,22 @@ export class AuthController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    private readonly accounts: AccountsService,
   ) {}
+
+  /** UC-1, flow 1.0: a guest signs up as a USER and is signed in (brief F-003). */
+  @Post('register')
+  @HttpCode(201)
+  async register(@Body() body: unknown, @Res({ passthrough: true }) res: Response): Promise<SessionUser> {
+    const input = RegisterRequest.safeParse(body);
+    if (!input.success) throw new BadRequestException(errorMessage(input.error));
+    const now = this.clock.now();
+    const { consent: _consent, ...account } = input.data;
+    // The role is fixed here. A role field in the body is ignored, because Zod strips unknown keys.
+    const user = await this.accounts.create({ ...account, role: 'USER', consentAt: now, createdAt: now });
+    this.startSession(res, user.id);
+    return { id: user.id, name: user.name, role: user.role };
+  }
 
   @Post('login')
   @HttpCode(200)
@@ -28,13 +44,7 @@ export class AuthController {
     if (!user || user.deletedAt || !passwordOk)
       throw new UnauthorizedException('Sai số điện thoại hoặc mật khẩu');
     if (user.lockedAt) throw new ForbiddenException('Tài khoản đã bị khóa'); // BR-28
-    res.cookie(SESSION_COOKIE, issueSession(user.id, this.clock.now()), {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: SESSION_MS,
-      path: '/',
-    });
+    this.startSession(res, user.id);
     return { id: user.id, name: user.name, role: user.role };
   }
 
@@ -48,5 +58,15 @@ export class AuthController {
   @UseGuards(SessionGuard)
   me(@Req() req: AuthedRequest): SessionUser {
     return req.user;
+  }
+
+  private startSession(res: Response, userId: string): void {
+    res.cookie(SESSION_COOKIE, issueSession(userId, this.clock.now()), {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: SESSION_MS,
+      path: '/',
+    });
   }
 }
