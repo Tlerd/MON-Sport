@@ -1,6 +1,6 @@
 # MONSPORT
 
-Web and mobile app to book sports courts, join matches, and pay. One developer builds it with coding agents. This file is the map for every agent.
+Web app to book sports courts and join matches. Venue owners confirm bookings by hand, and the first version takes no payment. One developer builds it with coding agents. This file is the map for every agent.
 
 ## Commands
 
@@ -23,15 +23,15 @@ packages/shared/src/                   Zod schemas: the one source of the API co
 
 `.dependency-cruiser.cjs` holds the import rules. A violation prints its own fix.
 
-## Specification
+## Requirements
 
-`docs/spec/dac-ta-ky-thuat.md`, in Vietnamese, is the source of truth for the technical design (`docs/adr/0001-nguon-su-that-dac-ta.md`). Its table "Quyết định khác bản gốc" overrides the sections below it.
+`docs/requirements/intake-monsport-v1.md`, in Vietnamese, is the source of truth for what to build (`docs/adr/0002-nguon-su-that-intake.md`). Other requirements documents in `docs/requirements/` derive from it.
 
-- Code a feature from its brief in `docs/briefs/`. The brief gives the acceptance criteria, the contract, the build order, and the paths you may edit.
-- Before you code a feature, read its design (§4), the data model (§5), and the API (§6).
+- `docs/spec/` and `docs/briefs/F-001-tao-tran-kem-dat-san.md` are reference only. Do not code from them.
+- Code a feature from its brief in `docs/briefs/`. The brief traces to the intake, and gives the acceptance criteria, the contract, the build order, and the paths you may edit.
 - Give each acceptance criterion a test whose name starts with its label, for example `AC-1`.
-- Take the names of tables, types, and fields from §5.
-- Ask before you start when a request conflicts with the specification or its brief, or leaves the data model or a business rule unclear.
+- Use the terms of the table "Tên gọi" in the intake. Take the names of tables, types, and fields from the data model in `docs/requirements/` when it exists.
+- Ask before you start when a request conflicts with the intake or its brief, or leaves the data model or a business rule unclear.
 - A change to money, concurrency, or the schema gets a review from a fresh session before merge.
 - Record a decision that is costly to reverse as a new file in `docs/adr/`.
 

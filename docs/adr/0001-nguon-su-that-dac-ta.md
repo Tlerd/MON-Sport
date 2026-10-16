@@ -1,6 +1,6 @@
 # 0001: Đặc tả kỹ thuật nằm trong repo
 
-Status: Accepted
+Status: Superseded by 0002
 Date: 2026-10-16
 
 ## Context

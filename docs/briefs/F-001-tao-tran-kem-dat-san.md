@@ -5,7 +5,7 @@ lang: vi
 
 # F-001: Tạo trận kèm đặt sân, chặn trùng giờ
 
-Status: accepted
+Status: superseded. Chỉ dùng để tham khảo, không code theo file này (ADR 0002).
 Source: `docs/spec/dac-ta-ky-thuat.md` §4.1, §5, §6 (M2), §9 tiêu chí 1, 2, 6. Viết bằng skill `feature-brief` ngày 16/10/2026.
 
 ## Decisions

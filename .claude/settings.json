@@ -1,4 +1,8 @@
 {
+  "model": "opusplan",
+  "permissions": {
+    "defaultMode": "plan"
+  },
   "enabledPlugins": {
     "playwright@claude-plugins-official": true,
     "ba-kit@ba-kit": true

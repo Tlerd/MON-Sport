@@ -2,7 +2,7 @@
 
 Nguồn: §3–§6 và §9 của tài liệu `9. ke-hoach-web-app-dat-san-ghep-nguoi-thanh-toan.md` trong vault (bản ngày 12/10/2026), chép nguyên văn ngày 16/10/2026. Số mục giữ nguyên như bản gốc, nên `§4`, `§5`, `§6`, `§9` trỏ đúng chỗ.
 
-Từ ngày 16/10/2026, file này là nguồn sự thật cho phần kỹ thuật (ADR 0001). Sửa ở đây trước, rồi mới sửa vault. Các mục khác của tài liệu `9.` (quyết định chờ chốt, lộ trình, giờ công, chi phí, rủi ro) vẫn nằm ở vault. Các tham chiếu như `7.`, `8.`, `4.2 §A2.1`, `§1.3`, `§2`, `§8.3` trỏ tới vault.
+Từ ngày 16/10/2026, file này chỉ dùng để tham khảo (ADR 0002). Nguồn sự thật là `docs/requirements/intake-monsport-v1.md`. Không code theo file này.
 
 ## Quyết định khác bản gốc
 
