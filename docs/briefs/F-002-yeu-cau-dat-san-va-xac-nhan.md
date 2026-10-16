@@ -5,7 +5,7 @@ lang: vi
 
 # F-002: Gửi yêu cầu đặt sân, chủ sân xác nhận hoặc từ chối
 
-Status: draft
+Status: accepted
 Source: `docs/requirements/use-cases.md` UC-3, UC-4 và luồng 1.1 (đăng nhập) của UC-1. `docs/requirements/business-rules.md` BR-1 tới BR-9, BR-20, BR-22, BR-23, BR-25, BR-27. `docs/requirements/data-dictionary.md`. Bạn giao brief này ngày 16/10/2026.
 
 ## Goal
@@ -113,7 +113,7 @@ Nếu PR 2 vượt khoảng 400 dòng thay đổi, tách thành 2a (đăng nhậ
 
 | Question | Owner | Blocks |
 |---|---|---|
-| Phiên đăng nhập kéo dài bao lâu? Đề xuất: 30 ngày | Bạn | không |
+| Phiên đăng nhập kéo dài bao lâu? Đã chốt ngày 16/10/2026: 30 ngày | Bạn | không |
 | Số sân thật của từng đơn vị (open item 1 của intake). Seed tạm dùng 2 sân cho mỗi đơn vị | Bạn | không |
 
 ## Done when

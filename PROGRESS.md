@@ -9,7 +9,7 @@ Updated: 2026-10-16
 - `main` holds the intake, ADR 0002, the agent roles, the workflow, and the issue and PR templates (PR #1).
 - `main` also holds pull request 0 (PR #2): `packages/shared`, `apps/api` (NestJS, `GET /api/health`), `apps/web` (React + Vite), and Postgres 18 in CI.
 - `main` also holds the requirements documents (PR #3): glossary, BR-1 to BR-28, UC-1 to UC-14, data dictionary, models.
-- Branch `docs/brief-f-002` holds the draft brief F-002 (UC-3, UC-4, login): 21 acceptance criteria, 3 pull requests.
+- Branch `docs/brief-f-002` holds the accepted brief F-002 (UC-3, UC-4, login): 21 acceptance criteria, 3 pull requests.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). It needs no password of the system Postgres on 5432. Start it again after a reboot.
 - The usage guard in `D:\REPO_GITHUB_TRY\usage-guard` reads `~/.claude/usage-guard/state.json`. The desktop app does not write it, so the agent writes it from the app's usage data. Headless runs fail until `claude /login`.
 
