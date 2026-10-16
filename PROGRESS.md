@@ -13,14 +13,14 @@ Updated: 2026-10-17
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
 - `docs/deploy-gcp.md` deploys `main` to Cloud Run and Cloud SQL. CI builds the image and starts it on each pull request.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot.
-- The usage guard (`D:/REPO_GITHUB_TRY/usage-guard`) has both lines at 100%. The desktop app does not write its `state.json`, so the agent writes it from the app's usage data.
+- The usage guard (`D:/REPO_GITHUB_TRY/usage-guard`) pauses at 95% of the 5-hour window. At the reset, a scheduled `claude -p "tiếp tục làm"` continues the work, and it reschedules itself when it hits a limit. The desktop app does not write `state.json`, so the agent writes it from the app usage data.
 
 ## Decisions settled on 2026-10-16
 
 - `docs/requirements/intake-monsport-v1.md` is the source of truth (ADR 0002).
 - The stack: NestJS 12, React 19 + Vite 8, PostgreSQL (18 locally and in CI), Prisma 7 from pull request 1, Zod 4, SSE for real-time updates.
 - The API is ESM and builds with SWC, because Nest needs decorator metadata. `packages/shared` ships TypeScript source.
-- Claude Code: `opusplan`, plan mode by default, and `Explore` on Haiku.
+- Agents work without asking, under "Autonomy" in `AGENTS.md`. Claude Code: Opus, `acceptEdits`, and `Explore` on Haiku. Antigravity: `.agents/rules/model-routing.md`.
 
 ## Open decisions
 
@@ -32,5 +32,6 @@ Updated: 2026-10-17
 
 ## Next step
 
-1. The user picks the next slice. The intake order suggests UC-1 sign-up with UC-10 admin screens, or UC-2 the free-slot grid.
-2. Write its brief with `feature-brief`, open its issue, and build it.
+1. F-003: UC-1 (sign-up and login) with UC-10 (accounts and venues), the first slice of the intake launch order. Write its brief with `feature-brief`, get a Reviewer check, open its issue, and build it.
+2. Until the user answers open decision 4, the safe default is a consent checkbox and a privacy notice at sign-up. Record it as an assumption. Do not deploy F-003 before the user answers decision 4.
+3. Then F-004: UC-11 (prices and opening hours).
