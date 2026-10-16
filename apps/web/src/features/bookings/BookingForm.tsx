@@ -1,7 +1,7 @@
 import { bookingPrice, type BookingView, type VenueView } from '@monsport/shared';
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
-import { formatSlot, formatVnd, hhmm } from '../../lib/format.ts';
+import { formatSlot, formatTime, formatVnd, hhmm } from '../../lib/format.ts';
 import { STATUS_LABEL } from './status.ts';
 
 const DURATIONS = [60, 90, 120, 150, 180];
@@ -18,10 +18,16 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
   const [duration, setDuration] = useState(60);
   const [result, setResult] = useState<BookingView | null>(null);
   const [error, setError] = useState('');
+  const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api<VenueView[]>('/api/venues').then(setVenues, () => setError('Không tải được danh sách đơn vị'));
   }, []);
+
+  // The checkout is sticky, so the ticket must come into view when it appears.
+  useEffect(() => {
+    if (result) resultRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [result]);
 
   const venue = venues.find((v) => v.id === venueId);
   const court = venue?.courts.find((c) => c.id === courtId);
@@ -36,6 +42,7 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setResult(null);
     try {
       const booking = await api<BookingView>('/api/bookings', {
         method: 'POST',
@@ -53,23 +60,34 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
       <h2>Đặt sân</h2>
       <p className="notice">App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.</p>
       <form onSubmit={submit} className="stack">
-        <label>
-          Đơn vị
-          <select value={venueId} onChange={(e) => { setVenueId(e.target.value); setCourtId(''); setStart(venues.find((v) => v.id === e.target.value)?.opensAt ?? 0); }} required>
-            <option value="">Chọn đơn vị</option>
-            {venues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select>
-        </label>
+        <fieldset className="step">
+          <legend><span className="step-no" aria-hidden="true">1</span>Chọn sân</legend>
+          <label>
+            Đơn vị
+            <select value={venueId} onChange={(e) => { setVenueId(e.target.value); setCourtId(''); setStart(venues.find((v) => v.id === e.target.value)?.opensAt ?? 0); }} required>
+              <option value="">Chọn đơn vị</option>
+              {venues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          </label>
+          {venue && (
+            <>
+              <p className="venue-meta">
+                <span>Mở cửa {hhmm(venue.opensAt)}–{hhmm(venue.closesAt)}</span>
+                <a className="call" href={`tel:${venue.phone}`}>Gọi chủ sân {venue.phone}</a>
+              </p>
+              <label>
+                Sân
+                <select value={courtId} onChange={(e) => setCourtId(e.target.value)} required>
+                  <option value="">Chọn sân</option>
+                  {venue.courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+            </>
+          )}
+        </fieldset>
         {venue && (
-          <>
-            <a className="call" href={`tel:${venue.phone}`}>Gọi chủ sân {venue.phone}</a>
-            <label>
-              Sân
-              <select value={courtId} onChange={(e) => setCourtId(e.target.value)} required>
-                <option value="">Chọn sân</option>
-                {venue.courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </label>
+          <fieldset className="step">
+            <legend><span className="step-no" aria-hidden="true">2</span>Chọn giờ</legend>
             <div className="row">
               <label>
                 Ngày
@@ -89,19 +107,30 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
               </label>
             </div>
             <SlotBar start={start} duration={duration} />
-          </>
+          </fieldset>
         )}
-        {price !== null && <p className="price">Giá: <strong>{formatVnd(price)}</strong></p>}
-        {error && <p className="error" role="alert">{error}</p>}
-        <button type="submit" disabled={!court || !date}>Gửi yêu cầu</button>
-      </form>
-      {result && (
-        <div className="ticket" data-status={result.status}>
-          <strong>{STATUS_LABEL[result.status]}</strong>
-          <span>{formatSlot(result.startAt, result.endAt)}</span>
-          <span>{formatVnd(result.priceTotal)}</span>
+        {result && (
+          <div ref={resultRef} className="ticket result" data-status={result.status} role="status">
+            <span className="stub">
+              <strong>{formatTime(result.startAt)}</strong>
+              <span>đến {formatTime(result.endAt)}</span>
+            </span>
+            <span className="body">
+              <span className="status">{STATUS_LABEL[result.status]}</span>
+              <span>{formatSlot(result.startAt, result.endAt)}</span>
+              <span className="money">{formatVnd(result.priceTotal)}</span>
+            </span>
+          </div>
+        )}
+        <div className="checkout">
+          {error && <p className="error" role="alert">{error}</p>}
+          <span className="total">
+            <span>Tạm tính</span>
+            <strong className="money">{price !== null ? formatVnd(price) : '—'}</strong>
+          </span>
+          <button type="submit" disabled={!court || !date}>Gửi yêu cầu</button>
         </div>
-      )}
+      </form>
     </section>
   );
 }
@@ -109,9 +138,14 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
 /** The chosen slot cut into 30-minute pieces. Floodlight amber marks the peak pieces (BR-4). */
 function SlotBar({ start, duration }: { start: number; duration: number }) {
   const pieces = Array.from({ length: duration / 30 }, (_, i) => start + i * 30);
+  const hasPeak = pieces.some((m) => m >= PEAK[0] && m < PEAK[1]);
   return (
-    <div className="slotbar" aria-hidden="true">
-      {pieces.map((m) => <span key={m} className={m >= PEAK[0] && m < PEAK[1] ? 'peak' : ''}>{hhmm(m)}</span>)}
+    <div className="slot">
+      <div className="slotbar" aria-hidden="true">
+        {pieces.map((m) => <span key={m} className={m >= PEAK[0] && m < PEAK[1] ? 'peak' : ''}>{hhmm(m)}</span>)}
+        <span className="end">{hhmm(start + duration)}</span>
+      </div>
+      {hasPeak && <p className="hint">Giờ cao điểm {hhmm(PEAK[0])}–{hhmm(PEAK[1])} tính giá cao hơn.</p>}
     </div>
   );
 }

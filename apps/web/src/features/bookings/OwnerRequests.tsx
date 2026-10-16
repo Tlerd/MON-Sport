@@ -1,7 +1,7 @@
 import type { BookingView, OwnerBookingView } from '@monsport/shared';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
-import { formatSlot, formatVnd } from '../../lib/format.ts';
+import { formatDay, formatTime, formatVnd } from '../../lib/format.ts';
 import { STATUS_LABEL } from './status.ts';
 
 /** UC-4: the owner confirms or rejects each pending request. */
@@ -23,24 +23,38 @@ export function OwnerRequests() {
     }
   }
 
+  const waiting = rows?.filter((r) => r.status === 'PENDING').length ?? 0;
   return (
     <section className="panel">
       <h2>Yêu cầu đặt sân</h2>
+      {rows && rows.length > 0 && <p className="count">{waiting > 0 ? `${waiting} yêu cầu đang chờ bạn xác nhận` : 'Không còn yêu cầu nào đang chờ.'}</p>}
       {error && <p className="error" role="alert">{error}</p>}
       {rows?.length === 0 && <p className="empty">Chưa có yêu cầu nào đang chờ. Tải lại trang để xem yêu cầu mới.</p>}
-      <ul className="list">
+      <ul className="tickets">
         {rows?.map((r) => (
-          <li key={r.id} data-status={r.status}>
-            <span>{r.customer.name} · <a href={`tel:${r.customer.phone}`}>{r.customer.phone}</a></span>
-            <span>{formatSlot(r.startAt, r.endAt)} · {formatVnd(r.priceTotal)}</span>
-            {r.status === 'PENDING' ? (
-              <span className="actions">
-                <button type="button" onClick={() => decide(r.id, 'confirm')}>Xác nhận</button>
-                <button type="button" className="secondary" onClick={() => decide(r.id, 'reject')}>Từ chối</button>
+          <li key={r.id} className="ticket" data-status={r.status}>
+            <span className="stub">
+              <strong>{formatTime(r.startAt)}</strong>
+              <span>đến {formatTime(r.endAt)}</span>
+            </span>
+            <span className="body">
+              <span className="customer">
+                {r.customer.name}
+                <a className="phone" href={`tel:${r.customer.phone}`}>{r.customer.phone}</a>
               </span>
-            ) : (
-              <strong>{STATUS_LABEL[r.status]}</strong>
-            )}
+              <span className="meta">
+                <span>Ngày {formatDay(r.startAt)}</span>
+                <span className="money">{formatVnd(r.priceTotal)}</span>
+              </span>
+              {r.status === 'PENDING' ? (
+                <span className="actions">
+                  <button type="button" onClick={() => decide(r.id, 'confirm')}>Xác nhận</button>
+                  <button type="button" className="secondary" onClick={() => decide(r.id, 'reject')}>Từ chối</button>
+                </span>
+              ) : (
+                <span className="status">{STATUS_LABEL[r.status]}</span>
+              )}
+            </span>
           </li>
         ))}
       </ul>
