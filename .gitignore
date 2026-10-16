@@ -5,3 +5,5 @@ coverage/
 .env.*
 !.env.example
 apps/api/src/generated/
+.agents/*
+!.agents/rules/
