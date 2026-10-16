@@ -163,7 +163,13 @@ describe('admin venues and courts', () => {
   });
 
   it('keeps the sport of a court fixed', async () => {
-    const res = await as('admin').patch(`/api/admin/courts/${ids['Sân 1']}`, { sport: 'FOOTBALL' }).expect(200);
-    expect(res.body.sport).toBe('BADMINTON');
+    await as('admin').patch(`/api/admin/courts/${ids['Sân 1']}`, { sport: 'FOOTBALL' }).expect(400);
+    expect((await db.court.findUniqueOrThrow({ where: { id: ids['Sân 1'] } })).sport).toBe('BADMINTON');
+  });
+
+  it('refuses a price above 10.000.000đ, and a malformed id, with Vietnamese texts', async () => {
+    const res = await as('admin').patch(`/api/admin/courts/${ids['Sân 1']}`, { pricePeak: 10_000_001 }).expect(400);
+    expect(res.body.message).toBe('Giá tối đa 10.000.000đ một giờ');
+    expect((await as('admin').patch('/api/admin/venues/abc', { closesAt: 1320 }).expect(400)).body.message).toBe('Dữ liệu không hợp lệ');
   });
 });

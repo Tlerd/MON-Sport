@@ -15,15 +15,25 @@ function toAdminView(v: Venue & { courts: Court[]; owner: User }): AdminVenueVie
   return { ...toVenueView(venue), owner: { id: owner.id, name: owner.name, phone: owner.phone } };
 }
 
-// Postgres SQLSTATE 23514: a CHECK of migration f003 refused the row. The app checks first, so this means a race.
-function isCheckViolation(error: unknown): boolean {
+// The CHECK "Venue_hours_check" of migration f003 refused the row. The app checks first, so this means two
+// parallel updates. Only this constraint maps to the hours text; any other error stays a 500.
+function isHoursViolation(error: unknown): boolean {
   for (let e: unknown = error, depth = 0; e && typeof e === 'object' && depth < 5; depth++) {
-    const o = e as { code?: unknown; originalCode?: unknown; cause?: unknown };
-    if (o.code === '23514' || o.originalCode === '23514') return true;
+    const o = e as { message?: unknown; constraint?: unknown; meta?: unknown; cause?: unknown };
+    let meta = '';
+    try {
+      meta = JSON.stringify(o.meta) ?? '';
+    } catch {
+      // A circular meta object holds no constraint name worth reading.
+    }
+    if (/Venue_hours_check/.test(`${String(o.message ?? '')} ${String(o.constraint ?? '')} ${meta}`)) return true;
     e = o.cause;
   }
-  return /23514|_check/.test(String((error as Error)?.message ?? ''));
+  return false;
 }
+
+// A malformed id gets the Vietnamese generic text, not the English text of the pipe.
+const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(Messages.invalid) });
 
 // UC-10: the admin creates and edits venues and courts (brief F-003). Only the ADMIN role reaches these routes.
 @Controller('admin')
@@ -48,7 +58,7 @@ export class AdminVenuesController {
 
   /** The body is merged into the stored venue, and the result is checked as a whole (AC-19). */
   @Patch('venues/:id')
-  async update(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown): Promise<AdminVenueView> {
+  async update(@Param('id', Id) id: string, @Body() body: unknown): Promise<AdminVenueView> {
     const patch = VenueUpdate.safeParse(body);
     if (!patch.success) throw new BadRequestException(errorMessage(patch.error));
     const stored = await this.prisma.venue.findUnique({ where: { id } });
@@ -60,13 +70,13 @@ export class AdminVenuesController {
     try {
       return toAdminView(await this.prisma.venue.update({ where: { id }, data: merged.data, include: WITH_COURTS }));
     } catch (error) {
-      if (isCheckViolation(error)) throw new BadRequestException(Messages.hours);
+      if (isHoursViolation(error)) throw new BadRequestException(Messages.hours);
       throw error;
     }
   }
 
   @Post('venues/:id/courts')
-  async addCourt(@Param('id', ParseUUIDPipe) venueId: string, @Body() body: unknown): Promise<CourtView> {
+  async addCourt(@Param('id', Id) venueId: string, @Body() body: unknown): Promise<CourtView> {
     const input = CourtInput.safeParse(body);
     if (!input.success) throw new BadRequestException(errorMessage(input.error));
     if (!(await this.prisma.venue.findUnique({ where: { id: venueId } }))) throw new NotFoundException('Không tìm thấy đơn vị');
@@ -74,7 +84,7 @@ export class AdminVenuesController {
   }
 
   @Patch('courts/:id')
-  async updateCourt(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown): Promise<CourtView> {
+  async updateCourt(@Param('id', Id) id: string, @Body() body: unknown): Promise<CourtView> {
     const input = CourtUpdate.safeParse(body);
     if (!input.success) throw new BadRequestException(errorMessage(input.error));
     if (!(await this.prisma.court.findUnique({ where: { id } }))) throw new NotFoundException('Không tìm thấy sân');
