@@ -11,10 +11,10 @@ Source: intake chưa có đăng nhập Google. Out of scope của intake chỉ g
 
 Brief này là kế hoạch. Agent chỉ code khi hai điều kiện đều đúng:
 
-- Bạn thêm đăng nhập Google vào intake, hoặc chính bạn đóng open decision 7 của `PROGRESS.md`.
+- Trong một tin nhắn của chính bạn, bạn thêm đăng nhập Google vào intake, hoặc viết "chấp nhận F-004".
 - Bạn làm xong các bước ở mục "Việc bạn làm trên Google Cloud console".
 
-Agent không được tự đóng open decision 7 theo mục "Autonomy" của `AGENTS.md`. Chỉ bạn đóng quyết định này.
+Chữ "tiếp tục" không phải là chấp nhận brief. Agent không được tự đóng open decision 7 của `PROGRESS.md` theo mục "Autonomy" của `AGENTS.md`. Agent ghi ngày và câu trích tin nhắn của bạn vào mục đó.
 
 ## Goal
 
@@ -37,27 +37,31 @@ Server làm luồng authorization code của OpenID Connect. Trình duyệt khô
 
 1. Người dùng bấm "Tiếp tục với Google". Trình duyệt mở `GET /api/auth/google/start`. Khi liên kết, người dùng đã đăng nhập gửi `POST /api/auth/google/link-start` với mật khẩu của mình (R5).
 2. Server sinh `state`, `nonce` và `code_verifier` (PKCE, `S256`). Server lưu ba giá trị này, `mode` (`login` hoặc `link`) và `userId` (chỉ khi `mode` = `link`) trong cookie `google_flow`.
-3. Cookie `google_flow` có httpOnly, `SameSite=Lax`, `Secure` khi production, `Path=/api/auth/google`, ký bằng `SESSION_SECRET`, sống 10 phút. Server chuyển hướng tới `authorization_endpoint` với scope `openid email profile`.
-4. Google gọi lại `GET /api/auth/google/callback`. Server so `state` với cookie, rồi xóa cookie. Khi Google trả `error` (ví dụ `access_denied`), server chuyển hướng về `/?google_error=<mã>`.
+3. Cookie `google_flow` có httpOnly, `SameSite=Lax`, `Secure` khi production, `Path=/api/auth/google`, và sống 10 phút. Xem "Ký cookie" về khóa ký. Server chuyển hướng tới `authorization_endpoint` với scope `openid email profile`.
+4. Google gọi lại `GET /api/auth/google/callback`. Server so `state` với cookie, rồi xóa cookie. Khi Google trả `error`, server chuyển hướng về `/?google_error=<mã>`. Mã là một trong `access_denied`, `state`, `token`, `taken`, `session`, `locked`, `config`. Mã lạ thành `unknown`.
 5. Server đổi `code` lấy `id_token` tại `token_endpoint`. Server kiểm chữ ký theo `jwks_uri`, `iss` (`https://accounts.google.com` hoặc `accounts.google.com`), `aud` = `GOOGLE_CLIENT_ID`, `exp` và `nonce`.
 6. Server làm theo "Quy tắc liên kết" với `mode` lấy từ cookie, không lấy từ phiên. Mọi lỗi ở callback chuyển hướng về `/?google_error=<mã>`, không trả JSON, vì callback là một lần trình duyệt chuyển trang.
 
-Server đọc các endpoint từ discovery document `https://accounts.google.com/.well-known/openid-configuration`. Server không ghi cứng các endpoint đó.
+Server đọc các endpoint từ discovery document `https://accounts.google.com/.well-known/openid-configuration`. Server không ghi cứng các endpoint đó. Khi chưa cấu hình Google, mọi route `/api/auth/google/*` trả 404.
+
+## Ký cookie
+
+Mỗi cookie ký bằng một khóa riêng: `HMAC-SHA256(SESSION_SECRET, "<tên cookie>")`. Payload của `google_flow` và `google_pending` là JSON mã hóa base64url, có trường `typ` bằng tên cookie. Server từ chối cookie có `typ` sai. Vì vậy, một giá trị `google_pending` đặt vào cookie `session` không qua được `readSession`. PR 2 đổi `session.ts` để cookie `session` cũng dùng khóa riêng của nó.
 
 ## Quy tắc liên kết
 
 | # | Tình huống | Server làm gì |
 |---|---|---|
-| R1 | `mode` = `login`, và có `User` với `googleSub` = `sub` | Đăng nhập tài khoản đó, thay phiên đang có. Tài khoản bị khóa nhận `google_error=locked` (BR-28) |
+| R1 | `mode` = `login`, và có `User` với `googleSub` = `sub` | Đăng nhập tài khoản đó, thay phiên đang có. Tài khoản bị khóa hoặc đã xóa nhận `google_error=locked` (BR-28) |
 | R2 | `mode` = `login`, và không có `User` với `sub` đó | Lưu `sub`, `email` và `name` trong cookie `google_pending` (ký, 30 phút, cùng cờ như `google_flow`). Màn hình hiện form "Hoàn tất đăng ký": tên, số điện thoại, ô đồng ý (BR-29) |
 | R3 | Form "Hoàn tất đăng ký" gửi một số chưa có tài khoản | Tạo `User` vai trò `USER`, có `googleSub`, `email`, `consentAt`, không có mật khẩu. Xóa cookie `google_pending`. Rồi đăng nhập |
 | R4 | Form "Hoàn tất đăng ký" gửi một số đã có tài khoản | 409 "Số này đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết Google". Không liên kết tự động, vì Google không xác minh số điện thoại |
 | R5 | `mode` = `link` | Người dùng đã nhập lại đúng mật khẩu ở `link-start`. Phiên hiện tại phải là `userId` trong cookie, nếu không thì `google_error=session`. Server gắn `sub` bằng `updateMany` với điều kiện `googleSub` = null. `sub` đã thuộc tài khoản khác, hoặc tài khoản đã có `googleSub`, nhận `google_error=taken` |
 | R6 | Người dùng bấm "Gỡ liên kết Google" | Cho phép khi tài khoản có mật khẩu. Tài khoản chỉ có Google nhận 400 "Hãy đặt mật khẩu trước khi gỡ Google" |
 | R7 | Email của Google trùng email của một tài khoản khác | Không làm gì. Server không dùng email để nhận diện, vì Google nói email có thể đổi và không duy nhất. Chỉ `sub` nhận diện tài khoản |
-| R8 | Người dùng xóa tài khoản (BR-26) | Server đặt `googleSub` và `email` về null, cùng lúc với việc thay tên và số điện thoại. Người đó đăng ký lại được bằng Google |
+| R8 | Người dùng xóa tài khoản (BR-26) | Server đặt `googleSub` và `email` về null, cùng lúc với việc thay tên và số điện thoại. Người đó đăng ký lại được bằng Google. R8 là AC bắt buộc của brief xóa tài khoản |
 
-Server chỉ lưu `email` khi `email_verified` = `true`. `email` chỉ để hiển thị. Lỗi unique `P2002` trên `googleSub` hoặc `phone` thành 409 hoặc `google_error=taken`, không thành 500.
+Server chỉ lưu `email` khi `email_verified` = `true`. `email` chỉ để hiển thị. Lỗi unique trên `googleSub` hoặc `phone` thành 409 hoặc `google_error=taken`, không thành 500. Server dùng lại `isUniqueViolation` của `accounts.service.ts`, vì Prisma 7 với driver adapter có thể trả `23505` thay cho `P2002`.
 
 ## Acceptance criteria (nháp)
 
@@ -83,8 +87,12 @@ Coder viết lại các AC này với giá trị thật khi brief chuyển sang 
 | AC-16 | Lan chỉ có Google | Lan gỡ liên kết Google | 400 "Hãy đặt mật khẩu trước khi gỡ Google" |
 | AC-17 | An có mật khẩu và `googleSub` "g-222" | An gỡ liên kết Google | 200. `googleSub` của An = null |
 | AC-18 | Email Google của Chi trùng email đã lưu của An | Chi đăng nhập Google lần đầu | Chi đi tới R2. Tài khoản của An không đổi |
-| AC-19 | `GOOGLE_CLIENT_ID` không có trong môi trường | Người dùng mở màn đăng nhập | Không có nút "Tiếp tục với Google". `GET /api/auth/google/start` trả 404 |
-| AC-20 | Chỉ có `GOOGLE_CLIENT_ID`, thiếu `GOOGLE_CLIENT_SECRET` | API khởi động | API dừng với lỗi cấu hình, như `assertSessionSecret` |
+| AC-19 | `GOOGLE_CLIENT_ID` không có trong môi trường | Người dùng mở màn đăng nhập | Không có nút "Tiếp tục với Google". Mọi route `/api/auth/google/*` trả 404 |
+| AC-20 | Có một trong ba biến `GOOGLE_*`, thiếu `GOOGLE_CLIENT_SECRET` hoặc `GOOGLE_REDIRECT_URI` | API khởi động | API dừng với lỗi cấu hình, như `assertSessionSecret` |
+| AC-21 | Một giá trị `google_pending` hoặc `google_flow` hợp lệ | Ai đó đặt giá trị đó vào cookie `session` và gọi `GET /api/auth/me` | 401 |
+| AC-22 | An có `googleSub` "g-222" | An liên kết Google với `sub` "g-333" | 302 về `/?google_error=taken`. `googleSub` của An vẫn là "g-222" |
+| AC-23 | Hai request liên kết cùng `sub` "g-444" từ hai tài khoản gửi cùng lúc | Server xử lý cả hai | Đúng một tài khoản có `sub` đó. Request kia nhận `google_error=taken` |
+| AC-24 | Hai lần "Hoàn tất đăng ký" khác `sub`, cùng số `0901112233`, gửi cùng lúc | Server xử lý cả hai | Đúng 1 request nhận 201. Request kia nhận 409 |
 
 ## Contract (nháp)
 
@@ -131,7 +139,7 @@ Làm trong project Google Cloud đang chạy MONSPORT. Các bước 1 tới 7 n�
 7. Bấm "Create". Chép client secret ngay, vì console chỉ hiện nó một lần.
 8. Mở "Secret Manager" trên console, bấm "Create secret". Đặt tên `monsport-google-client-secret`, dán client secret vào ô "Secret value", rồi bấm "Create secret". Cách này tránh ký tự xuống dòng mà PowerShell thêm khi pipe.
 9. Cho tài khoản dịch vụ của Cloud Run quyền `roles/secretmanager.secretAccessor` trên secret đó, như `docs/deploy-gcp.md` làm với `monsport-session-secret`.
-10. Gửi client ID cho agent và nói "tiếp tục". Client ID không phải bí mật. Agent chạy `gcloud run services update` để thêm `GOOGLE_CLIENT_ID`, `GOOGLE_REDIRECT_URI` và secret.
+10. Gửi client ID cho agent, cùng câu "chấp nhận F-004" nếu bạn chấp nhận brief. Chữ "tiếp tục" không phải là chấp nhận. Client ID không phải bí mật. Agent chạy `gcloud run services update` để thêm `GOOGLE_CLIENT_ID`, `GOOGLE_REDIRECT_URI` và secret.
 11. Khi mọi thứ chạy, quay lại "Audience" và bấm "Publish app".
 
 ## Build order (khi brief được chấp nhận)
@@ -139,7 +147,7 @@ Làm trong project Google Cloud đang chạy MONSPORT. Các bước 1 tới 7 n�
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
 | 1 | ADR, intake và tài liệu yêu cầu, hợp đồng và schema | `docs/adr/`, `docs/requirements/` (intake mục Data, data dictionary, business rules cho R1 tới R8), `packages/shared/src/` (gồm thông báo bảo vệ dữ liệu cá nhân), `apps/api/prisma/` | Migration trên Postgres thật |
-| 2 | Server: luồng OIDC, quy tắc R1 tới R8, kiểm cấu hình lúc khởi động | `apps/api/src/modules/auth/`, `apps/api/src/main.ts`, `apps/api/.env.example`, `apps/api/package.json`, `pnpm-lock.yaml`, `docs/deploy-gcp.md` | AC-1 tới AC-20, với Google giả lập |
+| 2 | Server: luồng OIDC, quy tắc R1 tới R7, khóa ký riêng cho mỗi cookie (gồm `session.ts`), kiểm cấu hình lúc khởi động | `apps/api/src/modules/auth/`, `apps/api/src/main.ts`, `apps/api/.env.example`, `apps/api/package.json`, `pnpm-lock.yaml`, `docs/deploy-gcp.md` | AC-1 tới AC-24, với Google giả lập |
 | 3 | Màn hình: nút Google, form "Hoàn tất đăng ký", liên kết và gỡ liên kết, câu báo cho mỗi `google_error` | `apps/web/src/features/auth/`, `apps/web/src/app/` | AC-1, AC-19 trên màn hình |
 
 ## Risks and reviews
@@ -147,7 +155,8 @@ Làm trong project Google Cloud đang chạy MONSPORT. Các bước 1 tới 7 n�
 | Risk | Where | Control |
 |---|---|---|
 | Chiếm tài khoản qua email hoặc số điện thoại trùng | Quy tắc liên kết | Chỉ `sub` nhận diện. Không tự liên kết (R4, R7). Review bằng phiên mới |
-| Phiên bị đánh cắp dùng để gắn Google của kẻ khác | R5 | Liên kết đòi nhập lại mật khẩu. Callback kiểm `userId` trong cookie. AC-5, AC-6 |
+| Phiên bị đánh cắp dùng để gắn Google của kẻ khác | R5 | Liên kết đòi nhập lại mật khẩu. Callback kiểm `userId` trong cookie. AC-5, AC-6. `link-start` dùng cùng giới hạn đăng nhập sai với `POST /api/auth/login` (`PROGRESS.md`, Next step 1) |
+| Giả cookie `session` bằng một cookie Google | Ký cookie | Mỗi cookie một khóa riêng, payload có `typ`. AC-21. Review bằng phiên mới |
 | CSRF và replay ở callback | `state`, `nonce`, PKCE | Cookie `google_flow` ký, sống 10 phút, xóa sau một lần dùng. AC-9, AC-10 |
 | Đồng thời: hai lần hoàn tất hoặc hai lần liên kết | R3, R5 | Unique index quyết định. `P2002` thành 409. AC-8 |
 | Lộ `client_secret` | Secret Manager | Chỉ Cloud Run đọc secret. Không log, không commit |
