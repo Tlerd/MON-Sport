@@ -38,14 +38,19 @@ export class AdminVenuesController {
   async create(@Body() body: unknown): Promise<AdminVenueView> {
     const input = VenueInput.safeParse(body);
     if (!input.success) throw new BadRequestException(errorMessage(input.error));
-    await this.assertOwner(input.data.ownerId);
-    return toAdminView(await this.prisma.venue.create({ data: input.data, include: WITH_COURTS }));
+    return toAdminView(
+      await this.prisma.$transaction(async (tx) => {
+        await this.assertOwner(input.data.ownerId, tx);
+        return tx.venue.create({ data: input.data, include: WITH_COURTS });
+      }),
+    );
   }
 
   /**
    * The body is merged into the stored venue, and the result is checked as a whole (AC-19). The row stays locked
    * from the read to the write, and only the fields of the body are written. So two parallel updates of different
-   * fields both stay, and a parallel update cannot write back an old owner (BR-20, BR-23).
+   * fields both stay, and a parallel update cannot write back an old owner (BR-20, BR-23). The catch maps the
+   * CHECK of the database to the hours text, as the last guard that the brief asks for (Risks).
    */
   @Patch('venues/:id')
   async update(@Param('id', Id) id: string, @Body() body: unknown): Promise<AdminVenueView> {
@@ -94,8 +99,12 @@ export class AdminVenuesController {
     }
   }
 
-  /** Venue.ownerId points to an active OWNER account (data dictionary). A locked owner cannot take a venue. */
-  private async assertOwner(ownerId: string, db: Pick<PrismaService, 'user'> = this.prisma): Promise<void> {
+  /**
+   * Venue.ownerId points to an active OWNER account (data dictionary). A locked owner cannot take a venue.
+   * FOR SHARE holds a parallel lock of that owner until the venue write commits.
+   */
+  private async assertOwner(ownerId: string, db: Pick<PrismaService, 'user' | '$queryRaw'>): Promise<void> {
+    await db.$queryRaw`SELECT id FROM "User" WHERE id = ${ownerId}::uuid FOR SHARE`;
     const owner = await db.user.findUnique({ where: { id: ownerId } });
     if (!owner || owner.role !== 'OWNER' || owner.deletedAt || owner.lockedAt) throw new BadRequestException(BAD_OWNER);
   }
