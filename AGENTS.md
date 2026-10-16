@@ -54,10 +54,10 @@ Each tool maps these roles to its own models. Claude Code runs every role on the
 3. Give each step of the build order its own branch from `main`: `feat/<issue>-<step>-<slug>`, for example `feat/12-1-booking-schema`.
 4. Open one pull request for each step with `gh pr create`. Fill in `.github/pull_request_template.md`. Write `Refs #<issue>` on each step, and `Closes #<issue>` on the last step only.
 5. A Reviewer reviews each pull request. Post its findings as a pull request comment. Fix each finding of medium or higher, then run a new Reviewer on the new head. A finding is closed only when that Reviewer says so. Each Reviewer run is one round.
-6. Run `gh pr checks <n> --watch`. Merge with `gh pr merge <n> --merge --delete-branch` only when that command exits 0, no finding of medium or higher stays open, and the pull request changes only the paths that its brief allows. Never push to `main`. Never force push.
+6. Run `gh pr checks <n> --watch`. Merge with `gh pr merge <n> --merge --delete-branch` only when that command exits 0, no finding of medium or higher stays open, and the pull request changes only the paths that its brief or its description allows. Never push to `main`. Never force push.
 7. When the next step or an open decision changes, rewrite `PROGRESS.md` in the same pull request, before the merge.
 
-A fix, a chore, or a docs change that no brief covers needs no issue. Its branch is `fix/<slug>`, `chore/<slug>`, or `docs/<slug>`, and it still goes through a pull request.
+A fix, a chore, or a docs change that no brief covers needs no issue. Its branch is `fix/<slug>`, `chore/<slug>`, or `docs/<slug>`, and it still goes through a pull request. Its description lists the files it may change, and it changes only those.
 
 ## Autonomy
 
@@ -70,7 +70,7 @@ The user starts work with "tiếp tục", "continue", or a goal. Then plan and w
   - an action that deletes data or history that this task did not create;
   - a secret, a password, or a legal question with no safe default;
   - a finding of medium or higher that stays open after 2 review rounds, or an autofix that gave up;
-  - the merge of a pull request that changes `.github/`, `.githooks/`, `.claude/`, `.agents/`, `scripts/`, `harness/`, `AGENTS.md`, or a vitest config. These files are the checks, so the user approves a change to them.
+  - the merge of a pull request that changes `.github/`, `.githooks/`, `.claude/`, `.agents/`, `scripts/`, `harness/`, `AGENTS.md`, `package.json`, `pnpm-workspace.yaml`, `.dependency-cruiser.cjs`, a `tsconfig*.json`, or a vitest config. These files are the checks, so the user approves a change to them.
 - End each run with a short report: what is done, the assumptions you made, and what is next.
 
 ## State
