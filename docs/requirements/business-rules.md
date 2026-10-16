@@ -39,9 +39,11 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-26 | Khi người dùng xóa tài khoản, tên và số điện thoại được thay bằng "Người dùng đã xóa". Booking và trận vẫn còn | action enabler | static | Intake, Data |
 | BR-27 | Giờ hiển thị theo múi giờ `Asia/Ho_Chi_Minh` | fact | static | Intake, Lưới giờ và giá |
 | BR-28 | Tài khoản bị admin khóa không đăng nhập được | constraint | static | Intake, Phân quyền |
+| BR-29 | Người dùng tự đăng ký phải đồng ý với thông báo bảo vệ dữ liệu cá nhân. Hệ thống lưu lúc người dùng đồng ý | constraint | static | Giả định cho open item 4 của intake (Luật 91/2025), brief F-003 |
 
 ## Assumptions
 
 - Quy tắc giờ cao điểm: mốc 22:00 thuộc giờ thường. Bản intake chỉ ghi "17:00–22:00".
 - Quy tắc lưới giờ: giờ kết thúc cũng nằm trên lưới 30 phút. Bản intake chỉ ghi bước 30 phút cho giờ bắt đầu.
 - Quy tắc khóa tài khoản: tài khoản bị khóa không đăng nhập được. Bản intake chỉ ghi admin "khóa tài khoản".
+- Quy tắc đồng ý lúc đăng ký: intake chưa trả lời Luật 91/2025 có yêu cầu đồng ý lúc đăng ký hay không (open item 4). Ô đồng ý bắt buộc là lựa chọn an toàn hơn. Bạn sửa quy tắc này khi có ý kiến của người tư vấn luật.

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-// Checks the hand-written constraints of the F-002 migration on the real Postgres database.
+// Checks the hand-written constraints of the F-002 and F-003 migrations on the real Postgres database.
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
 const courtId = randomUUID();
 const userId = randomUUID();
@@ -49,5 +49,28 @@ describe('migration f002_booking', () => {
 
   it('refuses an end before the start with SQLSTATE 23514', async () => {
     expect(await sqlState(insert('22:00', '21:00'))).toBe('23514');
+  });
+});
+
+describe('migration f003_consent', () => {
+  it('AC-23: refuses a venue that closes when it opens, and a court price of 0, with SQLSTATE 23514', async () => {
+    const venue = (opensAt: number, closesAt: number) =>
+      db.query(`INSERT INTO "Venue" (id, "ownerId", name, address, phone, "opensAt", "closesAt") VALUES ($1, $2, 'T2', 'T', '0900000000', $3, $4)`, [
+        randomUUID(), userId, opensAt, closesAt,
+      ]);
+    expect(await sqlState(venue(360, 360))).toBe('23514');
+    expect(await sqlState(venue(375, 1380))).toBe('23514');
+    const court = (priceNormal: number) =>
+      db.query(`INSERT INTO "Court" (id, "venueId", name, sport, "priceNormal", "pricePeak") VALUES ($1, $2, 'Sân 9', 'BADMINTON', $3, 1)`, [
+        randomUUID(), venueId, priceNormal,
+      ]);
+    expect(await sqlState(court(0))).toBe('23514');
+  });
+
+  it('adds User.consentAt as a nullable timestamptz(3), so existing accounts stay valid', async () => {
+    const { rows } = await db.query(
+      `SELECT data_type, datetime_precision, is_nullable FROM information_schema.columns WHERE table_name = 'User' AND column_name = 'consentAt'`,
+    );
+    expect(rows).toEqual([{ data_type: 'timestamp with time zone', datetime_precision: 3, is_nullable: 'YES' }]);
   });
 });

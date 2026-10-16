@@ -1,4 +1,4 @@
-// Names follow docs/requirements/data-dictionary.md. Brief F-002 adds User, Venue, Court, and Booking.
+// Names follow docs/requirements/data-dictionary.md. Brief F-002 adds User, Venue, Court, and Booking. Brief F-003 adds User.consentAt.
 
 generator client {
   provider               = "prisma-client"
@@ -44,6 +44,8 @@ model User {
   role         Role      @default(USER)
   lockedAt     DateTime? @db.Timestamptz(3)
   deletedAt    DateTime? @db.Timestamptz(3)
+  /// When the user agreed to the privacy notice at sign-up. Null for accounts that an admin or the seed created.
+  consentAt    DateTime? @db.Timestamptz(3)
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   venues       Venue[]
   bookings     Booking[]

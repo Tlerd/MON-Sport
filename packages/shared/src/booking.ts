@@ -37,6 +37,7 @@ export const CourtView = z.object({
   priceNormal: z.int().positive(),
   pricePeak: z.int().positive(),
 });
+export type CourtView = z.infer<typeof CourtView>;
 
 export const VenueView = z.object({
   id: z.uuid(),
