@@ -178,6 +178,7 @@ function fix(pr, attempt) {
   const head = must('git', ['rev-parse', '--short', 'HEAD'], { cwd: dir });
   comment(pr.number, `Autofix attempt ${attempt}/${MAX_ATTEMPTS} pushed ${head}. CI runs again.\n\n${said}`);
   sh('git', ['worktree', 'remove', '--force', dir]);
+  rmSync(dir, { recursive: true, force: true }); // git leaves the node_modules links behind
   log(`#${pr.number}: pushed ${head}`);
 }
 
