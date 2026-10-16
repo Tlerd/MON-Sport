@@ -32,5 +32,5 @@ Updated: 2026-10-17
 ## Next step
 
 1. F-003: UC-1 (sign-up and login) with UC-10 (accounts and venues), the first slice of the intake launch order. Write its brief with `feature-brief`, get a Reviewer check, open its issue, and build it.
-2. Until the user answers open decision 4, the safe default is a consent checkbox and a privacy notice at sign-up. Record it as an assumption.
+2. Until the user answers open decision 4, the safe default is a consent checkbox and a privacy notice at sign-up. Record it as an assumption. Do not deploy F-003 before the user answers decision 4.
 3. Then F-004: UC-11 (prices and opening hours).
