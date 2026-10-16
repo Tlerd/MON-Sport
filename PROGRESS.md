@@ -9,7 +9,8 @@ Updated: 2026-10-16
 - `main` holds the intake, ADR 0002, the agent roles, the workflow, and the issue and PR templates (PR #1).
 - `main` also holds pull request 0 (PR #2): `packages/shared`, `apps/api` (NestJS, `GET /api/health`), `apps/web` (React + Vite), and Postgres 18 in CI.
 - `main` also holds the requirements documents (PR #3): glossary, BR-1 to BR-28, UC-1 to UC-14, data dictionary, models.
-- Branch `docs/brief-f-002` holds the accepted brief F-002 (UC-3, UC-4, login): 21 acceptance criteria, 3 pull requests.
+- `main` holds the accepted brief F-002 (PR #4). Its issue is #5.
+- Branch `feat/5-1-booking-schema` holds F-002 step 1: Zod contract, `bookingPrice` and `confirmDeadline`, Prisma 7.10.1, the migration with `EXCLUDE`, and the seed. It needs a fresh-session review (schema, concurrency).
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). It needs no password of the system Postgres on 5432. Start it again after a reboot.
 - The usage guard in `D:\REPO_GITHUB_TRY\usage-guard` reads `~/.claude/usage-guard/state.json`. The desktop app does not write it, so the agent writes it from the app's usage data. Headless runs fail until `claude /login`.
 
@@ -30,5 +31,5 @@ Updated: 2026-10-16
 
 ## Next step
 
-1. The user accepts the brief F-002. Then merge its pull request and open its issue from `.github/ISSUE_TEMPLATE/feature.md`.
-2. Build F-002 pull request 1: Zod, the price and deadline functions, Prisma 7.10.1, the migration with `EXCLUDE`, and the seed.
+1. A fresh session reviews F-002 step 1. The user agrees to the change in `.dependency-cruiser.cjs`. Then merge it.
+2. Build F-002 step 2 on `feat/5-2-booking-server`: login, `GET /api/venues`, and the booking endpoints, with AC-1 to AC-3, AC-6, AC-7, AC-10 to AC-19.
