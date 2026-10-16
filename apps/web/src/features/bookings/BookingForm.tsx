@@ -84,7 +84,7 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
               <label>
                 Thời lượng
                 <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                  {DURATIONS.filter((d) => start + d <= venue.closesAt).map((d) => <option key={d} value={d}>{d / 60} giờ</option>)}
+                  {DURATIONS.filter((d) => start + d <= venue.closesAt).map((d) => <option key={d} value={d}>{(d / 60).toLocaleString('vi-VN')} giờ</option>)}
                 </select>
               </label>
             </div>

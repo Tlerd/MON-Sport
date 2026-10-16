@@ -35,6 +35,8 @@ describe('BookingForm', () => {
     fireEvent.change(screen.getByLabelText('Sân'), { target: { value: VENUE.courts[0].id } });
     fireEvent.change(screen.getByLabelText('Ngày'), { target: { value: '2026-11-20' } });
     fireEvent.change(screen.getByLabelText('Bắt đầu'), { target: { value: String(16 * 60 + 30) } });
+    // Vietnamese decimals use a comma.
+    expect(screen.getByRole('option', { name: '1,5 giờ' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Thời lượng'), { target: { value: '90' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi yêu cầu' }));
 
