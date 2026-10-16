@@ -120,7 +120,7 @@ Các số điện thoại mẫu nằm trong `apps/api/prisma/seed.ts`. Ai có UR
 
 ## 9. Tự deploy từ main
 
-Mỗi lần một pull request merge vào `main`, job `.github/workflows/deploy.yml` deploy bản mới lên Cloud Run. Sau đó job gọi `/api/health`. GitHub không giữ key nào. Google Cloud tin nhánh `main` của repo qua Workload Identity Federation.
+Mỗi lần một pull request merge vào `main` và `ci` của commit đó đạt, job `.github/workflows/deploy.yml` deploy bản mới lên Cloud Run. Sau đó job gọi `/api/health`. GitHub không giữ key nào. Google Cloud tin nhánh `main` của repo qua Workload Identity Federation.
 
 Phần cài đặt đã làm ngày 17/10/2026:
 
@@ -131,6 +131,7 @@ Phần cài đặt đã làm ngày 17/10/2026:
 Để deploy lại bằng tay, mở tab Actions, chọn `deploy`, rồi bấm `Run workflow`.
 
 ## 10. Xem log, dừng
+
 - Xem log: `gcloud run services logs read monsport --region=$Region --limit=50`.
 - Cloud Run không tính tiền khi không có request. Cloud SQL tính tiền theo giờ. Để ngừng trả tiền khi không dùng, chạy `gcloud sql instances patch monsport-db --activation-policy=NEVER`. Chạy lại với `ALWAYS` để bật lại. Dung lượng lưu trữ và bản sao lưu vẫn tính tiền khi instance dừng.
 

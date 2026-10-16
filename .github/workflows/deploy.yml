@@ -1,10 +1,12 @@
 name: deploy
 
-# Each push to main (a merged pull request) goes live on Cloud Run.
+# A push to main (a merged pull request) goes live on Cloud Run after the ci run of that commit passes.
 # Google Cloud trusts this repository's main branch through Workload Identity Federation,
 # so GitHub stores no key. docs/deploy-gcp.md shows the setup.
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -14,12 +16,18 @@ concurrency:
 
 jobs:
   deploy:
+    if: >-
+      github.repository == 'Tlerd/MON-Sport' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
