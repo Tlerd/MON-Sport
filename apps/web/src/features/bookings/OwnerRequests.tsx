@@ -27,7 +27,7 @@ export function OwnerRequests() {
   return (
     <section className="panel">
       <h2>Yêu cầu đặt sân</h2>
-      {rows && rows.length > 0 && <p className="count">{waiting > 0 ? `${waiting} yêu cầu đang chờ bạn xác nhận` : 'Không còn yêu cầu nào đang chờ.'}</p>}
+      {rows && rows.length > 0 && <p className="count">{waiting > 0 ? `${waiting} yêu cầu đang chờ bạn xác nhận.` : 'Không còn yêu cầu nào đang chờ.'}</p>}
       {error && <p className="error" role="alert">{error}</p>}
       {rows?.length === 0 && <p className="empty">Chưa có yêu cầu nào đang chờ. Tải lại trang để xem yêu cầu mới.</p>}
       <ul className="tickets">

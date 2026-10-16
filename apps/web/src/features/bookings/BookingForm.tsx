@@ -109,19 +109,22 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
             <SlotBar start={start} duration={duration} />
           </fieldset>
         )}
-        {result && (
-          <div ref={resultRef} className="ticket result" data-status={result.status} role="status">
-            <span className="stub">
-              <strong>{formatTime(result.startAt)}</strong>
-              <span>đến {formatTime(result.endAt)}</span>
-            </span>
-            <span className="body">
-              <span className="status">{STATUS_LABEL[result.status]}</span>
-              <span>{formatSlot(result.startAt, result.endAt)}</span>
-              <span className="money">{formatVnd(result.priceTotal)}</span>
-            </span>
-          </div>
-        )}
+        {/* The live region stays in the DOM, so screen readers announce the ticket when it appears. */}
+        <div role="status" className="live">
+          {result && (
+            <div ref={resultRef} className="ticket result" data-status={result.status}>
+              <span className="stub">
+                <strong>{formatTime(result.startAt)}</strong>
+                <span>đến {formatTime(result.endAt)}</span>
+              </span>
+              <span className="body">
+                <span className="status">{STATUS_LABEL[result.status]}</span>
+                <span>{formatSlot(result.startAt, result.endAt)}</span>
+                <span className="money">{formatVnd(result.priceTotal)}</span>
+              </span>
+            </div>
+          )}
+        </div>
         <div className="checkout">
           {error && <p className="error" role="alert">{error}</p>}
           <span className="total">

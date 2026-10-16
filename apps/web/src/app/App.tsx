@@ -9,7 +9,7 @@ import { api } from '../lib/api.ts';
 const HERO: Record<SessionUser['role'] | 'GUEST', string> = {
   GUEST: 'Chọn giờ trống, gửi yêu cầu, chủ sân xác nhận.',
   USER: 'Chọn sân và giờ chơi, rồi gửi yêu cầu cho chủ sân.',
-  OWNER: 'Yêu cầu đặt sân tại đơn vị của bạn.',
+  OWNER: 'Yêu cầu đặt sân tại các đơn vị của bạn.',
   ADMIN: 'Màn admin chưa có trong bản này.',
 };
 
