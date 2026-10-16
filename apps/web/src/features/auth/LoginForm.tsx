@@ -19,7 +19,7 @@ export function LoginForm({ onLogin }: { onLogin: (user: SessionUser) => void })
   }
 
   return (
-    <section className="panel">
+    <>
       <h2>Đăng nhập</h2>
       <form onSubmit={submit} className="stack">
         <label>
@@ -33,6 +33,6 @@ export function LoginForm({ onLogin }: { onLogin: (user: SessionUser) => void })
         {error && <p className="error" role="alert">{error}</p>}
         <button type="submit">Đăng nhập</button>
       </form>
-    </section>
+    </>
   );
 }
