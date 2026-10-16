@@ -25,6 +25,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Lan' } });
     fireEvent.change(screen.getByLabelText('Số điện thoại'), { target: { value: '0901112233' } });
     fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'matkhau123' } });
+    expect((screen.getByRole('button', { name: 'Tạo tài khoản' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
 

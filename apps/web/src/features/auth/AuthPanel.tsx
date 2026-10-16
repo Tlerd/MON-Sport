@@ -7,12 +7,13 @@ import { RegisterForm } from './RegisterForm.tsx';
 export function AuthPanel({ onLogin }: { onLogin: (user: SessionUser) => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const panel = useRef<HTMLElement>(null);
-  const switched = useRef(false);
+  const shown = useRef(mode);
 
   // After a switch, focus moves to the new heading, so a screen reader reads which form is open.
+  // Comparing with the mode shown before keeps the first render (and a StrictMode re-run) from taking focus.
   useEffect(() => {
-    if (switched.current) panel.current?.querySelector('h2')?.focus();
-    switched.current = true;
+    if (shown.current !== mode) panel.current?.querySelector('h2')?.focus();
+    shown.current = mode;
   }, [mode]);
 
   return (
