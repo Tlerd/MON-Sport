@@ -98,6 +98,7 @@ button.link:hover { background: none; }
 :focus-visible { outline: 3px solid var(--flood); outline-offset: 2px; }
 /* On the white panels amber is too faint for a focus ring (WCAG 1.4.11). */
 .panel :focus-visible { outline-color: var(--court-deep); box-shadow: 0 0 0 6px var(--flood); }
+.panel button.secondary:focus-visible { box-shadow: inset 0 0 0 1.5px var(--alert), 0 0 0 6px var(--flood); }
 
 .notice { padding: 0.75rem 0.875rem; border-radius: 8px; background: var(--flood-soft); font-size: 0.9375rem; margin-bottom: 1rem; }
 .error { color: var(--alert); font-weight: 600; }

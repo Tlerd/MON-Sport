@@ -42,6 +42,7 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setResult(null);
     try {
       const booking = await api<BookingView>('/api/bookings', {
         method: 'POST',
