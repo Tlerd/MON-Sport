@@ -166,6 +166,25 @@ describe('POST /api/auth/login', () => {
     expect(res.body.message).toBe('Sai số điện thoại hoặc mật khẩu');
   });
 
+  it('AC-19: an unknown phone gets the same 401 message as a wrong password', async () => {
+    const res = await http().post('/api/auth/login').send({ phone: '0999999999', password: PASSWORD }).expect(401);
+    expect(res.body.message).toBe('Sai số điện thoại hoặc mật khẩu');
+  });
+
+  it('refuses a locked account with 403 (BR-28)', async () => {
+    await db.user.update({ where: { id: ids.an }, data: { lockedAt: clock.now() } });
+    const res = await http().post('/api/auth/login').send({ phone: '0901234567', password: PASSWORD }).expect(403);
+    expect(res.body.message).toBe('Tài khoản đã bị khóa');
+  });
+
+  it('answers 401 to a forged, expired, or malformed cookie', async () => {
+    const [id, expiry] = issueSession(ids.an, clock.now()).split('.');
+    await http().get('/api/auth/me').set('Cookie', `session=${id}.${expiry}.forged`).expect(401);
+    const old = issueSession(ids.an, new Date(clock.now().getTime() - 31 * 24 * 60 * 60 * 1000));
+    await http().get('/api/auth/me').set('Cookie', `session=${old}`).expect(401);
+    await http().get('/api/auth/me').set('Cookie', 'session=%E0%A4%A').expect(401);
+  });
+
   it('signs in with the right password and sets an httpOnly cookie', async () => {
     const res = await http().post('/api/auth/login').send({ phone: '0901234567', password: PASSWORD }).expect(200);
     expect(res.body).toMatchObject({ name: 'an', role: 'USER' });
