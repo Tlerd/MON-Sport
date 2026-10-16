@@ -6,10 +6,10 @@ Updated: 2026-10-16
 
 ## Current state
 
-- `main` matches `origin/main` at `e1b0300`. `pnpm check` passes.
-- Not committed yet: the model split in `.claude/settings.json` and `.claude/agents/Explore.md`, the intake, ADR 0002, and the edits that point `AGENTS.md`, the old spec, and the old brief F-001 to the intake.
+- Branch `chore/intake-v1` is pushed. It holds the intake, ADR 0002, the model split, and the edits that point `AGENTS.md`, the old spec, and the old brief F-001 to the intake. It has no pull request yet. `pnpm check` passes.
+- CI passed on `main` at `e1b0300`. CI runs on a push to `main` and on a pull request, so it has not run on `chore/intake-v1`.
 - No application code exists. `apps/` and `packages/` appear with the first feature.
-- Not run yet: the CI workflow on GitHub, the Gemini setting, any Codex session, and a fresh chat that checks the model split.
+- Not run yet: the Gemini setting, any Codex session, and a fresh chat that checks the model split.
 
 ## Decisions settled on 2026-10-16
 
@@ -29,6 +29,6 @@ These are the open items of the intake. None of them blocks the data model.
 
 ## Next step
 
-1. Commit the uncommitted work above.
+1. Open a pull request for `chore/intake-v1` and merge it into `main`.
 2. Write the requirements documents from the intake with the skill `ba-docs`: use cases, business rules, data model, and API.
 3. Write the first feature brief with the skill `feature-brief`, then build pull request 0: the project skeleton.

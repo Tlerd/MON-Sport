@@ -38,7 +38,7 @@ module.exports = {
       name: 'tournaments-imports-booking',
       severity: 'error',
       comment:
-        'The tournaments module imports bookings or payments. The specification (section 1.2) keeps tournaments able to ship without them. ' +
+        'The tournaments module imports bookings or payments. Tournaments are not in the intake yet. When they come, they must ship without bookings or payments. ' +
         'Fix: depend on a port that tournaments owns, and let bookings or payments implement it.',
       from: { path: '^apps/api/src/modules/tournaments/' },
       to: { path: '^apps/api/src/modules/(bookings|payments)/' },
