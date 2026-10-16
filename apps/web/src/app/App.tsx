@@ -1,19 +1,21 @@
 import type { SessionUser } from '@monsport/shared';
 import { useEffect, useState } from 'react';
-import { LoginForm } from '../features/auth/LoginForm.tsx';
+import { AdminPanel } from '../features/admin/AdminPanel.tsx';
+import { AuthPanel } from '../features/auth/AuthPanel.tsx';
 import { BookingForm } from '../features/bookings/BookingForm.tsx';
 import { MyBookings } from '../features/bookings/MyBookings.tsx';
 import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
+import { MyVenues } from '../features/venues/MyVenues.tsx';
 import { api } from '../lib/api.ts';
 
 const HERO: Record<SessionUser['role'] | 'GUEST', string> = {
   GUEST: 'Chọn giờ trống, gửi yêu cầu, chủ sân xác nhận.',
   USER: 'Chọn sân và giờ chơi, rồi gửi yêu cầu cho chủ sân.',
-  OWNER: 'Yêu cầu đặt sân tại các đơn vị của bạn.',
-  ADMIN: 'Màn admin chưa có trong bản này.',
+  OWNER: 'Đơn vị của bạn và các yêu cầu đặt sân.',
+  ADMIN: 'Tạo chủ sân, đơn vị và sân. Khóa tài khoản khi cần.',
 };
 
-/** Composes the features by role. An admin has no screen in F-002. */
+/** Composes the features by role. */
 export function App() {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
   const [booked, setBooked] = useState(0);
@@ -47,14 +49,20 @@ export function App() {
         </div>
       )}
       <main>
-        {user === null && <LoginForm onLogin={setUser} />}
+        {user === null && <AuthPanel onLogin={setUser} />}
         {user?.role === 'USER' && (
           <>
             <BookingForm onBooked={() => setBooked((n) => n + 1)} />
             <MyBookings refresh={booked} />
           </>
         )}
-        {user?.role === 'OWNER' && <OwnerRequests />}
+        {user?.role === 'OWNER' && (
+          <>
+            <OwnerRequests />
+            <MyVenues />
+          </>
+        )}
+        {user?.role === 'ADMIN' && <AdminPanel />}
       </main>
     </div>
   );

@@ -7,6 +7,7 @@
   --line: #fbfbf7;
   --flood: #f2b33d;
   --flood-soft: #fdf0d2;
+  --flood-ink: #7a5410; /* amber text on --flood-soft, 4.5:1 or more */
   --ink: #17201c;
   --muted: #55625c;
   --rule: #c9d4ce;
@@ -97,6 +98,7 @@ button.secondary { background: transparent; color: var(--alert); box-shadow: ins
 button.secondary:hover { background: var(--alert-soft); }
 button.link { min-height: auto; padding: 0; background: none; color: var(--flood); font-weight: 600; text-decoration: underline; }
 button.link:hover { background: none; }
+h2[tabindex='-1']:focus { outline: none; }
 :focus-visible { outline: 3px solid var(--flood); outline-offset: 2px; }
 /* On the white panels amber is too faint for a focus ring (WCAG 1.4.11). */
 .panel :focus-visible { outline-color: var(--court-deep); box-shadow: 0 0 0 6px var(--flood); }
@@ -164,4 +166,53 @@ button.link:hover { background: none; }
   .row { grid-template-columns: 1fr 1fr; }
   .row label:first-child { grid-column: 1 / -1; }
   .hero h1 { font-size: 1.75rem; }
+}
+
+/* F-003: sign-up, owner venues, admin screens. Same paper-on-court language as the booking screens. */
+.switch { display: flex; flex-wrap: wrap; gap: 0.375rem; align-items: baseline; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--rule); color: var(--muted); }
+.panel button.link { color: var(--court); }
+
+/* The privacy notice reads like the rules pinned at the court entrance: a ruled sheet the user scrolls through */
+.privacy {
+  display: grid; gap: 0.5rem; max-height: 10rem; overflow-y: auto; padding: 0.75rem 0.875rem;
+  border-left: 4px solid var(--court); border-radius: 0 8px 8px 0; background: var(--court-soft);
+  font-size: 0.875rem; color: var(--ink);
+}
+.consent { display: flex; gap: 0.625rem; align-items: flex-start; font-size: 0.9375rem; color: var(--ink); }
+.consent input { width: 1.375rem; min-height: 1.375rem; height: 1.375rem; margin: 0.0625rem 0 0; flex: none; accent-color: var(--court); }
+
+/* A venue card, and its courts as rows with the normal and peak price per hour */
+.venues { display: grid; gap: 0.75rem; }
+.venue { display: grid; gap: 0.5rem; padding: 0.875rem; border: 1.5px solid var(--rule); border-radius: 8px; background: var(--line); }
+.venue h3 { margin: 0; font-size: 1.125rem; font-weight: 800; color: var(--court-deep); }
+.courts { list-style: none; margin: 0; padding: 0; display: grid; }
+.courts li { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 0 0.75rem; padding: 0.5rem 0; border-top: 1px dashed var(--rule); }
+.court-name { font-weight: 700; }
+.courts .sport { grid-column: 1; grid-row: 2; font-size: 0.8125rem; color: var(--muted); }
+.price { display: grid; justify-items: end; grid-row: 1 / span 2; padding: 0.25rem 0.5rem; border-radius: 6px; }
+.price small { font-size: 0.6875rem; color: var(--muted); }
+.price b { font-weight: 800; }
+.price.peak { background: var(--flood-soft); }
+.price.peak small { color: var(--flood-ink); }
+
+/* Forms that open on demand, so the lists stay in front */
+.drawer { border-top: 1px dashed var(--rule); padding-top: 0.75rem; margin-top: 0.75rem; }
+.drawer > summary { cursor: pointer; font-weight: 700; color: var(--court); list-style: none; min-height: 2.75rem; display: flex; align-items: center; gap: 0.5rem; }
+.drawer > summary::-webkit-details-marker { display: none; }
+.drawer > summary::before { content: '+' / ''; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--court-soft); }
+.drawer[open] > summary::before { content: '−' / ''; }
+.drawer > form, .drawer > .court-form { margin-top: 0.5rem; }
+.court-form { padding-top: 1rem; }
+.row.two { grid-template-columns: 1fr 1fr; }
+
+/* Accounts: owners and the search result of the lock screen */
+.accounts { list-style: none; margin: 0 0 0.5rem; padding: 0; display: grid; }
+.accounts li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; padding: 0.625rem 0; border-top: 1px dashed var(--rule); }
+.accounts li:first-child { border-top: 0; }
+.accounts li button { margin-left: auto; min-height: 2.75rem; }
+.status.locked { margin-top: 0; background: var(--alert-soft); color: var(--alert); }
+.search { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: end; margin-bottom: 0.75rem; }
+
+@media (max-width: 420px) {
+  .row.two label:first-child { grid-column: auto; }
 }
