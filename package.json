@@ -8,6 +8,9 @@
   },
   "scripts": {
     "check": "node scripts/check.mjs",
+    "db:start": "node scripts/db-local.mjs",
+    "dev:api": "pnpm --filter @monsport/api dev",
+    "dev:web": "pnpm --filter @monsport/web dev",
     "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {

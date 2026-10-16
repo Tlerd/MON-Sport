@@ -6,30 +6,28 @@ Updated: 2026-10-16
 
 ## Current state
 
-- Branch `chore/intake-v1` is pushed. It holds the intake, ADR 0002, the model split, and the edits that point `AGENTS.md`, the old spec, and the old brief F-001 to the intake. It has no pull request yet. `pnpm check` passes.
-- CI passed on `main` at `e1b0300`. CI runs on a push to `main` and on a pull request, so it has not run on `chore/intake-v1`.
-- No application code exists. `apps/` and `packages/` appear with the first feature.
-- Not run yet: the Gemini setting, any Codex session, and a fresh chat that checks the model split.
+- `main` holds the intake, ADR 0002, the agent roles, the workflow, and the issue and PR templates (PR #1).
+- Branch `chore/skeleton` holds pull request 0: `packages/shared`, `apps/api` (NestJS, `GET /api/health`), `apps/web` (React + Vite), and Postgres 18 in CI.
+- Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). It needs no password of the system Postgres on 5432. Start it again after a reboot.
+- The usage guard in `D:\REPO_GITHUB_TRY\usage-guard` reads `~/.claude/usage-guard/state.json`. The desktop app does not write it, so the agent writes it from the app's usage data. Headless runs fail until `claude /login`.
 
 ## Decisions settled on 2026-10-16
 
-- Requirements restart from an interview. `docs/requirements/intake-monsport-v1.md` is the source of truth (ADR 0002). `docs/spec/` and the old brief F-001 are reference only.
-- The first version: roles admin, venue owner (chủ sân), and user. Users book, owners confirm by hand, and the app takes no payment. Hosts open matches in a lichess-style lobby. A pilot at 3 venues becomes the real product.
-- The stack stays: NestJS, React + Vite, PostgreSQL on Supabase, Prisma 7, Zod. Real-time updates use SSE.
-- Claude Code model split: `opusplan` (Opus plans, Sonnet codes), every chat starts in plan mode, and the `Explore` subagent reads files on Haiku.
-- `AGENTS.md` names four agent roles and the workflow brief → issue → one branch and one pull request for each build step → CI → merge after the user agrees. The issue and pull request templates are in `.github/`. An A/B run with 10 subagents chose this version over the old one.
+- `docs/requirements/intake-monsport-v1.md` is the source of truth (ADR 0002).
+- The stack: NestJS 12, React 19 + Vite 8, PostgreSQL (18 locally and in CI), Prisma 7 from pull request 1, Zod 4, SSE for real-time updates.
+- The API is ESM and builds with SWC, because Nest needs decorator metadata. `packages/shared` ships TypeScript source.
+- Claude Code: `opusplan`, plan mode by default, and `Explore` on Haiku.
 
 ## Open decisions
 
-These are the open items of the intake. None of them blocks the data model.
-
-1. The number of courts at each venue, the football court size (5 or 7 players), and the city. Owner: the user.
+1. The number of courts at each venue, the football court size, and the city. Owner: the user.
 2. The pilot date. Owner: the user.
 3. Bookings per day after 6 months. Owner: the user.
 4. Whether Luật 91/2025 requires consent at sign-up. Owner: the user, with a legal adviser.
+5. Which Postgres version Supabase gives the production project. Check it when the project is created.
 
 ## Next step
 
-1. Open a pull request for `chore/intake-v1` and merge it into `main`.
-2. Write the requirements documents from the intake with the skill `ba-docs`: use cases, business rules, data model, and API.
-3. Write the first feature brief with the skill `feature-brief`, then build pull request 0: the project skeleton.
+1. Merge pull request 0 after CI passes and the user agrees.
+2. Write the requirements documents from the intake with `ba-docs`: use cases, business rules, data model, and API.
+3. Write the first feature brief with `feature-brief`, open its issue, and build it.
