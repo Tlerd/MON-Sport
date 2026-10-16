@@ -97,10 +97,17 @@ App chưa có màn hình đăng ký (UC-1) và quản lý đơn vị (UC-10). Đ
 
 Lệnh seed xóa hết dữ liệu trong các bảng. Chỉ chạy nó trước khi có dữ liệu thật.
 
-1. Tải Cloud SQL Auth Proxy: `https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.26.2/cloud-sql-proxy.x64.exe`. Đổi tên file thành `cloud-sql-proxy.exe`.
-2. Chạy `gcloud auth application-default login`.
-3. Trong một cửa sổ, chạy `.\cloud-sql-proxy.exe --port 5433 $Conn`.
-4. Trong cửa sổ thứ hai, đặt một mật khẩu riêng cho các tài khoản mẫu, rồi chạy seed:
+1. Mở PowerShell tại `D:\MON-Sport`. Lấy lại tên kết nối và mật khẩu, vì một cửa sổ mới không còn các biến của bước 4:
+
+```powershell
+$Conn = gcloud sql instances describe monsport-db --format="value(connectionName)"
+$DbPass = ((gcloud secrets versions access latest --secret=monsport-database-url) -split "[:@]")[2]
+```
+
+2. Tải Cloud SQL Auth Proxy: `https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.26.2/cloud-sql-proxy.x64.exe`. Đổi tên file thành `cloud-sql-proxy.exe`.
+3. Chạy `gcloud auth application-default login`.
+4. Trong một cửa sổ khác, chạy `.\cloud-sql-proxy.exe --port 5433 <connection name>`. Lấy `<connection name>` từ biến `$Conn`.
+5. Trong cửa sổ có `$DbPass`, đặt một mật khẩu riêng cho các tài khoản mẫu, rồi chạy seed:
 
 ```powershell
 $env:DATABASE_URL = "postgresql://monsport:$DbPass@localhost:5433/monsport"
@@ -115,7 +122,7 @@ Các số điện thoại mẫu nằm trong `apps/api/prisma/seed.ts`. Ai có UR
 
 - Cập nhật: `git switch main`, `git pull`, rồi chạy lại lệnh ở bước 7.
 - Xem log: `gcloud run services logs read monsport --region=$Region --limit=50`.
-- Cloud Run không tính tiền khi không có request. Cloud SQL tính tiền theo giờ. Để ngừng trả tiền khi không dùng, chạy `gcloud sql instances patch monsport-db --activation-policy=NEVER`. Chạy lại với `ALWAYS` để bật lại.
+- Cloud Run không tính tiền khi không có request. Cloud SQL tính tiền theo giờ. Để ngừng trả tiền khi không dùng, chạy `gcloud sql instances patch monsport-db --activation-policy=NEVER`. Chạy lại với `ALWAYS` để bật lại. Dung lượng lưu trữ và bản sao lưu vẫn tính tiền khi instance dừng.
 
 Lệnh `gcloud sql instances delete monsport-db` xóa cơ sở dữ liệu vĩnh viễn, kể cả bản sao lưu. Chỉ chạy lệnh này khi bạn bỏ hẳn bản cloud.
 

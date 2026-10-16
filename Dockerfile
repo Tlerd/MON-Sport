@@ -19,5 +19,5 @@ COPY --from=build /app /app
 WORKDIR /app/apps/api
 USER node
 EXPOSE 8080
-# Migrations run before the server starts. Prisma holds an advisory lock, so two starting instances do not clash.
+# Migrations run before the server starts. Prisma takes an advisory lock. An instance that waits too long for it fails, and Cloud Run starts it again.
 CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && exec node dist/main.js"]
