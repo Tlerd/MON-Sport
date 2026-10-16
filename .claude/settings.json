@@ -122,7 +122,23 @@
       "PowerShell(gcloud sql import*)",
       "PowerShell(gcloud secrets versions access*)",
       "PowerShell(gcloud sql users set-password*)",
-      "PowerShell(gcloud auth print-*)"
+      "PowerShell(gcloud auth print-*)",
+      "Bash(gh api graphql*mutation*)",
+      "Bash(gh api * graphql*mutation*)",
+      "Bash(git -c *)",
+      "Bash(git config *alias*)",
+      "Bash(node scripts/..*)",
+      "Bash(gh variable set*)",
+      "Bash(gh variable delete*)",
+      "Bash(gh secret set*)",
+      "PowerShell(gh api graphql*mutation*)",
+      "PowerShell(gh api * graphql*mutation*)",
+      "PowerShell(git -c *)",
+      "PowerShell(git config *alias*)",
+      "PowerShell(node scripts/..*)",
+      "PowerShell(gh variable set*)",
+      "PowerShell(gh variable delete*)",
+      "PowerShell(gh secret set*)"
     ]
   },
   "enabledPlugins": {

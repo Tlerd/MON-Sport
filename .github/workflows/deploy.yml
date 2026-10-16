@@ -25,19 +25,31 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v7
+      # Two merges close together can finish ci out of order. Only the newest main commit deploys.
+      - id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANT: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          head=$(gh api "repos/${{ github.repository }}/commits/main" --jq .sha)
+          if [ "$head" = "$WANT" ]; then echo "deploy=true" >> "$GITHUB_OUTPUT"; else echo "main moved to $head, skip $WANT"; fi
+      - if: steps.latest.outputs.deploy == 'true'
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-      - uses: google-github-actions/auth@v3
+      - if: steps.latest.outputs.deploy == 'true'
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
       # The service keeps its Cloud SQL link, secrets, and memory from the first deploy.
       - id: deploy
+        if: steps.latest.outputs.deploy == 'true'
         uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: monsport
           region: asia-southeast1
           source: .
       - name: The service answers
+        if: steps.latest.outputs.deploy == 'true'
         run: curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "${{ steps.deploy.outputs.url }}/api/health"
