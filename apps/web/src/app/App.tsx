@@ -9,8 +9,8 @@ import { api } from '../lib/api.ts';
 const HERO: Record<SessionUser['role'] | 'GUEST', string> = {
   GUEST: 'Chọn giờ trống, gửi yêu cầu, chủ sân xác nhận.',
   USER: 'Chọn sân và giờ chơi, rồi gửi yêu cầu cho chủ sân.',
-  OWNER: 'Các yêu cầu đặt sân của bạn nằm ở đây.',
-  ADMIN: 'Màn quản trị đang được làm.',
+  OWNER: 'Yêu cầu đặt sân tại đơn vị của bạn.',
+  ADMIN: 'Màn admin chưa có trong bản này.',
 };
 
 /** Composes the features by role. An admin has no screen in F-002. */
@@ -33,8 +33,8 @@ export function App() {
         <span className="brand">MONSPORT</span>
         {user && (
           <span className="who">
-            <span className="avatar" aria-hidden="true">{user.name.slice(0, 1)}</span>
-            {user.name}
+            <span className="avatar" aria-hidden="true">{initial(user.name)}</span>
+            <span className="name">{user.name}</span>
             <button type="button" className="link" onClick={logout}>Đăng xuất</button>
           </span>
         )}
@@ -42,7 +42,7 @@ export function App() {
       {user !== undefined && (
         <div className="hero">
           <CourtLines />
-          <h1>{user ? `Chào ${user.name}` : 'Đặt sân gần bạn'}</h1>
+          <h1>{user ? `Chào ${user.name}` : 'Đặt sân cầu lông, bóng đá'}</h1>
           <p>{HERO[user?.role ?? 'GUEST']}</p>
         </div>
       )}
@@ -55,11 +55,13 @@ export function App() {
           </>
         )}
         {user?.role === 'OWNER' && <OwnerRequests />}
-        {user?.role === 'ADMIN' && <p className="empty">Màn admin chưa có trong bản này.</p>}
       </main>
     </div>
   );
 }
+
+/** Vietnamese names put the given name last: "Nguyễn Văn An" shows "A". */
+const initial = (name: string) => [...(name.normalize('NFC').trim().split(/\s+/).at(-1) ?? '')][0] ?? '';
 
 /** A badminton court seen from above, drawn in line white: the one decoration of the app. */
 function CourtLines() {

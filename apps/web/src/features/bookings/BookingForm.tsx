@@ -1,5 +1,5 @@
 import { bookingPrice, type BookingView, type VenueView } from '@monsport/shared';
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 import { formatSlot, formatTime, formatVnd, hhmm } from '../../lib/format.ts';
 import { STATUS_LABEL } from './status.ts';
@@ -18,10 +18,16 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
   const [duration, setDuration] = useState(60);
   const [result, setResult] = useState<BookingView | null>(null);
   const [error, setError] = useState('');
+  const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api<VenueView[]>('/api/venues').then(setVenues, () => setError('Không tải được danh sách đơn vị'));
   }, []);
+
+  // The checkout is sticky, so the ticket must come into view when it appears.
+  useEffect(() => {
+    if (result) resultRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [result]);
 
   const venue = venues.find((v) => v.id === venueId);
   const court = venue?.courts.find((c) => c.id === courtId);
@@ -54,7 +60,7 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
       <p className="notice">App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.</p>
       <form onSubmit={submit} className="stack">
         <fieldset className="step">
-          <legend><span className="step-no">1</span>Chọn sân</legend>
+          <legend><span className="step-no" aria-hidden="true">1</span>Chọn sân</legend>
           <label>
             Đơn vị
             <select value={venueId} onChange={(e) => { setVenueId(e.target.value); setCourtId(''); setStart(venues.find((v) => v.id === e.target.value)?.opensAt ?? 0); }} required>
@@ -80,7 +86,7 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
         </fieldset>
         {venue && (
           <fieldset className="step">
-            <legend><span className="step-no">2</span>Chọn giờ</legend>
+            <legend><span className="step-no" aria-hidden="true">2</span>Chọn giờ</legend>
             <div className="row">
               <label>
                 Ngày
@@ -102,8 +108,21 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
             <SlotBar start={start} duration={duration} />
           </fieldset>
         )}
-        {error && <p className="error" role="alert">{error}</p>}
+        {result && (
+          <div ref={resultRef} className="ticket result" data-status={result.status} role="status">
+            <span className="stub">
+              <strong>{formatTime(result.startAt)}</strong>
+              <span>đến {formatTime(result.endAt)}</span>
+            </span>
+            <span className="body">
+              <span className="status">{STATUS_LABEL[result.status]}</span>
+              <span>{formatSlot(result.startAt, result.endAt)}</span>
+              <span className="money">{formatVnd(result.priceTotal)}</span>
+            </span>
+          </div>
+        )}
         <div className="checkout">
+          {error && <p className="error" role="alert">{error}</p>}
           <span className="total">
             <span>Tạm tính</span>
             <strong className="money">{price !== null ? formatVnd(price) : '—'}</strong>
@@ -111,19 +130,6 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
           <button type="submit" disabled={!court || !date}>Gửi yêu cầu</button>
         </div>
       </form>
-      {result && (
-        <div className="ticket result" data-status={result.status} role="status">
-          <span className="stub">
-            <strong>{formatTime(result.startAt)}</strong>
-            <span>đến {formatTime(result.endAt)}</span>
-          </span>
-          <span className="body">
-            <span className="status">{STATUS_LABEL[result.status]}</span>
-            <span>{formatSlot(result.startAt, result.endAt)}</span>
-            <span className="money">{formatVnd(result.priceTotal)}</span>
-          </span>
-        </div>
-      )}
     </section>
   );
 }
@@ -138,7 +144,7 @@ function SlotBar({ start, duration }: { start: number; duration: number }) {
         {pieces.map((m) => <span key={m} className={m >= PEAK[0] && m < PEAK[1] ? 'peak' : ''}>{hhmm(m)}</span>)}
         <span className="end">{hhmm(start + duration)}</span>
       </div>
-      {hasPeak && <p className="hint">Ô vàng là giờ cao điểm (17:00–22:00), giá cao hơn.</p>}
+      {hasPeak && <p className="hint">Giờ cao điểm {hhmm(PEAK[0])}–{hhmm(PEAK[1])} tính giá cao hơn.</p>}
     </div>
   );
 }
