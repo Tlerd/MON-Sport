@@ -24,4 +24,4 @@ Người dùng muốn đưa app lên Google Cloud để chạy thử. Trước �
 - Không cần Supabase. Mục mở về phiên bản Postgres của Supabase hết hiệu lực.
 - Cloud SQL tính tiền theo giờ, kể cả khi không có request. Cloud Run có thể về 0 instance.
 - Đổi sang nhà cung cấp khác cần một `Dockerfile` chạy được ở nơi khác và một chuỗi kết nối mới. Code của app không đổi.
-- Chưa có deploy tự động từ `main`. Người dùng chạy lệnh deploy trong `docs/deploy-gcp.md`.
+- Mỗi lần merge vào `main`, GitHub Actions deploy lên Cloud Run qua Workload Identity Federation (bổ sung ngày 2026-10-17).

@@ -61,18 +61,19 @@ A fix, a chore, or a docs change that no brief covers needs no issue. Its branch
 
 ## Autonomy
 
-The user starts work with "tiếp tục", "continue", or a goal. Then plan and work without asking until the goal is met and `pnpm check` passes on `main`.
+The user starts work with "tiếp tục", "continue", or a goal. Then plan, build, review, merge, and deploy without asking, until the result is live and handed over. Do not stop to ask the user.
 
 - Run `git status` first. Finish work in progress on the current branch before anything new.
-- Without a goal, do the steps in `PROGRESS.md` in order until no step is left or a stop item comes up. Pick the next slice by the launch order in the intake.
+- Without a goal, do the steps in `PROGRESS.md` in order until no step is left. Pick the next slice by the launch order in the intake.
 - When a decision is open, choose the option that the intake supports best, or else the safer one. Write it under "Assumptions" in the brief or the pull request, with the reason. The user corrects it later.
-- Stop and ask only for these:
-  - an action that costs money, changes a cloud or GitHub account setting, or publishes outside the repository, for example a deploy;
-  - an action that deletes data or history that this task did not create;
-  - a secret, a password, or a legal question with no safe default;
-  - a finding of medium or higher that stays open after 2 review rounds, or an autofix that gave up;
-  - the merge of a pull request that changes `.github/`, `.githooks/`, `.claude/`, `.agents/`, `scripts/`, `harness/`, `AGENTS.md`, `package.json`, `pnpm-workspace.yaml`, `.dependency-cruiser.cjs`, a `tsconfig*.json`, or a vitest config. These files are the checks, so the user approves a change to them.
-- End each run with a short report: what is done, the assumptions you made, and what is next.
+- When a finding of medium or higher stays open after 2 review rounds, or autofix gives up, choose the safest fix you can. Record the open finding in the pull request and in `PROGRESS.md`, and continue.
+- A merge to `main` deploys it with `.github/workflows/deploy.yml`. After the merge, check that the deploy run passes and that `/api/health` answers on the service URL.
+- Never:
+  - force push, push to `main`, or merge with a failing check;
+  - delete data, a branch, or a cloud resource that this work did not create;
+  - write a secret or a password into code, a log, a commit, or a comment;
+  - weaken a check (`pnpm check`, CI, the hooks, these rules) to make work pass.
+- End each run with a short report: what is done, the assumptions you made, the service URL, and what is next.
 
 ## State
 

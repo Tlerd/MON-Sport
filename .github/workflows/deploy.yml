@@ -1,0 +1,35 @@
+name: deploy
+
+# Each push to main (a merged pull request) goes live on Cloud Run.
+# Google Cloud trusts this repository's main branch through Workload Identity Federation,
+# so GitHub stores no key. docs/deploy-gcp.md shows the setup.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      # The service keeps its Cloud SQL link, secrets, and memory from the first deploy.
+      - id: deploy
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: monsport
+          region: asia-southeast1
+          source: .
+      - name: The service answers
+        run: curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "${{ steps.deploy.outputs.url }}/api/health"

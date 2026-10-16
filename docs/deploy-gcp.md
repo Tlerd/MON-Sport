@@ -118,9 +118,19 @@ Remove-Item Env:DATABASE_URL, Env:SEED_PASSWORD
 
 Các số điện thoại mẫu nằm trong `apps/api/prisma/seed.ts`. Ai có URL và mật khẩu mẫu thì đăng nhập được. Vì vậy, đừng dùng `monsport123` trên bản cloud.
 
-## 9. Cập nhật, xem log, dừng
+## 9. Tự deploy từ main
 
-- Cập nhật: `git switch main`, `git pull`, rồi chạy lại lệnh ở bước 7.
+Mỗi lần một pull request merge vào `main`, job `.github/workflows/deploy.yml` deploy bản mới lên Cloud Run. Sau đó job gọi `/api/health`. GitHub không giữ key nào. Google Cloud tin nhánh `main` của repo qua Workload Identity Federation.
+
+Phần cài đặt đã làm ngày 17/10/2026:
+
+- Tài khoản dịch vụ `monsport-deployer` có 3 role: `roles/run.sourceDeveloper`, `roles/serviceusage.serviceUsageConsumer`, `roles/logging.viewer`. Nó có `roles/iam.serviceAccountUser` trên tài khoản Compute mặc định.
+- Pool `github`, provider `monsport-repo`. Provider chỉ nhận token của `Tlerd/MON-Sport` trên `refs/heads/main`.
+- Hai biến của repo: `GCP_WIF_PROVIDER` và `GCP_DEPLOY_SA`.
+
+Để deploy lại bằng tay, mở tab Actions, chọn `deploy`, rồi bấm `Run workflow`.
+
+## 10. Xem log, dừng
 - Xem log: `gcloud run services logs read monsport --region=$Region --limit=50`.
 - Cloud Run không tính tiền khi không có request. Cloud SQL tính tiền theo giờ. Để ngừng trả tiền khi không dùng, chạy `gcloud sql instances patch monsport-db --activation-policy=NEVER`. Chạy lại với `ALWAYS` để bật lại. Dung lượng lưu trữ và bản sao lưu vẫn tính tiền khi instance dừng.
 
