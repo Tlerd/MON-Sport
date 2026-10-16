@@ -6,15 +6,13 @@ Updated: 2026-10-16
 
 ## Current state
 
-- `main` holds the intake, ADR 0002, the agent roles, the workflow, and the issue and PR templates (PR #1).
-- `main` also holds pull request 0 (PR #2): `packages/shared`, `apps/api` (NestJS, `GET /api/health`), `apps/web` (React + Vite), and Postgres 18 in CI.
-- `main` also holds the requirements documents (PR #3): glossary, BR-1 to BR-28, UC-1 to UC-14, data dictionary, models.
-- `main` holds the accepted brief F-002 (PR #4). Its issue is #5.
-- `main` holds F-002 step 1 (PR #6). Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
-- `main` holds F-002 step 3, the screens (PR #8): login, booking form, my bookings, owner requests. AC-20 and AC-21 pass. The screens call the server of step 2.
-- PR #7 (`feat/5-2-booking-server`) holds F-002 step 2, the server: AC-1 to AC-3, AC-6, AC-7, AC-10 to AC-19. A fresh session reviews it. Until it merges, `main` has screens without their API.
-- Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). It needs no password of the system Postgres on 5432. Start it again after a reboot.
-- The usage guard in `D:\REPO_GITHUB_TRY\usage-guard` reads `~/.claude/usage-guard/state.json`. The desktop app does not write it, so the agent writes it from the app's usage data. Headless runs fail until `claude /login`.
+- `main` holds the intake (ADR 0002), the requirements documents (glossary, BR-1 to BR-28, UC-1 to UC-14, data dictionary, models), the agent roles, the workflow, and the issue and PR templates.
+- F-002 is done (issue #5 closed): login with seed accounts, `GET /api/venues`, booking requests, owner confirm and reject, and the screens. AC-1 to AC-21 pass. PRs #6, #7, #8, #9, #10.
+- PR #7 merged before its concurrency fix. PR #10 carried the fix (row lock `FOR UPDATE` on `Court`), the `SESSION_SECRET` start-up check, and the security tests.
+- The full flow ran in the browser on 2026-10-16 with the real API.
+- Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
+- Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot.
+- The usage guard (`D:/REPO_GITHUB_TRY/usage-guard`) has both lines at 100%. The desktop app does not write its `state.json`, so the agent writes it from the app's usage data.
 
 ## Decisions settled on 2026-10-16
 
@@ -33,6 +31,5 @@ Updated: 2026-10-16
 
 ## Next step
 
-1. Merge PR #7 after its review and CI pass. Then issue #5 is done.
-2. Try the full flow in the browser: `pnpm db:start`, seed, `pnpm dev:api`, `pnpm dev:web`.
-3. Usage guard: pause at 95% of the 5-hour window, stop at 95% of the week (`D:/REPO_GITHUB_TRY/usage-guard/config.json`).
+1. The user picks the next slice. The intake order suggests UC-1 sign-up with UC-10 admin screens, or UC-2 the free-slot grid.
+2. Write its brief with `feature-brief`, open its issue, and build it.
