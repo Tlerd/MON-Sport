@@ -11,7 +11,7 @@
     "db:start": "node scripts/db-local.mjs",
     "dev:api": "pnpm --filter @monsport/api dev",
     "dev:web": "pnpm --filter @monsport/web dev",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "git config core.hooksPath .githooks || exit 0"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.6.0",

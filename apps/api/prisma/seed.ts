@@ -1,6 +1,6 @@
 // Sample data for local development: `pnpm --filter @monsport/api db:seed`.
 // It empties the tables first, so it runs only against a database on localhost.
-// SEED_PASSWORD is a local test value for every seed account.
+// Every seed account gets SEED_PASSWORD. Its default is a local test value.
 
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -11,7 +11,8 @@ if (existsSync('.env')) process.loadEnvFile('.env');
 const url = process.env.DATABASE_URL ?? '';
 if (!/@localhost[:/]/.test(url)) throw new Error('The seed runs only against a database on localhost.');
 
-const SEED_PASSWORD = 'monsport123';
+// A seed of a shared demo database takes its password from SEED_PASSWORD, so the default stays local.
+const SEED_PASSWORD = process.env.SEED_PASSWORD ?? 'monsport123';
 const passwordHash = await hash(SEED_PASSWORD);
 
 const users = [

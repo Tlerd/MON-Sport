@@ -33,3 +33,38 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+
+  # Builds the Cloud Run image and starts it against Postgres, because the dev machine has no Docker.
+  image:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: monsport
+          POSTGRES_PASSWORD: monsport
+          POSTGRES_DB: monsport_prod
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U monsport -d monsport_prod"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --tag monsport .
+      - name: Start the image
+        run: >-
+          docker run --detach --name app --network host
+          --env DATABASE_URL=postgresql://monsport:monsport@localhost:5432/monsport_prod
+          --env SESSION_SECRET=ci-only-secret-0123456789abcdefghijklmnop
+          monsport
+      - name: The API and the web app answer
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent localhost:8080/api/health && curl --fail --silent localhost:8080/ | grep --quiet 'id="root"'; then exit 0; fi
+            sleep 2
+          done
+          docker logs app
+          exit 1
