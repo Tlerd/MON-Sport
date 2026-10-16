@@ -67,6 +67,8 @@ The user starts work with "tiếp tục", "continue", or a goal. Then plan, buil
 - Without a goal, do the steps in `PROGRESS.md` in order until no step is left. Pick the next slice by the launch order in the intake.
 - When a decision is open, choose the option that the intake supports best, or else the safer one. Write it under "Assumptions" in the brief or the pull request, with the reason. The user corrects it later.
 - When a finding of medium or higher stays open after 2 review rounds, or autofix gives up, choose the safest fix you can. Record the open finding in the pull request and in `PROGRESS.md`, and continue.
+- A question to the user is a stop. Decide instead, and list the decision in the end report.
+- You may create test data on the live service to check a feature. Give each test account the name prefix `test-`.
 - A merge to `main` deploys it with `.github/workflows/deploy.yml`. After the merge, check that the deploy run passes and that `/api/health` answers on the service URL.
 - Never:
   - force push, push to `main`, or merge with a failing check;
