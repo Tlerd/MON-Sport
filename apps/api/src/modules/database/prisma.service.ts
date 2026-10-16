@@ -5,7 +5,11 @@ import { PrismaClient } from '../../generated/prisma/client.js';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor() {
-    super({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+    super({
+      adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+      // Under a burst (AC-1: 50 requests on one slot) a transaction can wait more than the 2 s default for a connection.
+      transactionOptions: { maxWait: 10_000, timeout: 10_000 },
+    });
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -22,4 +26,11 @@ export function isExclusionViolation(error: unknown): boolean {
     e = o.cause;
   }
   return /23P01|Booking_no_overlap/.test(String((error as Error)?.message ?? ''));
+}
+
+// Prisma P2034: Postgres ended the transaction for a deadlock (40P01) or a serialization failure (40001).
+// Two inserts on one slot can deadlock while they wait on the EXCLUDE check. A retry then meets 23P01.
+export function isRetryableConflict(error: unknown): boolean {
+  const o = error as { code?: unknown; cause?: { originalCode?: unknown } } | null;
+  return o?.code === 'P2034' || ['40P01', '40001'].includes(String(o?.cause?.originalCode ?? ''));
 }

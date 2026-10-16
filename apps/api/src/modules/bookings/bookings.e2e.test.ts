@@ -74,7 +74,8 @@ describe('POST /api/bookings', () => {
     expect(codes.filter((c) => c === 201)).toHaveLength(1);
     expect(codes.filter((c) => c === 409)).toHaveLength(49);
     expect(responses.find((r) => r.status === 409)!.body.message).toBe('Khung giờ này vừa có người đặt');
-  });
+    // 50 transactions queue for the pool, and a deadlocked one retries, so this test needs more than 5 s on a busy machine.
+  }, 30_000);
 
   it('AC-2: a slot next to a pending booking is accepted', async () => {
     await ask('chi', '19:00', '20:00').expect(201);

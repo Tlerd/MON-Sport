@@ -11,7 +11,7 @@ import {
 } from '@monsport/shared';
 import type { Booking } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
-import { isExclusionViolation, PrismaService } from '../database/prisma.service.js';
+import { isExclusionViolation, isRetryableConflict, PrismaService } from '../database/prisma.service.js';
 
 const TAKEN = 'Khung giờ này vừa có người đặt';
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -56,32 +56,41 @@ export class BookingsService {
     const deadline = confirmDeadline(now, startAt); // BR-7
     if (deadline < now) throw new BadRequestException('Đã quá hạn đặt trong app. Hãy gọi chủ sân'); // BR-9
 
-    try {
-      const booking = await this.prisma.$transaction(async (tx) => {
-        // BR-8 without a job: expired requests on this court stop holding their time before the insert.
-        await tx.booking.updateMany({
-          where: { courtId: court.id, status: 'PENDING', confirmDeadline: { lt: now } },
-          data: { status: 'EXPIRED' },
-        });
-        return tx.booking.create({
-          data: {
-            courtId: court.id,
-            startAt,
-            endAt,
-            status: 'PENDING',
-            source: 'APP',
-            createdById: userId,
-            priceTotal: bookingPrice(startAt, endAt, court.priceNormal, court.pricePeak), // BR-5, BR-6
-            confirmDeadline: deadline,
-            createdAt: now,
-          },
-        });
-      });
-      return toView(booking);
-    } catch (error) {
-      if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
-      throw error;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return toView(await this.insertRequest(userId, court, startAt, endAt, deadline, now));
+      } catch (error) {
+        if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
+        if (isRetryableConflict(error) && attempt < 3) continue;
+        throw error;
+      }
     }
+  }
+
+  // One attempt: expire, then insert, in one transaction. The batch form holds no
+  // interactive transaction open, so 50 parallel requests do not wait for a free connection.
+  private async insertRequest(userId: string, court: { id: string; priceNormal: number; pricePeak: number }, startAt: Date, endAt: Date, deadline: Date, now: Date) {
+    const [, booking] = await this.prisma.$transaction([
+      // BR-8 without a job: expired requests on this court stop holding their time before the insert.
+      this.prisma.booking.updateMany({
+        where: { courtId: court.id, status: 'PENDING', confirmDeadline: { lt: now } },
+        data: { status: 'EXPIRED' },
+      }),
+      this.prisma.booking.create({
+        data: {
+          courtId: court.id,
+          startAt,
+          endAt,
+          status: 'PENDING',
+          source: 'APP',
+          createdById: userId,
+          priceTotal: bookingPrice(startAt, endAt, court.priceNormal, court.pricePeak), // BR-5, BR-6
+          confirmDeadline: deadline,
+          createdAt: now,
+        },
+      }),
+    ]);
+    return booking;
   }
 
   async mine(userId: string): Promise<BookingView[]> {
