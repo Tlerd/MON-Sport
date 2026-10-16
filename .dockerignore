@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+apps/api/src/generated
+.git
+.agents
+.claude
+.gemini
+docs
