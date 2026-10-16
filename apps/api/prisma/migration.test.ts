@@ -62,6 +62,8 @@ describe('migration f003_consent', () => {
     expect(await sqlState(venue(360, 360))).toBe('23514');
     expect(await sqlState(venue(375, 1380))).toBe('23514');
     expect(await sqlState(venue(0, 1470))).toBe('23514');
+    expect(await sqlState(venue(-30, 1380))).toBe('23514');
+    expect(await sqlState(venue(360, 1385))).toBe('23514');
     const court = (priceNormal: number, pricePeak: number) =>
       db.query(`INSERT INTO "Court" (id, "venueId", name, sport, "priceNormal", "pricePeak") VALUES ($1, $2, 'Sân 9', 'BADMINTON', $3, $4)`, [
         randomUUID(), venueId, priceNormal, pricePeak,
@@ -69,6 +71,7 @@ describe('migration f003_consent', () => {
     expect(await sqlState(court(0, 1))).toBe('23514');
     expect(await sqlState(court(1, 0))).toBe('23514');
     expect(await sqlState(court(1, 10_000_001))).toBe('23514');
+    expect(await sqlState(court(10_000_001, 1))).toBe('23514');
   });
 
   it('adds User.consentAt as a nullable timestamptz(3), so existing accounts stay valid', async () => {

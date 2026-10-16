@@ -94,7 +94,7 @@ Zod trong `packages/shared/src/` là nguồn duy nhất. Mọi route `/api/admin
 
 Ở `PATCH /api/admin/venues/:id`, server gộp body với đơn vị đang lưu. Rồi server kiểm kết quả bằng `VenueInput` và kiểm `ownerId` có vai trò `OWNER`. Server không lưu gì khi một kiểm tra sai.
 
-Lỗi 400 của Zod trả câu tiếng Việt của lỗi đầu tiên, theo thứ tự trường. Các câu đó là câu ở AC-5, AC-6, AC-14, AC-18 và AC-30. Lỗi Zod khác trả "Dữ liệu không hợp lệ". Service đọc DB và trả hai câu 400 còn lại: "Không khóa được tài khoản admin" và "Chủ sân không hợp lệ".
+Lỗi 400 của Zod trả câu tiếng Việt của lỗi đầu tiên, theo thứ tự trường. Các câu đó là câu ở AC-5, AC-6, AC-14, AC-18 và AC-30, cùng các câu về tên, mật khẩu dài, khoảng giờ và giá tối đa trong `Messages`. Lỗi Zod khác trả "Dữ liệu không hợp lệ". Service đọc DB và trả hai câu 400 còn lại: "Không khóa được tài khoản admin" và "Chủ sân không hợp lệ".
 
 Service đổi lỗi unique (`P2002`) của `User.phone` và của (`Court.venueId`, `Court.name`) thành 409. Khi hai lần sửa đơn vị chạy cùng lúc, CHECK trong DB có thể chặn lần sau với `23514`. Service đổi lỗi này thành 400 "Giờ đóng cửa phải sau giờ mở cửa".
 
@@ -167,6 +167,7 @@ Nếu PR 4 vượt khoảng 400 dòng thay đổi, tách thành 4a (đăng ký, 
 | Luật 91/2025 có yêu cầu thêm gì ngoài ô đồng ý và thông báo không (open item 4 của intake)? | Bạn, với người tư vấn luật | không |
 | Nội dung chính thức của thông báo bảo vệ dữ liệu cá nhân | Bạn, với người tư vấn luật | không |
 | Dữ liệu của chủ sân dựa trên hợp đồng với đơn vị, hay chủ sân cũng phải đồng ý riêng? | Bạn, với người tư vấn luật | không |
+| Yêu cầu xóa dữ liệu hoặc rút lại đồng ý trước khi có brief xóa tài khoản: admin xử lý bằng tay. Cách này đủ chưa? | Bạn | không |
 
 ## Done when
 
