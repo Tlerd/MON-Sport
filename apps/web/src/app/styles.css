@@ -1,0 +1,86 @@
+/* Evening court: deep court green, line white, floodlight amber for peak hours (BR-4). */
+:root {
+  --court: #0f5c4a;
+  --court-deep: #0a4235;
+  --line: #fbfbf7;
+  --flood: #f2b33d;
+  --ink: #1d2421;
+  --mist: #e6ece8;
+  --alert: #b23a2e;
+  --radius-control: 6px;
+  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--mist);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+h1, h2 { margin: 0; line-height: 1.2; }
+
+.shell { max-width: 34rem; margin: 0 auto; min-height: 100vh; }
+
+.top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem; background: var(--court); color: var(--line);
+  /* The court's centre line under the header. */
+  border-bottom: 3px solid var(--line);
+}
+.top h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: 0.02em; }
+.who { display: flex; gap: 0.75rem; align-items: center; font-weight: 600; }
+
+main { padding: 1rem; display: grid; gap: 1.5rem; }
+.panel h2 { font-size: 1.375rem; font-weight: 800; margin-bottom: 0.75rem; color: var(--court-deep); }
+
+.stack { display: grid; gap: 0.875rem; }
+.row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 0.5rem; }
+label { display: grid; gap: 0.25rem; font-size: 0.875rem; font-weight: 600; }
+input, select {
+  font: inherit; font-weight: 400; padding: 0.625rem 0.5rem; min-height: 2.75rem;
+  border: 1px solid #9fb3aa; border-radius: var(--radius-control); background: var(--line); color: var(--ink);
+}
+
+button {
+  font: inherit; font-weight: 700; min-height: 2.75rem; padding: 0 1.125rem; cursor: pointer;
+  border: 0; border-radius: var(--radius-control); background: var(--court); color: var(--line);
+}
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.secondary { background: transparent; color: var(--alert); box-shadow: inset 0 0 0 1px var(--alert); }
+button.link { min-height: auto; padding: 0; background: none; color: var(--flood); text-decoration: underline; }
+:focus-visible { outline: 3px solid var(--flood); outline-offset: 2px; }
+
+.notice { margin: 0 0 1rem; padding: 0.75rem; border-left: 4px solid var(--flood); background: var(--line); }
+.call { color: var(--court); font-weight: 700; }
+.price { margin: 0; font-size: 1.125rem; }
+.error { margin: 0; color: var(--alert); font-weight: 600; }
+.empty { margin: 0; color: #4f5d57; }
+
+/* The chosen slot as lanes of 30 minutes. Peak lanes glow amber. */
+.slotbar { display: flex; gap: 2px; overflow-x: auto; }
+.slotbar span {
+  flex: 1 0 3.25rem; padding: 0.375rem 0; text-align: center; font-size: 0.75rem; font-weight: 600;
+  background: var(--court); color: var(--line);
+}
+.slotbar span.peak { background: var(--flood); color: var(--ink); }
+
+.ticket {
+  margin-top: 1rem; display: grid; gap: 0.125rem; padding: 0.875rem 1rem;
+  background: var(--line); border: 2px dashed var(--court);
+}
+.ticket strong { font-size: 1.25rem; color: var(--court-deep); }
+
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.list li {
+  display: grid; gap: 0.25rem; padding: 0.75rem 0.875rem; background: var(--line);
+  border-left: 4px solid #9fb3aa;
+}
+.list li[data-status='PENDING'] { border-left-color: var(--flood); }
+.list li[data-status='CONFIRMED'] { border-left-color: var(--court); }
+.list li[data-status='REJECTED'], .list li[data-status='EXPIRED'], .list li[data-status='CANCELLED'] { border-left-color: var(--alert); }
+.actions { display: flex; gap: 0.5rem; }
+
+@media (max-width: 420px) {
+  .row { grid-template-columns: 1fr 1fr; }
+  .row label:first-child { grid-column: 1 / -1; }
+}

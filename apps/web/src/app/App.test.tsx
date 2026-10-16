@@ -2,24 +2,23 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.tsx';
 
-const respond = (body: unknown) =>
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: () => Promise.resolve(body) }));
-
 describe('App', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
   });
 
-  it('shows that the API and the database run', async () => {
-    respond({ status: 'ok', db: 'up' });
+  it('shows the login form when nobody is signed in', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, json: () => Promise.resolve({ message: 'Bạn cần đăng nhập' }) }));
     render(<App />);
-    expect(await screen.findByText('Máy chủ và cơ sở dữ liệu đang chạy')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
   });
 
-  it('shows an error when the API does not answer', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+  it('shows the owner requests to an owner', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(url === '/api/auth/me' ? { id: 'x', name: 'Bình', role: 'OWNER' } : []) }),
+    ));
     render(<App />);
-    expect(await screen.findByText('Không kết nối được máy chủ hoặc cơ sở dữ liệu')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' })).toBeTruthy();
   });
 });
