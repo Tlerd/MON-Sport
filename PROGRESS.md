@@ -29,7 +29,7 @@ Updated: 2026-10-17 (F-003)
 4. Whether Luật 91/2025 requires more than the consent box and the notice that F-003 ships (`PRIVACY_NOTICE` in `packages/shared/src/account.ts`), and the final text of the notice. Owner: the user, with a legal adviser.
 5. Whether the Google Cloud trial becomes production. It runs on Cloud Run and Cloud SQL (ADR 0003, `docs/deploy-gcp.md`). Owner: the user.
 6. Whether owner data needs its own consent, or the contract with the venue covers it. Until account deletion ships, the admin handles deletion requests by hand. Owner: the user.
-7. Google sign-in is not in the intake. `docs/briefs/F-004-dang-nhap-google.md` is a plan only, written on request. Build it only after the user does the Google Cloud console steps in that brief. Owner: the user.
+7. Whether to build Google sign-in (F-004). It is not in the intake. `docs/briefs/F-004-dang-nhap-google.md` is a plan only, written on request. Only the user closes this decision: an agent must not close it under "Autonomy". The Google Cloud console steps in that brief come first. Owner: the user.
 
 ## Next step
 

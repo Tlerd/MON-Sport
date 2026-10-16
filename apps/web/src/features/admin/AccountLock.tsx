@@ -1,5 +1,5 @@
 import type { AccountView } from '@monsport/shared';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 
 const ROLE = { ADMIN: 'Admin', OWNER: 'Chủ sân', USER: 'Người dùng' } as const;
@@ -12,15 +12,18 @@ export function AccountLock({ onChanged }: { onChanged: (account: AccountView) =
   const [phone, setPhone] = useState('');
   const [found, setFound] = useState<AccountView[] | null>(null);
   const [error, setError] = useState('');
+  const latest = useRef(0);
 
   async function search(e: FormEvent) {
     e.preventDefault();
     setError('');
     setFound(null); // An old result must not stay under a new number, or the admin could lock the wrong account.
+    const request = ++latest.current; // A late answer to an older search is dropped.
     try {
-      setFound(await api<AccountView[]>('/api/admin/users/search', { method: 'POST', json: { phone } }));
+      const result = await api<AccountView[]>('/api/admin/users/search', { method: 'POST', json: { phone } });
+      if (request === latest.current) setFound(result);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không tìm được tài khoản');
+      if (request === latest.current) setError(err instanceof ApiError ? err.message : 'Không tìm được tài khoản');
     }
   }
 
@@ -42,7 +45,7 @@ export function AccountLock({ onChanged }: { onChanged: (account: AccountView) =
       <form onSubmit={search} className="search">
         <label>
           Số điện thoại cần tìm
-          <input inputMode="tel" maxLength={10} value={phone} onChange={(e) => { setPhone(e.target.value); setFound(null); }} required />
+          <input inputMode="tel" maxLength={10} value={phone} onChange={(e) => { setPhone(e.target.value); setFound(null); latest.current++; }} required />
         </label>
         <button type="submit">Tìm</button>
       </form>

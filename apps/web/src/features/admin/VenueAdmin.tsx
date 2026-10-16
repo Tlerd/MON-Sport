@@ -11,6 +11,12 @@ const message = (err: unknown, fallback: string) => (err instanceof ApiError ? e
 type VenueDraft = { ownerId: string; name: string; address: string; phone: string; opensAt: number; closesAt: number };
 type CourtDraft = { name: string; sport: Sport; priceNormal: number; pricePeak: number };
 
+/** Only the fields the admin changed, so a parallel edit of another field stays (the server writes only what it gets). */
+function changed(draft: VenueDraft, venue: AdminVenueView): Partial<VenueDraft> {
+  const stored: VenueDraft = { ownerId: venue.owner.id, name: venue.name, address: venue.address, phone: venue.phone, opensAt: venue.opensAt, closesAt: venue.closesAt };
+  return Object.fromEntries(Object.entries(draft).filter(([key, value]) => stored[key as keyof VenueDraft] !== value));
+}
+
 /** UC-10, steps 2 and 3: the admin creates and edits venues and their courts. */
 export function VenueAdmin({ owners }: { owners: AccountView[] }) {
   const [venues, setVenues] = useState<AdminVenueView[]>([]);
@@ -49,7 +55,7 @@ export function VenueAdmin({ owners }: { owners: AccountView[] }) {
                 owners={owners}
                 initial={{ ownerId: v.owner.id, name: v.name, address: v.address, phone: v.phone, opensAt: v.opensAt, closesAt: v.closesAt }}
                 submitLabel="Lưu đơn vị"
-                save={(draft) => api<AdminVenueView>(`/api/admin/venues/${v.id}`, { method: 'PATCH', json: draft }).then(put)}
+                save={(draft) => api<AdminVenueView>(`/api/admin/venues/${v.id}`, { method: 'PATCH', json: changed(draft, v) }).then(put)}
               />
               {v.courts.map((c) => (
                 <CourtForm
