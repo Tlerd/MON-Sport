@@ -6,7 +6,7 @@ Updated: 2026-10-16
 
 ## Current state
 
-- Branch `chore/harness` holds the harness, the technical specification in `docs/spec/`, ADR 0001, and the brief F-001. It is not committed. `pnpm check` passes.
+- Branch `chore/harness` holds the harness, the technical specification in `docs/spec/`, ADR 0001, and the brief F-001. It is committed and not pushed. `pnpm check` passes.
 - No application code exists. `apps/` and `packages/` appear with the first feature.
 - Not run yet: the CI workflow on GitHub, the Gemini setting, and any Codex session.
 
@@ -23,5 +23,5 @@ Updated: 2026-10-16
 
 ## Next step
 
-1. The user reviews the diff and asks for the commit.
+1. The user pushes `chore/harness` and merges it into `main`.
 2. Build F-001 (`docs/briefs/F-001-tao-tran-kem-dat-san.md`), starting with pull request 0: the project skeleton.
