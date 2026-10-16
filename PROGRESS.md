@@ -2,14 +2,13 @@
 
 This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git.
 
-Updated: 2026-10-17
+Updated: 2026-10-17 (F-003)
 
 ## Current state
 
 - `main` holds the intake (ADR 0002), the requirements documents (glossary, BR-1 to BR-28, UC-1 to UC-14, data dictionary, models), the agent roles, the workflow, and the issue and PR templates.
 - F-002 is done (issue #5 closed): login with seed accounts, `GET /api/venues`, booking requests, owner confirm and reject, and the screens. AC-1 to AC-21 pass. PRs #6, #7, #8, #9, #10.
-- PR #7 merged before its concurrency fix. PR #10 carried the fix (row lock `FOR UPDATE` on `Court`), the `SESSION_SECRET` start-up check, and the security tests.
-- The full flow ran in the browser on 2026-10-16 with the real API.
+- F-003 is done (issue #20): sign-up with consent (`User.consentAt`, BR-29), the admin screen (owners, venues, courts, lock and unlock), and "Đơn vị của tôi" for owners. AC-1 to AC-30 pass. PRs #19 (brief), #21, #22, #23, #24, #25.
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
 - Live at https://monsport-774323404592.asia-southeast1.run.app (Cloud Run + Cloud SQL, demo seed data). Each merge to `main` deploys through `.github/workflows/deploy.yml`.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot.
@@ -27,11 +26,14 @@ Updated: 2026-10-17
 1. The number of courts at each venue, the football court size, and the city. Owner: the user.
 2. The pilot date. Owner: the user.
 3. Bookings per day after 6 months. Owner: the user.
-4. Whether Luật 91/2025 requires consent at sign-up. Owner: the user, with a legal adviser.
+4. Whether Luật 91/2025 requires more than the consent box and the notice that F-003 ships (`PRIVACY_NOTICE` in `packages/shared/src/account.ts`), and the final text of the notice. Owner: the user, with a legal adviser.
 5. Whether the Google Cloud trial becomes production. It runs on Cloud Run and Cloud SQL (ADR 0003, `docs/deploy-gcp.md`). Owner: the user.
+6. Whether owner data needs its own consent, or the contract with the venue covers it. Until account deletion ships, the admin handles deletion requests by hand. Owner: the user.
+7. Google sign-in is not in the intake. `docs/briefs/F-004-dang-nhap-google.md` is a plan only, written on request. Build it only after the user does the Google Cloud console steps in that brief. Owner: the user.
 
 ## Next step
 
-1. F-003: UC-1 (sign-up and login) with UC-10 (accounts and venues), the first slice of the intake launch order. Write its brief with `feature-brief`, get a Reviewer check, open its issue, and build it.
-2. Until the user answers open decision 4, the safe default is a consent checkbox and a privacy notice at sign-up. Record it as an assumption.
-3. Then F-004: UC-11 (prices and opening hours).
+1. Before the pilot date (open decision 2): limit failed logins and sign-ups per phone and per IP, and check passwords against a list of common passwords. Each argon2 hash uses about 19 MB of RAM, so a burst of sign-ups can exhaust a Cloud Run instance.
+2. Revoke old sessions when the admin unlocks an account: add `User.sessionsValidFrom`, and let the session guard refuse older cookies. Today an unlock makes a stolen cookie valid again until it expires.
+3. F-005: UC-11 (an owner edits prices and opening hours), the next slice in the intake launch order. Write its brief with `feature-brief`.
+4. F-004 (Google sign-in) waits for the user (open decision 7).

@@ -1,5 +1,6 @@
 import type { SessionUser } from '@monsport/shared';
 import { useEffect, useState } from 'react';
+import { AdminPanel } from '../features/admin/AdminPanel.tsx';
 import { AuthPanel } from '../features/auth/AuthPanel.tsx';
 import { BookingForm } from '../features/bookings/BookingForm.tsx';
 import { MyBookings } from '../features/bookings/MyBookings.tsx';
@@ -11,7 +12,7 @@ const HERO: Record<SessionUser['role'] | 'GUEST', string> = {
   GUEST: 'Chọn giờ trống, gửi yêu cầu, chủ sân xác nhận.',
   USER: 'Chọn sân và giờ chơi, rồi gửi yêu cầu cho chủ sân.',
   OWNER: 'Đơn vị của bạn và các yêu cầu đặt sân.',
-  ADMIN: 'Màn admin chưa có trong bản này.',
+  ADMIN: 'Tạo chủ sân, đơn vị và sân. Khóa tài khoản khi cần.',
 };
 
 /** Composes the features by role. */
@@ -61,6 +62,7 @@ export function App() {
             <MyVenues />
           </>
         )}
+        {user?.role === 'ADMIN' && <AdminPanel />}
       </main>
     </div>
   );
