@@ -1,11 +1,14 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, HttpCode, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { LoginRequest, type SessionUser } from '@monsport/shared';
-import { verify } from '@node-rs/argon2';
+import { hash, verify } from '@node-rs/argon2';
 import type { Response } from 'express';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { issueSession, SESSION_COOKIE, SESSION_MS } from './session.js';
 import { type AuthedRequest, SessionGuard } from './session.guard.js';
+
+// Verified when no user has the phone, so both wrong answers take the same time (UC-1, 1.1.E1).
+const NO_USER_HASH = hash('no-user-has-this-phone');
 
 @Controller('auth')
 export class AuthController {
@@ -21,7 +24,8 @@ export class AuthController {
     if (!input.success) throw new BadRequestException('Số điện thoại hoặc mật khẩu không hợp lệ');
     const user = await this.prisma.user.findUnique({ where: { phone: input.data.phone } });
     // One message for a wrong phone and a wrong password (UC-1, 1.1.E1).
-    if (!user || user.deletedAt || !(await verify(user.passwordHash, input.data.password)))
+    const passwordOk = await verify(user?.passwordHash ?? (await NO_USER_HASH), input.data.password);
+    if (!user || user.deletedAt || !passwordOk)
       throw new UnauthorizedException('Sai số điện thoại hoặc mật khẩu');
     if (user.lockedAt) throw new ForbiddenException('Tài khoản đã bị khóa'); // BR-28
     res.cookie(SESSION_COOKIE, issueSession(user.id, this.clock.now()), {

@@ -4,11 +4,21 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 export const SESSION_COOKIE = 'session';
 export const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 
+const DEV_SECRET = 'local-development-only';
+
 function secret(): string {
-  const value = process.env.SESSION_SECRET;
-  if (value) return value;
-  if (process.env.NODE_ENV === 'production') throw new Error('SESSION_SECRET is not set.');
-  return 'local-development-only';
+  return process.env.SESSION_SECRET || DEV_SECRET;
+}
+
+/**
+ * Called at start-up (review of PR #7, item 3). In production the secret must be set, be long,
+ * and not be the development value, because anyone who knows it can forge a session cookie.
+ */
+export function assertSessionSecret(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== 'production') return;
+  const value = env.SESSION_SECRET ?? '';
+  if (value.length < 32 || value === DEV_SECRET)
+    throw new Error('SESSION_SECRET must be set to a random value of 32 characters or more in production.');
 }
 
 const sign = (payload: string) => createHmac('sha256', secret()).update(payload).digest('base64url');
@@ -32,7 +42,12 @@ export function readSession(value: string | undefined, now: Date): string | null
 export function cookieValue(header: string | undefined, name: string): string | undefined {
   for (const part of header?.split(';') ?? []) {
     const [key, ...rest] = part.trim().split('=');
-    if (key === name) return decodeURIComponent(rest.join('='));
+    if (key !== name) continue;
+    try {
+      return decodeURIComponent(rest.join('='));
+    } catch {
+      return undefined; // A malformed value is no session: the guard answers 401, not 500.
+    }
   }
   return undefined;
 }
