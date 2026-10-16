@@ -209,11 +209,10 @@ h2[tabindex='-1']:focus { outline: none; }
 .accounts { list-style: none; margin: 0 0 0.5rem; padding: 0; display: grid; }
 .accounts li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; padding: 0.625rem 0; border-top: 1px dashed var(--rule); }
 .accounts li:first-child { border-top: 0; }
-.accounts li button { margin-left: auto; min-height: 2.5rem; }
+.accounts li button { margin-left: auto; min-height: 2.75rem; }
 .status.locked { margin-top: 0; background: var(--alert-soft); color: var(--alert); }
 .search { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: end; margin-bottom: 0.75rem; }
 
 @media (max-width: 420px) {
-  .row.two { grid-template-columns: 1fr 1fr; }
   .row.two label:first-child { grid-column: auto; }
 }

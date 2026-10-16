@@ -16,6 +16,7 @@ export function AccountLock({ onChanged }: { onChanged: (account: AccountView) =
   async function search(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setFound(null); // An old result must not stay under a new number, or the admin could lock the wrong account.
     try {
       setFound(await api<AccountView[]>('/api/admin/users/search', { method: 'POST', json: { phone } }));
     } catch (err) {
@@ -41,15 +42,17 @@ export function AccountLock({ onChanged }: { onChanged: (account: AccountView) =
       <form onSubmit={search} className="search">
         <label>
           Số điện thoại cần tìm
-          <input inputMode="tel" maxLength={10} value={phone} onChange={(e) => setPhone(e.target.value)} required />
+          <input inputMode="tel" maxLength={10} value={phone} onChange={(e) => { setPhone(e.target.value); setFound(null); }} required />
         </label>
         <button type="submit">Tìm</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
-      {found?.length === 0 && <p className="empty">Không có tài khoản nào dùng số này.</p>}
+      <p className="live empty" role="status">
+        {found?.length === 0 ? 'Không có tài khoản nào dùng số này.' : found?.[0]?.lockedAt ? `${found[0].name} đã bị khóa.` : ''}
+      </p>
       <ul className="accounts">
         {found?.map((a) => (
-          <li key={a.id} aria-label={a.name}>
+          <li key={a.id}>
             <span className="customer">{a.name}</span>
             <span className="phone">{a.phone}</span>
             <span>{ROLE[a.role]}</span>

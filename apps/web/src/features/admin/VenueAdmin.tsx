@@ -17,7 +17,7 @@ export function VenueAdmin({ owners }: { owners: AccountView[] }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api<AdminVenueView[]>('/api/admin/venues').then(setVenues, () => setError('Không tải được danh sách đơn vị'));
+    api<AdminVenueView[]>('/api/admin/venues').then(setVenues, (err) => setError(message(err, 'Không tải được danh sách đơn vị')));
   }, []);
 
   const put = (v: AdminVenueView) =>
@@ -44,7 +44,7 @@ export function VenueAdmin({ owners }: { owners: AccountView[] }) {
             </p>
             <CourtPrices courts={v.courts} />
             <details className="drawer">
-              <summary>Sửa đơn vị và sân</summary>
+              <summary>{`Sửa ${v.name}`}</summary>
               <VenueForm
                 owners={owners}
                 initial={{ ownerId: v.owner.id, name: v.name, address: v.address, phone: v.phone, opensAt: v.opensAt, closesAt: v.closesAt }}
@@ -55,10 +55,12 @@ export function VenueAdmin({ owners }: { owners: AccountView[] }) {
                 <CourtForm
                   key={c.id}
                   legend={`Sửa ${c.name}`}
-                  initial={c}
+                  initial={{ name: c.name, sport: c.sport, priceNormal: c.priceNormal, pricePeak: c.pricePeak }}
                   fixedSport
                   submitLabel={`Lưu ${c.name}`}
-                  save={({ sport: _sport, ...draft }) => api<CourtView>(`/api/admin/courts/${c.id}`, { method: 'PATCH', json: draft }).then((x) => putCourt(v.id, x))}
+                  save={({ name, priceNormal, pricePeak }) =>
+                    api<CourtView>(`/api/admin/courts/${c.id}`, { method: 'PATCH', json: { name, priceNormal, pricePeak } }).then((x) => putCourt(v.id, x))
+                  }
                 />
               ))}
               <CourtForm
@@ -89,13 +91,16 @@ export function VenueAdmin({ owners }: { owners: AccountView[] }) {
 function VenueForm(props: { owners: AccountView[]; initial: VenueDraft; submitLabel: string; resetOnSave?: boolean; save: (d: VenueDraft) => Promise<void> }) {
   const [draft, setDraft] = useState(props.initial);
   const [error, setError] = useState('');
+  const [done, setDone] = useState('');
   const set = <K extends keyof VenueDraft>(key: K, value: VenueDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setDone('');
     try {
       await props.save(draft);
+      setDone(`Đã lưu ${draft.name}.`);
       if (props.resetOnSave) setDraft(props.initial);
     } catch (err) {
       setError(message(err, 'Không lưu được đơn vị'));
@@ -112,7 +117,9 @@ function VenueForm(props: { owners: AccountView[]; initial: VenueDraft; submitLa
         Chủ sân của đơn vị
         <select value={draft.ownerId} onChange={(e) => set('ownerId', e.target.value)} required>
           <option value="" disabled>Chọn chủ sân</option>
-          {props.owners.map((o) => <option key={o.id} value={o.id}>{`${o.name} (${o.phone})`}</option>)}
+          {props.owners.map((o) => (
+            <option key={o.id} value={o.id} disabled={!!o.lockedAt}>{`${o.name} (${o.phone})${o.lockedAt ? ' (đã khóa)' : ''}`}</option>
+          ))}
         </select>
       </label>
       <label>
@@ -138,6 +145,7 @@ function VenueForm(props: { owners: AccountView[]; initial: VenueDraft; submitLa
         </label>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
+      <p className="live hint" role="status">{done}</p>
       <button type="submit">{props.submitLabel}</button>
     </form>
   );
@@ -148,13 +156,16 @@ function CourtForm(props: {
 }) {
   const [draft, setDraft] = useState(props.initial);
   const [error, setError] = useState('');
+  const [done, setDone] = useState('');
   const set = <K extends keyof CourtDraft>(key: K, value: CourtDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setDone('');
     try {
       await props.save(draft);
+      setDone(`Đã lưu ${draft.name}.`);
       if (props.resetOnSave) setDraft(props.initial);
     } catch (err) {
       setError(message(err, 'Không lưu được sân'));
@@ -172,11 +183,11 @@ function CourtForm(props: {
           </label>
           <label>
             Giờ thường (đ)
-            <input type="number" inputMode="numeric" min={1000} step={1000} value={draft.priceNormal || ''} onChange={(e) => set('priceNormal', Number(e.target.value))} required />
+            <input type="number" inputMode="numeric" min={1} step={1} value={draft.priceNormal || ''} onChange={(e) => set('priceNormal', Number(e.target.value))} required />
           </label>
           <label>
             Cao điểm (đ)
-            <input type="number" inputMode="numeric" min={1000} step={1000} value={draft.pricePeak || ''} onChange={(e) => set('pricePeak', Number(e.target.value))} required />
+            <input type="number" inputMode="numeric" min={1} step={1} value={draft.pricePeak || ''} onChange={(e) => set('pricePeak', Number(e.target.value))} required />
           </label>
         </div>
         {!props.fixedSport && (
@@ -189,6 +200,7 @@ function CourtForm(props: {
           </label>
         )}
         {error && <p className="error" role="alert">{error}</p>}
+        <p className="live hint" role="status">{done}</p>
         <button type="submit">{props.submitLabel}</button>
       </fieldset>
     </form>

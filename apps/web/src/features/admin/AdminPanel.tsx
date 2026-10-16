@@ -12,7 +12,7 @@ export function AdminPanel() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api<AccountView[]>('/api/admin/owners').then(setOwners, () => setError('Không tải được danh sách chủ sân'));
+    api<AccountView[]>('/api/admin/owners').then(setOwners, (err) => setError(message(err, 'Không tải được danh sách chủ sân')));
   }, []);
 
   return (
