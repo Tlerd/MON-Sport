@@ -104,7 +104,7 @@ Service đổi lỗi unique (`P2002`) của `User.phone` và của (`Court.venue
 |---|---|---|
 | `User` | mới: `consentAt` timestamptz(3), có thể null. Lúc người dùng đồng ý với thông báo bảo vệ dữ liệu cá nhân khi đăng ký | expand. Cột null được, nên tài khoản cũ không đổi |
 | `Venue` | mới: `CHECK ("opensAt" >= 0 AND "closesAt" <= 1440 AND "closesAt" > "opensAt" AND "opensAt" % 30 = 0 AND "closesAt" % 30 = 0)` | expand. Dữ liệu seed và dữ liệu trên dịch vụ thật đã thỏa |
-| `Court` | mới: `CHECK ("priceNormal" > 0 AND "pricePeak" > 0)` | expand. Viết tay trong cùng migration |
+| `Court` | mới: `CHECK ("priceNormal" > 0 AND "pricePeak" > 0 AND "priceNormal" <= 10000000 AND "pricePeak" <= 10000000)` | expand. Viết tay trong cùng migration |
 | `docs/requirements/data-dictionary.md` | thêm dòng `User.consentAt`, thêm `consentAt` vào thành phần của `User` | — |
 | `docs/requirements/business-rules.md` | thêm BR-29: người dùng tự đăng ký phải đồng ý với thông báo bảo vệ dữ liệu cá nhân. Nguồn: giả định cho open item 4 của intake | — |
 
@@ -155,7 +155,9 @@ Nếu PR 4 vượt khoảng 400 dòng thay đổi, tách thành 4a (đăng ký, 
 - Admin mở khóa được tài khoản, vì khóa nhầm thì phải sửa được. Intake chỉ ghi khóa.
 - Khóa tài khoản có hiệu lực ngay, vì guard đọc `lockedAt` ở mỗi request. Phiên cũ của tài khoản bị khóa nhận 401.
 - Admin sửa được giá sân trong slice này, vì UC-10 cho admin sửa sân. Booking cũ giữ giá cũ (BR-6), vì `priceTotal` đã lưu lúc đặt.
-- Admin không đổi được môn của sân, vì trận sau này phải cùng môn với sân (data dictionary, `Match.sport`).
+- Admin không đổi được môn của sân, vì trận sau này phải cùng môn với sân (data dictionary, `Match.sport`). Body có `sport` nhận 400.
+- Giá sân tối đa 10.000.000đ một giờ, câu lỗi "Giá tối đa 10.000.000đ một giờ". Mức này giữ tổng tiền của booking trong cột int4 `Booking.priceTotal`.
+- Giờ ngoài khoảng 00:00–24:00 nhận câu "Giờ phải trong khoảng 00:00–24:00".
 - Thông báo bảo vệ dữ liệu cá nhân chưa có số phiên bản. Khi nội dung đổi, một brief sau thêm phiên bản.
 
 ## Open questions

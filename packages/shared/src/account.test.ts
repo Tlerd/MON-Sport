@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CourtInput, errorMessage, Messages, RegisterRequest, VenueInput, VenueUpdate } from './account.ts';
+import { CourtInput, CourtUpdate, errorMessage, Messages, RegisterRequest, UserSearchRequest, VenueInput, VenueUpdate } from './account.ts';
 
 const lan = { name: '  Lan ', phone: '0901112233', password: 'matkhau123', consent: true };
 const venue = { ownerId: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b', name: 'Cầu lông C', address: '12 Lê Lợi', phone: '0912345680', opensAt: 360, closesAt: 1380 };
@@ -29,7 +29,7 @@ describe('account contract', () => {
     expect(VenueInput.parse(venue)).toEqual(venue);
   });
 
-  it('AC-12: refuses a venue that closes before it opens', () => {
+  it('AC-18: refuses a venue that closes before it opens', () => {
     expect(messageOf(VenueInput.safeParse({ ...venue, opensAt: 1380, closesAt: 360 }))).toBe(Messages.hours);
   });
 
@@ -41,7 +41,23 @@ describe('account contract', () => {
     expect(VenueUpdate.parse({ closesAt: 1320 })).toEqual({ closesAt: 1320 });
   });
 
-  it('refuses a court price of 0', () => {
-    expect(messageOf(CourtInput.safeParse({ name: 'Sân 1', sport: 'BADMINTON', priceNormal: 0, pricePeak: 120_000 }))).toBe(Messages.price);
+  it('refuses opening hours outside 00:00-24:00 with the range text', () => {
+    expect(messageOf(VenueInput.safeParse({ ...venue, opensAt: 1440, closesAt: 1440 }))).toBe(Messages.range);
+  });
+
+  it('refuses a court price of 0, and a price above 10.000.000đ', () => {
+    const sanMot = { name: 'Sân 1', sport: 'BADMINTON', priceNormal: 80_000, pricePeak: 120_000 };
+    expect(messageOf(CourtInput.safeParse({ ...sanMot, priceNormal: 0 }))).toBe(Messages.price);
+    expect(messageOf(CourtInput.safeParse({ ...sanMot, pricePeak: 10_000_001 }))).toBe(Messages.priceMax);
+    expect(messageOf(CourtInput.safeParse({ ...sanMot, pricePeak: 80000.5 }))).toBe(Messages.invalid);
+  });
+
+  it('refuses a court update that changes the sport', () => {
+    expect(CourtUpdate.safeParse({ sport: 'FOOTBALL' }).success).toBe(false);
+    expect(CourtUpdate.parse({ pricePeak: 150_000 })).toEqual({ pricePeak: 150_000 });
+  });
+
+  it('answers the phone text for a short phone number', () => {
+    expect(messageOf(UserSearchRequest.safeParse({ phone: '09' }))).toBe(Messages.phone);
   });
 });

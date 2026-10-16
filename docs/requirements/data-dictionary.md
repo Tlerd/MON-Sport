@@ -29,8 +29,8 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | BookingStatus | Trạng thái của booking | enum | — | `PENDING` Chờ xác nhận · `CONFIRMED` Đã xác nhận · `REJECTED` Bị từ chối · `EXPIRED` Hết hạn · `CANCELLED` Đã hủy |
 | Court | Một sân trong một đơn vị | id + venueId + name + sport + priceNormal + pricePeak | — | — |
 | Court.name | Tên sân | text | 1–50 ký tự | Duy nhất trong một đơn vị |
-| Court.priceNormal | Giá một giờ, giờ thường | money | — | Lớn hơn 0 |
-| Court.pricePeak | Giá một giờ, giờ cao điểm | money | — | Lớn hơn 0 (BR-4) |
+| Court.priceNormal | Giá một giờ, giờ thường | money | — | Lớn hơn 0, tối đa 10.000.000 (brief F-003) |
+| Court.pricePeak | Giá một giờ, giờ cao điểm | money | — | Lớn hơn 0, tối đa 10.000.000 (BR-4, brief F-003) |
 | Court.sport | Môn chơi của sân | Sport | — | — |
 | Court.venueId | Đơn vị chứa sân | id của Venue | 36 | — |
 | createdAt | Lúc tạo bản ghi | timestamptz(3) | — | Do hệ thống ghi |

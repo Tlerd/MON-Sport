@@ -25,8 +25,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.query('DELETE FROM "Booking" WHERE "courtId" = $1', [courtId]);
-  await db.query('DELETE FROM "Court" WHERE id = $1', [courtId]);
-  await db.query('DELETE FROM "Venue" WHERE id = $1', [venueId]);
+  // By venue and by owner, so a row that a missing CHECK let in does not hide the real failure.
+  await db.query('DELETE FROM "Court" WHERE "venueId" = $1', [venueId]);
+  await db.query('DELETE FROM "Venue" WHERE "ownerId" = $1', [userId]);
   await db.query('DELETE FROM "User" WHERE id = $1', [userId]);
   await db.end();
 });
@@ -60,11 +61,14 @@ describe('migration f003_consent', () => {
       ]);
     expect(await sqlState(venue(360, 360))).toBe('23514');
     expect(await sqlState(venue(375, 1380))).toBe('23514');
-    const court = (priceNormal: number) =>
-      db.query(`INSERT INTO "Court" (id, "venueId", name, sport, "priceNormal", "pricePeak") VALUES ($1, $2, 'Sân 9', 'BADMINTON', $3, 1)`, [
-        randomUUID(), venueId, priceNormal,
+    expect(await sqlState(venue(0, 1470))).toBe('23514');
+    const court = (priceNormal: number, pricePeak: number) =>
+      db.query(`INSERT INTO "Court" (id, "venueId", name, sport, "priceNormal", "pricePeak") VALUES ($1, $2, 'Sân 9', 'BADMINTON', $3, $4)`, [
+        randomUUID(), venueId, priceNormal, pricePeak,
       ]);
-    expect(await sqlState(court(0))).toBe('23514');
+    expect(await sqlState(court(0, 1))).toBe('23514');
+    expect(await sqlState(court(1, 0))).toBe('23514');
+    expect(await sqlState(court(1, 10_000_001))).toBe('23514');
   });
 
   it('adds User.consentAt as a nullable timestamptz(3), so existing accounts stay valid', async () => {
