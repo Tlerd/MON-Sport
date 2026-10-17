@@ -31,6 +31,7 @@ export function issueSession(userId: string, now: Date): string {
 /**
  * Returns the user id and the issue time, or null when the value is forged or expired.
  * The issue time is the expiry less 30 days, so the cookie format stays the same (brief F-006).
+ * A change of SESSION_MS moves the issue time of every older cookie, so it needs a new cookie format.
  */
 export function readSession(value: string | undefined, now: Date): { userId: string; issuedAt: Date } | null {
   const parts = value?.split('.');

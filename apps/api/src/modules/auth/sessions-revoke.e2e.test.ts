@@ -87,7 +87,7 @@ describe('session revoke on unlock (BR-32)', () => {
     await me(old).expect(200);
   });
 
-  it('accepts a session issued in the same millisecond as the unlock', async () => {
+  it('AC-13: accepts a cookie issued at sessionsValidFrom, and refuses one issued 1 ms before', async () => {
     await db.user.update({ where: { id: ids.An }, data: { sessionsValidFrom: at('10:00') } });
     await me(`session=${issueSession(ids.An, at('10:00'))}`).expect(200);
     await me(`session=${issueSession(ids.An, new Date(at('10:00').getTime() - 1))}`).expect(401);
