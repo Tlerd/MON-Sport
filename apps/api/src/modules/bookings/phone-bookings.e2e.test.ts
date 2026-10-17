@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { hash } from '@node-rs/argon2';
@@ -197,13 +198,16 @@ describe('GET /api/owner/bookings?status=CONFIRMED', () => {
   });
 
   // Review of PR #40, finding 3: the list and an entry both expire the same rows. Without one lock order,
-  // Postgres ends one of them with 40P01, and the owner gets a 500.
+  // Postgres ends one of them with 40P01, and the owner gets a 500. The ids go down in insert order, so the
+  // heap order and the index order are not the id order.
   it('expires the same rows from the list and from parallel entries without a deadlock', async () => {
     for (let round = 0; round < 3; round++) {
       await db.booking.deleteMany();
+      const descending = Array.from({ length: 60 }, () => randomUUID()).sort().reverse();
       const expired = Array.from({ length: 60 }, (_, i) => {
         const start = new Date(`2026-11-${21 + (i % 8)}T${String(6 + Math.floor(i / 8)).padStart(2, '0')}:00:00+07:00`);
         return {
+          id: descending[i],
           courtId: i % 2 ? ids.A1 : ids.A2,
           startAt: start,
           endAt: new Date(start.getTime() + 3_600_000),

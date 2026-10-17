@@ -37,4 +37,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 1. F-008: the rest of UC-2. F-002 shipped only the short booking form. Still open: the free hours of a day with "Gọi chủ sân" (2.0 step 5), the search by court name (2.1), and 2.0.E1. Write its brief with `feature-brief`.
 2. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
-3. A low finding of PR #41, round 2: a failed cancel on "Booking đã xác nhận" leaves the keyboard focus on the page body. Fix it in the next pull request that edits `PhoneBookings.tsx`.
+3. Low findings to fix in the next pull request that edits the file: a failed cancel on "Booking đã xác nhận" leaves the focus on the page body (PR #41, `PhoneBookings.tsx`). A rare 40P01 stays between the owner list and an insert (PR #45, comment on `BookingsService.expire`). A retry of the expire in `forOwner` closes it.

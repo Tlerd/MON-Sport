@@ -230,7 +230,8 @@ export class BookingsService {
 
   // BR-8: a request past its deadline becomes EXPIRED. The conditional update is safe to run twice.
   // The rows are locked in id order first. The owner list and an insert expire the same rows, and two updates
-  // that lock them in different orders can end one with 40P01 (review of PR #40, finding 3).
+  // that lock them in different orders can end one with 40P01 (review of PR #40, finding 3). A rare case stays:
+  // an insert that read an earlier now can wait in the EXCLUDE check on a row that the list expires (PR #45, finding 1).
   private async expire(db: Pick<PrismaService, '$executeRaw'>, scope: Prisma.Sql, now: Date): Promise<void> {
     await db.$executeRaw`
       UPDATE "Booking" SET status = 'EXPIRED' WHERE id IN (
