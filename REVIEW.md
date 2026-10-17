@@ -23,7 +23,7 @@ Other problems are low: names, style, small duplication, comments.
 - Write each finding as: severity | `file:line` | problem | fix.
 - Name the class of bug, for example "unlocked read before write". The author then fixes every instance.
 - Report 3 low findings at most. Pick the 3 that matter most.
-- Tag a finding as "pre-existing" when the code is older than the pull request. A pre-existing finding does not block the merge.
+- Tag a finding as "pre-existing" when the code is older than the pull request. A pre-existing finding does not block the merge. Record each one of medium or higher in `PROGRESS.md` as a next step.
 
 ## Skip
 
