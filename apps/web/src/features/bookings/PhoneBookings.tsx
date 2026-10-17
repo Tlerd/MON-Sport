@@ -173,6 +173,7 @@ function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingVie
       setFocus(id);
     } catch (err) {
       setFailure(err instanceof ApiError ? err.message : 'Không hủy được booking');
+      setFocus(id); // the button was disabled while busy, so focus fell to the page body
     } finally {
       setBusy(false);
     }
@@ -202,7 +203,7 @@ function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingVie
               ) : r.source === 'PHONE' && new Date(r.startAt) > new Date() && (
                 asking === r.id ? (
                   <span className="actions">
-                    <button type="button" className="secondary" autoFocus disabled={busy} aria-label={`Xác nhận hủy booking ${formatSlot(r.startAt, r.endAt)}`} onClick={() => cancel(r.id)}>Xác nhận hủy</button>
+                    <button type="button" className="secondary" autoFocus data-focus={r.id} disabled={busy} aria-label={`Xác nhận hủy booking ${formatSlot(r.startAt, r.endAt)}`} onClick={() => cancel(r.id)}>Xác nhận hủy</button>
                     <button type="button" className="keep" onClick={() => { setAsking(''); setFocus(r.id); }}>Giữ booking</button>
                   </span>
                 ) : (

@@ -12,7 +12,7 @@ import {
 } from '@monsport/shared';
 import { type Booking, Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
-import { isExclusionViolation, PrismaService } from '../database/prisma.service.js';
+import { isDeadlock, isExclusionViolation, PrismaService } from '../database/prisma.service.js';
 
 const TAKEN = 'Khung giờ này vừa có người đặt';
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -200,7 +200,12 @@ export class BookingsService {
   /** UC-4: the requests on the venues of one owner (BR-23). */
   async forOwner(ownerId: string, status: Booking['status']): Promise<OwnerBookingView[]> {
     const courts = Prisma.sql`SELECT c.id FROM "Court" c JOIN "Venue" v ON v.id = c."venueId" WHERE v."ownerId" = ${ownerId}::uuid`;
-    await this.expire(this.prisma, Prisma.sql`"courtId" IN (${courts})`, this.clock.now());
+    const expireAll = () => this.expire(this.prisma, Prisma.sql`"courtId" IN (${courts})`, this.clock.now());
+    // The rare cycle named on expire ends this statement alone, and the statement is safe to run twice (PR #45).
+    await expireAll().catch((error: unknown) => {
+      if (!isDeadlock(error)) throw error;
+      return expireAll();
+    });
     const rows = await this.prisma.booking.findMany({
       where: { status, court: { venue: { ownerId } } },
       include: { createdBy: true },
@@ -211,21 +216,35 @@ export class BookingsService {
 
   /** UC-4: confirm or reject one request. */
   async decide(ownerId: string, bookingId: string, decision: 'CONFIRMED' | 'REJECTED'): Promise<BookingView> {
-    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
-    if (!booking) throw new NotFoundException('Không tìm thấy booking');
-    if (booking.court.venue.ownerId !== ownerId) throw new ForbiddenException('Bạn không có quyền làm việc này'); // BR-23
+    const found = await this.prisma.booking.findUnique({ where: { id: bookingId }, select: { courtId: true } });
+    if (!found) throw new NotFoundException('Không tìm thấy booking');
     const now = this.clock.now();
-    await this.expire(this.prisma, Prisma.sql`id = ${bookingId}::uuid`, now);
-    // The deadline is in the condition too, so a confirm cannot pass between the expire and this update.
-    const result = await this.prisma.booking.updateMany({
-      where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
-      data: decision === 'CONFIRMED' ? { status: 'CONFIRMED', confirmedAt: now } : { status: 'REJECTED' },
-    });
-    if (result.count === 0) {
-      const current = await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
-      throw new ConflictException(current.status === 'EXPIRED' ? 'Yêu cầu đã hết hạn' : 'Yêu cầu không còn chờ xác nhận');
+    let outcome: { count: number; booking: Booking & { court: { venue: { ownerId: string } } } };
+    try {
+      outcome = await this.prisma.$transaction(async (tx) => {
+        // The lock order of insertUnderLock: Venue (FOR SHARE), then Court. An insert holds the Court lock and may wait in
+        // the EXCLUDE check on this row, so a decision that skipped the Court lock could wait on that insert (PR #40, AG-LOCKS).
+        await this.lockVenueOf(tx, found.courtId);
+        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
+        const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
+        if (booking.court.venue.ownerId !== ownerId) throw new ForbiddenException('Bạn không có quyền làm việc này'); // BR-23
+        await this.expire(tx, Prisma.sql`id = ${bookingId}::uuid`, now);
+        // The deadline is in the condition too, so a confirm cannot pass between the expire and this update.
+        const result = await tx.booking.updateMany({
+          where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
+          data: decision === 'CONFIRMED' ? { status: 'CONFIRMED', confirmedAt: now } : { status: 'REJECTED' },
+        });
+        return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } }) };
+      });
+    } catch (error) {
+      if (isDeadlock(error)) throw new ConflictException('Yêu cầu đang được xử lý, hãy thử lại'); // 40P01 is a 409, not a 500
+      throw error;
     }
-    return toView(await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } }));
+    // The answer comes after the commit, so an expire that this call wrote stays.
+    if (outcome.count === 0) {
+      throw new ConflictException(outcome.booking.status === 'EXPIRED' ? 'Yêu cầu đã hết hạn' : 'Yêu cầu không còn chờ xác nhận');
+    }
+    return toView(outcome.booking);
   }
 
   // BR-8: a request past its deadline becomes EXPIRED. The conditional update is safe to run twice.

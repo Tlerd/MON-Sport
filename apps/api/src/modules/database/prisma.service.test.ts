@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { PrismaService } from './prisma.service.js';
+import { isDeadlock, PrismaService } from './prisma.service.js';
 
 // CI runs Postgres in UTC, so the tests ask for another zone through PGOPTIONS. `pg` reads it only when the config sets no options.
 // Without the UTC option of PrismaService, these tests then fail on every server.
@@ -23,5 +23,23 @@ describe('PrismaService connections', () => {
     const at = new Date('2026-10-17T03:04:05.678Z');
     const [row] = await prisma.$queryRaw<{ ms: number }[]>`SELECT (extract(epoch FROM ${at}::timestamptz) * 1000)::float8 AS ms`;
     expect(row.ms).toBe(at.getTime());
+  });
+});
+
+describe('isDeadlock', () => {
+  it('finds SQLSTATE 40P01 on the error, in meta, and in a cause', () => {
+    expect(isDeadlock({ code: '40P01' })).toBe(true);
+    expect(isDeadlock({ meta: { code: '40P01' } })).toBe(true);
+    expect(isDeadlock(new Error('wrapped', { cause: { originalCode: '40P01' } }))).toBe(true);
+  });
+
+  it('finds the message of a deadlock when the driver drops the code', () => {
+    expect(isDeadlock(new Error('deadlock detected'))).toBe(true);
+  });
+
+  it('refuses other errors', () => {
+    expect(isDeadlock({ code: '23P01' })).toBe(false);
+    expect(isDeadlock(new Error('boom'))).toBe(false);
+    expect(isDeadlock(undefined)).toBe(false);
   });
 });

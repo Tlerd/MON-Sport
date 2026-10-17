@@ -152,6 +152,31 @@ describe('owner decisions', () => {
     await decide('admin', booking.body.id, 'confirm').expect(403);
   });
 
+  // Review of PR #40 (AG-LOCKS): an insert holds the Court lock and waits in the EXCLUDE check on a row that a
+  // decision has locked. A decision that skips the Court lock can wait on that insert, and Postgres ends one with 40P01.
+  // So a decision takes the Court lock first, and waits while another transaction holds it.
+  it.each(['confirm', 'reject'] as const)('a %s waits for the Court lock, then completes', async (action) => {
+    const booking = await ask('an', '20:00', '21:00').expect(201);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const holding = new Promise<void>((resolve) => (locked = resolve));
+    const holder = db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${ids.san1}::uuid FOR UPDATE`;
+      locked();
+      await gate;
+    });
+    await holding;
+    let status = 0;
+    const pending = decide('binh', booking.body.id, action).then((res) => (status = res.status));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(status).toBe(0);
+    release();
+    await holder;
+    await pending;
+    expect(status).toBe(200);
+  });
+
   it('AC-18: the owner list shows the name and phone of the user', async () => {
     await ask('an', '20:00', '21:00').expect(201);
     const res = await http().get('/api/owner/bookings').set('Cookie', cookie('binh')).expect(200);

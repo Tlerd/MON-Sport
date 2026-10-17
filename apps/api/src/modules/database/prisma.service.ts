@@ -23,11 +23,20 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
 // Postgres SQLSTATE 23P01: the EXCLUDE constraint refused an overlapping booking (BR-1).
 // The driver adapter can wrap the database error, so the code is searched on the error and its causes.
 export function isExclusionViolation(error: unknown): boolean {
+  return hasSqlState(error, '23P01', /23P01|Booking_no_overlap/);
+}
+
+// Postgres SQLSTATE 40P01: Postgres ended this transaction to break a lock cycle. The work can run again.
+export function isDeadlock(error: unknown): boolean {
+  return hasSqlState(error, '40P01', /40P01|deadlock detected/);
+}
+
+function hasSqlState(error: unknown, state: string, message: RegExp): boolean {
   for (let e: unknown = error, depth = 0; e && typeof e === 'object' && depth < 5; depth++) {
     const o = e as { code?: unknown; originalCode?: unknown; meta?: { code?: unknown }; cause?: unknown };
-    if ([o.code, o.originalCode, o.meta?.code].includes('23P01')) return true;
+    if ([o.code, o.originalCode, o.meta?.code].includes(state)) return true;
     e = o.cause;
   }
-  return /23P01|Booking_no_overlap/.test(String((error as Error)?.message ?? ''));
+  return message.test(String((error as Error)?.message ?? ''));
 }
 
