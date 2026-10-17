@@ -92,13 +92,13 @@ Thứ tự ở `POST /api/auth/register`: kiểm Zod (gồm mật khẩu dễ đ
 
 Mỗi bộ đếm là một cửa sổ cố định. Lần tăng đầu tiên mở cửa sổ. Cửa sổ hết khi bây giờ ≥ `windowStart` + cửa sổ. Bộ đếm lấy giờ từ `Clock.now()` và gửi giờ đó vào SQL như một tham số. SQL không dùng `now()` của Postgres.
 
-Một lệnh SQL vừa tăng bộ đếm vừa mở lại cửa sổ đã hết. Vì vậy hai instance Cloud Run dùng chung một bộ đếm, và không đếm sót khi chạy đồng thời:
+Một lệnh SQL vừa tăng bộ đếm vừa mở lại cửa sổ đã hết. Vì vậy hai instance Cloud Run dùng chung một bộ đếm, và không đếm sót khi chạy đồng thời. TypeScript tính `$cutoff` = bây giờ − cửa sổ, và gửi `$now` và `$cutoff` như hai tham số `timestamptz`:
 
 ```sql
 INSERT INTO "AuthThrottle" (key, count, "windowStart") VALUES ($key, 1, $now)
 ON CONFLICT (key) DO UPDATE SET
-  count = CASE WHEN "AuthThrottle"."windowStart" <= $now - $window THEN 1 ELSE LEAST("AuthThrottle".count + 1, 1000000) END,
-  "windowStart" = CASE WHEN "AuthThrottle"."windowStart" <= $now - $window THEN $now ELSE "AuthThrottle"."windowStart" END
+  count = CASE WHEN "AuthThrottle"."windowStart" <= $cutoff THEN 1 ELSE LEAST("AuthThrottle".count + 1, 1000000) END,
+  "windowStart" = CASE WHEN "AuthThrottle"."windowStart" <= $cutoff THEN $now ELSE "AuthThrottle"."windowStart" END
 RETURNING count, "windowStart"
 ```
 
@@ -121,7 +121,7 @@ Cookie giữ thời điểm hết hạn. Thời điểm tạo cookie = hết h�
 | `docs/requirements/data-dictionary.md` | thêm `User.sessionsValidFrom`, thêm `AuthThrottle` và các trường | — |
 | `docs/requirements/business-rules.md` | thêm BR-30: hệ thống giới hạn số lần thử đăng nhập và đăng ký theo bảng "Giới hạn". Thêm BR-31: mật khẩu mới không được dễ đoán. Thêm BR-32: mở khóa tài khoản làm mất hiệu lực các phiên tạo trước lúc mở khóa | — |
 
-Khi một bộ đếm mở cửa sổ mới, server xóa các dòng có `windowStart` cũ hơn 1 ngày. Vì vậy một dòng cũ hơn 1 ngày bị xóa ở lần ghi bộ đếm kế tiếp. Data dictionary ghi quy tắc này.
+Khi một bộ đếm mở cửa sổ mới, server xóa các dòng có `windowStart` cũ hơn 1 ngày. Một dòng cũ hơn 1 ngày bị xóa ở lần kế tiếp một bộ đếm mở cửa sổ mới. Data dictionary ghi câu này.
 
 ## Build order
 
@@ -132,9 +132,10 @@ Khi một bộ đếm mở cửa sổ mới, server xóa các dòng có `windowS
 
 Sau khi PR 2 deploy, kiểm IP trên dịch vụ thật. Bước này không tạo tài khoản:
 
-1. Gửi 30 request đăng nhập tới dịch vụ thật, số `0911999999` (chưa có tài khoản), mỗi request một header `X-Forwarded-For` giả khác nhau.
-2. Gửi request thứ 31 với một header giả mới. Kết quả phải là 429. Header giả không đổi được IP mà server đếm.
-3. Ghi kết quả vào pull request. Nếu request thứ 31 nhận 401, mở một fix trước mọi việc khác.
+1. Từ một máy, gửi 31 request đăng nhập tới dịch vụ thật. Mỗi request dùng một số chưa có tài khoản khác nhau (`0911999969` tới `0911999999`) và một header `X-Forwarded-For` giả khác nhau.
+2. Request 1 tới 30 phải nhận 401. Request 31 phải nhận 429. Nếu request 31 nhận 401, header giả đổi được IP. Mở một fix trước mọi việc khác.
+3. Trong 15 phút đó, gửi 1 request đăng nhập với một số mới chưa có tài khoản từ một mạng khác, ví dụ Cloud Shell. Kết quả phải là 401. Nếu kết quả là 429, mọi người dùng chung một IP. Sửa `trust proxy` trước mọi việc khác.
+4. Ghi kết quả vào pull request. Ghi rằng IP của máy ở bước 1 bị chặn đăng nhập trong 15 phút.
 
 ## Edit boundaries
 
@@ -149,7 +150,7 @@ Sau khi PR 2 deploy, kiểm IP trên dịch vụ thật. Bước này không t�
 | Đồng thời: hai instance và nhiều request cùng lúc tăng một bộ đếm | PR 2 | Một lệnh upsert nguyên tử trong Postgres. AC-5 gửi 20 request cùng lúc. Review bằng phiên mới |
 | Bảo mật: giả IP bằng `X-Forwarded-For` | PR 2 | `trust proxy` = 1 chỉ tin địa chỉ cuối cùng, do Cloud Run thêm. AC-7. Kiểm trên dịch vụ thật sau deploy. Review bằng phiên mới |
 | Bảo mật: có proxy đứng trước Cloud Run, nên mọi người dùng chung một IP | `trust proxy` | Hiện không có proxy: trình duyệt gọi thẳng URL `run.app`. Thêm load balancer, CDN hoặc Firebase Hosting thì phải đổi `trust proxy` |
-| Bảo mật: kẻ xấu cố ý đăng nhập sai để chặn số của người khác trong 15 phút | `login-phone` | Rủi ro đã chấp nhận ở mức chạy thử. Chặn chỉ kéo dài 15 phút. Ghi trong Assumptions |
+| Bảo mật: kẻ xấu cố ý đăng nhập sai để chặn số của người khác trong 15 phút | `login-phone` | Rủi ro đã chấp nhận ở mức chạy thử. Chặn chỉ kéo dài 15 phút. Ghi trong Assumptions. Kẻ xấu có thể chặn đăng nhập của admin trong 15 phút mỗi lần. Admin dùng phiên đang mở, vì giới hạn chỉ áp dụng cho đăng nhập |
 | Bảo mật: một IP chặn hàng loạt số điện thoại | `login-ip`, `login-phone` | IP đã bị chặn không tăng `login-phone` (AC-17). Một khối `/64` chặn được tối đa 3 số mỗi 15 phút. Kẻ có nhiều khối `/64` (ví dụ một `/48`) vẫn chặn được nhiều số. Rủi ro đã chấp nhận ở mức chạy thử. CAPTCHA quay lại khi việc này xảy ra |
 | Bảo mật: kẻ xấu đổi IP liên tục (nhiều IPv6) | `login-ip`, `register-ip` | IPv6 tính theo khối `/64` (AC-8). `login-phone` vẫn giới hạn số lần đoán mỗi số. Thread pool giới hạn số lần băm cùng lúc |
 | Dữ liệu cá nhân: bảng bộ đếm giữ số điện thoại và IP | `AuthThrottle` | Khóa là HMAC, không lưu số và IP đọc được (AC-9). Dòng cũ hơn 1 ngày bị xóa. Review bằng phiên mới |
