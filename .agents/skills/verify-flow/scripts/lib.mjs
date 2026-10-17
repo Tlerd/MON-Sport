@@ -99,7 +99,7 @@ export class Run {
     }
     const file = page ? join(this.dir, `${n}-${flow}-${slug(name)}${status === 'FAIL' ? '-FAIL' : ''}.png`) : '';
     // Live pages show real names and phones, and the evidence goes to a public pull request: mask them.
-    const mask = page && this.opts.target === 'live' ? [page.locator('.customer, .who, .hero h1, input[autocomplete="tel"], input[type="tel"]')] : [];
+    const mask = page && this.opts.target === 'live' ? [page.locator('.customer, .who, .hero h1, .call, input[autocomplete="tel"], input[type="tel"]')] : [];
     await page?.screenshot({ path: file, fullPage: true, mask }).catch(() => undefined);
     this.results.push({ n, flow, name, status, detail, file });
     console.log(`${status} ${flow}: ${name}${detail ? ` (${detail})` : ''}`);
