@@ -139,7 +139,7 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
 }
 
 /** The chosen slot cut into 30-minute pieces. Floodlight amber marks the peak pieces (BR-4). */
-function SlotBar({ start, duration }: { start: number; duration: number }) {
+export function SlotBar({ start, duration }: { start: number; duration: number }) {
   const pieces = Array.from({ length: duration / 30 }, (_, i) => start + i * 30);
   const hasPeak = pieces.some((m) => m >= PEAK[0] && m < PEAK[1]);
   return (
