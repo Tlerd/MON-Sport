@@ -2,11 +2,10 @@ import { bookingPrice, type BookingView, type VenueView } from '@monsport/shared
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 import { formatSlot, formatTime, formatVnd, hhmm } from '../../lib/format.ts';
+import { DURATIONS, slotAt as at } from './slot.ts';
 import { STATUS_LABEL } from './status.ts';
 
-const DURATIONS = [60, 90, 120, 150, 180];
 const PEAK = [17 * 60, 22 * 60]; // BR-4
-const at = (date: string, minute: number) => `${date}T${hhmm(minute)}:00+07:00`;
 
 /** UC-2 (short form) and UC-3: pick a court and a slot, then send the request. */
 export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void }) {
@@ -139,7 +138,7 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
 }
 
 /** The chosen slot cut into 30-minute pieces. Floodlight amber marks the peak pieces (BR-4). */
-function SlotBar({ start, duration }: { start: number; duration: number }) {
+export function SlotBar({ start, duration }: { start: number; duration: number }) {
   const pieces = Array.from({ length: duration / 30 }, (_, i) => start + i * 30);
   const hasPeak = pieces.some((m) => m >= PEAK[0] && m < PEAK[1]);
   return (

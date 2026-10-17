@@ -2,6 +2,7 @@ import type { BookingView, OwnerBookingView } from '@monsport/shared';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 import { formatDay, formatTime, formatVnd } from '../../lib/format.ts';
+import { Customer } from './customer.tsx';
 import { STATUS_LABEL } from './status.ts';
 
 /** UC-4: the owner confirms or rejects each pending request. */
@@ -38,10 +39,7 @@ export function OwnerRequests() {
               <span>đến {formatTime(r.endAt)}</span>
             </span>
             <span className="body">
-              <span className="customer">
-                {r.customer.name}
-                <a className="phone" href={`tel:${r.customer.phone}`}>{r.customer.phone}</a>
-              </span>
+              <Customer customer={r.customer} />
               <span className="meta">
                 <span>Ngày {formatDay(r.startAt)}</span>
                 <span className="money">{formatVnd(r.priceTotal)}</span>
