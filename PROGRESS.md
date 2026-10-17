@@ -2,7 +2,7 @@
 
 This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git.
 
-Updated: 2026-10-17 (database time zone chore)
+Updated: 2026-10-17 (F-005 step 1)
 
 ## Current state
 
@@ -10,6 +10,7 @@ Updated: 2026-10-17 (database time zone chore)
 - F-002 is done (issue #5 closed): login with seed accounts, `GET /api/venues`, booking requests, owner confirm and reject, and the screens. AC-1 to AC-21 pass. PRs #6, #7, #8, #9, #10.
 - F-003 is done (issue #20): sign-up with consent (`User.consentAt`, BR-29), the admin screen (owners, venues, courts, lock and unlock), and "Đơn vị của tôi" for owners. AC-1 to AC-30 pass. PRs #19 (brief), #21, #22, #23, #24, #25.
 - F-006 is done (issue #29, PRs #28, #30, #31; brief `docs/briefs/F-006-gioi-han-dang-nhap-va-thu-hoi-phien.md`): login and sign-up limits per phone and per IP in the shared table `AuthThrottle` (BR-30), the weak-password check for new passwords (BR-31), and `User.sessionsValidFrom`, so an admin unlock revokes older sessions (BR-32). The IP is the last `X-Forwarded-For` entry (`trust proxy` = 1). A proxy in front of Cloud Run must change that. The live check on 2026-10-17 passed (comment on PR #31). AC-1 to AC-17 pass.
+- F-005 step 1 is merged (issue #35, PRs #34 (brief), #36; brief `docs/briefs/F-005-chu-san-sua-gia-va-gio-mo-cua.md`): `PATCH /api/owner/venues/:id` (opening hours) and `PATCH /api/owner/courts/:id` (prices) for the owner of the venue. A booking request reads the price and the hours after the `Court` lock (BR-6). AC-1 to AC-12 pass.
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
 - Live at https://monsport-774323404592.asia-southeast1.run.app (Cloud Run + Cloud SQL, demo seed data). Each merge to `main` deploys through `.github/workflows/deploy.yml`.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot. The cluster runs `Asia/Bangkok`, so `PrismaService` sets `TimeZone=UTC` on each connection (Cloud SQL runs UTC).
@@ -35,4 +36,4 @@ Updated: 2026-10-17 (database time zone chore)
 
 ## Next step
 
-1. F-005: UC-11 (an owner edits prices and opening hours), the next slice in the intake launch order. Write its brief with `feature-brief`.
+1. F-005 step 2 (issue #35): the forms "Sửa giờ mở cửa" and "Sửa giá" on "Đơn vị của tôi", AC-13 to AC-15.

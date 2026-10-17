@@ -113,6 +113,17 @@ export type CourtInput = z.infer<typeof CourtInput>;
 export const CourtUpdate = CourtInput.omit({ sport: true }).partial().strict();
 export type CourtUpdate = z.infer<typeof CourtUpdate>;
 
+// Brief F-005 (UC-11): an owner edits only the opening hours of a venue and the prices of its courts.
+// Strict, so a field of the admin (name, owner, sport) gets the generic text. An empty body is a screen error.
+const notEmpty = (body: object) => Object.keys(body).length > 0;
+
+/** A PATCH body. The server merges it into the stored venue, then checks the result with `VenueInput`. */
+export const OwnerVenueUpdate = VenueFields.pick({ opensAt: true, closesAt: true }).partial().strict().refine(notEmpty, Messages.invalid);
+export type OwnerVenueUpdate = z.infer<typeof OwnerVenueUpdate>;
+
+export const OwnerCourtUpdate = CourtInput.pick({ priceNormal: true, pricePeak: true }).partial().strict().refine(notEmpty, Messages.invalid);
+export type OwnerCourtUpdate = z.infer<typeof OwnerCourtUpdate>;
+
 export const AdminVenueView = VenueView.extend({
   owner: z.object({ id: z.uuid(), name: z.string(), phone: Phone }),
 });
