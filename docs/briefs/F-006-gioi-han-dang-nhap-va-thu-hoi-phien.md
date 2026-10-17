@@ -5,7 +5,7 @@ lang: vi
 
 # F-006: Giới hạn số lần thử đăng nhập và đăng ký, chặn mật khẩu dễ đoán, thu hồi phiên khi mở khóa
 
-Status: draft
+Status: accepted
 Source: `PROGRESS.md`, Next step 1 và 2 (ngày 17/10/2026). Intake, mục Quality ("Bảo mật") và mục Phân quyền (admin khóa tài khoản). `docs/requirements/business-rules.md` BR-24, BR-28. Brief F-003, mục "Risks and reviews" và "Assumptions" (giới hạn số lần thử và danh sách mật khẩu phổ biến quay lại trước ngày chạy thử). Brief F-004, rủi ro R5 (`link-start` dùng cùng giới hạn với đăng nhập).
 
 ## Goal
