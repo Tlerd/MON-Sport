@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-17 (fix: expire lock order).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-17 (fix: expire lock order, PR #45).
 
 ## Current state
 
@@ -35,6 +35,6 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-1. F-008: the rest of UC-2. F-002 shipped only the short booking form. Still open: the free hours of a day with "Gọi chủ sân" (2.0 step 5), the search by court name (2.1), and 2.0.E1. Write its brief with `feature-brief`.
-2. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
-3. Low findings to fix in the next pull request that edits the file: a failed cancel on "Booking đã xác nhận" leaves the focus on the page body (PR #41, `PhoneBookings.tsx`). A rare 40P01 stays between the owner list and an insert (PR #45, comment on `BookingsService.expire`). A retry of the expire in `forOwner` closes it.
+1. A `fix/` pull request for a 40P01 cycle (a 500): `decide` confirms a booking without the `Court` lock, so its EXCLUDE check and an insert under the lock can wait on each other. Take `Court FOR UPDATE` in `decide` first, and map 40P01 to 409 (rule-review of PR #40, AG-LOCKS). The other cycle, `expire` against the BR-8 update, is fixed in PR #45. Fix two lows in the same pull request: retry the expire in `forOwner` once on 40P01, for the rare case named on `BookingsService.expire` (PR #45). A failed cancel on "Booking đã xác nhận" leaves the focus on the page body (PR #41, `PhoneBookings.tsx`).
+2. F-008: the rest of UC-2. F-002 shipped only the short booking form. Still open: the free hours of a day with "Gọi chủ sân" (2.0 step 5), the search by court name (2.1), and 2.0.E1. Write its brief with `feature-brief`.
+3. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.

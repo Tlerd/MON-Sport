@@ -38,14 +38,14 @@ packages/shared/src/                   Zod schemas: the one source of the API co
 
 ## Agent roles
 
-Each tool maps these roles to its own models. Claude Code runs every role on the session model in `.claude/settings.json`, the Reader as `Explore` in `.claude/agents/`, and the Reviewer as a new `claude -p --permission-mode plan` session. Antigravity maps them in `.agents/rules/model-routing.md`.
+Each tool maps these roles to its own models. Claude Code runs every role on the session model in `.claude/settings.json`, the Reader as `Explore` in `.claude/agents/`, and the Reviewer as a new `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."` session. Antigravity maps them in `.agents/rules/model-routing.md`.
 
 | Role | Does | Never |
 |---|---|---|
 | Planner | Reads the brief and the code. Writes a plan that lists each file to change, then hands it to the coder. Uses the strongest model for a step on money, concurrency, schema, or personal data | Edits a file |
 | Reader | Finds and reads files for the planner and the coder. Use a cheap read-only agent when a search spans several files | Edits a file, or runs a command that changes state |
 | Coder | Writes the tests first, then the code that the plan lists. Runs `pnpm check` | Edits a path that the brief does not list |
-| Reviewer | A fresh session, on the strongest model for money, concurrency, schema, or personal data. Reviews a brief or a pull request against the intake. Rates each finding high, medium, or low | Edits, commits, or pushes |
+| Reviewer | A fresh session, on the strongest model for money, concurrency, schema, or personal data. Reads `REVIEW.md` first. Reviews a brief or a pull request against the intake. Rates each finding high, medium, or low | Edits, commits, or pushes |
 
 ## Workflow
 
@@ -53,9 +53,11 @@ Each tool maps these roles to its own models. Claude Code runs every role on the
 2. Open one issue for the brief from `.github/ISSUE_TEMPLATE/feature.md`, with the label `enhancement`. The issue links the brief.
 3. Give each step of the build order its own branch from `main`: `feat/<issue>-<step>-<slug>`, for example `feat/12-1-booking-schema`.
 4. Open one pull request for each step with `gh pr create`. Fill in `.github/pull_request_template.md`. Write `Refs #<issue>` on each step, and `Closes #<issue>` on the last step only.
-5. A Reviewer reviews each pull request. Post its findings as a pull request comment. Fix each finding of medium or higher, then run a new Reviewer on the new head. A finding is closed only when that Reviewer says so. Each Reviewer run is one round.
+5. A Reviewer reviews each pull request. Post its findings as a pull request comment. Fix each finding of medium or higher, then run a new Reviewer on the new head. That Reviewer reviews only the diff since the last reviewed head, as `REVIEW.md` says. A finding is closed only when that Reviewer says so. Each Reviewer run is one round. When the pull request touches money, concurrency, the schema, or personal data, the round also runs the skill `rule-review` and posts its comment.
 6. Run `gh pr checks <n> --watch`. Merge with `gh pr merge <n> --merge --delete-branch` only when that command exits 0, no finding of medium or higher stays open, and the pull request changes only the paths that its brief or its description allows. Never push to `main`. Never force push.
 7. When the next step or an open decision changes, rewrite `PROGRESS.md` in the same pull request, before the merge.
+
+Run the skill `.agents/skills/verify-flow/` before you open a pull request that changes a screen, and after each deploy. Attach its report and screenshots to the pull request.
 
 A fix, a chore, or a docs change that no brief covers needs no issue. Its branch is `fix/<slug>`, `chore/<slug>`, or `docs/<slug>`, and it still goes through a pull request. Its description lists the files it may change, and it changes only those.
 
