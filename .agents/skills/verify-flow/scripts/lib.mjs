@@ -173,6 +173,14 @@ const firstLines = (message) => {
   return waited ? `${head} ${waited}` : head;
 };
 
+/** A flow that leaves a CONFIRMED booking runs on live only on a test court that the shell names. */
+export async function requireTestCourt(run, flow) {
+  if (run.opts.target !== 'live' || (process.env.VERIFY_VENUE && process.env.VERIFY_COURT)) return;
+  await run.step(flow, 'pick a test court (live)', null, () => {
+    throw new SkipFlow(`${flow} on live needs a test court: set VERIFY_VENUE and VERIFY_COURT`);
+  });
+}
+
 export function assert(condition, message) {
   if (!condition) throw new Error(message);
 }

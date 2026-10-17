@@ -65,7 +65,7 @@ export async function requestBooking(run, flow, label = 'send a booking request'
 }
 
 /** BR-5: each 30-minute piece costs half the hourly price of its band. BR-4: the peak band is 17:00–22:00. */
-function expectedPrice(court, slot) {
+export function expectedPrice(court, slot) {
   let total = 0;
   for (let m = slot.start; m < slot.start + slot.duration; m += 30) total += (m >= 17 * 60 && m < 22 * 60 ? court.pricePeak : court.priceNormal) / 2;
   return total;
