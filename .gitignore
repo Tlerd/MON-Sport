@@ -7,3 +7,8 @@ coverage/
 apps/api/src/generated/
 .agents/*
 !.agents/rules/
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/verify-flow/
+# Screenshots and reports of the verify-flow skill.
+verify-output/
