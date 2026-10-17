@@ -68,3 +68,24 @@ jobs:
           done
           docker logs app
           exit 1
+      # The booking flows run in a real browser against the production image, before any merge can deploy it.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Seed the image database
+        run: pnpm --filter @monsport/api db:seed
+        env:
+          DATABASE_URL: postgresql://monsport:monsport@localhost:5432/monsport_prod
+      - name: The booking flows pass in a browser
+        run: node .agents/skills/verify-flow/scripts/run.mjs --base-url http://localhost:8080
+        env:
+          VERIFY_BROWSER: chrome
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-flow
+          path: verify-output/
+          if-no-files-found: ignore
