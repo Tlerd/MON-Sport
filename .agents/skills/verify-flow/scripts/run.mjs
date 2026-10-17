@@ -38,7 +38,7 @@ const run = new Run(opts);
 // The report names the code it checked. "-dirty" marks uncommitted changes.
 const git = (...args) => spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' }).stdout?.trim();
 const head = git('rev-parse', '--short', 'HEAD');
-run.commit = head ? `${head}${git('status', '--porcelain', '--untracked-files=no') ? '-dirty' : ''}` : undefined;
+run.commit = head ? `${head}${git('status', '--porcelain') ? '-dirty' : ''}` : undefined;
 await run.start();
 try {
   for (const name of names) {

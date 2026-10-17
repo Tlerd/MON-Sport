@@ -51,37 +51,41 @@ export default async function phoneBooking(run) {
     throw new Error('5 random slots were taken (409). Set VERIFY_COURT to another court');
   });
 
-  await run.step(FLOW, 'it shows in "Booking đã xác nhận" after a reload', page, async () => {
-    await page.reload();
-    const list = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Booking đã xác nhận' }) });
-    const rows = list.locator('li.ticket', { hasText: customer });
-    await rows.first().waitFor();
-    assert((await rows.count()) === 1, `"Booking đã xác nhận" has ${await rows.count()} tickets for ${customer}, the check needs 1`);
-    const text = await rows.innerText();
-    for (const part of [`Ngày ${showDay(booking.startAt)}`, showTime(booking.startAt), 'Qua điện thoại', showVnd(booking.priceTotal)])
-      assert(text.includes(part), `the ticket does not show "${part}"`);
-    return `${customer}, ${booking.slotText}`;
-  });
-
-  const player = await run.session('player');
-  await run.step(FLOW, 'the slot is taken for players', player.page, async () => {
-    const res = await player.page.request.post(`${run.base}/api/bookings`, {
-      data: { courtId: booking.courtId, startAt: booking.startAt, endAt: booking.endAt },
+  // The run always cancels the booking it created, even when a check in between fails.
+  try {
+    await run.step(FLOW, 'it shows in "Booking đã xác nhận" after a reload', page, async () => {
+      await page.reload();
+      const list = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Booking đã xác nhận' }) });
+      const rows = list.locator('li.ticket', { hasText: customer });
+      await rows.first().waitFor();
+      assert((await rows.count()) === 1, `"Booking đã xác nhận" has ${await rows.count()} tickets for ${customer}, the check needs 1`);
+      const text = await rows.innerText();
+      for (const part of [`Ngày ${showDay(booking.startAt)}`, showTime(booking.startAt), 'Qua điện thoại', showVnd(booking.priceTotal)])
+        assert(text.includes(part), `the ticket does not show "${part}"`);
+      return `${customer}, ${booking.slotText}`;
     });
-    const body = await res.json().catch(() => ({}));
-    assert(res.status() === 409, `POST /api/bookings on the phone slot answered ${res.status()}, not 409 (BR-1)`);
-    assert(body.message === 'Khung giờ này vừa có người đặt', `the 409 says "${body.message}"`);
-    return '409 Khung giờ này vừa có người đặt';
-  });
 
-  await run.step(FLOW, 'owner cancels the phone booking', page, async () => {
-    const list = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Booking đã xác nhận' }) });
-    const row = list.locator('li.ticket', { hasText: customer });
-    await row.getByRole('button', { name: `Hủy booking ${booking.slotText}`, exact: true }).click();
-    const { status, body } = await clickFor(page, row.getByRole('button', { name: `Xác nhận hủy booking ${booking.slotText}`, exact: true }), 'POST', `/${booking.id}/cancel`);
-    assert(status === 200, `POST /api/owner/bookings/${booking.id}/cancel answered ${status}: ${body.message ?? ''}`);
-    assert(body.id === booking.id && body.status === 'CANCELLED', `the booking is ${body.status}, not CANCELLED`);
-    await row.getByText('Đã hủy').waitFor();
-    return `booking ${booking.id} CANCELLED`;
-  });
+    const player = await run.session('player');
+    await run.step(FLOW, 'the slot is taken for players', player.page, async () => {
+      const res = await player.page.request.post(`${run.base}/api/bookings`, {
+        data: { courtId: booking.courtId, startAt: booking.startAt, endAt: booking.endAt },
+      });
+      const body = await res.json().catch(() => ({}));
+      assert(res.status() === 409, `POST /api/bookings on the phone slot answered ${res.status()}, not 409 (BR-1)`);
+      assert(body.message === 'Khung giờ này vừa có người đặt', `the 409 says "${body.message}"`);
+      return '409 Khung giờ này vừa có người đặt';
+    });
+  } finally {
+    await run.step(FLOW, 'owner cancels the phone booking', page, async () => {
+      await page.reload();
+      const list = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Booking đã xác nhận' }) });
+      const row = list.locator('li.ticket', { hasText: customer });
+      await row.getByRole('button', { name: `Hủy booking ${booking.slotText}`, exact: true }).click();
+      const { status, body } = await clickFor(page, row.getByRole('button', { name: `Xác nhận hủy booking ${booking.slotText}`, exact: true }), 'POST', `/${booking.id}/cancel`);
+      assert(status === 200, `POST /api/owner/bookings/${booking.id}/cancel answered ${status}: ${body.message ?? ''}`);
+      assert(body.id === booking.id && body.status === 'CANCELLED', `the booking is ${body.status}, not CANCELLED`);
+      await row.getByText('Đã hủy').waitFor();
+      return `booking ${booking.id} CANCELLED`;
+    });
+  }
 }

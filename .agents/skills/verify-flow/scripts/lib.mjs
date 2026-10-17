@@ -93,9 +93,13 @@ export class Run {
       status = error instanceof SkipFlow ? 'SKIP' : 'FAIL';
       detail = firstLines(error.message);
     }
+    // A Playwright timeout quotes its locator, and a locator may hold an account phone. The report names the role instead.
+    for (const [role, account] of Object.entries(this.accounts)) {
+      if (account.phone) detail = detail.replaceAll(account.phone, `<${role} phone>`);
+    }
     const file = page ? join(this.dir, `${n}-${flow}-${slug(name)}${status === 'FAIL' ? '-FAIL' : ''}.png`) : '';
     // Live pages show real names and phones, and the evidence goes to a public pull request: mask them.
-    const mask = page && this.opts.target === 'live' ? [page.locator('.customer, .who .name, .hero h1')] : [];
+    const mask = page && this.opts.target === 'live' ? [page.locator('.customer, .who, .hero h1, input[autocomplete="tel"], input[type="tel"]')] : [];
     await page?.screenshot({ path: file, fullPage: true, mask }).catch(() => undefined);
     this.results.push({ n, flow, name, status, detail, file });
     console.log(`${status} ${flow}: ${name}${detail ? ` (${detail})` : ''}`);
