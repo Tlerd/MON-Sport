@@ -36,6 +36,11 @@ const inTurn = async (count: number, send: (i: number) => Promise<{ status: numb
   return result;
 };
 const times = (n: number, status: number) => Array<number>(n).fill(status);
+/** The data of AC-1: 10 wrong logins on An's phone from 203.0.113.1 to .10, then the correct one from .11. */
+const ac1 = async () => {
+  const wrong = await inTurn(10, (i) => login(`203.0.113.${i + 1}`, AN, WRONG));
+  return { wrong, last: await login('203.0.113.11') };
+};
 const phoneOf = (i: number, base: number) => `0${base + i}`;
 
 beforeAll(async () => {
@@ -60,8 +65,8 @@ beforeEach(async () => {
 describe('login limits (BR-30)', () => {
   it('AC-1: the 11th login on one phone gets 429 without an argon2 check, whatever the IP', async () => {
     const verify = vi.spyOn(passwords, 'verify');
-    expect(await inTurn(10, (i) => login(`203.0.113.${i + 1}`, AN, WRONG))).toEqual(times(10, 401));
-    const res = await login('203.0.113.11');
+    const { wrong, last: res } = await ac1();
+    expect(wrong).toEqual(times(10, 401));
     expect(res.status).toBe(429);
     expect(res.body.message).toBe(Messages.tooManyAttempts);
     expect(res.headers['retry-after']).toBe('900');
@@ -70,7 +75,7 @@ describe('login limits (BR-30)', () => {
   });
 
   it('AC-2: the phone signs in again when the 15-minute window ends', async () => {
-    await inTurn(11, (i) => login(`203.0.113.${i + 1}`, AN, WRONG));
+    expect((await ac1()).last.status).toBe(429);
     now = at('10:15');
     const res = await login('203.0.113.12').expect(200);
     expect(res.headers['set-cookie']?.[0]).toMatch(/^session=/);
@@ -106,7 +111,7 @@ describe('login limits (BR-30)', () => {
   });
 
   it('AC-9: the counter table holds no readable phone number or IP', async () => {
-    await inTurn(11, (i) => login(`203.0.113.${i + 1}`, AN, WRONG));
+    await ac1();
     const rows = JSON.stringify(await db.authThrottle.findMany());
     expect(rows).toContain(keyedDigest(AN));
     expect(rows).not.toContain(AN);

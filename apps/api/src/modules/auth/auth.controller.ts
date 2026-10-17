@@ -29,7 +29,7 @@ export class AuthController {
   async register(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<SessionUser> {
     const input = RegisterRequest.safeParse(body);
     if (!input.success) throw new BadRequestException(errorMessage(input.error));
-    refuseWhenThrottled(res, await this.throttle.register(req.ip)); // Before the argon2 hash (brief F-006).
+    refuseWhenThrottled(res, await this.throttle.consumeRegister(req.ip)); // Before the argon2 hash (brief F-006).
     const now = this.clock.now();
     const { consent: _consent, ...account } = input.data;
     // The role is fixed here. A role field in the body is ignored, because Zod strips unknown keys.
@@ -43,7 +43,7 @@ export class AuthController {
   async login(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<SessionUser> {
     const input = LoginRequest.safeParse(body);
     if (!input.success) throw new BadRequestException('Số điện thoại hoặc mật khẩu không hợp lệ');
-    refuseWhenThrottled(res, await this.throttle.login(input.data.phone, req.ip)); // Before the argon2 check (brief F-006).
+    refuseWhenThrottled(res, await this.throttle.consumeLogin(input.data.phone, req.ip)); // Before the argon2 check (brief F-006).
     const user = await this.prisma.user.findUnique({ where: { phone: input.data.phone } });
     // One message for a wrong phone and a wrong password (UC-1, 1.1.E1).
     const passwordOk = await this.passwords.verify(user?.passwordHash ?? (await NO_USER_HASH), input.data.password);

@@ -42,7 +42,7 @@ export class ThrottleService {
    * Counts a login attempt by IP, then by phone, before the password check, so a blocked attempt runs no argon2.
    * Returns the seconds to wait when a limit is passed, else null. F-004 `link-start` calls this too.
    */
-  async login(phone: string, ip: string | undefined): Promise<number | null> {
+  async consumeLogin(phone: string, ip: string | undefined): Promise<number | null> {
     return (await this.hit('login-ip', ipBucket(ip))) ?? (await this.hit('login-phone', phone));
   }
 
@@ -52,7 +52,7 @@ export class ThrottleService {
   }
 
   /** Counts a sign-up attempt by IP before the argon2 hash. Returns the seconds to wait, or null. */
-  register(ip: string | undefined): Promise<number | null> {
+  consumeRegister(ip: string | undefined): Promise<number | null> {
     return this.hit('register-ip', ipBucket(ip));
   }
 
