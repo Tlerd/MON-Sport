@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MyVenues } from './MyVenues.tsx';
 
@@ -38,6 +38,75 @@ describe('MyVenues', () => {
     const row = (await screen.findByText('Sân 2')).closest('li') as HTMLElement;
     expect(within(row).getByText('70.000đ')).toBeTruthy();
     expect(within(row).getByText('100.000đ')).toBeTruthy();
+  });
+
+  describe('brief F-005: Bình edits the opening hours and the prices', () => {
+    const ok = (body: unknown) => ({ ok: true, status: 200, json: () => Promise.resolve(body) });
+
+    it('AC-13: Bình saves 07:00-22:00, and the card shows the new hours', async () => {
+      const saved = { ...CAU_LONG_A, opensAt: 420, closesAt: 1320 };
+      const fetch = vi.fn().mockResolvedValueOnce(ok([CAU_LONG_A])).mockResolvedValueOnce(ok(saved));
+      vi.stubGlobal('fetch', fetch);
+      render(<MyVenues />);
+      const venue = await screen.findByRole('article', { name: 'Cầu lông A' });
+
+      fireEvent.click(within(venue).getByRole('button', { name: 'Sửa giờ mở cửa' }));
+      fireEvent.change(within(venue).getByLabelText('Mở cửa'), { target: { value: '420' } });
+      fireEvent.change(within(venue).getByLabelText('Đóng cửa'), { target: { value: '1320' } });
+      fireEvent.click(within(venue).getByRole('button', { name: 'Lưu' }));
+
+      expect(await within(venue).findByText('07:00–22:00')).toBeTruthy();
+      const [path, init] = fetch.mock.calls[1];
+      expect(path).toBe(`/api/owner/venues/${CAU_LONG_A.id}`);
+      expect(init.method).toBe('PATCH');
+      expect(JSON.parse(init.body)).toEqual({ opensAt: 420, closesAt: 1320 });
+      expect(within(venue).queryByRole('button', { name: 'Lưu' })).toBeNull();
+    });
+
+    it('AC-14: Bình saves a peak price of 150.000đ for "Sân 1", and its row shows it', async () => {
+      const saved = { ...CAU_LONG_A.courts[0], pricePeak: 150_000 };
+      const fetch = vi.fn().mockResolvedValueOnce(ok([CAU_LONG_A])).mockResolvedValueOnce(ok(saved));
+      vi.stubGlobal('fetch', fetch);
+      render(<MyVenues />);
+      const venue = await screen.findByRole('article', { name: 'Cầu lông A' });
+
+      fireEvent.click(within(venue).getByRole('button', { name: 'Sửa giá Sân 1' }));
+      fireEvent.change(within(venue).getByLabelText('Giá cao điểm (đ)'), { target: { value: '150000' } });
+      fireEvent.click(within(venue).getByRole('button', { name: 'Lưu' }));
+
+      const row = (await within(venue).findByText('150.000đ')).closest('li') as HTMLElement;
+      expect(within(row).getByText('Sân 1')).toBeTruthy();
+      const [path, init] = fetch.mock.calls[1];
+      expect(path).toBe(`/api/owner/courts/${CAU_LONG_A.courts[0].id}`);
+      expect(init.method).toBe('PATCH');
+      expect(JSON.parse(init.body)).toEqual({ priceNormal: 80_000, pricePeak: 150_000 });
+    });
+
+    it('AC-15: the form shows the error of the API, and the card keeps 06:00-23:00', async () => {
+      const refused = { ok: false, status: 400, json: () => Promise.resolve({ message: 'Giờ đóng cửa phải sau giờ mở cửa' }) };
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok([CAU_LONG_A])).mockResolvedValueOnce(refused));
+      render(<MyVenues />);
+      const venue = await screen.findByRole('article', { name: 'Cầu lông A' });
+
+      fireEvent.click(within(venue).getByRole('button', { name: 'Sửa giờ mở cửa' }));
+      fireEvent.click(within(venue).getByRole('button', { name: 'Lưu' }));
+
+      expect((await within(venue).findByRole('alert')).textContent).toBe('Giờ đóng cửa phải sau giờ mở cửa');
+      expect(within(venue).getByText('06:00–23:00')).toBeTruthy();
+    });
+
+    it('closes the form on "Hủy" without a request', async () => {
+      const fetch = vi.fn().mockResolvedValueOnce(ok([CAU_LONG_A]));
+      vi.stubGlobal('fetch', fetch);
+      render(<MyVenues />);
+      const venue = await screen.findByRole('article', { name: 'Cầu lông A' });
+
+      fireEvent.click(within(venue).getByRole('button', { name: 'Sửa giá Sân 2' }));
+      fireEvent.click(within(venue).getByRole('button', { name: 'Hủy' }));
+
+      expect(within(venue).queryByLabelText('Giá cao điểm (đ)')).toBeNull();
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('says so when the owner has no venue yet', async () => {

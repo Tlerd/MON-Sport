@@ -2,10 +2,8 @@ import type { AccountView, AdminVenueView, CourtView, Sport } from '@monsport/sh
 import { type FormEvent, useEffect, useState } from 'react';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { api, ApiError } from '../../lib/api.ts';
-import { hhmm } from '../../lib/format.ts';
+import { HALF_HOURS, hhmm } from '../../lib/format.ts';
 
-// Opening hours sit on the 30-minute grid, from 00:00 to 24:00 (data dictionary, Venue.opensAt).
-const HALF_HOURS = Array.from({ length: 49 }, (_, i) => i * 30);
 const message = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
 type VenueDraft = { ownerId: string; name: string; address: string; phone: string; opensAt: number; closesAt: number };

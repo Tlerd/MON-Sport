@@ -2,7 +2,7 @@
 
 This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git.
 
-Updated: 2026-10-17 (F-005 step 1)
+Updated: 2026-10-17 (F-005)
 
 ## Current state
 
@@ -10,7 +10,7 @@ Updated: 2026-10-17 (F-005 step 1)
 - F-002 is done (issue #5 closed): login with seed accounts, `GET /api/venues`, booking requests, owner confirm and reject, and the screens. AC-1 to AC-21 pass. PRs #6, #7, #8, #9, #10.
 - F-003 is done (issue #20): sign-up with consent (`User.consentAt`, BR-29), the admin screen (owners, venues, courts, lock and unlock), and "Đơn vị của tôi" for owners. AC-1 to AC-30 pass. PRs #19 (brief), #21, #22, #23, #24, #25.
 - F-006 is done (issue #29, PRs #28, #30, #31; brief `docs/briefs/F-006-gioi-han-dang-nhap-va-thu-hoi-phien.md`): login and sign-up limits per phone and per IP in the shared table `AuthThrottle` (BR-30), the weak-password check for new passwords (BR-31), and `User.sessionsValidFrom`, so an admin unlock revokes older sessions (BR-32). The IP is the last `X-Forwarded-For` entry (`trust proxy` = 1). A proxy in front of Cloud Run must change that. The live check on 2026-10-17 passed (comment on PR #31). AC-1 to AC-17 pass.
-- F-005 step 1 is merged (issue #35, PRs #34 (brief), #36; brief `docs/briefs/F-005-chu-san-sua-gia-va-gio-mo-cua.md`): `PATCH /api/owner/venues/:id` (opening hours) and `PATCH /api/owner/courts/:id` (prices) for the owner of the venue. A booking request reads the price and the hours after the `Court` lock (BR-6). AC-1 to AC-12 pass.
+- F-005 is done (issue #35, PRs #34 (brief), #36, #37; brief `docs/briefs/F-005-chu-san-sua-gia-va-gio-mo-cua.md`): an owner edits the opening hours of own venues (`PATCH /api/owner/venues/:id`) and the prices of their courts (`PATCH /api/owner/courts/:id`) on "Đơn vị của tôi". A booking request reads the price and the hours after the `Court` lock (BR-6). AC-1 to AC-15 pass. The local dev database `monsport_dev` needs `prisma migrate reset` before it runs the F-003 and F-006 migrations: migration f003 changed after it was applied there. The agent did not reset it, because the reset deletes its data.
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
 - Live at https://monsport-774323404592.asia-southeast1.run.app (Cloud Run + Cloud SQL, demo seed data). Each merge to `main` deploys through `.github/workflows/deploy.yml`.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot. The cluster runs `Asia/Bangkok`, so `PrismaService` sets `TimeZone=UTC` on each connection (Cloud SQL runs UTC).
@@ -36,4 +36,5 @@ Updated: 2026-10-17 (F-005 step 1)
 
 ## Next step
 
-1. F-005 step 2 (issue #35): the forms "Sửa giờ mở cửa" and "Sửa giá" on "Đơn vị của tôi", AC-13 to AC-15.
+1. F-007: UC-5, an owner enters the booking of a customer who phoned, and cancels it (brief `docs/briefs/F-007-chu-san-nhap-booking-khach-goi-dien.md`).
+2. F-008: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.

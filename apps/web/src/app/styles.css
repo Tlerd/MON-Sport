@@ -216,3 +216,11 @@ h2[tabindex='-1']:focus { outline: none; }
 @media (max-width: 420px) {
   .row.two label:first-child { grid-column: auto; }
 }
+
+/* F-005: the owner opens one edit form at a time under the courts of a venue card */
+.edit-links { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; padding-top: 0.5rem; border-top: 1px dashed var(--rule); }
+.edit-links button.link { min-height: 2.75rem; }
+.owner-edit { padding-top: 0.75rem; border-top: 1px dashed var(--rule); }
+.owner-edit .step legend { margin-bottom: 0.5rem; }
+.owner-edit .actions button.secondary { color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--control); }
+.owner-edit .actions button.secondary:hover { background: var(--court-soft); }
