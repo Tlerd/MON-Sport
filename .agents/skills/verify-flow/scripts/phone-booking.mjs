@@ -1,5 +1,5 @@
 // Flow phone-booking (UC-5, brief F-007): the owner enters the booking of a customer who phoned.
-// It shows in "Booking đã xác nhận", and the slot is taken for players (BR-1).
+// It shows in "Booking đã xác nhận", the slot is taken for players (BR-1), and the owner cancels it.
 
 import { assert, clickFor, randomSlot, requireTestCourt, showDay, showTime, showVnd, vnInstant } from './lib.mjs';
 import { expectedPrice } from './player-request.mjs';
@@ -7,7 +7,7 @@ import { expectedPrice } from './player-request.mjs';
 const FLOW = 'phone-booking';
 
 export default async function phoneBooking(run) {
-  // Each run leaves one CONFIRMED booking. The owner could cancel it, but the run deletes nothing.
+  // The run cancels its own booking at the end. A run that stops earlier leaves it CONFIRMED.
   await requireTestCourt(run, FLOW);
   const { page } = await run.session('owner');
   const { venue: venueName, court: courtName } = run.accounts;
@@ -23,7 +23,7 @@ export default async function phoneBooking(run) {
     await page.goto(run.base);
     const form = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Nhập booking khách gọi điện' }) });
     const label = `${venueName} · ${courtName}`;
-    await form.locator('option', { hasText: label }).waitFor({ state: 'attached' });
+    await form.locator('option', { hasText: label }).first().waitFor({ state: 'attached' });
     await form.getByLabel(/^Sân/).selectOption({ label });
 
     for (let attempt = 1; attempt <= 5; attempt++) {
@@ -72,5 +72,16 @@ export default async function phoneBooking(run) {
     assert(res.status() === 409, `POST /api/bookings on the phone slot answered ${res.status()}, not 409 (BR-1)`);
     assert(body.message === 'Khung giờ này vừa có người đặt', `the 409 says "${body.message}"`);
     return '409 Khung giờ này vừa có người đặt';
+  });
+
+  await run.step(FLOW, 'owner cancels the phone booking', page, async () => {
+    const list = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Booking đã xác nhận' }) });
+    const row = list.locator('li.ticket', { hasText: customer });
+    await row.getByRole('button', { name: `Hủy booking ${booking.slotText}`, exact: true }).click();
+    const { status, body } = await clickFor(page, row.getByRole('button', { name: `Xác nhận hủy booking ${booking.slotText}`, exact: true }), 'POST', `/${booking.id}/cancel`);
+    assert(status === 200, `POST /api/owner/bookings/${booking.id}/cancel answered ${status}: ${body.message ?? ''}`);
+    assert(body.id === booking.id && body.status === 'CANCELLED', `the booking is ${body.status}, not CANCELLED`);
+    await row.getByText('Đã hủy').waitFor();
+    return `booking ${booking.id} CANCELLED`;
   });
 }

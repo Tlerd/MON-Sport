@@ -25,7 +25,7 @@ export async function requestBooking(run, flow, label = 'send a booking request'
     await page.goto(run.base);
     const form = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Đặt sân' }) });
     // A select's accessible name ends with its chosen option, so the labels match by prefix.
-    await form.locator('option', { hasText: venueName }).waitFor({ state: 'attached' });
+    await form.locator('option', { hasText: venueName }).first().waitFor({ state: 'attached' });
     await form.getByLabel(/^Đơn vị/).selectOption({ label: venueName });
     await form.getByLabel(/^Sân/).selectOption({ label: courtName });
 

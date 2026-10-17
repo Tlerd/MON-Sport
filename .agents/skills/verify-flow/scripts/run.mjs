@@ -10,7 +10,13 @@ import { parseOptions, ROOT, Run } from './lib.mjs';
 
 const FLOWS = { 'player-request': playerRequest, 'owner-decide': ownerDecide, 'phone-booking': phoneBooking };
 
-const opts = parseOptions(process.argv.slice(2));
+let opts;
+try {
+  opts = parseOptions(process.argv.slice(2));
+} catch (error) {
+  console.error(error.message);
+  process.exit(2);
+}
 const names = opts.flows.length ? opts.flows : Object.keys(FLOWS);
 const unknown = names.filter((n) => !FLOWS[n]);
 if (unknown.length) {
@@ -18,7 +24,10 @@ if (unknown.length) {
   process.exit(2);
 }
 
-const health = await fetch(`${opts.baseUrl}/api/health`).then((r) => r.json(), (e) => ({ error: e.cause?.code ?? e.message }));
+const health = await fetch(`${opts.baseUrl}/api/health`).then(
+  (r) => r.json().catch(() => ({ status: r.status })), // The Vite proxy answers 5xx without JSON when the API is down.
+  (e) => ({ error: e.cause?.code ?? e.message }),
+);
 if (health.status !== 'ok') {
   console.error(`${opts.baseUrl}/api/health answered ${JSON.stringify(health)}.`);
   if (opts.target === 'local') console.error('Start the database (pnpm db:start), the API (pnpm dev:api), and the web app (pnpm dev:web).');
@@ -26,7 +35,10 @@ if (health.status !== 'ok') {
 }
 
 const run = new Run(opts);
-run.commit = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).stdout?.trim() || undefined;
+// The report names the code it checked. "-dirty" marks uncommitted changes.
+const git = (...args) => spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' }).stdout?.trim();
+const head = git('rev-parse', '--short', 'HEAD');
+run.commit = head ? `${head}${git('status', '--porcelain', '--untracked-files=no') ? '-dirty' : ''}` : undefined;
 await run.start();
 try {
   for (const name of names) {

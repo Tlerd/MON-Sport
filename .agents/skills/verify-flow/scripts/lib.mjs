@@ -94,7 +94,9 @@ export class Run {
       detail = firstLines(error.message);
     }
     const file = page ? join(this.dir, `${n}-${flow}-${slug(name)}${status === 'FAIL' ? '-FAIL' : ''}.png`) : '';
-    await page?.screenshot({ path: file, fullPage: true }).catch(() => undefined);
+    // Live pages show real names and phones, and the evidence goes to a public pull request: mask them.
+    const mask = page && this.opts.target === 'live' ? [page.locator('.customer, .who .name, .hero h1')] : [];
+    await page?.screenshot({ path: file, fullPage: true, mask }).catch(() => undefined);
     this.results.push({ n, flow, name, status, detail, file });
     console.log(`${status} ${flow}: ${name}${detail ? ` (${detail})` : ''}`);
     if (status !== 'PASS') throw Object.assign(new Error(detail), { reported: true, skip: status === 'SKIP' });
@@ -118,7 +120,7 @@ export class Run {
     const page = await context.newPage();
     this.watch(page);
     try {
-      await this.step('setup', `log in as ${role} ${account.phone}`, page, () => login(this, page, account, role));
+      await this.step('setup', `log in as ${role}`, page, () => login(this, page, account, role));
     } catch (error) {
       await context.close();
       throw error;
