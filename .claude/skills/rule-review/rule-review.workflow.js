@@ -171,7 +171,11 @@ if (older.length) lines.push('### Older than this change', '', ...older.map(item
 if (unverified.length) {
   lines.push('### Not verified (the skeptic failed)', '', ...unverified.map((f) => `- ${f.rule} | \`${f.location}\`: ${f.scenario}`), '')
 }
+const allDismissed = done
+  .filter((d) => d.judged.length && d.judged.every((f) => f.skeptic && f.skeptic.verdict === 'false_positive'))
+  .map((d) => d.rule.id)
 lines.push('### Rules checked', '', `- Clean: ${clean.join(', ') || 'none'}`)
+if (allDismissed.length) lines.push(`- Clean after the skeptic dismissed every flag: ${allDismissed.join(', ')}`)
 if (failed.length) lines.push(`- Not checked (the verifier failed): ${failed.join(', ')}`)
 lines.push('')
 if (dismissed.length) {
