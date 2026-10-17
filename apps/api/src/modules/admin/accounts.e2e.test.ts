@@ -38,7 +38,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await db.$executeRawUnsafe('TRUNCATE "Booking", "Court", "Venue", "User" CASCADE');
+  await db.$executeRawUnsafe('TRUNCATE "Booking", "Court", "Venue", "User", "AuthThrottle" CASCADE');
   const passwordHash = await hash(PASSWORD);
   const user = (name: string, phone: string, role: 'ADMIN' | 'OWNER' | 'USER') =>
     db.user.create({ data: { name, phone, role, passwordHash } }).then((u) => (ids[name] = u.id));

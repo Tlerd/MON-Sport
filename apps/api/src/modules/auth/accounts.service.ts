@@ -1,8 +1,8 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import type { AccountView, Role } from '@monsport/shared';
-import { hash } from '@node-rs/argon2';
 import type { User } from '../../generated/prisma/client.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { Passwords } from './passwords.js';
 
 export const PHONE_TAKEN = 'Số điện thoại này đã có tài khoản'; // BR-24
 
@@ -30,7 +30,10 @@ export function toAccountView(u: User): AccountView {
 
 @Injectable()
 export class AccountsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly passwords: Passwords,
+  ) {}
 
   /**
    * Creates an account with an argon2 hash of the password. The unique index on the phone decides a race
@@ -39,7 +42,7 @@ export class AccountsService {
   async create(input: { name: string; phone: string; password: string; role: Role; consentAt?: Date; createdAt: Date }): Promise<User> {
     const { password, ...data } = input;
     try {
-      return await this.prisma.user.create({ data: { ...data, passwordHash: await hash(password) } });
+      return await this.prisma.user.create({ data: { ...data, passwordHash: await this.passwords.hash(password) } });
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException(PHONE_TAKEN);
       throw error;
