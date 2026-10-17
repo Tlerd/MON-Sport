@@ -124,7 +124,8 @@ describe('PhoneBookings', () => {
     fireEvent.click(confirm);
 
     expect(await within(confirmedList()).findByText('Đã hủy')).toBeTruthy();
-    expect(document.activeElement?.textContent).toBe('Đã hủy');
+    // The effect that moves focus runs after the text appears; one run of the full check read the body first.
+    await vi.waitFor(() => expect(document.activeElement?.textContent).toBe('Đã hủy'));
     expect(fetch).toHaveBeenCalledWith(`/api/owner/bookings/${phone.id}/cancel`, expect.objectContaining({ method: 'POST' }));
     expect(within(confirmedList()).getByText('Chú Tư')).toBeTruthy();
     expect(within(confirmedList()).queryByRole('button', { name: /^Hủy/ })).toBeNull();

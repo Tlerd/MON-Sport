@@ -33,6 +33,16 @@ describe('isDeadlock', () => {
     expect(isDeadlock(new Error('wrapped', { cause: { originalCode: '40P01' } }))).toBe(true);
   });
 
+  // The shape that a typed query gives for a victim (rule-review of PR #49), seen on the local Postgres.
+  it('finds a typed query victim: P2034, with 40P01 in meta.driverAdapterError', () => {
+    const victim = Object.assign(new Error('Transaction failed due to a write conflict or a deadlock. Please retry your transaction'), {
+      code: 'P2034',
+      meta: { modelName: 'Booking', driverAdapterError: { cause: { originalCode: '40P01' } } },
+    });
+    expect(isDeadlock(victim)).toBe(true);
+    expect(isDeadlock({ meta: { driverAdapterError: { cause: { originalCode: '40P01' } } } })).toBe(true);
+  });
+
   it('finds the message of a deadlock when the driver drops the code', () => {
     expect(isDeadlock(new Error('deadlock detected'))).toBe(true);
   });
