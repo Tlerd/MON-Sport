@@ -8,7 +8,7 @@ Start the Reviewer on a clean tree. On a dirty tree, the Stop hook runs `pnpm ch
 
 Rate a finding high or medium when the change can cause one of these:
 
-- Two bookings of one court overlap in time, or concurrent writes deadlock (Postgres `40P01`). Check the transaction and the lock order: with an owner, the `Venue` row `FOR SHARE` first; then the `Court` row `FOR UPDATE`; then the booking insert (`insertUnderLock` in `apps/api/src/modules/bookings/bookings.service.ts`). The `EXCLUDE` constraint is the last guard: `23P01` must become 409.
+- Two bookings of one court overlap in time, or concurrent writes deadlock (Postgres `40P01`). Check the transaction and the lock order: an owner path locks the `Venue` row `FOR SHARE`, then the `Court` row `FOR UPDATE`, then inserts the booking (`insertUnderLock` in `apps/api/src/modules/bookings/bookings.service.ts`). The `EXCLUDE` constraint is the last guard: `23P01` must become 409.
 - A business rule from BR-1 to BR-32 breaks.
 - Personal data leaks. A phone number, a name, or a consent field (BR-20, BR-29, Luật 91/2025) appears in an API response, a log, or an error to a user who must not see it.
 - A date or a time uses the time zone of the machine. The database stores UTC. Opening hours and slots use `Asia/Ho_Chi_Minh` through `packages/shared/src/booking-time.ts` (BR-27).
