@@ -5,6 +5,7 @@ import { AuthPanel } from '../features/auth/AuthPanel.tsx';
 import { BookingForm } from '../features/bookings/BookingForm.tsx';
 import { MyBookings } from '../features/bookings/MyBookings.tsx';
 import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
+import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
 import { MyVenues } from '../features/venues/MyVenues.tsx';
 import { api } from '../lib/api.ts';
 
@@ -59,6 +60,7 @@ export function App() {
         {user?.role === 'OWNER' && (
           <>
             <OwnerRequests />
+            <PhoneBookings />
             <MyVenues />
           </>
         )}
