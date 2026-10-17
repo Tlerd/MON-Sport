@@ -30,11 +30,11 @@ Updated: 2026-10-17 (F-006)
 4. Whether Luật 91/2025 requires more than the consent box and the notice that F-003 ships (`PRIVACY_NOTICE` in `packages/shared/src/account.ts`), and the final text of the notice. Owner: the user, with a legal adviser.
 5. Whether the Google Cloud trial becomes production. It runs on Cloud Run and Cloud SQL (ADR 0003, `docs/deploy-gcp.md`). Owner: the user.
 6. Whether owner data needs its own consent, or the contract with the venue covers it. Until account deletion ships, the admin handles deletion requests by hand. Owner: the user.
-7. Whether to build Google sign-in (F-004, plan in `docs/briefs/F-004-dang-nhap-google.md`). Build it only when the user, in their own message, adds it to the intake or writes "chấp nhận F-004", and has done the console steps of that brief. "tiếp tục" is not acceptance. Agents never close this decision under "Autonomy". Record the date and a quote of that message here. Owner: the user.
+7. Whether to build Google sign-in (F-004, plan in `docs/briefs/F-004-dang-nhap-google.md`). Build it only when the user, in their own message, adds it to the intake or writes "chấp nhận F-004", and has done the console steps of that brief. "tiếp tục" is not acceptance. Agents never close this decision under "Autonomy". Record the date and a quote of that message here. F-004 `link-start` calls `ThrottleService.consumeLogin` with the phone of the signed-in user (brief F-006). Owner: the user.
 8. Whether the limits of BR-30 suit venues where players share one Wi-Fi. Check after the first pilot week. Owner: the user.
 
 ## Next step
 
 1. Run the live IP check of brief F-006 (below its build order): 31 logins with forged `X-Forwarded-For` headers, then one login from a second network such as Cloud Shell. Post the result on PR #31. If it fails, fix `trust proxy` before anything else.
-2. F-005: UC-11 (an owner edits prices and opening hours), the next slice in the intake launch order. Write its brief with `feature-brief`.
-3. F-004 (Google sign-in) waits for the user (open decision 7). Its `link-start` route calls `ThrottleService.consumeLogin` with the phone of the signed-in user (brief F-006).
+2. Chore: set the database session time zone to UTC (`options=-c TimeZone=UTC` in `DATABASE_URL`, or `ALTER DATABASE ... SET timezone`) and test `SHOW timezone`. The local cluster runs `Asia/Bangkok`, and `@prisma/adapter-pg` sends a `Date` without an offset, so raw SQL stores instants 7 hours off there (review of PR #31, F4).
+3. F-005: UC-11 (an owner edits prices and opening hours), the next slice in the intake launch order. Write its brief with `feature-brief`.
