@@ -9,7 +9,7 @@ Updated: 2026-10-17 (F-006)
 - `main` holds the intake (ADR 0002), the requirements documents (glossary, BR-1 to BR-32, UC-1 to UC-14, data dictionary, models), the agent roles, the workflow, and the issue and PR templates.
 - F-002 is done (issue #5 closed): login with seed accounts, `GET /api/venues`, booking requests, owner confirm and reject, and the screens. AC-1 to AC-21 pass. PRs #6, #7, #8, #9, #10.
 - F-003 is done (issue #20): sign-up with consent (`User.consentAt`, BR-29), the admin screen (owners, venues, courts, lock and unlock), and "Đơn vị của tôi" for owners. AC-1 to AC-30 pass. PRs #19 (brief), #21, #22, #23, #24, #25.
-- F-006 is built and waits for its live check (brief `docs/briefs/F-006-gioi-han-dang-nhap-va-thu-hoi-phien.md`): login and sign-up limits per phone and per IP in the shared table `AuthThrottle` (BR-30), the weak-password check for new passwords (BR-31), and `User.sessionsValidFrom`, so an admin unlock revokes older sessions (BR-32). The IP is the last `X-Forwarded-For` entry (`trust proxy` = 1). A proxy in front of Cloud Run must change that.
+- F-006 is done (issue #29, PRs #28, #30, #31; brief `docs/briefs/F-006-gioi-han-dang-nhap-va-thu-hoi-phien.md`): login and sign-up limits per phone and per IP in the shared table `AuthThrottle` (BR-30), the weak-password check for new passwords (BR-31), and `User.sessionsValidFrom`, so an admin unlock revokes older sessions (BR-32). The IP is the last `X-Forwarded-For` entry (`trust proxy` = 1). A proxy in front of Cloud Run must change that. The live check on 2026-10-17 passed (comment on PR #31).
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
 - Live at https://monsport-774323404592.asia-southeast1.run.app (Cloud Run + Cloud SQL, demo seed data). Each merge to `main` deploys through `.github/workflows/deploy.yml`.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot.
@@ -35,6 +35,5 @@ Updated: 2026-10-17 (F-006)
 
 ## Next step
 
-1. Run the live IP check of brief F-006 (below its build order): 31 logins with forged `X-Forwarded-For` headers, then one login from a second network such as Cloud Shell. Post the result on PR #31. If it fails, fix `trust proxy` before anything else.
-2. Chore: set the database session time zone to UTC (`options=-c TimeZone=UTC` in `DATABASE_URL`, or `ALTER DATABASE ... SET timezone`) and test `SHOW timezone`. The local cluster runs `Asia/Bangkok`, and `@prisma/adapter-pg` sends a `Date` without an offset, so raw SQL stores instants 7 hours off there (review of PR #31, F4).
-3. F-005: UC-11 (an owner edits prices and opening hours), the next slice in the intake launch order. Write its brief with `feature-brief`.
+1. Chore: set the database session time zone to UTC (`options=-c TimeZone=UTC` in `DATABASE_URL`, or `ALTER DATABASE ... SET timezone`) and test `SHOW timezone`. The local cluster runs `Asia/Bangkok`, and `@prisma/adapter-pg` sends a `Date` without an offset, so raw SQL stores instants 7 hours off there (review of PR #31, F4).
+2. F-005: UC-11 (an owner edits prices and opening hours), the next slice in the intake launch order. Write its brief with `feature-brief`.
