@@ -23,6 +23,15 @@ export function assertSessionSecret(env: NodeJS.ProcessEnv = process.env): void 
 
 const sign = (payload: string) => createHmac('sha256', secret()).update(payload).digest('base64url');
 
+/**
+ * A keyed digest of a phone number or an IP, so a counter row holds neither in readable form (brief F-006).
+ * Its key derives from the session secret, so the cookie key signs nothing else.
+ */
+export function keyedDigest(value: string): string {
+  const key = createHmac('sha256', secret()).update('auth-throttle').digest();
+  return createHmac('sha256', key).update(value).digest('hex');
+}
+
 export function issueSession(userId: string, now: Date): string {
   const payload = `${userId}.${now.getTime() + SESSION_MS}`;
   return `${payload}.${sign(payload)}`;
