@@ -10,7 +10,7 @@ import {
   minuteOfDayVN,
   type OwnerBookingView,
 } from '@monsport/shared';
-import type { Booking, Prisma } from '../../generated/prisma/client.js';
+import { type Booking, Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
 import { isExclusionViolation, PrismaService } from '../database/prisma.service.js';
 
@@ -130,10 +130,7 @@ export class BookingsService {
         if (ownerId) assertOwner(court, ownerId);
         assertOpen(court, startAt, endAt);
         // BR-8 without a job: expired requests on this court stop holding their time before the insert.
-        await tx.booking.updateMany({
-          where: { courtId: court.id, status: 'PENDING', confirmDeadline: { lt: now } },
-          data: { status: 'EXPIRED' },
-        });
+        await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
         return tx.booking.create({
           data: {
             ...fields,
@@ -202,7 +199,8 @@ export class BookingsService {
 
   /** UC-4: the requests on the venues of one owner (BR-23). */
   async forOwner(ownerId: string, status: Booking['status']): Promise<OwnerBookingView[]> {
-    await this.expire({ court: { venue: { ownerId } } }, this.clock.now());
+    const courts = Prisma.sql`SELECT c.id FROM "Court" c JOIN "Venue" v ON v.id = c."venueId" WHERE v."ownerId" = ${ownerId}::uuid`;
+    await this.expire(this.prisma, Prisma.sql`"courtId" IN (${courts})`, this.clock.now());
     const rows = await this.prisma.booking.findMany({
       where: { status, court: { venue: { ownerId } } },
       include: { createdBy: true },
@@ -217,7 +215,7 @@ export class BookingsService {
     if (!booking) throw new NotFoundException('Không tìm thấy booking');
     if (booking.court.venue.ownerId !== ownerId) throw new ForbiddenException('Bạn không có quyền làm việc này'); // BR-23
     const now = this.clock.now();
-    await this.expire({ id: bookingId }, now);
+    await this.expire(this.prisma, Prisma.sql`id = ${bookingId}::uuid`, now);
     // The deadline is in the condition too, so a confirm cannot pass between the expire and this update.
     const result = await this.prisma.booking.updateMany({
       where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
@@ -231,10 +229,14 @@ export class BookingsService {
   }
 
   // BR-8: a request past its deadline becomes EXPIRED. The conditional update is safe to run twice.
-  private async expire(where: object, now: Date): Promise<void> {
-    await this.prisma.booking.updateMany({
-      where: { ...where, status: 'PENDING', confirmDeadline: { lt: now } },
-      data: { status: 'EXPIRED' },
-    });
+  // The rows are locked in id order first. The owner list and an insert expire the same rows, and two updates
+  // that lock them in different orders can end one with 40P01 (review of PR #40, finding 3). A rare case stays:
+  // an insert that read an earlier now can wait in the EXCLUDE check on a row that the list expires (PR #45, finding 1).
+  private async expire(db: Pick<PrismaService, '$executeRaw'>, scope: Prisma.Sql, now: Date): Promise<void> {
+    await db.$executeRaw`
+      UPDATE "Booking" SET status = 'EXPIRED' WHERE id IN (
+        SELECT id FROM "Booking" WHERE ${scope} AND status = 'PENDING' AND "confirmDeadline" < ${now}
+        ORDER BY id FOR UPDATE
+      )`;
   }
 }

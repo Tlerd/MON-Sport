@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { hash } from '@node-rs/argon2';
@@ -194,5 +195,38 @@ describe('GET /api/owner/bookings?status=CONFIRMED', () => {
     const id = (await enter('Bình', '17:00', '18:00', { customerName: 'Chú Tư', customerPhone: '0987654321' }).expect(201)).body.id;
     const res = await as('Bình')(http().get('/api/owner/bookings?status=CONFIRMED')).expect(200);
     expect(res.body).toEqual([expect.objectContaining({ id, source: 'PHONE', customer: { name: 'Chú Tư', phone: '0987654321' } })]);
+  });
+
+  // Review of PR #40, finding 3: the list and an entry both expire the same rows. Without one lock order,
+  // Postgres ends one of them with 40P01, and the owner gets a 500. The ids go down in insert order, so the
+  // heap order and the index order are not the id order.
+  it('expires the same rows from the list and from parallel entries without a deadlock', async () => {
+    for (let round = 0; round < 3; round++) {
+      await db.booking.deleteMany();
+      const descending = Array.from({ length: 60 }, () => randomUUID()).sort().reverse();
+      const expired = Array.from({ length: 60 }, (_, i) => {
+        const start = new Date(`2026-11-${21 + (i % 8)}T${String(6 + Math.floor(i / 8)).padStart(2, '0')}:00:00+07:00`);
+        return {
+          id: descending[i],
+          courtId: i % 2 ? ids.A1 : ids.A2,
+          startAt: start,
+          endAt: new Date(start.getTime() + 3_600_000),
+          status: 'PENDING' as const,
+          source: 'APP' as const,
+          createdById: ids.An,
+          priceTotal: 80_000,
+          confirmDeadline: new Date(vn('09:00')),
+        };
+      });
+      await db.booking.createMany({ data: expired });
+      const list = () => as('Bình')(http().get('/api/owner/bookings?status=PENDING'));
+      const hours = [11, 12, 13, 14, 15, 16, 17, 18];
+      const responses = await Promise.all([
+        ...Array.from({ length: 8 }, list),
+        ...hours.flatMap((h) => ['A1', 'A2'].map((court) => enter('Bình', `${h}:00`, `${h + 1}:00`, {}, court))),
+      ]);
+      expect(responses.map((r) => r.status).filter((s) => s >= 500)).toEqual([]);
+      expect(await db.booking.count({ where: { status: 'PENDING' } })).toBe(0);
+    }
   });
 });
