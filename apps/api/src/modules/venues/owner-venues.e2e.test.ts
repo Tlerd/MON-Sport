@@ -105,10 +105,12 @@ describe('PATCH /api/owner/courts/:id', () => {
     await db.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT 1 FROM "Court" WHERE id = ${ids.A1}::uuid FOR UPDATE`;
+        const [{ pid }] = await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
         pending = ask('20:00', '21:00').then((r) => r);
-        // Wait, up to 2 seconds, until the request blocks on the lock of this transaction.
+        // Wait, up to 2 seconds, until a session waits on a lock of this transaction: the booking request.
         for (let i = 0; i < 100 && !waited; i++) {
-          const [{ waiting }] = await db.$queryRaw<{ waiting: bigint }[]>`SELECT count(*) AS waiting FROM pg_locks WHERE NOT granted`;
+          const [{ waiting }] = await db.$queryRaw<{ waiting: bigint }[]>`
+            SELECT count(*) AS waiting FROM pg_stat_activity WHERE ${pid}::int = ANY (pg_blocking_pids(pid))`;
           waited = waiting > 0n;
           if (!waited) await new Promise((resolve) => setTimeout(resolve, 20));
         }
