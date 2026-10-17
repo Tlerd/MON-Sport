@@ -7,7 +7,8 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor() {
     super({
       // The adapter sends a Date as UTC clock time without an offset, and Postgres reads that in the session time zone.
-      // UTC on each connection keeps raw SQL (the AuthThrottle upsert) right on a server with another zone, such as the local cluster.
+      // UTC on each connection keeps every write of a Date (ORM and raw SQL) right on a server with another zone, such as the local cluster.
+      // An `options` in DATABASE_URL replaces this one, so repeat `-c TimeZone=UTC` there.
       adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, options: '-c TimeZone=UTC' }),
       // Under a burst (AC-1: 50 requests on one slot) a transaction can wait more than the 2 s default for a connection.
       transactionOptions: { maxWait: 10_000, timeout: 10_000 },

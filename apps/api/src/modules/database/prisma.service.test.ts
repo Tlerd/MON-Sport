@@ -1,10 +1,17 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { PrismaService } from './prisma.service.js';
 
-// The local cluster runs Asia/Bangkok, so these tests fail there when a connection keeps the server time zone.
+// CI runs Postgres in UTC, so the tests ask for another zone through PGOPTIONS. `pg` reads it only when the config sets no options.
+// Without the UTC option of PrismaService, these tests then fail on every server.
+const pgOptions = process.env.PGOPTIONS;
+process.env.PGOPTIONS = '-c TimeZone=Asia/Bangkok';
 const prisma = new PrismaService();
 
-afterAll(() => prisma.$disconnect());
+afterAll(async () => {
+  await prisma.$disconnect();
+  if (pgOptions === undefined) delete process.env.PGOPTIONS;
+  else process.env.PGOPTIONS = pgOptions;
+});
 
 describe('PrismaService connections', () => {
   it('use the session time zone UTC', async () => {
