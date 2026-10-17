@@ -59,6 +59,18 @@ describe('insertUnderLock', () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(2);
   });
 
+  it('answers "taken" when the retry meets the EXCLUDE constraint', async () => {
+    const prisma = { $transaction: vi.fn().mockRejectedValueOnce(deadlock()).mockRejectedValue({ code: '23P01' }) };
+    await expect(insert(prisma)).rejects.toThrow('Khung giờ này vừa có người đặt');
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry another error', async () => {
+    const prisma = { $transaction: vi.fn().mockRejectedValue(new Error('boom')) };
+    await expect(insert(prisma)).rejects.toThrow('boom');
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
   it('answers 409 after a second 40P01', async () => {
     const prisma = { $transaction: vi.fn().mockRejectedValue(deadlock()) };
     await expect(insert(prisma)).rejects.toBeInstanceOf(ConflictException);
