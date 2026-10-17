@@ -56,6 +56,10 @@ jobs:
           service: monsport
           region: asia-southeast1
           source: .
+      # A past rollback pins the traffic to one revision. Send it to the new revision before the check.
+      - name: The new revision takes the traffic
+        if: steps.latest.outputs.deploy == 'true'
+        run: gcloud run services update-traffic monsport --region asia-southeast1 --to-latest
       - name: The service answers
         if: steps.latest.outputs.deploy == 'true'
         run: curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "${{ steps.deploy.outputs.url }}/api/health"

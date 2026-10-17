@@ -14,7 +14,9 @@ export default function setup(): void {
   });
   if (result.status === 0) return;
   // Throw the Prisma text, not the raw child-process buffers.
-  const prisma = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim().split(/\r?\n/).filter((line) => /error|P\d{4}/i.test(line));
-  const hint = /P1001/.test(prisma.join('\n')) ? '\nFix: run `pnpm db:start`, then run the tests again.' : '';
-  throw new Error(`prisma migrate deploy failed\n${prisma.join('\n') || result.error?.message}${hint}`);
+  const lines = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim().split(/\r?\n/);
+  const errors = lines.filter((line) => /error|P\d{4}/i.test(line));
+  const text = (errors.length ? errors : lines.slice(-10)).join('\n') || result.error?.message || `exit ${result.status}`;
+  const hint = /P1001/.test(text) ? '\nFix: run `pnpm db:start`, then run the tests again.' : '';
+  throw new Error(`prisma migrate deploy failed\n${text}${hint}`);
 }
