@@ -1,7 +1,10 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { BookingStatus, type BookingView, CreateBookingRequest, type OwnerBookingView } from '@monsport/shared';
+import { BookingStatus, type BookingView, CreateBookingRequest, CreatePhoneBookingRequest, Messages, type OwnerBookingView, PHONE_MESSAGE } from '@monsport/shared';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { BookingsService } from './bookings.service.js';
+
+// A malformed id gets the Vietnamese generic text, not the English text of the pipe.
+const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(Messages.invalid) });
 
 @Controller('bookings')
 @UseGuards(SessionGuard)
@@ -46,5 +49,22 @@ export class OwnerBookingsController {
   @HttpCode(200)
   reject(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string): Promise<BookingView> {
     return this.bookings.decide(req.user.id, id, 'REJECTED');
+  }
+
+  /** UC-5 (brief F-007): the booking of a customer who phoned. A wrong customer phone gets the phone text. */
+  @Post()
+  enter(@Req() req: AuthedRequest, @Body() body: unknown): Promise<OwnerBookingView> {
+    const input = CreatePhoneBookingRequest.safeParse(body);
+    if (!input.success) {
+      const phoneIssue = input.error.issues.find((i) => i.path[0] === 'customerPhone');
+      throw new BadRequestException(phoneIssue ? PHONE_MESSAGE : 'Dữ liệu đặt sân không hợp lệ');
+    }
+    return this.bookings.enterPhoneBooking(req.user.id, input.data);
+  }
+
+  @Post(':id/cancel')
+  @HttpCode(200)
+  cancel(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<BookingView> {
+    return this.bookings.cancelPhoneBooking(req.user.id, id);
   }
 }

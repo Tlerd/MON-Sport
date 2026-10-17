@@ -58,6 +58,22 @@ export const CreateBookingRequest = z.object({
 });
 export type CreateBookingRequest = z.infer<typeof CreateBookingRequest>;
 
+/**
+ * Brief F-007 (UC-5): an owner enters the booking of a customer who phoned. The name and the phone are optional.
+ * A name of only spaces counts as no name.
+ */
+export const CreatePhoneBookingRequest = CreateBookingRequest.extend({
+  customerName: z
+    .string()
+    .trim()
+    .max(100)
+    .transform((name) => name || undefined)
+    .optional(),
+  // An empty phone box counts as no phone.
+  customerPhone: z.preprocess((phone) => (phone === '' ? undefined : phone), Phone.optional()),
+}).strict();
+export type CreatePhoneBookingRequest = z.infer<typeof CreatePhoneBookingRequest>;
+
 export const BookingView = z.object({
   id: z.uuid(),
   courtId: z.uuid(),
@@ -68,6 +84,7 @@ export const BookingView = z.object({
   priceTotal: z.int().nonnegative(),
   confirmDeadline: Instant.nullable(),
   confirmedAt: Instant.nullable(),
+  cancelledAt: Instant.nullable(),
   createdAt: Instant,
 });
 export type BookingView = z.infer<typeof BookingView>;
