@@ -19,7 +19,7 @@ const DIFF = input.pr ? `gh pr diff ${input.pr}` : `git diff ${input.range}`
 const FILES = input.pr ? `gh pr diff ${input.pr} --name-only` : `git diff --name-only ${input.range}`
 const HEAD = input.head || (input.range ? input.range.split(/\.{2,3}/)[1] : null)
 const READ_FILE = HEAD ? `\`git show ${HEAD}:<path>\`` : 'the working tree'
-const DESCRIPTION = input.pr ? `\`gh pr view ${input.pr} --json title,body\`` : 'the commit messages of the range'
+const DESCRIPTION = input.pr ? `\`gh pr view ${input.pr} --json title,body\`` : `\`git log --format=%B ${input.range}\``
 const RUBRIC = '.claude/skills/rule-review/rubric.md'
 const READ_ONLY = 'Read only: do not edit files, commit, push, or post comments.'
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 }
@@ -138,7 +138,9 @@ const results = await pipeline(
           phase: 'Skeptic',
           model: 'opus',
           schema: SKEPTIC,
-        }).then((s) => ({ ...f, rule: rule.id, skeptic: s })),
+        })
+          .catch(() => null)
+          .then((s) => ({ ...f, rule: rule.id, skeptic: s })),
       ),
     ).then((judged) => ({ rule, v, judged: judged.filter(Boolean) }))
   },
@@ -146,7 +148,7 @@ const results = await pipeline(
 
 const done = results.filter(Boolean)
 const failed = rules.filter((r) => !done.some((d) => d.rule.id === r.id && d.v)).map((r) => r.id)
-const clean = done.filter((d) => d.v && !d.judged.length).map((d) => d.rule.id)
+const clean = done.filter((d) => d.v && (d.v.verdict === 'clean' || !d.v.findings.length)).map((d) => d.rule.id)
 const all = done.flatMap((d) => d.judged)
 const unverified = all.filter((f) => !f.skeptic)
 const dismissed = all.filter((f) => f.skeptic && f.skeptic.verdict === 'false_positive')
@@ -161,11 +163,11 @@ const item = (f, i) => `${i + 1}. **${f.skeptic.severity}** | ${f.rule} | \`${f.
 const lines = [
   `## Rule review of ${TARGET}`,
   '',
-  `**${introduced.length} confirmed violations** (${count(introduced, 'high')} high, ${count(introduced, 'medium')} medium, ${count(introduced, 'low')} low) in ${rules.length} rules checked. ${older.length} more are older than this change. The skeptic dismissed ${dismissed.length} of ${all.length} flags.`,
+  `**${introduced.length} confirmed violations** (${count(introduced, 'high')} high, ${count(introduced, 'medium')} medium, ${count(introduced, 'low')} low) in ${rules.length - failed.length} rules checked. ${older.length} more are older than this change. The skeptic dismissed ${dismissed.length} of ${all.length} flags, and ${unverified.length} are not verified.`,
   '',
 ]
 if (introduced.length) lines.push('### Confirmed', '', ...introduced.map(item), '')
-if (older.length) lines.push('### Older than this change (not blocking)', '', ...older.map(item), '')
+if (older.length) lines.push('### Older than this change', '', ...older.map(item), '')
 if (unverified.length) {
   lines.push('### Not verified (the skeptic failed)', '', ...unverified.map((f) => `- ${f.rule} | \`${f.location}\`: ${f.scenario}`), '')
 }
@@ -179,7 +181,7 @@ lines.push('<sub>Skill `rule-review`: one verifier per rule, one skeptic per fla
 
 return {
   comment: lines.join('\n'),
-  counts: { rules: rules.length, flags: all.length, confirmed: introduced.length, older: older.length, dismissed: dismissed.length },
+  counts: { rules: rules.length - failed.length, unverified: unverified.length, flags: all.length, confirmed: introduced.length, older: older.length, dismissed: dismissed.length },
   confirmed,
   dismissed,
   failed,
