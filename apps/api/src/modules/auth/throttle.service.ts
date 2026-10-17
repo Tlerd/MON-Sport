@@ -67,12 +67,12 @@ export class ThrottleService {
   private async hit(counter: Counter, value: string): Promise<number | null> {
     const { max, windowMs } = LIMITS[counter];
     const now = this.clock.now();
-    const ended = new Date(now.getTime() - windowMs);
+    const cutoff = new Date(now.getTime() - windowMs);
     const [row] = await this.prisma.$queryRaw<{ count: number; windowStart: Date }[]>`
       INSERT INTO "AuthThrottle" (key, count, "windowStart") VALUES (${this.key(counter, value)}, 1, ${now})
       ON CONFLICT (key) DO UPDATE SET
-        count = CASE WHEN "AuthThrottle"."windowStart" <= ${ended} THEN 1 ELSE LEAST("AuthThrottle".count + 1, 1000000) END,
-        "windowStart" = CASE WHEN "AuthThrottle"."windowStart" <= ${ended} THEN ${now} ELSE "AuthThrottle"."windowStart" END
+        count = CASE WHEN "AuthThrottle"."windowStart" <= ${cutoff} THEN 1 ELSE LEAST("AuthThrottle".count + 1, 1000000) END,
+        "windowStart" = CASE WHEN "AuthThrottle"."windowStart" <= ${cutoff} THEN ${now} ELSE "AuthThrottle"."windowStart" END
       RETURNING count, "windowStart"`;
     // A new window is a good time to drop the rows of past days, so the table keeps one day of counters.
     if (row.count === 1)
