@@ -56,10 +56,17 @@ export class AdminAccountsController {
     return toAccountView(user);
   }
 
+  /**
+   * Brief F-006, BR-32: an unlock also revokes every session issued before it, so a stolen cookie does not come back.
+   * Only a locked account changes, so a second click on "Mở khóa" does not sign the user out.
+   */
   @Post('users/:id/unlock')
   @HttpCode(200)
   async unlock(@Param('id', Id) id: string): Promise<AccountView> {
-    await this.prisma.user.updateMany({ where: { id, deletedAt: null }, data: { lockedAt: null } });
+    await this.prisma.user.updateMany({
+      where: { id, deletedAt: null, lockedAt: { not: null } },
+      data: { lockedAt: null, sessionsValidFrom: this.clock.now() },
+    });
     return toAccountView(await this.account(id));
   }
 

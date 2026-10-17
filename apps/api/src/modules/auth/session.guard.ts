@@ -22,9 +22,11 @@ export class SessionGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<AuthedRequest>();
-    const userId = readSession(cookieValue(req.headers.cookie, SESSION_COOKIE), this.clock.now());
-    const user = userId ? await this.prisma.user.findUnique({ where: { id: userId } }) : null;
-    if (!user || user.lockedAt || user.deletedAt) throw new UnauthorizedException('Bạn cần đăng nhập');
+    const session = readSession(cookieValue(req.headers.cookie, SESSION_COOKIE), this.clock.now());
+    const user = session ? await this.prisma.user.findUnique({ where: { id: session.userId } }) : null;
+    // A cookie issued before sessionsValidFrom was revoked, for example by an unlock (brief F-006, BR-32).
+    const revoked = !!user?.sessionsValidFrom && session!.issuedAt < user.sessionsValidFrom;
+    if (!user || user.lockedAt || user.deletedAt || revoked) throw new UnauthorizedException('Bạn cần đăng nhập');
     req.user = { id: user.id, name: user.name, role: user.role };
     const roles = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES, [context.getHandler(), context.getClass()]);
     if (roles && !roles.includes(user.role)) throw new ForbiddenException('Bạn không có quyền làm việc này');

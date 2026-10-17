@@ -28,15 +28,20 @@ export function issueSession(userId: string, now: Date): string {
   return `${payload}.${sign(payload)}`;
 }
 
-/** Returns the user id, or null when the value is forged or expired. */
-export function readSession(value: string | undefined, now: Date): string | null {
+/**
+ * Returns the user id and the issue time, or null when the value is forged or expired.
+ * The issue time is the expiry less 30 days, so the cookie format stays the same (brief F-006).
+ * A change of SESSION_MS moves the issue time of every older cookie, so it needs a new cookie format.
+ */
+export function readSession(value: string | undefined, now: Date): { userId: string; issuedAt: Date } | null {
   const parts = value?.split('.');
   if (!parts || parts.length !== 3) return null;
   const [userId, expiry, mac] = parts;
   const expected = Buffer.from(sign(`${userId}.${expiry}`));
   const given = Buffer.from(mac);
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
-  return Number(expiry) > now.getTime() ? userId : null;
+  const expiresAt = Number(expiry);
+  return expiresAt > now.getTime() ? { userId, issuedAt: new Date(expiresAt - SESSION_MS) } : null;
 }
 
 export function cookieValue(header: string | undefined, name: string): string | undefined {

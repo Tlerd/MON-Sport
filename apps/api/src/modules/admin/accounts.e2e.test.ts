@@ -52,7 +52,7 @@ beforeEach(async () => {
 
 describe('admin accounts', () => {
   it('creates an OWNER whatever role the body names', async () => {
-    await as('admin').post('/api/admin/owners', { name: 'Giang', phone: '0912345681', password: 'matkhau123', role: 'ADMIN' }).expect(201);
+    await as('admin').post('/api/admin/owners', { name: 'Giang', phone: '0912345681', password: 'san-cau-long-2026', role: 'ADMIN' }).expect(201);
     expect((await db.user.findUniqueOrThrow({ where: { phone: '0912345681' } })).role).toBe('OWNER');
   });
 
@@ -61,13 +61,13 @@ describe('admin accounts', () => {
   });
 
   it('AC-7: the admin creates an owner who can sign in', async () => {
-    const res = await as('admin').post('/api/admin/owners', { name: 'Giang', phone: '0912345681', password: 'matkhau123' }).expect(201);
+    const res = await as('admin').post('/api/admin/owners', { name: 'Giang', phone: '0912345681', password: 'san-cau-long-2026' }).expect(201);
     expect(res.body).toEqual({ id: expect.any(String), name: 'Giang', phone: '0912345681', role: 'OWNER', lockedAt: null, createdAt: NOW.toISOString() });
-    expect((await login('0912345681', 'matkhau123').expect(200)).body.role).toBe('OWNER');
+    expect((await login('0912345681', 'san-cau-long-2026').expect(200)).body.role).toBe('OWNER');
   });
 
   it('AC-8: an owner with a phone number that has an account gets 409', async () => {
-    const res = await as('admin').post('/api/admin/owners', { name: 'Giang', phone: '0901234567', password: 'matkhau123' }).expect(409);
+    const res = await as('admin').post('/api/admin/owners', { name: 'Giang', phone: '0901234567', password: 'san-cau-long-2026' }).expect(409);
     expect(res.body.message).toBe('Số điện thoại này đã có tài khoản');
   });
 
@@ -99,7 +99,7 @@ describe('admin accounts', () => {
 
   it('AC-13: an owner and a user get 403, and a request without a cookie gets 401, on every account route', async () => {
     const routes: [string, string, object?][] = [
-      ['post', '/api/admin/owners', { name: 'Giang', phone: '0912345681', password: 'matkhau123' }],
+      ['post', '/api/admin/owners', { name: 'Giang', phone: '0912345681', password: 'san-cau-long-2026' }],
       ['get', '/api/admin/owners'],
       ['post', '/api/admin/users/search', { phone: '0901234567' }],
       ['post', `/api/admin/users/${ids.An}/lock`],

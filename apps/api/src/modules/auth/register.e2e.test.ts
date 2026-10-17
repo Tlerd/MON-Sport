@@ -13,7 +13,7 @@ import { PrismaService } from '../database/prisma.service.js';
 // Data of brief F-003: An has 0901234567. Now is 17/10/2026 10:00 in Asia/Ho_Chi_Minh.
 const NOW = new Date('2026-10-17T10:00:00+07:00');
 const clock = { now: () => NOW };
-const lan = { name: 'Lan', phone: '0901112233', password: 'matkhau123', consent: true };
+const lan = { name: 'Lan', phone: '0901112233', password: 'san-cau-long-2026', consent: true };
 const TAKEN = 'Số điện thoại này đã có tài khoản';
 
 let app: INestApplication;

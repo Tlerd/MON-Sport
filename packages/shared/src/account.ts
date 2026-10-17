@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Phone, PHONE_MESSAGE, Role, Sport, VenueView } from './booking.ts';
+import { isWeakPassword } from './common-passwords.ts';
 
 // Brief F-003: sign-up (UC-1, flow 1.0) and the admin screens (UC-10). Names follow docs/requirements/data-dictionary.md.
 
@@ -16,6 +17,9 @@ export const Messages = {
   price: 'Giá phải lớn hơn 0',
   priceMax: 'Giá tối đa 10.000.000đ một giờ',
   invalid: 'Dữ liệu không hợp lệ',
+  // Brief F-006.
+  weakPassword: 'Mật khẩu này quá dễ đoán. Hãy chọn mật khẩu khác',
+  tooManyAttempts: 'Bạn đã thử quá nhiều lần. Hãy thử lại sau ít phút',
 } as const;
 
 const known = new Set<string>(Object.values(Messages));
@@ -41,15 +45,23 @@ const Name = z.string({ error: Messages.name }).trim().min(1, Messages.name).max
 const Password = z.string().min(8, Messages.passwordLength).max(128, Messages.passwordMax);
 const Instant = z.iso.datetime({ offset: true });
 
-export const RegisterRequest = z.object({
-  name: Name,
-  phone: Phone,
-  password: Password,
-  consent: z.literal(true, { error: Messages.consent }),
-});
+// A new password must not be easy to guess (brief F-006, BR-31). A login does not check this, so old passwords still work.
+const notWeak = (data: { phone: unknown; password: unknown }, ctx: z.RefinementCtx) => {
+  if (typeof data.password === 'string' && isWeakPassword(data.password, typeof data.phone === 'string' ? data.phone : ''))
+    ctx.addIssue({ code: 'custom', path: ['password'], message: Messages.weakPassword });
+};
+
+export const RegisterRequest = z
+  .object({
+    name: Name,
+    phone: Phone,
+    password: Password,
+    consent: z.literal(true, { error: Messages.consent }),
+  })
+  .superRefine(notWeak);
 export type RegisterRequest = z.infer<typeof RegisterRequest>;
 
-export const CreateOwnerRequest = z.object({ name: Name, phone: Phone, password: Password });
+export const CreateOwnerRequest = z.object({ name: Name, phone: Phone, password: Password }).superRefine(notWeak);
 export type CreateOwnerRequest = z.infer<typeof CreateOwnerRequest>;
 
 /** The admin finds one account by its exact phone number. The number goes in the body, so it stays out of request logs. */
