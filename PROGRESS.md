@@ -2,7 +2,7 @@
 
 This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git.
 
-Updated: 2026-10-17 (F-006)
+Updated: 2026-10-17 (database time zone chore)
 
 ## Current state
 
@@ -12,7 +12,7 @@ Updated: 2026-10-17 (F-006)
 - F-006 is done (issue #29, PRs #28, #30, #31; brief `docs/briefs/F-006-gioi-han-dang-nhap-va-thu-hoi-phien.md`): login and sign-up limits per phone and per IP in the shared table `AuthThrottle` (BR-30), the weak-password check for new passwords (BR-31), and `User.sessionsValidFrom`, so an admin unlock revokes older sessions (BR-32). The IP is the last `X-Forwarded-For` entry (`trust proxy` = 1). A proxy in front of Cloud Run must change that. The live check on 2026-10-17 passed (comment on PR #31). AC-1 to AC-17 pass.
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
 - Live at https://monsport-774323404592.asia-southeast1.run.app (Cloud Run + Cloud SQL, demo seed data). Each merge to `main` deploys through `.github/workflows/deploy.yml`.
-- Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot.
+- Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot. The cluster runs `Asia/Bangkok`, so `PrismaService` sets `TimeZone=UTC` on each connection (Cloud SQL runs UTC).
 - The usage guard (`D:/REPO_GITHUB_TRY/usage-guard`) pauses at 95% of the 5-hour window. At the reset, a scheduled `claude -p "tiếp tục làm"` continues the work, and it reschedules itself when it hits a limit. The desktop app does not write `state.json`, so the agent writes it from the app usage data.
 
 ## Decisions settled on 2026-10-16
@@ -35,5 +35,4 @@ Updated: 2026-10-17 (F-006)
 
 ## Next step
 
-1. Chore: set the database session time zone to UTC (`options=-c TimeZone=UTC` in `DATABASE_URL`, or `ALTER DATABASE ... SET timezone`) and test `SHOW timezone`. The local cluster runs `Asia/Bangkok`, and `@prisma/adapter-pg` sends a `Date` without an offset, so raw SQL stores instants 7 hours off there (review of PR #31, F4).
-2. F-005: UC-11 (an owner edits prices and opening hours), the next slice in the intake launch order. Write its brief with `feature-brief`.
+1. F-005: UC-11 (an owner edits prices and opening hours), the next slice in the intake launch order. Write its brief with `feature-brief`.
