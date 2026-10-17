@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MODELS, STRONG, buildArgs, hitQuota, quotaText, runWithFallback } from '../scripts/agy-run.mjs';
+import { MODELS, STRONG, buildArgs, hitQuota, quotaText, runWithFallback, weeklyStop } from '../scripts/agy-run.mjs';
 
 describe('agy-run: an agy model that runs out of quota hands over to the next one', () => {
   it('every model in the list is a high variant', () => {
@@ -58,5 +58,15 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
     const result = runWithFallback(['-p', 'task'], () => ({ status: 1, output: 'quota exceeded' }));
     expect(result.status).toBe(1);
     expect(result.output).toMatch(/every model is out of quota/);
+  });
+
+  it('stops every agy run at 94% of the weekly Claude limit, as the usage guard does', () => {
+    const now = 1_800_000_000;
+    const week = (pct, resetIn = 3600) => ({ rate_limits: { seven_day: { used_percentage: pct, resets_at: now + resetIn } } });
+    expect(weeklyStop(week(94), now)).toMatch(/weekly usage 94%/);
+    expect(weeklyStop(week(93), now)).toBeNull();
+    expect(weeklyStop(week(99, -60), now), 'a window that has reset no longer counts').toBeNull();
+    expect(weeklyStop(null, now), 'no usage data').toBeNull();
+    expect(weeklyStop(week(90), now, 90), 'USAGE_STOP_PERCENT moves the line').toMatch(/90%/);
   });
 });

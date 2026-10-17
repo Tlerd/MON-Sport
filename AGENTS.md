@@ -38,7 +38,7 @@ packages/shared/src/                   Zod schemas: the one source of the API co
 
 ## Agent roles
 
-Each tool maps these roles to its own models. Claude Code runs every role on the session model in `.claude/settings.json`. Its subagents in `.claude/agents/` are the Reader (`Explore`), the Coder (`backend` and `frontend`), `tester`, `reviewer`, and `deployer`. A Reviewer round is a `reviewer` subagent, or a new `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."` session. Antigravity maps the roles in `.agents/rules/model-routing.md`, and runs each CLI task through `node scripts/agy-run.mjs`, which moves to the next model when one is out of quota.
+Each tool maps these roles to its own models. Claude Code runs every role on the session model in `.claude/settings.json`. Its subagents in `.claude/agents/` are the Reader (`Explore`), the Coder (`backend` and `frontend`), `tester`, `reviewer`, and `deployer`. One coder does a step by default. Run `backend` and `frontend` at the same time only when the contract in `packages/shared` is already on the branch and their paths do not overlap. Then run `tester`, then `reviewer`. A Reviewer round is a `reviewer` subagent, or a new `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."` session. Antigravity maps the roles in `.agents/rules/model-routing.md`, and runs each CLI task through `node scripts/agy-run.mjs`, which moves to the next model when one is out of quota.
 
 | Role | Does | Never |
 |---|---|---|
