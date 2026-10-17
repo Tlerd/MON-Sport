@@ -31,6 +31,13 @@ export function toView(b: Booking): BookingView {
   };
 }
 
+/** A booking stays on one day inside the opening hours. 23:00-24:00 ends on minute 1440. */
+function assertOpen(court: { venue: { opensAt: number; closesAt: number } }, startAt: Date, endAt: Date): void {
+  const startMinute = minuteOfDayVN(startAt);
+  const endMinute = startMinute + (endAt.getTime() - startAt.getTime()) / 60_000;
+  if (startMinute < court.venue.opensAt || endMinute > court.venue.closesAt) throw new BadRequestException('Ngoài giờ mở cửa');
+}
+
 @Injectable()
 export class BookingsService {
   constructor(
@@ -45,19 +52,14 @@ export class BookingsService {
     const endAt = new Date(input.endAt);
     if (!isOnGrid(startAt) || !isOnGrid(endAt)) throw new BadRequestException('Giờ phải theo bước 30 phút'); // BR-2
     if (!isLongEnough(startAt, endAt)) throw new BadRequestException('Mỗi booking dài ít nhất 1 giờ'); // BR-3
-
-    const court = await this.prisma.court.findUnique({ where: { id: input.courtId }, include: { venue: true } });
-    if (!court) throw new NotFoundException('Không tìm thấy sân');
-    // A booking stays on one day inside the opening hours. 23:00-24:00 ends on minute 1440.
-    const startMinute = minuteOfDayVN(startAt);
-    const endMinute = startMinute + (endAt.getTime() - startAt.getTime()) / 60_000;
-    if (startMinute < court.venue.opensAt || endMinute > court.venue.closesAt) throw new BadRequestException('Ngoài giờ mở cửa');
+    // A first check without the lock keeps the order of the errors. The transaction checks the hours again.
+    assertOpen(await this.findCourt(this.prisma, input.courtId), startAt, endAt);
 
     const deadline = confirmDeadline(now, startAt); // BR-7
     if (deadline < now) throw new BadRequestException('Đã quá hạn đặt trong app. Hãy gọi chủ sân'); // BR-9
 
     try {
-      return toView(await this.insertRequest(userId, court, startAt, endAt, deadline, now));
+      return toView(await this.insertRequest(userId, input.courtId, startAt, endAt, deadline, now));
     } catch (error) {
       if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
       throw error;
@@ -67,9 +69,13 @@ export class BookingsService {
   // Requests on one court queue on its row lock before they insert. Without the lock, overlapping
   // inserts wait on each other inside the EXCLUDE check and Postgres ends some with 40P01 (review of PR #7).
   // EXCLUDE stays the last guard: the request after the winner gets 23P01.
-  private insertRequest(userId: string, court: { id: string; priceNormal: number; pricePeak: number }, startAt: Date, endAt: Date, deadline: Date, now: Date) {
+  // The court and its venue are read after the lock, so a price that an owner writes first is the price of this
+  // booking (brief F-005, AC-4, BR-6). An owner price update locks the same row.
+  private insertRequest(userId: string, courtId: string, startAt: Date, endAt: Date, deadline: Date, now: Date) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${court.id}::uuid FOR UPDATE`;
+      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${courtId}::uuid FOR UPDATE`;
+      const court = await this.findCourt(tx, courtId);
+      assertOpen(court, startAt, endAt);
       // BR-8 without a job: expired requests on this court stop holding their time before the insert.
       await tx.booking.updateMany({
         where: { courtId: court.id, status: 'PENDING', confirmDeadline: { lt: now } },
@@ -89,6 +95,12 @@ export class BookingsService {
         },
       });
     });
+  }
+
+  private async findCourt(db: Pick<PrismaService, 'court'>, courtId: string) {
+    const court = await db.court.findUnique({ where: { id: courtId }, include: { venue: true } });
+    if (!court) throw new NotFoundException('Không tìm thấy sân');
+    return court;
   }
 
   async mine(userId: string): Promise<BookingView[]> {

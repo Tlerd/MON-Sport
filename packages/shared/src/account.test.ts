@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { CourtInput, CourtUpdate, CreateOwnerRequest, errorMessage, Messages, RegisterRequest, UserSearchRequest, VenueInput, VenueUpdate } from './account.ts';
+import {
+  CourtInput,
+  CourtUpdate,
+  CreateOwnerRequest,
+  errorMessage,
+  Messages,
+  OwnerCourtUpdate,
+  OwnerVenueUpdate,
+  RegisterRequest,
+  UserSearchRequest,
+  VenueInput,
+  VenueUpdate,
+} from './account.ts';
 
 const lan = { name: '  Lan ', phone: '0901112233', password: 'san-cau-long-2026', consent: true };
 const venue = { ownerId: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b', name: 'Cầu lông C', address: '12 Lê Lợi', phone: '0912345680', opensAt: 360, closesAt: 1380 };
@@ -69,5 +81,30 @@ describe('account contract', () => {
 
   it('answers the phone text for a short phone number', () => {
     expect(messageOf(UserSearchRequest.safeParse({ phone: '09' }))).toBe(Messages.phone);
+  });
+});
+
+describe('owner edits, brief F-005', () => {
+  it('accepts opening hours alone, a price alone, or both prices', () => {
+    expect(OwnerVenueUpdate.parse({ opensAt: 420, closesAt: 1320 })).toEqual({ opensAt: 420, closesAt: 1320 });
+    expect(OwnerVenueUpdate.parse({ closesAt: 1320 })).toEqual({ closesAt: 1320 });
+    expect(OwnerCourtUpdate.parse({ pricePeak: 150_000 })).toEqual({ pricePeak: 150_000 });
+    expect(OwnerCourtUpdate.parse({ priceNormal: 90_000, pricePeak: 150_000 })).toEqual({ priceNormal: 90_000, pricePeak: 150_000 });
+  });
+
+  it('AC-8: refuses hours off the grid or out of range, and a price of 0, above 10.000.000đ, or not whole', () => {
+    expect(messageOf(OwnerVenueUpdate.safeParse({ opensAt: 375 }))).toBe(Messages.grid);
+    expect(messageOf(OwnerVenueUpdate.safeParse({ closesAt: 1470 }))).toBe(Messages.range);
+    expect(messageOf(OwnerCourtUpdate.safeParse({ pricePeak: 0 }))).toBe(Messages.price);
+    expect(messageOf(OwnerCourtUpdate.safeParse({ pricePeak: 10_000_001 }))).toBe(Messages.priceMax);
+    expect(messageOf(OwnerCourtUpdate.safeParse({ pricePeak: 150_000.5 }))).toBe(Messages.invalid);
+  });
+
+  it('AC-9: refuses a field of the admin, and an empty body, with the generic text', () => {
+    const ownerId = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
+    for (const body of [{ name: 'Cầu lông Z' }, { ownerId }, { opensAt: 420, phone: '0999999999' }, {}])
+      expect(messageOf(OwnerVenueUpdate.safeParse(body)), JSON.stringify(body)).toBe(Messages.invalid);
+    for (const body of [{ name: 'Sân 9' }, { sport: 'FOOTBALL' }, {}])
+      expect(messageOf(OwnerCourtUpdate.safeParse(body)), JSON.stringify(body)).toBe(Messages.invalid);
   });
 });
