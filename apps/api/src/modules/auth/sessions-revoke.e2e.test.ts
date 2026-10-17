@@ -59,9 +59,11 @@ describe('new passwords (BR-31)', () => {
     await http().post('/api/auth/login').send({ phone: '0912345678', password: 'matkhau123' }).expect(200);
   });
 
-  it('refuses a sign-up with a common password, and creates no account', async () => {
-    const res = await http().post('/api/auth/register').send({ name: 'Lan', phone: '0901112233', password: 'matkhau123', consent: true }).expect(400);
-    expect(res.body.message).toBe(Messages.weakPassword);
+  it('AC-10: refuses a sign-up with an easy password, and creates no account', async () => {
+    for (const password of ['matkhau123', 'PASSWORD123', '12345678', 'aaaaaaaaaa', '0901112233x']) {
+      const res = await http().post('/api/auth/register').send({ name: 'Lan', phone: '0901112233', password, consent: true }).expect(400);
+      expect(res.body.message, password).toBe(Messages.weakPassword);
+    }
     expect(await db.user.count({ where: { phone: '0901112233' } })).toBe(0);
   });
 });
@@ -77,6 +79,8 @@ describe('session revoke on unlock (BR-32)', () => {
     await me(old).expect(401);
     const fresh = (await http().post('/api/auth/login').send({ phone: '0901234567', password: PASSWORD }).expect(200)).headers['set-cookie']![0].split(';')[0];
     await me(fresh).expect(200);
+    await me(`session=${issueSession(ids.An, at('10:05'))}`).expect(200);
+    await me(`session=${issueSession(ids.An, new Date(at('10:05').getTime() - 1))}`).expect(401);
   });
 
   it('AC-14: an unlock of an account that is not locked changes nothing, and the old session still works', async () => {

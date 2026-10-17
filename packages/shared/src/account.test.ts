@@ -22,7 +22,7 @@ describe('account contract', () => {
   });
 
   it('AC-10: refuses a common password, in any case, a password with the phone number, and one repeated character', () => {
-    for (const password of ['matkhau123', 'PASSWORD123', '12345678', 'aaaaaaaaaa', '0901112233x'])
+    for (const password of ['matkhau123', 'PASSWORD123', '12345678', 'aaaaaaaaaa', '0901112233x', '+84901112233'])
       expect(messageOf(RegisterRequest.safeParse({ ...lan, password })), password).toBe(Messages.weakPassword);
     expect(messageOf(CreateOwnerRequest.safeParse({ name: 'Giang', phone: '0912345681', password: 'matkhau123' }))).toBe(Messages.weakPassword);
   });

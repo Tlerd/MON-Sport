@@ -8,6 +8,7 @@ export const COMMON_PASSWORDS: ReadonlySet<string> = new Set([
   'asdfghjkl', 'zxcvbnm1', 'zxcvbnm123', 'qazwsxedc', '1qazxsw2', 'zaq12wsx', 'abcd1234', 'abc12345', 'abc123456',
   'abcdefgh', 'abcdef123', 'a1b2c3d4', 'aa123456', 'a12345678', '12345678a', '123456789a', '12345qwert', 'asdf1234',
   'qwer1234', '1234qwer', 'qweasdzxc', '66668888', '88888888', '68686868', '86868686', '99999999', '00000000',
+  // The repeated-character rule blocks these too. They stay, so the list reads complete on its own.
   '11111111', '22222222', '55555555', '77777777', '12344321', '20202020', '19001900',
   // English words
   'password', 'password1', 'password12', 'password123', 'passw0rd', 'p@ssw0rd', 'p@ssword', 'pass1234', 'iloveyou',
@@ -32,9 +33,10 @@ export const COMMON_PASSWORDS: ReadonlySet<string> = new Set([
 
 /**
  * True when a new password is easy to guess (brief F-006, BR-31): it is on the list (any case),
- * it contains the phone number of the account, or it repeats one character.
+ * it contains the phone number of the account (also without its leading 0), or it repeats one character.
  */
 export function isWeakPassword(password: string, phone: string): boolean {
   const lower = password.toLowerCase();
-  return COMMON_PASSWORDS.has(lower) || (phone !== '' && password.includes(phone)) || /^(.)\1*$/su.test(password);
+  const hasPhone = phone.length > 1 && password.includes(phone.slice(1));
+  return COMMON_PASSWORDS.has(lower) || hasPhone || /^(.)\1*$/su.test(password);
 }
