@@ -57,6 +57,8 @@ Each tool maps these roles to its own models. Claude Code runs every role on the
 6. Run `gh pr checks <n> --watch`. Merge with `gh pr merge <n> --merge --delete-branch` only when that command exits 0, no finding of medium or higher stays open, and the pull request changes only the paths that its brief or its description allows. Never push to `main`. Never force push.
 7. When the next step or an open decision changes, rewrite `PROGRESS.md` in the same pull request, before the merge.
 
+Run the skill `.agents/skills/verify-flow/` before you open a pull request that changes a screen, and after each deploy. Attach its report and screenshots to the pull request.
+
 A fix, a chore, or a docs change that no brief covers needs no issue. Its branch is `fix/<slug>`, `chore/<slug>`, or `docs/<slug>`, and it still goes through a pull request. Its description lists the files it may change, and it changes only those.
 
 ## Autonomy
