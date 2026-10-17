@@ -42,6 +42,12 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - if: steps.latest.outputs.deploy == 'true'
+        uses: google-github-actions/setup-gcloud@v3
+      # The revision that serves now. A failed health check sends the traffic back to it.
+      - id: previous
+        if: steps.latest.outputs.deploy == 'true'
+        run: echo "revision=$(gcloud run services describe monsport --region asia-southeast1 --format='value(status.traffic[0].revisionName)')" >> "$GITHUB_OUTPUT"
       # The service keeps its Cloud SQL link, secrets, and memory from the first deploy.
       - id: deploy
         if: steps.latest.outputs.deploy == 'true'
@@ -53,3 +59,8 @@ jobs:
       - name: The service answers
         if: steps.latest.outputs.deploy == 'true'
         run: curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "${{ steps.deploy.outputs.url }}/api/health"
+      # A revision that starts but fails its health check must not keep the traffic.
+      # A migration that already ran stays: write each migration so the old revision still works with it.
+      - name: Roll back to the previous revision
+        if: failure() && steps.deploy.outcome == 'success' && steps.previous.outputs.revision != ''
+        run: gcloud run services update-traffic monsport --region asia-southeast1 --to-revisions "${{ steps.previous.outputs.revision }}=100"

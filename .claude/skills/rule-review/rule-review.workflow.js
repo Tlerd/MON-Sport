@@ -4,7 +4,7 @@ export const meta = {
   whenToUse: 'A PR that touches money, concurrency, the schema, or personal data',
   phases: [
     { title: 'Classify', detail: 'pick the rules that the diff can touch', model: 'haiku' },
-    { title: 'Verify', detail: 'one agent per rule, clean context' },
+    { title: 'Verify', detail: 'one agent per rule, clean context', model: 'sonnet' },
     { title: 'Skeptic', detail: 'one agent per flag tries to refute it', model: 'opus' },
   ],
 }
@@ -127,7 +127,8 @@ Scenario: ${f.scenario}
 phase('Verify')
 const results = await pipeline(
   rules,
-  (rule) => agent(verifyPrompt(rule), { label: `verify:${rule.id}`, phase: 'Verify', schema: VERIFY }),
+  // Sonnet verifies, so a run costs less of the weekly limit. Opus skeptics still judge every flag.
+  (rule) => agent(verifyPrompt(rule), { label: `verify:${rule.id}`, phase: 'Verify', model: input.verifyModel || 'sonnet', schema: VERIFY }),
   (v, rule) => {
     if (!v) return { rule, v: null, judged: [] }
     if (v.verdict !== 'flag' || !v.findings.length) return { rule, v, judged: [] }

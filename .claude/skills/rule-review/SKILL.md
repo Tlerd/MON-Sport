@@ -35,12 +35,12 @@ Do not run it on every pull request. It starts one agent per rule and one per fl
 The workflow file is a template. Change a copy of it when the task needs a different shape:
 
 - Many rules on a small diff: pass `rules` to skip the classifier.
-- A large diff: split the rules into groups, or set `model: 'sonnet'` on the verifiers.
+- A large diff: split the rules into groups. The verifiers run on Sonnet. Pass `"verifyModel": "opus"` for a hard concurrency change.
 - A hard concurrency finding: run 3 skeptics on it and keep the majority.
 
 Pass the changed copy as `script`, or write it to the scratchpad and pass its path as `scriptPath`. Keep `rubric.md` as the one source of the verdicts and the severity scale.
 
 ## Files
 
-- `rule-review.workflow.js`: the workflow. Classify (Haiku), verify (session model), skeptic (Opus).
+- `rule-review.workflow.js`: the workflow. Classify (Haiku), verify (Sonnet), skeptic (Opus).
 - `rubric.md`: the AG-* rules, the verdicts, the evidence standard, and the severity scale.

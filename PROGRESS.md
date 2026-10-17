@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-17 (fix: expire lock order, PR #45).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (chore: agent unblock).
 
 ## Current state
 
@@ -11,9 +11,9 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 - F-005 is done (issue #35, PRs #34 (brief), #36, #37; brief `docs/briefs/F-005-chu-san-sua-gia-va-gio-mo-cua.md`): an owner edits the opening hours of own venues (`PATCH /api/owner/venues/:id`) and the prices of their courts (`PATCH /api/owner/courts/:id`) on "Đơn vị của tôi". A booking request reads the price and the hours after the `Court` lock (BR-6). AC-1 to AC-15 pass.
 - F-007 is done (issue #39, PRs #38 (brief), #40, and step 2; brief `docs/briefs/F-007-chu-san-nhap-booking-khach-goi-dien.md`): an owner enters the booking of a customer who phoned (`POST /api/owner/bookings`, "Đã xác nhận" at once) and cancels it before its start (`POST /api/owner/bookings/:id/cancel`). The owner screen has the form "Nhập booking khách gọi điện" and the list "Booking đã xác nhận". AC-1 to AC-18 pass.
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
-- Live at https://monsport-774323404592.asia-southeast1.run.app (Cloud Run + Cloud SQL, demo seed data). Each merge to `main` deploys through `.github/workflows/deploy.yml`.
+- Live at https://monsport-774323404592.asia-southeast1.run.app (Cloud Run + Cloud SQL, demo seed data). Each merge to `main` deploys through `.github/workflows/deploy.yml`, which sends the traffic back to the previous revision when `/api/health` fails. Cloud SQL `monsport-db` keeps 7 daily backups (02:00 Asia/Ho_Chi_Minh), point-in-time recovery for 7 days, and deletion protection, since 2026-10-18.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot. The cluster runs `Asia/Bangkok`, so `PrismaService` sets `TimeZone=UTC` on each connection (Cloud SQL runs UTC). The local database `monsport_dev` needs `prisma migrate reset` before it takes the F-003 and F-006 migrations, because migration f003 changed after it ran there. The reset deletes its data, so the agent left it. `monsport_preview` holds the seed data and every migration.
-- The usage guard (`D:/REPO_GITHUB_TRY/usage-guard`) pauses at 95% of the 5-hour window. At the reset, a scheduled `claude -p "tiếp tục làm"` continues the work, and it reschedules itself when it hits a limit. The desktop app does not write `state.json`, so the agent writes it from the app usage data.
+- The usage guard (`D:/REPO_GITHUB_TRY/usage-guard`) pauses at 95% of the 5-hour window, stops new work at 90% of the week, and stops at 94%. At the reset, a scheduled `claude -p "tiếp tục làm"` continues the work. A desktop session writes `state.json` from `get_usage`.
 
 ## Decisions settled on 2026-10-16
 

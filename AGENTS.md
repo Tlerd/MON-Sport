@@ -38,7 +38,7 @@ packages/shared/src/                   Zod schemas: the one source of the API co
 
 ## Agent roles
 
-Each tool maps these roles to its own models. Claude Code runs every role on the session model in `.claude/settings.json`, the Reader as `Explore` in `.claude/agents/`, and the Reviewer as a new `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."` session. Antigravity maps them in `.agents/rules/model-routing.md`.
+Each tool maps these roles to its own models. Claude Code runs every role on the session model in `.claude/settings.json`. Its subagents in `.claude/agents/` are the Reader (`Explore`), the Coder (`backend` and `frontend`), `tester`, `reviewer`, and `deployer`. A Reviewer round is a `reviewer` subagent, or a new `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."` session. Antigravity maps the roles in `.agents/rules/model-routing.md`, and runs each CLI task through `node scripts/agy-run.mjs`, which moves to the next model when one is out of quota.
 
 | Role | Does | Never |
 |---|---|---|
@@ -54,7 +54,7 @@ Each tool maps these roles to its own models. Claude Code runs every role on the
 3. Give each step of the build order its own branch from `main`: `feat/<issue>-<step>-<slug>`, for example `feat/12-1-booking-schema`.
 4. Open one pull request for each step with `gh pr create`. Fill in `.github/pull_request_template.md`. Write `Refs #<issue>` on each step, and `Closes #<issue>` on the last step only.
 5. A Reviewer reviews each pull request. Post its findings as a pull request comment. Fix each finding of medium or higher, then run a new Reviewer on the new head. That Reviewer reviews only the diff since the last reviewed head, as `REVIEW.md` says. A finding is closed only when that Reviewer says so. Each Reviewer run is one round. When the pull request touches money, concurrency, the schema, or personal data, the round also runs the skill `rule-review` and posts its comment.
-6. Run `gh pr checks <n> --watch`. Merge with `gh pr merge <n> --merge --delete-branch` only when that command exits 0, no finding of medium or higher stays open (a finding tagged pre-existing, as `REVIEW.md` and the skill `rule-review` say, does not block), and the pull request changes only the paths that its brief or its description allows. Never push to `main`. Never force push.
+6. Wait for the checks in the background: `gh pr checks <n> --watch --fail-fast`, as a background command or a scheduled check, never as a foreground command that can time out. Merge with `gh pr merge <n> --merge --delete-branch` only when that command exits 0, no finding of medium or higher stays open (a finding tagged pre-existing, as `REVIEW.md` and the skill `rule-review` say, does not block), and the pull request changes only the paths that its brief or its description allows. Never push to `main`. Never force push.
 7. When the next step or an open decision changes, rewrite `PROGRESS.md` in the same pull request, before the merge.
 
 Run the skill `.agents/skills/verify-flow/` before you open a pull request that changes a screen, and after each deploy. Attach its report and screenshots to the pull request.

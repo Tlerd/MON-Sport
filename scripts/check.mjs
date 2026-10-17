@@ -4,6 +4,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { connect } from 'node:net';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,6 +27,18 @@ if (hook) {
   const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
   const treeIsClean = run('git status --porcelain').output.trim() === '';
   if (input.stop_hook_active || treeIsClean) process.exit(0);
+}
+
+// Locally the API tests need the Postgres of `pnpm db:start`. A reboot stops it, so start it here.
+// CI and a set DATABASE_URL bring their own database.
+const portOpen = (port) =>
+  new Promise((resolve) => {
+    const socket = connect({ host: 'localhost', port }, () => resolve(socket.end() && true));
+    socket.on('error', () => resolve(false));
+  });
+if (!process.env.CI && !process.env.DATABASE_URL && !(await portOpen(55432))) {
+  const { ok, output } = run('node scripts/db-local.mjs');
+  if (!ok) console.error(`The local database did not start:\n${output.trim()}`);
 }
 
 const sourceDirs = ['apps', 'packages'].filter((dir) => existsSync(join(root, dir)));
