@@ -140,6 +140,8 @@ describe('owner decisions', () => {
     clock.at = new Date(vn('12:01'));
     const res = await decide('binh', booking.body.id, 'confirm').expect(409);
     expect(res.body.message).toBe('Yêu cầu đã hết hạn');
+    // The 409 comes after the commit, so the expire stays (review of PR #49, finding 3).
+    expect((await db.booking.findUniqueOrThrow({ where: { id: booking.body.id } })).status).toBe('EXPIRED');
   });
 
   it('AC-16: the owner of another venue gets 403', async () => {

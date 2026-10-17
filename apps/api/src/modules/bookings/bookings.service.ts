@@ -15,6 +15,7 @@ import { Clock } from '../database/clock.js';
 import { isDeadlock, isExclusionViolation, PrismaService } from '../database/prisma.service.js';
 
 const TAKEN = 'Khung giờ này vừa có người đặt';
+const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại'; // 40P01 is a 409, not a 500
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 export function toView(b: Booking): BookingView {
@@ -122,30 +123,46 @@ export class BookingsService {
     ownerId: string | null,
     fields: Pick<Prisma.BookingUncheckedCreateInput, 'status' | 'source' | 'createdById' | 'customerName' | 'customerPhone' | 'confirmDeadline' | 'confirmedAt'>,
   ): Promise<Booking> {
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        if (ownerId) await this.lockVenueOf(tx, courtId, ownerId);
-        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${courtId}::uuid FOR UPDATE`;
-        const court = await this.findCourt(tx, courtId);
-        if (ownerId) assertOwner(court, ownerId);
-        assertOpen(court, startAt, endAt);
-        // BR-8 without a job: expired requests on this court stop holding their time before the insert.
-        await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
-        return tx.booking.create({
-          data: {
-            ...fields,
-            courtId: court.id,
-            startAt,
-            endAt,
-            priceTotal: bookingPrice(startAt, endAt, court.priceNormal, court.pricePeak), // BR-5, BR-6
-            createdAt: now,
-          },
-        });
-      });
-    } catch (error) {
-      if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
-      throw error;
+    // The rare cycle named on expire can end this insert instead of the owner list. The rollback undoes all of it,
+    // so the insert runs once more; a second 40P01 answers 409 (review of PR #49, finding 1).
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.insertTransaction(courtId, startAt, endAt, now, ownerId, fields);
+      } catch (error) {
+        if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
+        if (!isDeadlock(error)) throw error;
+        if (attempt > 0) throw new ConflictException(BUSY);
+      }
     }
+  }
+
+  private insertTransaction(
+    courtId: string,
+    startAt: Date,
+    endAt: Date,
+    now: Date,
+    ownerId: string | null,
+    fields: Pick<Prisma.BookingUncheckedCreateInput, 'status' | 'source' | 'createdById' | 'customerName' | 'customerPhone' | 'confirmDeadline' | 'confirmedAt'>,
+  ): Promise<Booking> {
+    return this.prisma.$transaction(async (tx) => {
+      if (ownerId) await this.lockVenueOf(tx, courtId, ownerId);
+      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${courtId}::uuid FOR UPDATE`;
+      const court = await this.findCourt(tx, courtId);
+      if (ownerId) assertOwner(court, ownerId);
+      assertOpen(court, startAt, endAt);
+      // BR-8 without a job: expired requests on this court stop holding their time before the insert.
+      await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
+      return tx.booking.create({
+        data: {
+          ...fields,
+          courtId: court.id,
+          startAt,
+          endAt,
+          priceTotal: bookingPrice(startAt, endAt, court.priceNormal, court.pricePeak), // BR-5, BR-6
+          createdAt: now,
+        },
+      });
+    });
   }
 
   /**
@@ -237,7 +254,7 @@ export class BookingsService {
         return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } }) };
       });
     } catch (error) {
-      if (isDeadlock(error)) throw new ConflictException('Yêu cầu đang được xử lý, hãy thử lại'); // 40P01 is a 409, not a 500
+      if (isDeadlock(error)) throw new ConflictException(BUSY);
       throw error;
     }
     // The answer comes after the commit, so an expire that this call wrote stays.
