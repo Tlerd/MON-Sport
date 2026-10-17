@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-// Checks the hand-written constraints of the F-002 and F-003 migrations on the real Postgres database.
+// Checks the hand-written constraints of the F-002 and F-003 migrations, and the F-006 columns, on the real Postgres database.
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
 const courtId = randomUUID();
 const userId = randomUUID();
@@ -79,5 +79,20 @@ describe('migration f003_consent', () => {
       `SELECT data_type, datetime_precision, is_nullable FROM information_schema.columns WHERE table_name = 'User' AND column_name = 'consentAt'`,
     );
     expect(rows).toEqual([{ data_type: 'timestamp with time zone', datetime_precision: 3, is_nullable: 'YES' }]);
+  });
+});
+
+describe('migration f006_throttle_sessions', () => {
+  it('AC-15: a new User row without sessionsValidFrom gets null, so existing sessions stay valid', async () => {
+    const { rows } = await db.query('SELECT "sessionsValidFrom" FROM "User" WHERE id = $1', [userId]);
+    expect(rows).toEqual([{ sessionsValidFrom: null }]);
+  });
+
+  it('keeps one counter row per key', async () => {
+    const key = `test:${randomUUID()}`;
+    const row = () => db.query(`INSERT INTO "AuthThrottle" (key, count, "windowStart") VALUES ($1, 1, now())`, [key]);
+    expect(await sqlState(row())).toBe('ok');
+    expect(await sqlState(row())).toBe('23505');
+    await db.query('DELETE FROM "AuthThrottle" WHERE key = $1', [key]);
   });
 });

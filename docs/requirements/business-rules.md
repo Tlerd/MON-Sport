@@ -40,6 +40,9 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-27 | Giờ hiển thị theo múi giờ `Asia/Ho_Chi_Minh` | fact | static | Intake, Lưới giờ và giá |
 | BR-28 | Tài khoản bị admin khóa không đăng nhập được | constraint | static | Intake, Phân quyền |
 | BR-29 | Người dùng tự đăng ký phải đồng ý với thông báo bảo vệ dữ liệu cá nhân. Hệ thống lưu lúc người dùng đồng ý | constraint | static | Giả định cho open item 4 của intake (Luật 91/2025), brief F-003 |
+| BR-30 | Hệ thống giới hạn số lần thử: 10 lần đăng nhập mỗi số điện thoại và 30 lần đăng nhập mỗi IP trong 15 phút, 20 lần đăng ký mỗi IP trong 1 giờ. Đăng nhập đúng xóa bộ đếm của số đó | constraint | dynamic | Giả định cho mục Quality "Bảo mật" của intake, brief F-006 |
+| BR-31 | Mật khẩu mới không được nằm trong danh sách mật khẩu phổ biến, chứa số điện thoại của tài khoản, hoặc chỉ có một ký tự lặp lại | constraint | static | Giả định cho mục Quality "Bảo mật" của intake, brief F-006 |
+| BR-32 | Khi admin mở khóa tài khoản, các phiên tạo trước lúc mở khóa không còn hiệu lực | constraint | static | Giả định cho mục Phân quyền của intake (khóa tài khoản), brief F-006 |
 
 ## Assumptions
 

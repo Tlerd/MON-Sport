@@ -11,6 +11,10 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 
 | Data Element | Description | Composition or Data Type | Length | Values |
 |---|---|---|---|---|
+| AuthThrottle | Một bộ đếm số lần thử đăng nhập hoặc đăng ký trong một cửa sổ thời gian (BR-30) | key + count + windowStart | — | Mọi instance của API dùng chung. Dòng cũ hơn 1 ngày bị xóa (brief F-006) |
+| AuthThrottle.count | Số lần thử trong cửa sổ | integer | ≥ 1 | — |
+| AuthThrottle.key | Tên bộ đếm và HMAC-SHA256 của số điện thoại hoặc IP | text | ≤ 100 | Duy nhất. Không chứa số điện thoại hoặc IP đọc được |
+| AuthThrottle.windowStart | Lúc cửa sổ bắt đầu | timestamptz(3) | — | — |
 | Booking | Một khoảng giờ trên một sân | id + courtId + startAt + endAt + status + source + createdById + (customerName) + (customerPhone) + priceTotal + paidAtVenue + (confirmDeadline) + (confirmedAt) + (cancelledAt) + createdAt | — | `CHECK (endAt > startAt)`. Hai booking `PENDING` hoặc `CONFIRMED` trên cùng `courtId` không chồng khoảng `[startAt, endAt)` (BR-1) |
 | Booking.cancelledAt | Lúc booking bị hủy | timestamptz(3) | — | Có khi `status` = `CANCELLED` |
 | Booking.confirmDeadline | Hạn xác nhận | timestamptz(3) | — | Theo BR-7. Có khi `source` = `APP` |
@@ -68,7 +72,7 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | Role | Vai trò tài khoản | enum | — | `ADMIN` · `OWNER` (chủ sân) · `USER` (người dùng) |
 | Sport | Môn chơi | enum | — | `FOOTBALL` bóng đá · `BADMINTON` cầu lông |
 | timestamptz(3) | Thời điểm | timestamp with time zone, mili giây | — | Lưu UTC. Hiển thị theo `Asia/Ho_Chi_Minh` (BR-27) |
-| User | Một tài khoản | id + name + phone + passwordHash + role + (lockedAt) + (deletedAt) + (consentAt) + createdAt | — | — |
+| User | Một tài khoản | id + name + phone + passwordHash + role + (lockedAt) + (deletedAt) + (consentAt) + (sessionsValidFrom) + createdAt | — | — |
 | User.consentAt | Lúc người dùng đồng ý với thông báo bảo vệ dữ liệu cá nhân khi đăng ký | timestamptz(3) | — | Có khi người dùng tự đăng ký. Null với tài khoản do admin hoặc seed tạo (brief F-003) |
 | User.deletedAt | Lúc người dùng xóa tài khoản | timestamptz(3) | — | Khi có, `name` và `phone` đã được thay (BR-26) |
 | User.lockedAt | Lúc admin khóa tài khoản | timestamptz(3) | — | Khi có, tài khoản không đăng nhập được (BR-28) |
@@ -76,6 +80,7 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | User.passwordHash | Bản băm argon2 của mật khẩu | text | ≤ 200 | Không bao giờ trả về qua API |
 | User.phone | Số điện thoại đăng nhập | phone | 10 | Duy nhất (BR-24) |
 | User.role | Vai trò | Role | — | Mặc định `USER` |
+| User.sessionsValidFrom | Phiên tạo trước thời điểm này không còn hiệu lực | timestamptz(3) | — | Admin mở khóa tài khoản thì đặt bằng lúc mở khóa (BR-32). Null là không giới hạn (brief F-006) |
 | Venue | Một đơn vị | id + ownerId + name + address + phone + opensAt + closesAt | — | — |
 | Venue.address | Địa chỉ | text | 1–200 ký tự | — |
 | Venue.closesAt | Giờ đóng cửa, tính bằng phút từ 00:00 | integer | — | 30–1440, bội của 30. Lớn hơn `opensAt` |

@@ -1,4 +1,5 @@
 // Names follow docs/requirements/data-dictionary.md. Brief F-002 adds User, Venue, Court, and Booking. Brief F-003 adds User.consentAt.
+// Brief F-006 adds User.sessionsValidFrom and AuthThrottle.
 
 generator client {
   provider               = "prisma-client"
@@ -46,6 +47,8 @@ model User {
   deletedAt    DateTime? @db.Timestamptz(3)
   /// When the user agreed to the privacy notice at sign-up. Null for accounts that an admin or the seed created.
   consentAt    DateTime? @db.Timestamptz(3)
+  /// The session guard refuses a cookie issued before this time. The admin unlock sets it. Null: no limit.
+  sessionsValidFrom DateTime? @db.Timestamptz(3)
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   venues       Venue[]
   bookings     Booking[]
@@ -99,4 +102,14 @@ model Booking {
 
   @@index([courtId, status])
   @@index([createdById])
+}
+
+/// A fixed-window counter of login or sign-up attempts (brief F-006, BR-30). Both Cloud Run instances share it.
+/// The key is "<counter>:<HMAC-SHA256 of the phone or the IP>", so the table holds no readable phone or IP.
+model AuthThrottle {
+  key         String   @id @db.VarChar(100)
+  count       Int
+  windowStart DateTime @db.Timestamptz(3)
+
+  @@index([windowStart])
 }

@@ -6,7 +6,7 @@ const USER = '0199a1b2-0000-7000-8000-000000000001';
 
 describe('session cookie', () => {
   it('reads back the user of a cookie it issued', () => {
-    expect(readSession(issueSession(USER, now), now)).toBe(USER);
+    expect(readSession(issueSession(USER, now), now)).toEqual({ userId: USER, issuedAt: now });
   });
 
   it('refuses a forged signature', () => {
