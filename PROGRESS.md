@@ -36,5 +36,5 @@ Updated: 2026-10-17 (F-005)
 
 ## Next step
 
-1. F-007: UC-5, an owner enters the booking of a customer who phoned, and cancels it (brief `docs/briefs/F-007-chu-san-nhap-booking-khach-goi-dien.md`).
+1. F-007: UC-5, an owner enters the booking of a customer who phoned, and cancels it. Write its brief with `feature-brief`.
 2. F-008: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
