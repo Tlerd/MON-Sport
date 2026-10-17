@@ -27,7 +27,8 @@ Do not run it on every pull request. It starts one agent per rule and one per fl
 2. Call the Workflow tool with `scriptPath` set to `.claude/skills/rule-review/rule-review.workflow.js` and `args` set to the input. Calling this skill is the opt-in that the Workflow tool asks for.
 3. Read the result. `comment` holds the markdown. `counts`, `confirmed`, and `dismissed` hold the data.
 4. Write `comment` to a file in the scratchpad, then post it with `gh pr comment <n> --body-file <file>`.
-5. Treat each confirmed finding as a Reviewer finding of its severity, under the merge rule in `AGENTS.md` Workflow step 6. This includes a finding under "Older than this change".
+5. Treat each confirmed finding that this change introduced as a Reviewer finding of its severity, under the merge rule in `AGENTS.md` Workflow step 6.
+6. A finding under "Older than this change" is pre-existing. As `REVIEW.md` says, it does not block the merge. Record each one of medium or higher in `PROGRESS.md` as a next step, in the same pull request.
 
 ## Adapt the template
 
