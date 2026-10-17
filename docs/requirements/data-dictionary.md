@@ -11,7 +11,7 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 
 | Data Element | Description | Composition or Data Type | Length | Values |
 |---|---|---|---|---|
-| AuthThrottle | Một bộ đếm số lần thử đăng nhập hoặc đăng ký trong một cửa sổ thời gian (BR-30) | key + count + windowStart | — | Mọi instance của API dùng chung. Dòng cũ hơn 1 ngày bị xóa (brief F-006) |
+| AuthThrottle | Một bộ đếm số lần thử đăng nhập hoặc đăng ký trong một cửa sổ thời gian (BR-30) | key + count + windowStart | — | Mọi instance của API dùng chung. Một dòng cũ hơn 1 ngày bị xóa ở lần kế tiếp một bộ đếm mở cửa sổ mới (brief F-006) |
 | AuthThrottle.count | Số lần thử trong cửa sổ | integer | ≥ 1 | — |
 | AuthThrottle.key | Tên bộ đếm và HMAC-SHA256 của số điện thoại hoặc IP | text | ≤ 100 | Duy nhất. Không chứa số điện thoại hoặc IP đọc được |
 | AuthThrottle.windowStart | Lúc cửa sổ bắt đầu | timestamptz(3) | — | — |
