@@ -23,11 +23,28 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
 // Postgres SQLSTATE 23P01: the EXCLUDE constraint refused an overlapping booking (BR-1).
 // The driver adapter can wrap the database error, so the code is searched on the error and its causes.
 export function isExclusionViolation(error: unknown): boolean {
+  return hasSqlState(error, '23P01', /23P01|Booking_no_overlap/);
+}
+
+// Postgres SQLSTATE 40P01: Postgres ended this transaction to break a lock cycle. The work can run again.
+// A typed Prisma query (create, updateMany) that is the victim arrives as P2034 "write conflict or a deadlock", and the
+// SQLSTATE sits in meta.driverAdapterError.cause. P2034 also covers a serialization failure, which is safe to retry too
+// (rule-review of PR #49, AG-LOCKS).
+export function isDeadlock(error: unknown): boolean {
+  return hasSqlState(error, '40P01', /40P01|deadlock detected/) || hasSqlState(error, 'P2034', /(?!)/);
+}
+
+function hasSqlState(error: unknown, state: string, message: RegExp): boolean {
   for (let e: unknown = error, depth = 0; e && typeof e === 'object' && depth < 5; depth++) {
-    const o = e as { code?: unknown; originalCode?: unknown; meta?: { code?: unknown }; cause?: unknown };
-    if ([o.code, o.originalCode, o.meta?.code].includes('23P01')) return true;
+    const o = e as {
+      code?: unknown;
+      originalCode?: unknown;
+      meta?: { code?: unknown; driverAdapterError?: { cause?: { originalCode?: unknown } } };
+      cause?: unknown;
+    };
+    if ([o.code, o.originalCode, o.meta?.code, o.meta?.driverAdapterError?.cause?.originalCode].includes(state)) return true;
     e = o.cause;
   }
-  return /23P01|Booking_no_overlap/.test(String((error as Error)?.message ?? ''));
+  return message.test(String((error as Error)?.message ?? ''));
 }
 

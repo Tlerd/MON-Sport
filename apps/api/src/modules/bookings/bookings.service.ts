@@ -12,9 +12,10 @@ import {
 } from '@monsport/shared';
 import { type Booking, Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
-import { isExclusionViolation, PrismaService } from '../database/prisma.service.js';
+import { isDeadlock, isExclusionViolation, PrismaService } from '../database/prisma.service.js';
 
 const TAKEN = 'Khung giờ này vừa có người đặt';
+const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại'; // 40P01 is a 409, not a 500
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 export function toView(b: Booking): BookingView {
@@ -122,30 +123,46 @@ export class BookingsService {
     ownerId: string | null,
     fields: Pick<Prisma.BookingUncheckedCreateInput, 'status' | 'source' | 'createdById' | 'customerName' | 'customerPhone' | 'confirmDeadline' | 'confirmedAt'>,
   ): Promise<Booking> {
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        if (ownerId) await this.lockVenueOf(tx, courtId, ownerId);
-        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${courtId}::uuid FOR UPDATE`;
-        const court = await this.findCourt(tx, courtId);
-        if (ownerId) assertOwner(court, ownerId);
-        assertOpen(court, startAt, endAt);
-        // BR-8 without a job: expired requests on this court stop holding their time before the insert.
-        await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
-        return tx.booking.create({
-          data: {
-            ...fields,
-            courtId: court.id,
-            startAt,
-            endAt,
-            priceTotal: bookingPrice(startAt, endAt, court.priceNormal, court.pricePeak), // BR-5, BR-6
-            createdAt: now,
-          },
-        });
-      });
-    } catch (error) {
-      if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
-      throw error;
+    // The rare cycle named on expire can end this insert instead of the owner list. The rollback undoes all of it,
+    // so the insert runs once more; a second 40P01 answers 409 (review of PR #49, finding 1).
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.insertTransaction(courtId, startAt, endAt, now, ownerId, fields);
+      } catch (error) {
+        if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
+        if (!isDeadlock(error)) throw error;
+        if (attempt > 0) throw new ConflictException(BUSY);
+      }
     }
+  }
+
+  private insertTransaction(
+    courtId: string,
+    startAt: Date,
+    endAt: Date,
+    now: Date,
+    ownerId: string | null,
+    fields: Pick<Prisma.BookingUncheckedCreateInput, 'status' | 'source' | 'createdById' | 'customerName' | 'customerPhone' | 'confirmDeadline' | 'confirmedAt'>,
+  ): Promise<Booking> {
+    return this.prisma.$transaction(async (tx) => {
+      if (ownerId) await this.lockVenueOf(tx, courtId, ownerId);
+      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${courtId}::uuid FOR UPDATE`;
+      const court = await this.findCourt(tx, courtId);
+      if (ownerId) assertOwner(court, ownerId);
+      assertOpen(court, startAt, endAt);
+      // BR-8 without a job: expired requests on this court stop holding their time before the insert.
+      await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
+      return tx.booking.create({
+        data: {
+          ...fields,
+          courtId: court.id,
+          startAt,
+          endAt,
+          priceTotal: bookingPrice(startAt, endAt, court.priceNormal, court.pricePeak), // BR-5, BR-6
+          createdAt: now,
+        },
+      });
+    });
   }
 
   /**
@@ -200,7 +217,12 @@ export class BookingsService {
   /** UC-4: the requests on the venues of one owner (BR-23). */
   async forOwner(ownerId: string, status: Booking['status']): Promise<OwnerBookingView[]> {
     const courts = Prisma.sql`SELECT c.id FROM "Court" c JOIN "Venue" v ON v.id = c."venueId" WHERE v."ownerId" = ${ownerId}::uuid`;
-    await this.expire(this.prisma, Prisma.sql`"courtId" IN (${courts})`, this.clock.now());
+    const expireAll = () => this.expire(this.prisma, Prisma.sql`"courtId" IN (${courts})`, this.clock.now());
+    // The rare cycle named on expire ends this statement alone, and the statement is safe to run twice (PR #45).
+    await expireAll().catch((error: unknown) => {
+      if (!isDeadlock(error)) throw error;
+      return expireAll();
+    });
     const rows = await this.prisma.booking.findMany({
       where: { status, court: { venue: { ownerId } } },
       include: { createdBy: true },
@@ -211,21 +233,35 @@ export class BookingsService {
 
   /** UC-4: confirm or reject one request. */
   async decide(ownerId: string, bookingId: string, decision: 'CONFIRMED' | 'REJECTED'): Promise<BookingView> {
-    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
-    if (!booking) throw new NotFoundException('Không tìm thấy booking');
-    if (booking.court.venue.ownerId !== ownerId) throw new ForbiddenException('Bạn không có quyền làm việc này'); // BR-23
+    const found = await this.prisma.booking.findUnique({ where: { id: bookingId }, select: { courtId: true } });
+    if (!found) throw new NotFoundException('Không tìm thấy booking');
     const now = this.clock.now();
-    await this.expire(this.prisma, Prisma.sql`id = ${bookingId}::uuid`, now);
-    // The deadline is in the condition too, so a confirm cannot pass between the expire and this update.
-    const result = await this.prisma.booking.updateMany({
-      where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
-      data: decision === 'CONFIRMED' ? { status: 'CONFIRMED', confirmedAt: now } : { status: 'REJECTED' },
-    });
-    if (result.count === 0) {
-      const current = await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
-      throw new ConflictException(current.status === 'EXPIRED' ? 'Yêu cầu đã hết hạn' : 'Yêu cầu không còn chờ xác nhận');
+    let outcome: { count: number; booking: Booking & { court: { venue: { ownerId: string } } } };
+    try {
+      outcome = await this.prisma.$transaction(async (tx) => {
+        // The lock order of insertUnderLock: Venue (FOR SHARE), then Court. An insert holds the Court lock and may wait in
+        // the EXCLUDE check on this row, so a decision that skipped the Court lock could wait on that insert (PR #40, AG-LOCKS).
+        await this.lockVenueOf(tx, found.courtId);
+        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
+        const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
+        if (booking.court.venue.ownerId !== ownerId) throw new ForbiddenException('Bạn không có quyền làm việc này'); // BR-23
+        await this.expire(tx, Prisma.sql`id = ${bookingId}::uuid`, now);
+        // The deadline is in the condition too, so a confirm cannot pass between the expire and this update.
+        const result = await tx.booking.updateMany({
+          where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
+          data: decision === 'CONFIRMED' ? { status: 'CONFIRMED', confirmedAt: now } : { status: 'REJECTED' },
+        });
+        return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } }) };
+      });
+    } catch (error) {
+      if (isDeadlock(error)) throw new ConflictException(BUSY);
+      throw error;
     }
-    return toView(await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } }));
+    // The answer comes after the commit, so an expire that this call wrote stays.
+    if (outcome.count === 0) {
+      throw new ConflictException(outcome.booking.status === 'EXPIRED' ? 'Yêu cầu đã hết hạn' : 'Yêu cầu không còn chờ xác nhận');
+    }
+    return toView(outcome.booking);
   }
 
   // BR-8: a request past its deadline becomes EXPIRED. The conditional update is safe to run twice.

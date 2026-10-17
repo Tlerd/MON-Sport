@@ -140,6 +140,8 @@ describe('owner decisions', () => {
     clock.at = new Date(vn('12:01'));
     const res = await decide('binh', booking.body.id, 'confirm').expect(409);
     expect(res.body.message).toBe('Yêu cầu đã hết hạn');
+    // The 409 comes after the commit, so the expire stays (review of PR #49, finding 3).
+    expect((await db.booking.findUniqueOrThrow({ where: { id: booking.body.id } })).status).toBe('EXPIRED');
   });
 
   it('AC-16: the owner of another venue gets 403', async () => {
@@ -150,6 +152,31 @@ describe('owner decisions', () => {
   it('AC-17: an admin gets 403', async () => {
     const booking = await ask('an', '20:00', '21:00').expect(201);
     await decide('admin', booking.body.id, 'confirm').expect(403);
+  });
+
+  // Review of PR #40 (AG-LOCKS): an insert holds the Court lock and waits in the EXCLUDE check on a row that a
+  // decision has locked. A decision that skips the Court lock can wait on that insert, and Postgres ends one with 40P01.
+  // So a decision takes the Court lock first, and waits while another transaction holds it.
+  it.each(['confirm', 'reject'] as const)('a %s waits for the Court lock, then completes', async (action) => {
+    const booking = await ask('an', '20:00', '21:00').expect(201);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const holding = new Promise<void>((resolve) => (locked = resolve));
+    const holder = db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${ids.san1}::uuid FOR UPDATE`;
+      locked();
+      await gate;
+    });
+    await holding;
+    let status = 0;
+    const pending = decide('binh', booking.body.id, action).then((res) => (status = res.status));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(status).toBe(0);
+    release();
+    await holder;
+    await pending;
+    expect(status).toBe(200);
   });
 
   it('AC-18: the owner list shows the name and phone of the user', async () => {

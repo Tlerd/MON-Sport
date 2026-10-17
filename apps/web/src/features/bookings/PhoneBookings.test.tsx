@@ -124,9 +124,26 @@ describe('PhoneBookings', () => {
     fireEvent.click(confirm);
 
     expect(await within(confirmedList()).findByText('Đã hủy')).toBeTruthy();
-    expect(document.activeElement?.textContent).toBe('Đã hủy');
+    // The effect that moves focus runs after the text appears; one run of the full check read the body first.
+    await vi.waitFor(() => expect(document.activeElement?.textContent).toBe('Đã hủy'));
     expect(fetch).toHaveBeenCalledWith(`/api/owner/bookings/${phone.id}/cancel`, expect.objectContaining({ method: 'POST' }));
     expect(within(confirmedList()).getByText('Chú Tư')).toBeTruthy();
     expect(within(confirmedList()).queryByRole('button', { name: /^Hủy/ })).toBeNull();
+  });
+
+  // Review of PR #41: the button is disabled while the call runs, and a browser drops focus from a disabled button.
+  it('a failed cancel shows the error and returns focus to "Xác nhận hủy"', async () => {
+    const phone = booking('1', '2026-11-20T10:00:00.000Z', '2026-11-20T11:00:00.000Z', 'PHONE', { name: 'Chú Tư', phone: '0987654321' });
+    stubApi([phone], () => [409, { message: 'Booking này không hủy được nữa' }]);
+    render(<PhoneBookings />);
+
+    expect(await within(confirmedList()).findByText('Chú Tư')).toBeTruthy();
+    fireEvent.click(within(confirmedList()).getByRole('button', { name: /^Hủy/ }));
+    const confirm = screen.getByRole('button', { name: /^Xác nhận hủy/ });
+    fireEvent.click(confirm);
+    (document.activeElement as HTMLElement).blur();
+
+    expect((await screen.findByRole('alert')).textContent).toBe('Booking này không hủy được nữa');
+    await vi.waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Xác nhận hủy/ })));
   });
 });
