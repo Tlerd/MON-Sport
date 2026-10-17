@@ -1,5 +1,5 @@
 import type { CourtView, VenueView } from '@monsport/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { hhmm } from '../../lib/format.ts';
@@ -32,7 +32,21 @@ export function MyVenues() {
 /** One form at a time: the opening hours, or the prices of one court. */
 function VenueCard({ venue: v, onSaved }: { venue: VenueView; onSaved: (v: VenueView) => void }) {
   const [editing, setEditing] = useState<'hours' | string | null>(null);
+  // When a form closes, focus goes back to the button that opened it, so a keyboard user keeps their place.
+  const opener = useRef<string | null>(null);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  useEffect(() => {
+    if (editing === null && opener.current) buttons.current.get(opener.current)?.focus();
+  }, [editing]);
+  const open = (key: string) => {
+    opener.current = key;
+    setEditing(key);
+  };
   const close = () => setEditing(null);
+  const keep = (key: string) => (el: HTMLButtonElement | null) => {
+    if (el) buttons.current.set(key, el);
+    else buttons.current.delete(key);
+  };
   const putCourt = (c: CourtView) => onSaved({ ...v, courts: v.courts.map((x) => (x.id === c.id ? c : x)) });
   const court = v.courts.find((c) => c.id === editing);
 
@@ -46,9 +60,9 @@ function VenueCard({ venue: v, onSaved }: { venue: VenueView; onSaved: (v: Venue
       <CourtPrices courts={v.courts} />
       {editing === null && (
         <div className="edit-links">
-          <button type="button" className="link" onClick={() => setEditing('hours')}>Sửa giờ mở cửa</button>
+          <button ref={keep('hours')} type="button" className="link" onClick={() => open('hours')}>Sửa giờ mở cửa</button>
           {v.courts.map((c) => (
-            <button key={c.id} type="button" className="link" onClick={() => setEditing(c.id)}>{`Sửa giá ${c.name}`}</button>
+            <button key={c.id} ref={keep(c.id)} type="button" className="link" onClick={() => open(c.id)}>{`Sửa giá ${c.name}`}</button>
           ))}
         </div>
       )}

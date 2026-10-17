@@ -1,8 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git.
-
-Updated: 2026-10-17 (F-005)
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-17 (F-005).
 
 ## Current state
 
@@ -36,5 +34,6 @@ Updated: 2026-10-17 (F-005)
 
 ## Next step
 
-1. F-007: UC-5, an owner enters the booking of a customer who phoned, and cancels it. Write its brief with `feature-brief`.
-2. F-008: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
+1. F-007: UC-5, an owner enters the booking of a customer who phoned, and cancels it. Brief in review in pull request #38. It goes before UC-2 only because its review started before the UC-2 gap was found.
+2. F-008: the rest of UC-2. F-002 shipped only the short booking form. Still open: the free hours of a day with "Gọi chủ sân" (2.0 step 5), the search by court name (2.1), and 2.0.E1. Write its brief with `feature-brief`.
+3. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.

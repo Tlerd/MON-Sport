@@ -1,3 +1,4 @@
+import { PRICE_MAX } from '@monsport/shared';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { ApiError } from '../../lib/api.ts';
 import { HALF_HOURS, hhmm } from '../../lib/format.ts';
@@ -32,7 +33,7 @@ function Buttons({ busy, close, error }: { busy: boolean; close: () => void; err
       {error && <p className="error" role="alert">{error}</p>}
       <div className="actions">
         <button type="submit" disabled={busy}>Lưu</button>
-        <button type="button" className="secondary" onClick={close}>Hủy</button>
+        <button type="button" className="secondary" onClick={close} disabled={busy}>Hủy</button>
       </div>
     </>
   );
@@ -48,7 +49,7 @@ export function HoursForm(props: { initial: Hours; save: (h: Hours) => Promise<v
         <div className="row two">
           <label>
             Mở cửa
-            <select value={draft.opensAt} onChange={(e) => setDraft((d) => ({ ...d, opensAt: Number(e.target.value) }))}>
+            <select autoFocus value={draft.opensAt} onChange={(e) => setDraft((d) => ({ ...d, opensAt: Number(e.target.value) }))}>
               {HALF_HOURS.slice(0, -1).map((m) => <option key={m} value={m}>{hhmm(m)}</option>)}
             </select>
           </label>
@@ -76,11 +77,11 @@ export function PriceForm(props: { legend: string; initial: Prices; save: (p: Pr
         <div className="row two">
           <label>
             Giá giờ thường (đ)
-            <input type="number" inputMode="numeric" min={1} step={1} value={draft.priceNormal || ''} onChange={(e) => set('priceNormal', e.target.value)} required />
+            <input type="number" inputMode="numeric" autoFocus min={1} max={PRICE_MAX} step={1} value={draft.priceNormal || ''} onChange={(e) => set('priceNormal', e.target.value)} required />
           </label>
           <label>
             Giá cao điểm (đ)
-            <input type="number" inputMode="numeric" min={1} step={1} value={draft.pricePeak || ''} onChange={(e) => set('pricePeak', e.target.value)} required />
+            <input type="number" inputMode="numeric" min={1} max={PRICE_MAX} step={1} value={draft.pricePeak || ''} onChange={(e) => set('pricePeak', e.target.value)} required />
           </label>
         </div>
         <Buttons busy={busy} close={props.close} error={error} />

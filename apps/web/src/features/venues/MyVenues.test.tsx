@@ -63,6 +63,20 @@ describe('MyVenues', () => {
       expect(within(venue).queryByRole('button', { name: 'Lưu' })).toBeNull();
     });
 
+    it('AC-13: the card shows the hours of the response, not of the draft', async () => {
+      const stored = { ...CAU_LONG_A, opensAt: 420, closesAt: 1350 };
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok([CAU_LONG_A])).mockResolvedValueOnce(ok(stored)));
+      render(<MyVenues />);
+      const venue = await screen.findByRole('article', { name: 'Cầu lông A' });
+
+      fireEvent.click(within(venue).getByRole('button', { name: 'Sửa giờ mở cửa' }));
+      fireEvent.change(within(venue).getByLabelText('Mở cửa'), { target: { value: '420' } });
+      fireEvent.change(within(venue).getByLabelText('Đóng cửa'), { target: { value: '1320' } });
+      fireEvent.click(within(venue).getByRole('button', { name: 'Lưu' }));
+
+      expect(await within(venue).findByText('07:00–22:30')).toBeTruthy();
+    });
+
     it('AC-14: Bình saves a peak price of 150.000đ for "Sân 1", and its row shows it', async () => {
       const saved = { ...CAU_LONG_A.courts[0], pricePeak: 150_000 };
       const fetch = vi.fn().mockResolvedValueOnce(ok([CAU_LONG_A])).mockResolvedValueOnce(ok(saved));
@@ -84,15 +98,32 @@ describe('MyVenues', () => {
 
     it('AC-15: the form shows the error of the API, and the card keeps 06:00-23:00', async () => {
       const refused = { ok: false, status: 400, json: () => Promise.resolve({ message: 'Giờ đóng cửa phải sau giờ mở cửa' }) };
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok([CAU_LONG_A])).mockResolvedValueOnce(refused));
+      const fetch = vi.fn().mockResolvedValueOnce(ok([CAU_LONG_A])).mockResolvedValueOnce(refused);
+      vi.stubGlobal('fetch', fetch);
       render(<MyVenues />);
       const venue = await screen.findByRole('article', { name: 'Cầu lông A' });
 
       fireEvent.click(within(venue).getByRole('button', { name: 'Sửa giờ mở cửa' }));
+      fireEvent.change(within(venue).getByLabelText('Mở cửa'), { target: { value: '1320' } });
+      fireEvent.change(within(venue).getByLabelText('Đóng cửa'), { target: { value: '1260' } });
       fireEvent.click(within(venue).getByRole('button', { name: 'Lưu' }));
 
       expect((await within(venue).findByRole('alert')).textContent).toBe('Giờ đóng cửa phải sau giờ mở cửa');
+      expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ opensAt: 1320, closesAt: 1260 });
       expect(within(venue).getByText('06:00–23:00')).toBeTruthy();
+      expect(within(venue).queryByText('22:00–21:00')).toBeNull();
+      expect(within(venue).getByRole('button', { name: 'Lưu' })).toBeTruthy();
+    });
+
+    it('moves focus into a form when it opens, and back to its button when it closes', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok([CAU_LONG_A])));
+      render(<MyVenues />);
+      const venue = await screen.findByRole('article', { name: 'Cầu lông A' });
+
+      fireEvent.click(within(venue).getByRole('button', { name: 'Sửa giá Sân 2' }));
+      expect(document.activeElement).toBe(within(venue).getByLabelText('Giá giờ thường (đ)'));
+      fireEvent.click(within(venue).getByRole('button', { name: 'Hủy' }));
+      expect(document.activeElement).toBe(within(venue).getByRole('button', { name: 'Sửa giá Sân 2' }));
     });
 
     it('closes the form on "Hủy" without a request', async () => {
