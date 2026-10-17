@@ -1,0 +1,134 @@
+---
+style: ste80
+lang: vi
+---
+
+# F-007: Chủ sân nhập booking của khách gọi điện
+
+Status: draft
+Source: intake `docs/requirements/intake-monsport-v1.md`: UC-5, mục Trạng thái của booking ("Booking chủ sân nhập cho khách gọi điện ở trạng thái 'Đã xác nhận' ngay"), mục Chặn trùng giờ, Acceptance UC-5, Assumptions (tên và số điện thoại của khách không bắt buộc, thứ tự ra mắt UC-2 đến UC-6). `docs/requirements/use-cases.md` UC-5 (5.0, 5.0.E1). `docs/requirements/business-rules.md` BR-1, BR-2, BR-3, BR-5, BR-10, BR-20, BR-22, BR-23. `PROGRESS.md`, Next step 1.
+
+## Goal
+
+Chủ sân nhập khung giờ mà khách đặt qua điện thoại, để lịch trong app khớp với lịch thật. Kiểm tra bằng ví dụ của intake: khách gọi điện đặt 17:00–18:00. Chủ sân nhập booking đó, và booking ở trạng thái "Đã xác nhận" ngay.
+
+## Non-goals
+
+| Non-goal | Why it is out | When it comes back |
+|---|---|---|
+| Người dùng hủy booking và xem lịch sử (UC-6) | Brief riêng, để mỗi brief nhỏ hơn 3 pull request | Brief F-008 |
+| Chủ sân hủy hoặc sửa booking người dùng đặt trong app | UC-4 cho chủ sân từ chối yêu cầu. UC-6 cho người đặt tự hủy. Intake không cho chủ sân hủy booking của người dùng | Khi bạn đổi bảng Phân quyền |
+| Sửa booking đã nhập (đổi giờ, đổi sân, đổi tên khách) | Chủ sân hủy rồi nhập lại. Ít thao tác hơn và ít trạng thái hơn | Khi chủ sân chạy thử cần |
+| Đặt cố định hằng tuần | Intake, Out of scope (cắt B3) | — |
+| Lịch dạng lưới của cả ngày cho chủ sân | Danh sách "Đã xác nhận" theo giờ là đủ cho 50 booking mỗi ngày | Khi có yêu cầu |
+| Ô "đã thu tiền tại sân" | Thuộc UC-12 | Brief của UC-12 |
+
+## Acceptance criteria
+
+Dữ liệu chung: mỗi test tạo lại dữ liệu này trước khi chạy, như `apps/api/src/modules/bookings/bookings.e2e.test.ts`. Admin (`0900000000`). Chủ sân "Bình" (`0912345678`) quản lý "Cầu lông A": mở 06:00, đóng 23:00, có "Sân 1" và "Sân 2", 80.000đ giờ thường và 120.000đ giờ cao điểm.
+
+Chủ sân "Dũng" (`0912345679`) quản lý "Cầu lông B" với "Sân 1". Người dùng "An" (`0901234567`). Bây giờ là 20/11/2026 10:00 `Asia/Ho_Chi_Minh`. Mọi giờ dưới đây là ngày 20/11/2026.
+
+| Label | Given | When | Then |
+|---|---|---|---|
+| AC-1 | Bình đã đăng nhập | Bình gọi `POST /api/owner/bookings` với "Sân 1", 17:00–18:00, `customerName` "Chú Tư", `customerPhone` `0987654321` | 201. `status` = `CONFIRMED`, `source` = `PHONE`, `priceTotal` = 120000, `confirmedAt` = 20/11/2026 10:00, `confirmDeadline` = null, `customer` = `{ name: "Chú Tư", phone: "0987654321" }`. `createdById` trong DB là Bình (BR-10) |
+| AC-2 | Bình đã đăng nhập | Bình nhập "Sân 1", 18:00–19:00, không có tên và số điện thoại. Rồi Bình nhập 19:00–20:00 với `customerName` "   " | Cả hai nhận 201. `customer` = `{ name: "", phone: null }`. DB lưu `customerName` = null và `customerPhone` = null |
+| AC-3 | An có booking "Chờ xác nhận" 20:00–21:00 trên "Sân 1" | Bình nhập "Sân 1", 20:30–21:30. Rồi Bình nhập "Sân 1", 21:00–22:00 | Lần đầu nhận 409 "Khung giờ này vừa có người đặt" (BR-1, 5.0.E1). Lần sau nhận 201 |
+| AC-4 | Bình đã đăng nhập | 20 request của Bình nhập "Sân 1", 17:00–18:00, gửi cùng lúc | Đúng 1 request nhận 201. 19 request nhận 409 "Khung giờ này vừa có người đặt". DB có đúng 1 booking 17:00–18:00 |
+| AC-5 | An có booking "Chờ xác nhận" 17:00–18:00 trên "Sân 1", hạn xác nhận 16:00 | Bây giờ là 16:30. Bình nhập "Sân 1", 17:00–18:00 | 201. Booking của An chuyển sang "Hết hạn" (BR-8). Booking mới "Đã xác nhận" |
+| AC-6 | Bình đã đăng nhập | Bình nhập lần lượt: 17:15–18:15, 17:00–17:30, 05:00–06:00, 22:30–23:30, 09:00–10:00, 09:30–10:30, và `customerPhone` `12345` | Mỗi request nhận 400. Câu lỗi theo thứ tự trên: (1) "Giờ phải theo bước 30 phút". (2) "Mỗi booking dài ít nhất 1 giờ". (3), (4) "Ngoài giờ mở cửa". (5), (6) "Giờ bắt đầu đã qua". (7) "Số điện thoại có 10 chữ số và bắt đầu bằng 0". Không có booking mới |
+| AC-7 | Bình đã đăng nhập | Bình nhập "Sân 1" của "Cầu lông B". Rồi Bình nhập một `courtId` không có | Cả hai nhận 404 "Không tìm thấy sân" (BR-23). Không có booking mới |
+| AC-8 | An, admin đã đăng nhập. Một request khác không có cookie | Mỗi người gọi `POST /api/owner/bookings` và `POST /api/owner/bookings/:id/cancel` | An 403, admin 403 (BR-22), không có cookie 401. Không có booking mới, không booking nào đổi |
+| AC-9 | Bình đã nhập booking 17:00–18:00 (AC-1) | Bình gọi `POST /api/owner/bookings/<id>/cancel` | 200. `status` = `CANCELLED`, `cancelledAt` = 10:00. Rồi Bình nhập lại 17:00–18:00 và nhận 201 |
+| AC-10 | Bình đã nhập booking 17:00–18:00. An có booking "Chờ xác nhận" 20:00–21:00 trên "Sân 1". Dũng nhập booking 17:00–18:00 trên sân của Dũng | Bình hủy booking của An. Bình hủy booking của Dũng. Bình hủy một UUID không có. Bình hủy `abc` | Booking của An nhận 409 "Chỉ hủy được booking bạn nhập cho khách gọi điện". Booking của Dũng và UUID không có nhận 404 "Không tìm thấy booking". `abc` nhận 400 "Dữ liệu không hợp lệ". Không booking nào đổi |
+| AC-11 | Bình đã nhập booking 11:00–12:00 | Bây giờ là 11:00. Bình hủy booking đó. Rồi Bình hủy lại một booking đã hủy | Cả hai nhận 409 "Booking này không hủy được nữa". Booking 11:00–12:00 vẫn "Đã xác nhận" |
+| AC-12 | Bình đã nhập booking 17:00–18:00 cho "Chú Tư" | Bình gọi `GET /api/owner/bookings?status=CONFIRMED` | Danh sách có booking đó với `source` = `PHONE` và `customer` = `{ name: "Chú Tư", phone: "0987654321" }` |
+| AC-13 | Bình đã đăng nhập trên web, mục "Nhập booking khách gọi điện" đã tải "Cầu lông A" | Bình chọn "Sân 1", ngày 20/11/2026, giờ bắt đầu 17:00, thời lượng 1 giờ, nhập tên "Chú Tư" và số `0987654321`, bấm "Lưu booking" | Form hiện giá xem trước "120.000đ" trước khi lưu. Web gọi `POST /api/owner/bookings` với `courtId` của "Sân 1", `startAt` `2026-11-20T17:00:00+07:00`, `endAt` `2026-11-20T18:00:00+07:00`, `customerName` "Chú Tư", `customerPhone` `0987654321`. Danh sách "Booking đã xác nhận" hiện booking mới với "Chú Tư" |
+| AC-14 | Như AC-13. API trả 409 "Khung giờ này vừa có người đặt" | Bình bấm "Lưu booking" | Form hiện câu lỗi đó với `role="alert"`. Các ô giữ giá trị đã nhập |
+| AC-15 | Danh sách "Booking đã xác nhận" có một booking `PHONE` và một booking `APP`, cả hai chưa tới giờ | Bình bấm "Hủy" ở booking `PHONE`, rồi bấm "Xác nhận hủy" | Chỉ booking `PHONE` có nút "Hủy". Web gọi `POST /api/owner/bookings/<id>/cancel`. Booking đó hiện "Đã hủy" |
+
+## Contract
+
+Zod trong `packages/shared/src/booking.ts` là nguồn duy nhất.
+
+| Endpoint or schema | Change | Request | Response and errors |
+|---|---|---|---|
+| `CreatePhoneBookingRequest` | new | `{ courtId, startAt, endAt, customerName?, customerPhone? }`. `customerName`: chuỗi, cắt khoảng trắng, tối đa 100 ký tự. Chuỗi rỗng sau khi cắt là không có tên. `customerPhone`: `Phone`. Strict | — |
+| `POST /api/owner/bookings` | new | `CreatePhoneBookingRequest` | 201 `OwnerBookingView`. 400 "Dữ liệu đặt sân không hợp lệ" khi Zod sai, trừ số điện thoại sai: câu của `Phone`. 400 giờ: các câu của AC-6. 401, 403 (không phải `OWNER`). 404 "Không tìm thấy sân" khi sân không có hoặc thuộc đơn vị của người khác. 409 "Khung giờ này vừa có người đặt" |
+| `POST /api/owner/bookings/:id/cancel` | new | — | 200 `BookingView` với `status` = `CANCELLED`. 400 "Dữ liệu không hợp lệ" khi `:id` không phải UUID. 404 "Không tìm thấy booking" khi booking không có hoặc thuộc đơn vị của người khác. 409 "Chỉ hủy được booking bạn nhập cho khách gọi điện" khi `source` = `APP`. 409 "Booking này không hủy được nữa" khi booking không còn "Đã xác nhận", hoặc giờ bắt đầu đã tới |
+| `GET /api/owner/bookings?status=CONFIRMED` | unchanged | — | Đã trả booking `PHONE` với `customer` từ F-002 |
+
+Thứ tự ở `POST /api/owner/bookings`:
+
+1. Kiểm Zod. Kiểm lưới 30 phút (BR-2) và độ dài (BR-3), như `BookingsService.request`.
+2. Đọc sân và đơn vị. Không có, hoặc `Venue.ownerId` khác người gọi: 404.
+3. Kiểm giờ mở cửa. Kiểm `startAt` > bây giờ, nếu không thì "Giờ bắt đầu đã qua".
+4. Trong một transaction, làm các việc sau theo thứ tự:
+   - Khóa dòng `Court` (`FOR UPDATE`).
+   - Đọc lại sân và đơn vị. Kiểm lại chủ sân và giờ mở cửa.
+   - Chuyển yêu cầu quá hạn của sân sang "Hết hạn" (BR-8).
+   - Tạo booking: `status` = `CONFIRMED`, `source` = `PHONE`, `createdById` = người gọi, `confirmedAt` = bây giờ, `confirmDeadline` = null.
+   - Tính `priceTotal` theo BR-5 với giá đọc sau khóa.
+5. EXCLUDE của Postgres là chốt cuối cho BR-1: lỗi `23P01` đổi thành 409.
+
+Bước 4 dùng lại cách khóa của `BookingsService.request`. Không route nào khóa `Court` rồi mới khóa `Venue`, nên thứ tự khóa của F-005 không đổi.
+
+`POST /api/owner/bookings/:id/cancel` dùng một lệnh `updateMany` có điều kiện: `id`, `source` = `PHONE`, `status` = `CONFIRMED`, `startAt` > bây giờ, và sân thuộc đơn vị của người gọi. Lệnh đặt `status` = `CANCELLED` và `cancelledAt` = bây giờ. Khi lệnh không đổi dòng nào, route đọc booking để chọn mã lỗi: 404, rồi 409 nguồn `APP`, rồi 409 không hủy được.
+
+## Data
+
+| Table | Change | Migration step |
+|---|---|---|
+| — | Không đổi schema. `Booking.source`, `customerName`, `customerPhone`, `confirmedAt`, `cancelledAt` đã có từ F-002 | — |
+
+## Build order
+
+| # | Pull request | Paths | Tests |
+|---|---|---|---|
+| 1 | Hợp đồng và API: `CreatePhoneBookingRequest`, hai route của chủ sân, `PROGRESS.md`, brief này với Status: accepted | `packages/shared/src/booking.ts`, `packages/shared/src/booking.test.ts`, `apps/api/src/modules/bookings/` (gồm file test mới `phone-bookings.e2e.test.ts`), `PROGRESS.md`, file brief này | Test Zod cho AC-2 và AC-6 (số điện thoại). AC-1 tới AC-12 trong `phone-bookings.e2e.test.ts`. Test cũ của `bookings.e2e.test.ts` vẫn đạt |
+| 2 | Màn hình: form "Nhập booking khách gọi điện" và danh sách "Booking đã xác nhận" có nút "Hủy" cho booking `PHONE`. `PROGRESS.md` | `apps/web/src/features/bookings/`, `apps/web/src/app/App.tsx` (chỉ thêm hai mục vào màn hình chủ sân), `apps/web/src/app/styles.css`, `PROGRESS.md` | AC-13 tới AC-15 |
+
+Form web:
+
+- Ô chọn sân liệt kê các sân của mọi đơn vị của chủ sân, dạng "Cầu lông A · Sân 1", từ `GET /api/owner/venues`.
+- Ô ngày là `input type="date"`, mặc định hôm nay theo `Asia/Ho_Chi_Minh`.
+- Ô giờ bắt đầu liệt kê các mốc 30 phút trong giờ mở cửa của đơn vị, trừ mốc mà 1 giờ sau đó vượt giờ đóng cửa.
+- Ô thời lượng: 1 giờ, 1 giờ 30, 2 giờ, 2 giờ 30, 3 giờ. Chỉ hiện thời lượng không vượt giờ đóng cửa.
+- Giá xem trước dùng `bookingPrice` của `packages/shared` với giá của sân đã tải.
+- Danh sách "Booking đã xác nhận" lấy `GET /api/owner/bookings?status=CONFIRMED`, xếp theo giờ bắt đầu. Nút "Hủy" hỏi lại bằng nút "Xác nhận hủy" trước khi gọi API.
+- Màn hình rộng 390px vẫn dùng được.
+
+## Edit boundaries
+
+- May edit: các path trong bảng Build order, `pnpm-lock.yaml` khi cần.
+- Leave unchanged without approval: `AGENTS.md`, `.dependency-cruiser.cjs`, `scripts/check.mjs`, `.github/workflows/`, `apps/api/prisma/`, `apps/api/src/modules/auth/`, `apps/api/src/modules/admin/`, `apps/api/src/modules/venues/`, `apps/api/src/modules/database/`, `apps/web/src/features/venues/`, `apps/web/src/features/admin/`, `apps/web/src/components/`, các file trong `docs/requirements/`.
+
+## Risks and reviews
+
+| Risk | Where | Control |
+|---|---|---|
+| Đồng thời: chủ sân nhập và người dùng gửi yêu cầu cùng một giờ | `POST /api/owner/bookings` | Khóa dòng `Court` như yêu cầu của người dùng. EXCLUDE là chốt cuối. AC-3, AC-4. Review bằng phiên mới |
+| Tiền: giá của booking điện thoại | `priceTotal` | BR-5 với giá đọc sau khóa, như F-005. AC-1. Review bằng phiên mới |
+| Dữ liệu cá nhân: tên và số điện thoại của khách | `Booking.customerName`, `customerPhone` | Chỉ chủ sân của đơn vị thấy, qua `GET /api/owner/bookings` (BR-20). Không bắt buộc. Không có trong `GET /api/bookings/mine` và `GET /api/venues`. Review bằng phiên mới |
+| Phân quyền: chủ sân nhập hoặc hủy trên sân của người khác (BR-23) | Hai route | Kiểm `ownerId` trong transaction, và trong điều kiện của `updateMany`. AC-7, AC-10 |
+| Chủ sân hủy booking của người dùng | Route hủy | Điều kiện `source` = `PHONE`. AC-10 |
+
+## Assumptions
+
+- Chủ sân không nhập được booking có giờ bắt đầu đã qua. Lịch trong app dùng để chặn trùng giờ, và giờ đã qua không còn ai đặt được. Intake không nói về booking nhập sau giờ đá.
+- Chủ sân hủy được booking `PHONE` "Đã xác nhận" tới đúng giờ bắt đầu. Quy tắc 6 giờ của BR-11 chỉ áp dụng cho người đặt trong app. Chủ sân là người nhận cuộc gọi hủy.
+- Khi chủ sân nhập booking, yêu cầu quá hạn trên sân đó chuyển sang "Hết hạn" trước, như yêu cầu của người dùng (BR-8).
+- Booking `PHONE` không có hạn xác nhận, nên `confirmDeadline` = null.
+- `customer.name` là chuỗi rỗng khi không có tên, như `OwnerBookingView` của F-002.
+
+## Open questions
+
+| Question | Owner | Blocks |
+|---|---|---|
+| Chủ sân có cần nhập booking sau giờ đá, để số liệu UC-12 đủ không? | Bạn, khi làm UC-12 | không |
+
+## Done when
+
+- Every AC has a passing test with its label in the name.
+- The check command passes on the last pull request.
+- The reviews in "Risks and reviews" are complete.
