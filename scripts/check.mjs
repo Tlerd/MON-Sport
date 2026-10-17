@@ -1,12 +1,13 @@
 // The one verification command: `pnpm check`.
 // A passing step prints nothing. A failing step prints its last lines only.
-// `--hook` is for an agent stop hook: it skips a clean tree and exits 2 on failure.
+// `--hook` is for an agent stop hook: it skips a clean tree and a plan-mode session, and exits 2 on failure.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hookSkips } from './hook-skip.mjs';
 
 const MAX_LINES = 60;
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -26,7 +27,7 @@ function run(command) {
 if (hook) {
   const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
   const treeIsClean = run('git status --porcelain').output.trim() === '';
-  if (input.stop_hook_active || treeIsClean) process.exit(0);
+  if (hookSkips(input, treeIsClean)) process.exit(0);
 }
 
 // Locally the API tests need the Postgres of `pnpm db:start`. A reboot stops it, so start it here.

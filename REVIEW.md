@@ -2,7 +2,7 @@
 
 The Reviewer in `AGENTS.md` reads this file first. Review against `docs/requirements/intake-monsport-v1.md`, the brief, and `docs/requirements/business-rules.md`.
 
-Start the Reviewer on a clean tree. On a dirty tree, the Stop hook runs `pnpm check` on the shared test database. When the check fails, the last message reports the failure instead of the review.
+Run the Reviewer in plan mode. The Stop hook skips a plan-mode session, so the review never runs `pnpm check` on the shared test database.
 
 ## What failure looks like
 
