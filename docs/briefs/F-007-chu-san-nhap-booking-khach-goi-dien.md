@@ -5,7 +5,7 @@ lang: vi
 
 # F-007: Chủ sân nhập booking của khách gọi điện
 
-Status: draft
+Status: accepted (review round 2, pull request #38)
 Source: intake `docs/requirements/intake-monsport-v1.md`: UC-5, mục Trạng thái của booking ("Booking chủ sân nhập cho khách gọi điện ở trạng thái 'Đã xác nhận' ngay"), mục Chặn trùng giờ, Acceptance UC-5, Assumptions (tên và số điện thoại của khách không bắt buộc, thứ tự ra mắt UC-2 đến UC-6). `docs/requirements/use-cases.md` UC-5 (5.0, 5.0.E1). `docs/requirements/business-rules.md` BR-1, BR-2, BR-3, BR-5, BR-10, BR-20, BR-22, BR-23. Step 1 bắt đầu sau khi F-005 step 2 (pull request #37) merge, vì cả hai viết lại `PROGRESS.md`.
 
 ## Goal
@@ -39,7 +39,7 @@ Chủ sân "Dũng" (`0912345679`) quản lý "Cầu lông B" với "Sân 1". Ng�
 | AC-5 | An gửi yêu cầu "Sân 1", 17:00–18:00 lúc 14:00, nên hạn xác nhận là 16:00 (BR-7) | Bây giờ là 16:30. Bình nhập "Sân 1", 17:00–18:00 | 201. Booking của An chuyển sang "Hết hạn" (BR-8). Booking mới "Đã xác nhận" |
 | AC-6 | Bình đã đăng nhập | Bình gửi 9 request. Request 1 tới 6 có giờ: 17:15–18:15, 17:00–17:30, 05:00–06:00, 22:30–23:30, 09:30–10:30, 10:00–11:00. Request 7 có `customerPhone` `12345`. Request 8 có `customerName` dài 101 ký tự. Request 9 có thêm khóa `status` | Mỗi request nhận 400. Câu lỗi: (1) "Giờ phải theo bước 30 phút". (2) "Mỗi booking dài ít nhất 1 giờ". (3), (4) "Ngoài giờ mở cửa". (5), (6) "Giờ bắt đầu đã qua". (7) "Số điện thoại có 10 chữ số và bắt đầu bằng 0". (8), (9) "Dữ liệu đặt sân không hợp lệ". Không có booking mới |
 | AC-7 | Bình đã đăng nhập | Bình nhập "Sân 1" của "Cầu lông B". Rồi Bình nhập một `courtId` không có | Cả hai nhận 404 "Không tìm thấy sân" (BR-23). Không có booking mới |
-| AC-8 | An, admin đã đăng nhập. Một request khác không có cookie | Mỗi người gọi `POST /api/owner/bookings` và `POST /api/owner/bookings/:id/cancel` | An 403, admin 403 (BR-22), không có cookie 401. Không có booking mới, không booking nào đổi |
+| AC-8 | Bình đã nhập booking 17:00–18:00 như AC-1. An, admin đã đăng nhập. Một request khác không có cookie | Mỗi người gọi `POST /api/owner/bookings`, và `POST /api/owner/bookings/:id/cancel` với booking của Bình | An 403, admin 403 (BR-22), không có cookie 401. Không có booking mới. Booking của Bình vẫn "Đã xác nhận" |
 | AC-9 | Bình đã nhập booking 17:00–18:00 (AC-1) | Bình gọi `POST /api/owner/bookings/<id>/cancel` | 200. `status` = `CANCELLED`, `cancelledAt` = 20/11/2026 10:00. Rồi Bình nhập lại 17:00–18:00 và nhận 201 |
 | AC-10 | Bình đã nhập booking 17:00–18:00. An có booking "Chờ xác nhận" 20:00–21:00 trên "Sân 1". Dũng nhập booking 17:00–18:00 trên sân của Dũng | Bình hủy booking của An. Bình hủy booking của Dũng. Bình hủy một UUID không có. Bình hủy `abc` | Booking của An nhận 409 "Chỉ hủy được booking bạn nhập cho khách gọi điện". Booking của Dũng và UUID không có nhận 404 "Không tìm thấy booking". `abc` nhận 400 "Dữ liệu không hợp lệ". Không booking nào đổi |
 | AC-11 | Bình đã nhập booking 11:00–12:00. Bình đã hủy booking 17:00–18:00 như AC-9 | Bây giờ là 11:00. Bình hủy booking 11:00–12:00. Rồi Bình hủy booking 17:00–18:00 lần thứ hai | Cả hai nhận 409 "Booking này không hủy được nữa". Booking 11:00–12:00 vẫn "Đã xác nhận" |
@@ -69,7 +69,7 @@ Thứ tự ở `POST /api/owner/bookings`:
 2. Đọc sân và đơn vị. Không có, hoặc `Venue.ownerId` khác người gọi: 404.
 3. Kiểm giờ mở cửa. Kiểm `startAt` > bây giờ, nếu không thì "Giờ bắt đầu đã qua".
 4. Trong một transaction, làm các việc sau theo thứ tự:
-   - Khóa dòng `Venue` của sân (`FOR SHARE`). Kiểm lại chủ sân.
+   - Khóa dòng `Venue` của sân (`FOR SHARE`). Kiểm lại chủ sân. Chủ sân đã đổi thì trả 404 "Không tìm thấy sân", như `OwnerCourtsController.update`.
    - Khóa dòng `Court` (`FOR UPDATE`).
    - Đọc lại sân và đơn vị. Kiểm lại giờ mở cửa.
    - Chuyển yêu cầu quá hạn của sân sang "Hết hạn" (BR-8).
@@ -116,7 +116,7 @@ Form web:
 
 - Ô chọn sân liệt kê các sân của mọi đơn vị của chủ sân, dạng "Cầu lông A · Sân 1", từ `GET /api/owner/venues` qua `lib/api.ts`. Form không import từ `features/venues`.
 - Ô ngày là `input type="date"`, mặc định hôm nay theo `Asia/Ho_Chi_Minh`.
-- Ô giờ bắt đầu liệt kê các mốc 30 phút trong giờ mở cửa của đơn vị, trừ mốc mà 1 giờ sau đó vượt giờ đóng cửa.
+- Ô giờ bắt đầu liệt kê các mốc 30 phút trong giờ mở cửa của đơn vị, trừ mốc mà 1 giờ sau đó vượt giờ đóng cửa. Khi ngày là hôm nay, ô chỉ liệt kê các mốc sau bây giờ.
 - Ô thời lượng: 1 giờ, 1 giờ 30, 2 giờ, 2 giờ 30, 3 giờ. Chỉ hiện thời lượng không vượt giờ đóng cửa.
 - Ô tên và ô số điện thoại không bắt buộc. Ô để trống thì body không có khóa đó.
 - Giá xem trước dùng `bookingPrice` của `packages/shared` với giá của sân đã tải.
@@ -147,6 +147,7 @@ Form web:
 - Route hủy trả 409 cho booking `APP` tới F-009. F-009 thêm việc chủ sân hủy booking `APP` khi người dùng gọi để hủy muộn.
 - Khi chủ sân nhập booking, yêu cầu quá hạn trên sân đó chuyển sang "Hết hạn" trước, như yêu cầu của người dùng (BR-8).
 - Booking `PHONE` không có hạn xác nhận, nên `confirmDeadline` = null.
+- Route hủy trả 404 cho booking thuộc đơn vị của người khác, để không lộ id nào tồn tại, như F-005. Route `decide` của F-002 trả 403, và giữ nguyên. Không sửa route hủy cho giống `decide`.
 - `customer.name` là chuỗi rỗng khi không có tên, như `OwnerBookingView` của F-002. Web hiện "Khách gọi điện".
 - `GET /api/bookings/mine` của chủ sân trả cả booking `PHONE` mà chủ sân đã nhập, vì `createdById` là chủ sân. Màn hình chủ sân không hiện danh sách đó. F-009 quyết định có giữ cách này không.
 
