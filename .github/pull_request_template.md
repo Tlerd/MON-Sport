@@ -16,6 +16,18 @@ Refs #
 <!-- One line for each AC that this pull request covers, with its test name. -->
 - [ ] AC-1:
 
+## How tested
+
+<!-- Evidence: the test names, the command output, or a screenshot for a screen change. -->
+
+## Risk
+
+<!-- low, medium, or high, and why. For example: medium, because it changes the booking lock order. -->
+
+## How to revert
+
+<!-- Revert the merge commit with a new pull request. When the live service is broken, first shift Cloud Run traffic to the previous revision: gcloud run services update-traffic monsport --region asia-southeast1 --to-revisions <previous-revision>=100. Say when a migration needs more than that. -->
+
 ## Checks
 
 - [ ] `pnpm check` passes.
