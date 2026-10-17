@@ -1,7 +1,7 @@
 // Shared parts of the verify-flow scripts: options, the browser, sessions, steps, and evidence.
 // Each step asserts a state (an API response or the DOM) and saves one screenshot.
 
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,7 +39,7 @@ function liveUrl() {
   return url;
 }
 
-/** Accounts and the court for this target. Env vars override; a live run never falls back to the seed password. */
+/** Accounts and the court for this target. Env vars override; A live run never falls back to the seed accounts. */
 function accounts(target) {
   const env = (name, local) => process.env[name] || (target === 'local' ? local : '');
   return {
@@ -75,7 +75,7 @@ export class Run {
   }
 
   /**
-   * Runs one step on a page, then saves a screenshot, pass or fail.
+   * Runs one step on a page, then saves a screenshot, pass or fail. A step with no page saves none.
    * A step fails when `fn` throws, or when the page got a 5xx answer or a script error during the step.
    */
   async step(flow, name, page, fn) {
@@ -93,30 +93,37 @@ export class Run {
       status = error instanceof SkipFlow ? 'SKIP' : 'FAIL';
       detail = firstLines(error.message);
     }
-    const file = join(this.dir, `${n}-${flow}-${slug(name)}${status === 'FAIL' ? '-FAIL' : ''}.png`);
-    await page.screenshot({ path: file, fullPage: true }).catch(() => undefined);
+    const file = page ? join(this.dir, `${n}-${flow}-${slug(name)}${status === 'FAIL' ? '-FAIL' : ''}.png`) : '';
+    await page?.screenshot({ path: file, fullPage: true }).catch(() => undefined);
     this.results.push({ n, flow, name, status, detail, file });
     console.log(`${status} ${flow}: ${name}${detail ? ` (${detail})` : ''}`);
     if (status !== 'PASS') throw Object.assign(new Error(detail), { reported: true, skip: status === 'SKIP' });
     return value;
   }
 
-  /** One signed-in page for each role, shared by the flows of a run. Each sign-in counts toward BR-30. */
-  async session(role) {
-    if (this.sessions.has(role)) return this.sessions.get(role);
+  /**
+   * One signed-in page for each role, shared by the flows of a run. Each sign-in counts toward BR-30,
+   * so a failed sign-in is kept too: the next flow gets the same failure without a new attempt.
+   */
+  session(role) {
+    if (!this.sessions.has(role)) this.sessions.set(role, this.signIn(role));
+    return this.sessions.get(role);
+  }
+
+  async signIn(role) {
+    const account = this.accounts[role];
+    const env = `VERIFY_${role.toUpperCase()}`;
+    if (!account.phone || !account.password) throw new Error(`Set ${env}_PHONE and ${env}_PASSWORD for a live run`);
     const context = await this.browser.newContext({ locale: 'vi-VN', timezoneId: ZONE, viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
     this.watch(page);
-    const account = this.accounts[role];
-    if (role === 'player' && !account.password) {
-      await this.step('setup', 'register a test- player (live)', page, () => register(this, page, account));
-    } else {
-      if (!account.password) throw new Error(`Set VERIFY_${role.toUpperCase()}_PHONE and VERIFY_${role.toUpperCase()}_PASSWORD for a live run`);
+    try {
       await this.step('setup', `log in as ${role} ${account.phone}`, page, () => login(this, page, account, role));
+    } catch (error) {
+      await context.close();
+      throw error;
     }
-    const session = { page, account };
-    this.sessions.set(role, session);
-    return session;
+    return { page, account };
   }
 
   watch(page) {
@@ -127,7 +134,8 @@ export class Run {
   }
 
   writeReport() {
-    const rows = this.results.map((r) => `| ${r.n} | ${r.flow} | ${r.name} | ${r.status} | ${r.detail.replaceAll('|', '/')} | [png](${relative(this.dir, r.file).replaceAll('\\', '/')}) |`);
+    const shot = (r) => (r.file ? `[png](${relative(this.dir, r.file).replaceAll('\\', '/')})` : '—');
+    const rows = this.results.map((r) => `| ${r.n} | ${r.flow} | ${r.name} | ${r.status} | ${r.detail.replaceAll('|', '/')} | ${shot(r)} |`);
     const counts = ['PASS', 'FAIL', 'SKIP'].map((s) => `${this.results.filter((r) => r.status === s).length} ${s}`).join(', ');
     const text = [
       `# verify-flow ${this.stamp}`,
@@ -147,14 +155,15 @@ export class Run {
 /** Edge ships with Windows, and Chrome with most CI images. No browser download is needed. */
 async function launch(headed) {
   const channels = process.env.VERIFY_BROWSER ? [process.env.VERIFY_BROWSER] : ['msedge', 'chrome'];
+  const errors = [];
   for (const channel of channels) {
     try {
       return await chromium.launch({ channel, headless: !headed });
-    } catch {
-      // Try the next browser.
+    } catch (error) {
+      errors.push(`${channel}: ${error.message.split('\n')[0]}`);
     }
   }
-  throw new Error(`No browser found. Install Edge or Chrome, or set VERIFY_BROWSER to an installed channel (tried ${channels.join(', ')}).`);
+  throw new Error(`No browser started. Install Edge or Chrome, or set VERIFY_BROWSER to an installed channel. ${errors.join(' / ')}`);
 }
 
 /** The first line of an error, plus the locator that a Playwright timeout waited for. */
@@ -190,24 +199,6 @@ async function login(run, page, account, role) {
   await page.getByRole('heading', { name: `Chào ${body.name}` }).waitFor();
   account.name = body.name;
   return `role ${body.role}`;
-}
-
-/** A live run signs up a new player named test-… with a random password that lives only in memory. */
-async function register(run, page, account) {
-  account.name = `test-verify-${run.stamp}`;
-  account.phone = `09${String(randomInt(0, 1e8)).padStart(8, '0')}`;
-  account.password = randomBytes(18).toString('base64url');
-  await page.goto(run.base);
-  await page.getByRole('button', { name: 'Tạo tài khoản' }).click();
-  const form = page.locator('form');
-  await form.getByLabel('Tên của bạn').fill(account.name);
-  await form.getByLabel('Số điện thoại').fill(account.phone);
-  await form.getByLabel('Mật khẩu').fill(account.password);
-  await form.getByRole('checkbox').check();
-  const { status, body } = await clickFor(page, form.getByRole('button', { name: 'Tạo tài khoản' }), 'POST', '/api/auth/register');
-  assert(status === 201, `POST /api/auth/register answered ${status}: ${body.message ?? ''}`);
-  await page.getByRole('heading', { name: `Chào ${account.name}` }).waitFor();
-  return `${account.name}, phone ${account.phone}`;
 }
 
 // Date and time as the app shows them (apps/web/src/lib/format.ts).

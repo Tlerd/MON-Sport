@@ -1,11 +1,17 @@
 // Flow owner-decide (UC-4, brief F-002): the owner confirms one request and rejects another; the player sees both states.
 
-import { assert, clickFor } from './lib.mjs';
+import { assert, clickFor, SkipFlow } from './lib.mjs';
 import { requestBooking, rowIn } from './player-request.mjs';
 
 const FLOW = 'owner-decide';
 
 export default async function ownerDecide(run) {
+  // Each run leaves one CONFIRMED booking, and no API cancels an app booking. On live it must land on a test court.
+  if (run.opts.target === 'live' && !(process.env.VERIFY_VENUE && process.env.VERIFY_COURT)) {
+    await run.step(FLOW, 'pick a test court (live)', null, () => {
+      throw new SkipFlow('owner-decide on live needs a test court: set VERIFY_VENUE and VERIFY_COURT');
+    });
+  }
   const confirmMe = await requestBooking(run, FLOW, 'player sends request A (to confirm)');
   const rejectMe = await requestBooking(run, FLOW, 'player sends request B (to reject)');
   const owner = await run.session('owner');

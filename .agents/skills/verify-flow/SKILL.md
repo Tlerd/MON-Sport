@@ -10,12 +10,12 @@ Drive the running app through a user flow. Each step asserts a state (an API ans
 ## Run
 
 1. Pick the flows from the table below. A screen change needs the flows that touch that screen. After a deploy, run all flows.
-2. Local: run `pnpm db:start`, `pnpm dev:api`, and `pnpm dev:web`. The API must use a database with the seed data (`apps/api/.env`).
+2. Local: run `pnpm db:start`, `pnpm dev:api`, and `pnpm dev:web`. Point `apps/api/.env` at a database with the seed data and every migration (`monsport_preview` locally).
 3. Run `node .agents/skills/verify-flow/scripts/run.mjs [flow ...] [--target local|live] [--base-url URL] [--headed]`. No flow name runs all flows.
 4. On `FAILED`, open the `-FAIL.png` screenshot and the flow file. Fix the app, or fix the flow when the screen changed on purpose. Run again until `PASSED`.
 5. Attach `report.md` and the screenshots of the changed screen to the pull request, or to a comment on it after a deploy.
 
-The run is done when the last line says `PASSED` and each flow you picked has PASS steps. A SKIP is not a pass.
+The run is done when the last line says `PASSED` and each flow you picked has PASS steps. `PASSED (n skipped)` means a flow did not run: a SKIP is not a pass.
 
 ## Flows
 
@@ -30,15 +30,16 @@ To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each stat
 ## Targets and accounts
 
 - `local` (default): `http://localhost:5173`. The seed accounts of `apps/api/prisma/seed.ts`: player An `0901234567`, owner Bình `0912345678`, venue "Cầu lông A", court "Sân 1".
-- `live`: the "Live at" URL in `PROGRESS.md`. The live seed password is a secret, so set `VERIFY_OWNER_PHONE` and `VERIFY_OWNER_PASSWORD` in the shell. Without `VERIFY_PLAYER_*`, the run signs up a new player named `test-verify-<stamp>`, with a random password that it never prints.
-- Overrides: `VERIFY_PLAYER_PHONE`, `VERIFY_PLAYER_PASSWORD`, `VERIFY_OWNER_PHONE`, `VERIFY_OWNER_PASSWORD`, `VERIFY_VENUE`, `VERIFY_COURT`, `VERIFY_BROWSER` (a Playwright channel).
+- `live`: the "Live at" URL in `PROGRESS.md`. Live passwords are secrets, so the run takes every account from the shell: `VERIFY_OWNER_PHONE`, `VERIFY_OWNER_PASSWORD`, `VERIFY_PLAYER_PHONE`, `VERIFY_PLAYER_PASSWORD`. The player is one reused account named `test-verify`, signed up once in the app. Write these values only in the shell or a password manager.
+- `owner-decide` on live also needs `VERIFY_VENUE` and `VERIFY_COURT` set to a test court. Each run leaves a CONFIRMED booking there, and no API cancels an app booking. Without them, the flow ends with SKIP.
+- The same env vars override the local defaults. `VERIFY_BROWSER` picks a Playwright channel.
 - The run deletes nothing. Each run leaves its bookings: one PENDING per `player-request` run, and one CONFIRMED and one REJECTED per `owner-decide` run. A PENDING booking expires 2 hours later (BR-7, BR-8).
 
 ## Gotchas
 
-- Time zone: the API answers instants in UTC (`...Z`). The app shows `Asia/Ho_Chi_Minh` (BR-27), and the form sends `+07:00`. Compare instants, never date strings. The local Postgres runs `Asia/Bangkok`, and `PrismaService` sets UTC on each connection.
-- BR-30: 10 logins for each phone and 30 for each IP in 15 minutes. A good login clears only the phone counter, so repeated runs from one machine hit the IP limit after about 10 runs. A 429 fails the login step. Wait 15 minutes. Never clear `AuthThrottle` on the live database.
+- Time zone: the API answers instants in UTC (`...Z`). The app shows `Asia/Ho_Chi_Minh` (BR-27), and the form sends `+07:00`. Compare instants, never date strings.
+- BR-30: 10 logins for each phone and 30 for each IP in 15 minutes. A full run signs in twice (player and owner), and a good login clears only the phone counter. So about 15 full runs from one IP hit the limit. A 429 fails the login step, and the run does not sign in again for that role. Wait 15 minutes. Never clear `AuthThrottle` on the live database.
 - Slots: a court holds one PENDING or CONFIRMED booking for each slot (BR-1). The scripts pick a random slot 30 to 365 days ahead, skip the starts the player already has, and take a new slot on a 409.
-- Seed data: `monsport_dev` needs `prisma migrate reset` before it takes the newer migrations (see `PROGRESS.md`). `monsport_preview` holds the seed and every migration. The seed empties the tables, so it runs only on localhost.
+- Seed data: the seed empties the tables, so it runs only on localhost. Never seed to reset a live run.
 - A select's accessible name ends with its chosen option ("Đơn vị Chọn đơn vị"). Match the label by prefix: `getByLabel(/^Đơn vị/)`.
 - Windows: run the commands from the repository root. The scripts build paths with `node:path`, so `\` and `/` both work. The browser is the installed Edge or Chrome (`playwright-core`, no browser download).
