@@ -33,6 +33,17 @@ export function toView(b: Booking): BookingView {
   };
 }
 
+/**
+ * BR-20: the owner of the booking's venue sees the customer. A phone booking keeps its own name and phone;
+ * an app booking shows the account that made it.
+ */
+function toOwnerView(b: Booking & { createdBy: { name: string; phone: string } | null }): OwnerBookingView {
+  const customer = b.source === 'PHONE' || !b.createdBy
+    ? { name: b.customerName ?? '', phone: b.customerPhone }
+    : { name: b.createdBy.name, phone: b.createdBy.phone };
+  return { ...toView(b), customer };
+}
+
 /** A booking stays on one day inside the opening hours. 23:00-24:00 ends on minute 1440. */
 function assertOpen(court: { venue: { opensAt: number; closesAt: number } }, startAt: Date, endAt: Date): void {
   const startMinute = minuteOfDayVN(startAt);
@@ -93,7 +104,7 @@ export class BookingsService {
       customerPhone: input.customerPhone ?? null,
       confirmedAt: now,
     });
-    return { ...toView(booking), customer: { name: booking.customerName ?? '', phone: booking.customerPhone } };
+    return toOwnerView({ ...booking, createdBy: null });
   }
 
   // Bookings on one court queue on its row lock before they insert. Without the lock, overlapping
@@ -113,7 +124,7 @@ export class BookingsService {
   ): Promise<Booking> {
     try {
       return await this.prisma.$transaction(async (tx) => {
-        if (ownerId) await this.lockVenueOf(tx, courtId);
+        if (ownerId) await this.lockVenueOf(tx, courtId, ownerId);
         await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${courtId}::uuid FOR UPDATE`;
         const court = await this.findCourt(tx, courtId);
         if (ownerId) assertOwner(court, ownerId);
@@ -165,11 +176,17 @@ export class BookingsService {
     });
   }
 
-  /** Court.venueId never changes, so it is safe to read before the lock. */
-  private async lockVenueOf(tx: Pick<PrismaService, 'court' | '$queryRaw'>, courtId: string): Promise<void> {
+  /**
+   * Court.venueId never changes, so it is safe to read before the lock. With an ownerId, a venue that moved to
+   * another owner answers 404 before the court lock (brief F-007, contract step 4).
+   */
+  private async lockVenueOf(tx: Pick<PrismaService, 'court' | 'venue' | '$queryRaw'>, courtId: string, ownerId?: string): Promise<void> {
     const court = await tx.court.findUnique({ where: { id: courtId }, select: { venueId: true } });
     if (!court) throw new NotFoundException('Không tìm thấy sân');
     await tx.$queryRaw`SELECT id FROM "Venue" WHERE id = ${court.venueId}::uuid FOR SHARE`;
+    if (!ownerId) return;
+    const venue = await tx.venue.findUnique({ where: { id: court.venueId }, select: { ownerId: true } });
+    if (venue?.ownerId !== ownerId) throw new NotFoundException('Không tìm thấy sân');
   }
 
   private async findCourt(db: Pick<PrismaService, 'court'>, courtId: string) {
@@ -191,13 +208,7 @@ export class BookingsService {
       include: { createdBy: true },
       orderBy: { startAt: 'asc' },
     });
-    return rows.map((b) => ({
-      ...toView(b),
-      // BR-20: the owner of the booking's venue sees the phone number.
-      customer: b.source === 'PHONE'
-        ? { name: b.customerName ?? '', phone: b.customerPhone }
-        : { name: b.createdBy.name, phone: b.createdBy.phone },
-    }));
+    return rows.map(toOwnerView);
   }
 
   /** UC-4: confirm or reject one request. */
