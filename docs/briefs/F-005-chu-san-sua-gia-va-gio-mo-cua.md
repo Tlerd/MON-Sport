@@ -5,7 +5,7 @@ lang: vi
 
 # F-005: Chủ sân sửa giá và giờ mở cửa
 
-Status: draft
+Status: accepted (review round 2, pull request #34)
 Source: intake `docs/requirements/intake-monsport-v1.md`: UC-11, mục Phân quyền ("Sửa giá và giờ mở cửa": chủ sân chỉ đơn vị của mình), mục Lưới giờ và giá, Acceptance UC-11, Assumptions (thứ tự ra mắt UC-1, UC-10, UC-11). `docs/requirements/use-cases.md` UC-11 (11.0, 11.0.E1, Assumptions). `docs/requirements/business-rules.md` BR-4, BR-5, BR-6, BR-23, BR-25. `PROGRESS.md`, Next step 1.
 
 ## Goal
@@ -74,7 +74,7 @@ Thứ tự ở `PATCH /api/owner/courts/:id`, trong một transaction:
 3. `SELECT ... FROM "Venue" WHERE id = $venueId FOR SHARE`. Route admin đổi chủ sân bằng `FOR UPDATE`, nên chủ sân cũ không ghi được sau khi đơn vị đã sang người khác. `ownerId` khác người gọi: 404.
 4. Ghi chỉ `priceNormal` và `pricePeak` có trong body. Lệnh `UPDATE` khóa dòng `Court`, nên nó xếp hàng với yêu cầu đặt sân (AC-4).
 
-Ở `BookingsService.request`: transaction khóa dòng `Court` bằng `FOR UPDATE` như hiện nay, rồi đọc lại sân và đơn vị trong transaction đó. Giá (BR-5) và kiểm giờ mở cửa dùng dữ liệu đọc lại. Câu lỗi và mã lỗi không đổi.
+Ở `BookingsService.request`: transaction khóa dòng `Court` bằng `FOR UPDATE` như hiện nay, rồi đọc lại sân và đơn vị trong transaction đó. Giá (BR-5) và kiểm giờ mở cửa dùng dữ liệu đọc lại. Câu lỗi và mã lỗi không đổi. Đọc lại giờ mở cửa không chặn được lệnh đổi giờ chạy cùng lúc. Xem dòng rủi ro về giờ mở cửa.
 
 ## Data
 
@@ -104,11 +104,11 @@ Các nút "Sửa giờ mở cửa" và "Sửa giá <tên sân>" nằm trong mộ
 | Risk | Where | Control |
 |---|---|---|
 | Tiền: yêu cầu đặt sân đọc giá cũ trong lúc chủ sân đổi giá | `BookingsService.request` | Đọc giá sau khóa dòng `Court`. AC-4 chạy trên Postgres thật. Review bằng phiên mới |
-| Đồng thời: admin chuyển đơn vị sang chủ sân khác trong lúc chủ sân cũ sửa | Hai route `PATCH` của chủ sân | `FOR UPDATE` trên `Venue` khi sửa giờ, `FOR SHARE` khi sửa giá. AC-11. Review bằng phiên mới |
+| Đồng thời: admin chuyển đơn vị sang chủ sân khác trong lúc chủ sân cũ sửa | Hai route `PATCH` của chủ sân | `FOR UPDATE` trên `Venue` khi sửa giờ, `FOR SHARE` khi sửa giá. Review bằng phiên mới kiểm tra cuộc đua này. AC-11 chỉ kiểm kết quả sau khi chuyển đơn vị |
 | Phân quyền: chủ sân sửa đơn vị của người khác (BR-23) | Hai route `PATCH` | Điều kiện `ownerId` = người gọi trong transaction. 404, không lộ đơn vị có hay không. AC-10, AC-12 |
 | Chủ sân sửa trường của admin | Zod strict | AC-9 |
 | Yêu cầu đặt sân chạy cùng lúc với lệnh đổi giờ mở cửa | `BookingsService.request` | Yêu cầu đọc giờ trong transaction, sau khóa dòng `Court`. Lệnh đổi giờ chỉ khóa dòng `Venue`, nên hai việc không xếp hàng. Yêu cầu nào đọc giờ trước khi lệnh đổi giờ commit thì dùng giờ cũ và được nhận. Rủi ro đã chấp nhận: booking đó giống booking đã có trước khi đổi giờ, và được giữ (UC-11, Assumptions) |
-| Deadlock giữa các route | Thứ tự khóa | Sửa giá: `Venue` (`FOR SHARE`), rồi `Court` (`UPDATE`). Sửa giờ và route admin sửa đơn vị: chỉ `Venue`. Yêu cầu đặt sân: chỉ `Court`, đọc `Venue` không khóa. Không route nào khóa `Court` rồi mới khóa `Venue`, nên không có vòng chờ |
+| Deadlock giữa các route | Thứ tự khóa | Sửa giá: `Venue` (`FOR SHARE`), rồi `Court` (`UPDATE`). Sửa giờ: chỉ `Venue`. Route admin sửa đơn vị: `Venue`, rồi `User` (`FOR SHARE`) khi đổi chủ sân. Route admin sửa sân: chỉ `Court`. Yêu cầu đặt sân: chỉ `Court`, đọc `Venue` không khóa. Không route nào khóa `Court` rồi mới khóa `Venue`, nên không có vòng chờ |
 | Màn hình đặt sân hiện giá cũ | `apps/web/src/features/bookings/BookingForm.tsx` | Màn hình tính giá xem trước từ danh sách sân đã tải. Sau khi chủ sân đổi giá, người đang mở trang thấy giá cũ cho tới khi tải lại. Server tính `priceTotal` và trả trong response, nên booking luôn lưu giá đúng. Rủi ro đã chấp nhận ở mức chạy thử |
 
 ## Assumptions
