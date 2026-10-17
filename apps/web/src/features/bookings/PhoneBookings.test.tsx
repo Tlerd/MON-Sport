@@ -110,14 +110,23 @@ describe('PhoneBookings', () => {
     expect(await within(confirmedList()).findByText('Chú Tư')).toBeTruthy();
     expect(within(confirmedList()).queryByText('Chú Ba')).toBeNull();
     expect(within(confirmedList()).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(confirmedList()).getAllByRole('button', { name: 'Hủy' })).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    const cancelButtons = within(confirmedList()).getAllByRole('button', { name: /^Hủy/ });
+    expect(cancelButtons).toHaveLength(1);
+    expect(cancelButtons[0].textContent).toBe('Hủy');
+    // "Giữ booking" backs out, and focus returns to "Hủy".
+    fireEvent.click(cancelButtons[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Giữ booking' }));
+    expect(document.activeElement?.textContent).toBe('Hủy');
+    fireEvent.click(screen.getByRole('button', { name: /^Hủy/ }));
     expect(fetch.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận hủy' }));
+    const confirm = screen.getByRole('button', { name: /^Xác nhận hủy/ });
+    expect(document.activeElement).toBe(confirm);
+    fireEvent.click(confirm);
 
     expect(await within(confirmedList()).findByText('Đã hủy')).toBeTruthy();
+    expect(document.activeElement?.textContent).toBe('Đã hủy');
     expect(fetch).toHaveBeenCalledWith(`/api/owner/bookings/${phone.id}/cancel`, expect.objectContaining({ method: 'POST' }));
     expect(within(confirmedList()).getByText('Chú Tư')).toBeTruthy();
-    expect(within(confirmedList()).queryByRole('button', { name: 'Hủy' })).toBeNull();
+    expect(within(confirmedList()).queryByRole('button', { name: /^Hủy/ })).toBeNull();
   });
 });

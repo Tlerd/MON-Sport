@@ -1,13 +1,12 @@
 import { bookingPrice, type BookingView, minuteOfDayVN, type OwnerBookingView, type VenueView } from '@monsport/shared';
-import { type FormEvent, useEffect, useId, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
-import { formatDay, formatTime, formatVnd, hhmm } from '../../lib/format.ts';
+import { formatDay, formatSlot, formatTime, formatVnd, hhmm } from '../../lib/format.ts';
 import { SlotBar } from './BookingForm.tsx';
 import { Customer } from './customer.tsx';
+import { DURATIONS, slotAt as at } from './slot.ts';
 import { STATUS_LABEL } from './status.ts';
 
-const DURATIONS = [60, 90, 120, 150, 180];
-const at = (date: string, minute: number) => `${date}T${hhmm(minute)}:00+07:00`;
 /** "YYYY-MM-DD" of today in Asia/Ho_Chi_Minh (BR-27). */
 const todayVN = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
 const byStart = (a: OwnerBookingView, b: OwnerBookingView) => a.startAt.localeCompare(b.startAt);
@@ -43,6 +42,7 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [saved, setSaved] = useState('');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api<VenueView[]>('/api/owner/venues').then(setVenues, () => setError('Không tải được danh sách sân'));
@@ -66,9 +66,10 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (begin === undefined) return;
+    if (begin === undefined || busy) return;
     setError('');
     setSaved('');
+    setBusy(true);
     try {
       const booking = await api<OwnerBookingView>('/api/owner/bookings', {
         method: 'POST',
@@ -86,6 +87,8 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
       setPhone('');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không lưu được booking');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -138,7 +141,7 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
             <span>Giá</span>
             <strong className="money">{price !== null ? formatVnd(price) : '—'}</strong>
           </span>
-          <button type="submit" disabled={!court || begin === undefined}>Lưu booking</button>
+          <button type="submit" disabled={!court || begin === undefined || busy}>Lưu booking</button>
         </div>
       </form>
     </section>
@@ -149,14 +152,29 @@ function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingVie
   const heading = useId();
   const [asking, setAsking] = useState('');
   const [failure, setFailure] = useState('');
+  const [busy, setBusy] = useState(false);
+  // Each step of the cancel unmounts the button that was pressed, so focus moves to what replaces it.
+  const [focus, setFocus] = useState('');
+  const list = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    if (!focus) return;
+    list.current?.querySelector<HTMLElement>(`[data-focus="${focus}"]`)?.focus();
+    setFocus('');
+  }, [focus]);
 
   async function cancel(id: string) {
+    if (busy) return;
     setFailure('');
+    setBusy(true);
     try {
       onCancelled(await api<BookingView>(`/api/owner/bookings/${id}/cancel`, { method: 'POST' }));
       setAsking('');
+      setFocus(id);
     } catch (err) {
       setFailure(err instanceof ApiError ? err.message : 'Không hủy được booking');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -165,7 +183,7 @@ function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingVie
       <h2 id={heading}>Booking đã xác nhận</h2>
       {(error || failure) && <p className="error" role="alert">{error || failure}</p>}
       {rows?.length === 0 && <p className="empty">Chưa có booking nào sắp tới.</p>}
-      <ul className="tickets">
+      <ul className="tickets" ref={list}>
         {rows?.map((r) => (
           <li key={r.id} className="ticket" data-status={r.status}>
             <span className="stub">
@@ -180,16 +198,16 @@ function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingVie
                 <span className="money">{formatVnd(r.priceTotal)}</span>
               </span>
               {r.status !== 'CONFIRMED' ? (
-                <span className="status">{STATUS_LABEL[r.status]}</span>
+                <span className="status" tabIndex={-1} data-focus={r.id}>{STATUS_LABEL[r.status]}</span>
               ) : r.source === 'PHONE' && new Date(r.startAt) > new Date() && (
                 asking === r.id ? (
                   <span className="actions">
-                    <button type="button" className="secondary" onClick={() => cancel(r.id)}>Xác nhận hủy</button>
-                    <button type="button" className="keep" onClick={() => setAsking('')}>Giữ booking</button>
+                    <button type="button" className="secondary" autoFocus disabled={busy} aria-label={`Xác nhận hủy booking ${formatSlot(r.startAt, r.endAt)}`} onClick={() => cancel(r.id)}>Xác nhận hủy</button>
+                    <button type="button" className="keep" onClick={() => { setAsking(''); setFocus(r.id); }}>Giữ booking</button>
                   </span>
                 ) : (
                   <span className="actions single">
-                    <button type="button" className="keep" onClick={() => setAsking(r.id)}>Hủy</button>
+                    <button type="button" className="keep" data-focus={r.id} aria-label={`Hủy booking ${formatSlot(r.startAt, r.endAt)}`} onClick={() => setAsking(r.id)}>Hủy</button>
                   </span>
                 )
               )}
