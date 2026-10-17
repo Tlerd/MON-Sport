@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-17 (F-007 step 2).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-17 (fix: expire lock order).
 
 ## Current state
 
@@ -35,6 +35,6 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-1. A `fix/` pull request: `expire` in `BookingsService.forOwner` and the BR-8 update in `insertUnderLock` can update the same expired rows in a different order, and Postgres can end one with 40P01 (a 500). Lock the rows in one order first (`... WHERE id IN (SELECT id ... ORDER BY id FOR UPDATE)`), or retry 40P01 once. Review of PR #40, finding 3.
-2. F-008: the rest of UC-2. F-002 shipped only the short booking form. Still open: the free hours of a day with "Gọi chủ sân" (2.0 step 5), the search by court name (2.1), and 2.0.E1. Write its brief with `feature-brief`.
-3. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
+1. F-008: the rest of UC-2. F-002 shipped only the short booking form. Still open: the free hours of a day with "Gọi chủ sân" (2.0 step 5), the search by court name (2.1), and 2.0.E1. Write its brief with `feature-brief`.
+2. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
+3. A low finding of PR #41, round 2: a failed cancel on "Booking đã xác nhận" leaves the keyboard focus on the page body. Fix it in the next pull request that edits `PhoneBookings.tsx`.
