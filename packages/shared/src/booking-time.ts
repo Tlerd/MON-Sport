@@ -1,6 +1,8 @@
 // Pure booking rules from docs/requirements/business-rules.md. The server and the web both use them.
 // Vietnam has no daylight saving time, so Asia/Ho_Chi_Minh is always UTC+7 (BR-27).
 
+import type { BookingStatus } from './booking.ts';
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const SLOT = 30 * MINUTE;
@@ -36,4 +38,16 @@ export function bookingPrice(startAt: Date, endAt: Date, priceNormal: number, pr
 /** BR-7: the earlier of request time + 2 hours and start time - 1 hour. */
 export function confirmDeadline(requestedAt: Date, startAt: Date): Date {
   return new Date(Math.min(requestedAt.getTime() + 2 * HOUR, startAt.getTime() - HOUR));
+}
+
+/**
+ * Brief F-009: what a user may do to their own booking. A pending request is cancelled until it starts (BR-12).
+ * A confirmed booking is cancelled with 6 hours or more left (BR-11), and later the user calls the owner.
+ */
+export function userCancelDecision(booking: { status: BookingStatus; startAt: Date }, now: Date): 'ALLOW' | 'CALL_OWNER' | 'NONE' {
+  const untilStart = booking.startAt.getTime() - now.getTime();
+  if (untilStart <= 0) return 'NONE';
+  if (booking.status === 'PENDING') return 'ALLOW';
+  if (booking.status !== 'CONFIRMED') return 'NONE';
+  return untilStart >= 6 * HOUR ? 'ALLOW' : 'CALL_OWNER';
 }

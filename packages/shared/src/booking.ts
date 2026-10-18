@@ -89,7 +89,17 @@ export const BookingView = z.object({
 });
 export type BookingView = z.infer<typeof BookingView>;
 
-export const OwnerBookingView = BookingView.extend({
+/** Brief F-009: the history of the user. venuePhone is the public phone of the venue, as in VenueView. */
+export const MyBookingView = BookingView.extend({
+  courtName: z.string(),
+  venueName: z.string(),
+  venuePhone: Phone,
+});
+export type MyBookingView = z.infer<typeof MyBookingView>;
+
+export const CALL_OWNER_MESSAGE = 'Còn dưới 6 giờ nữa tới giờ bắt đầu. Hãy gọi chủ sân';
+
+export const OwnerBookingView =BookingView.extend({
   customer: z.object({ name: z.string(), phone: Phone.nullable() }),
 });
 export type OwnerBookingView = z.infer<typeof OwnerBookingView>;

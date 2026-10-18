@@ -174,7 +174,7 @@ describe('POST /api/owner/bookings/:id/cancel', () => {
     const dung = (await enter('Dũng', '17:00', '18:00', {}, 'B1').expect(201)).body.id as string;
     const before = await db.booking.findMany({ orderBy: { id: 'asc' } });
 
-    expect((await cancel('Bình', app).expect(409)).body.message).toBe('Chỉ hủy được booking bạn nhập cho khách gọi điện');
+    expect((await cancel('Bình', app).expect(409)).body.message).toBe('Yêu cầu đang chờ xác nhận. Hãy từ chối yêu cầu này');
     for (const id of [dung, MISSING]) expect((await cancel('Bình', id).expect(404)).body.message).toBe('Không tìm thấy booking');
     expect((await cancel('Bình', 'abc').expect(400)).body.message).toBe('Dữ liệu không hợp lệ');
     expect(await db.booking.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
