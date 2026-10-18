@@ -42,7 +42,8 @@ Dữ liệu chung: `GET /api/venues` trả ba đơn vị. "Cầu lông A" có "S
 | AC-3 | Kết quả của AC-1 đang hiện | Bấm "Cầu lông A" | Ô "Chọn đơn vị" có giá trị "Cầu lông A". Ô "Chọn sân" hiện "Sân 1" và "Sân 2" và chưa chọn sân nào. Focus chuyển tới ô "Chọn sân" (`document.activeElement` là ô đó). Ô tìm vẫn có "Sân 1" và danh sách kết quả vẫn hiện |
 | AC-4 | Như AC-1 | Gõ "xyz" | Vùng `role="status"` hiện "Không có sân nào tên như vậy". Không có mục kết quả |
 | AC-5 | Kết quả của AC-1 đang hiện | Xóa ô tìm, rồi gõ chỉ khoảng trắng | Không có mục kết quả. Không có câu "Không có sân nào tên như vậy" |
-| AC-6 | Người dùng đã chọn "Cầu lông A", "Sân 1" và một ngày, và danh sách giờ trống đang hiện | Gõ "Sân Đông" và bấm "Bóng đá C" | Ô "Chọn đơn vị" là "Bóng đá C". Ô "Chọn sân" chưa chọn sân nào. Danh sách giờ trống cũ bị xóa. Ô "Chọn ngày" giữ ngày đã chọn. Không có `role="alert"`. Bấm đơn vị đang chọn cũng đặt lại ô "Chọn sân" |
+| AC-6 | Người dùng đã chọn "Cầu lông A", "Sân 1" và một ngày, và danh sách giờ trống đang hiện | Gõ "Sân Đông" và bấm "Bóng đá C" | Ô "Chọn đơn vị" là "Bóng đá C". Ô "Chọn sân" chưa chọn sân nào. Danh sách giờ trống cũ bị xóa. Ô "Chọn ngày" giữ ngày đã chọn. Không có `role="alert"` |
+| AC-8 | Người dùng đã chọn "Cầu lông A", "Sân 1" và một ngày. Ô tìm có "Sân 1" | Bấm "Cầu lông A" trong kết quả, rồi bấm lần nữa | Mỗi lần bấm: ô "Chọn sân" chưa chọn sân nào, danh sách giờ trống bị xóa, ngày giữ nguyên, và `document.activeElement` là ô "Chọn sân". Yêu cầu focus đổi sau mỗi cú bấm (ví dụ một bộ đếm), nên lần bấm thứ hai cũng đặt focus |
 | AC-7 | Người dùng vai trò `USER` đã đăng nhập | Mở app | Ô "Tìm theo tên sân" xuất hiện đúng một lần, trong mục "Giờ trống". Mục "Đặt sân" không có ô đó |
 
 ## Contract
@@ -68,7 +69,7 @@ Không đổi.
 
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
-| 1 | Tìm theo tên sân | `apps/web/src/features/venues/search.ts`, `apps/web/src/features/venues/search.test.ts`, `apps/web/src/features/venues/VenueBrowser.tsx`, `apps/web/src/features/venues/VenueBrowser.test.tsx`, `apps/web/src/app/App.test.tsx`, `apps/web/src/app/styles.css`, `PROGRESS.md` | AC-1, AC-3 tới AC-6 trong `VenueBrowser.test.tsx`. AC-7 trong `App.test.tsx`. Các ca của AC-2 cũng ở `search.test.ts`: `Đ` viết hoa, `đ`, hai dấu cách, `ơ ư ă â ê ô` |
+| 1 | Tìm theo tên sân (AC-1 tới AC-8) | `apps/web/src/features/venues/search.ts`, `apps/web/src/features/venues/search.test.ts`, `apps/web/src/features/venues/VenueBrowser.tsx`, `apps/web/src/features/venues/VenueBrowser.test.tsx`, `apps/web/src/app/App.test.tsx`, `apps/web/src/app/styles.css`, `PROGRESS.md` | AC-1 tới AC-6 và AC-8 trong `VenueBrowser.test.tsx`. AC-7 trong `App.test.tsx`. `search.test.ts` thêm các ca thuần của AC-2: `Đ` viết hoa, `đ`, hai dấu cách, `ơ ư ă â ê ô` |
 
 ## Edit boundaries
 
