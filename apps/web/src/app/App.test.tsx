@@ -148,7 +148,7 @@ describe('App', () => {
 
     render(<App />);
     const bell = await screen.findByRole('button', { name: 'Thông báo' });
-    expect(within(screen.getByRole('banner')).getByText('1')).toBeTruthy();
+    expect(await within(screen.getByRole('banner')).findByText('1')).toBeTruthy();
 
     fireEvent.click(bell);
     expect(await screen.findByRole('heading', { name: 'Thông báo' })).toBeTruthy();
