@@ -1,5 +1,5 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { BookingStatus, type BookingView, CreateBookingRequest, CreatePhoneBookingRequest, Messages, type MyBookingView, type OwnerBookingView, PHONE_MESSAGE } from '@monsport/shared';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BookingStatus, type BookingView, CreateBookingRequest, CreatePhoneBookingRequest, Messages, type MyBookingView, type OwnerBookingView, type PaidAtVenueResponse, PHONE_MESSAGE, UpdatePaidAtVenueSchema } from '@monsport/shared';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { BookingsService } from './bookings.service.js';
 
@@ -75,5 +75,17 @@ export class OwnerBookingsController {
   @HttpCode(200)
   cancel(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<BookingView> {
     return this.bookings.cancelAsOwner(req.user.id, id);
+  }
+
+  @Patch(':id/paid')
+  @HttpCode(200)
+  markPaid(
+    @Req() req: AuthedRequest,
+    @Param('id', Id) id: string,
+    @Body() body: unknown,
+  ): Promise<PaidAtVenueResponse> {
+    const parsed = UpdatePaidAtVenueSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException('Dữ liệu thu tiền không hợp lệ');
+    return this.bookings.markPaidAtVenue(req.user.id, id, parsed.data.paidAtVenue);
   }
 }
