@@ -105,6 +105,18 @@ describe('GET /api/courts/:id/availability', () => {
     expect((await get('A1', day('20')).expect(200)).body.free).toEqual([]);
   });
 
+  it('AC-7: a day in year 0000 or 0001 answers 200 with no free time, not 500', async () => {
+    for (const date of ['0000-01-01', '0001-01-01', '1999-12-31']) {
+      expect((await get('A1', `?date=${date}`).expect(200)).body).toMatchObject({ date, free: [] });
+    }
+  });
+
+  it('AC-2: a booking that starts before opening and ends after it still cuts the start of the day', async () => {
+    await hold('A1', '21', '07:00', '09:00');
+    await db.venue.updateMany({ data: { opensAt: 480 } });
+    expect((await get('A1', day('21')).expect(200)).body.free).toEqual([range('21', '09:00', '23:00')]);
+  });
+
   it('AC-8: another court does not matter, and a venue closing at 24:00 ends at 00:00 of the next day', async () => {
     await hold('A2', '21', '19:00', '20:00');
     expect((await get('A1', day('21')).expect(200)).body.free).toEqual([range('21', '06:00', '23:00')]);

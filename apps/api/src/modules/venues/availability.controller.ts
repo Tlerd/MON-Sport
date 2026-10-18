@@ -31,6 +31,9 @@ export class AvailabilityController {
     const { opensAt, closesAt } = court.venue;
     const now = this.clock.now();
     const dayStart = startOfDayVN(date).getTime();
+    // A day that is over has no free time (AC-7). Returning here also keeps a year such as 0000 away from the driver,
+    // which cannot write it as a timestamp (review of PR #53, finding 1).
+    if (dayStart + closesAt * MINUTE <= now.getTime()) return { courtId: court.id, date, opensAt, closesAt, free: [] };
     const busy = await this.prisma.booking.findMany({
       where: {
         courtId: court.id,
