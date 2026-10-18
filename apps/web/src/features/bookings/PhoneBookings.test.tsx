@@ -43,6 +43,7 @@ const created = (body: Record<string, unknown> | undefined): Reply => [
   { ...booking('9', '2026-11-20T10:00:00.000Z', '2026-11-20T11:00:00.000Z', 'PHONE', { name: String(body?.customerName ?? ''), phone: (body?.customerPhone as string) ?? null }) },
 ];
 const confirmedList = () => screen.getByRole('region', { name: 'Booking đã xác nhận' });
+const rowOf = (name: string) => within(confirmedList()).getByText(name).closest('li')!;
 
 describe('PhoneBookings', () => {
   beforeEach(() => {
@@ -100,7 +101,7 @@ describe('PhoneBookings', () => {
     expect((screen.getByLabelText('Số điện thoại khách (không bắt buộc)') as HTMLInputElement).value).toBe('0987654321');
   });
 
-  it('AC-18: only the future PHONE booking has "Hủy", the ended one is hidden, and a cancelled row stays as "Đã hủy"', async () => {
+  it('AC-18: every future booking has "Hủy" (F-009 brief: APP too), the ended one is hidden, and a cancelled row stays as "Đã hủy"', async () => {
     const phone = booking('1', '2026-11-20T10:00:00.000Z', '2026-11-20T11:00:00.000Z', 'PHONE', { name: 'Chú Tư', phone: '0987654321' });
     const app = booking('2', '2026-11-20T11:00:00.000Z', '2026-11-20T12:00:00.000Z', 'APP', { name: 'An', phone: '0901234567' });
     const ended = booking('3', '2026-11-20T01:00:00.000Z', '2026-11-20T02:00:00.000Z', 'PHONE', { name: 'Chú Ba', phone: null });
@@ -111,13 +112,14 @@ describe('PhoneBookings', () => {
     expect(within(confirmedList()).queryByText('Chú Ba')).toBeNull();
     expect(within(confirmedList()).getAllByRole('listitem')).toHaveLength(2);
     const cancelButtons = within(confirmedList()).getAllByRole('button', { name: /^Hủy/ });
-    expect(cancelButtons).toHaveLength(1);
-    expect(cancelButtons[0].textContent).toBe('Hủy');
+    expect(cancelButtons).toHaveLength(2);
+    expect(cancelButtons.map((b) => b.textContent)).toEqual(['Hủy', 'Hủy']);
+    expect(within(rowOf('An')).getByRole('button', { name: /^Hủy/ })).toBeTruthy();
     // "Giữ booking" backs out, and focus returns to "Hủy".
     fireEvent.click(cancelButtons[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Giữ booking' }));
     expect(document.activeElement?.textContent).toBe('Hủy');
-    fireEvent.click(screen.getByRole('button', { name: /^Hủy/ }));
+    fireEvent.click(within(rowOf('Chú Tư')).getByRole('button', { name: /^Hủy/ }));
     expect(fetch.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(false);
     const confirm = screen.getByRole('button', { name: /^Xác nhận hủy/ });
     expect(document.activeElement).toBe(confirm);
@@ -128,7 +130,27 @@ describe('PhoneBookings', () => {
     await vi.waitFor(() => expect(document.activeElement?.textContent).toBe('Đã hủy'));
     expect(fetch).toHaveBeenCalledWith(`/api/owner/bookings/${phone.id}/cancel`, expect.objectContaining({ method: 'POST' }));
     expect(within(confirmedList()).getByText('Chú Tư')).toBeTruthy();
-    expect(within(confirmedList()).queryByRole('button', { name: /^Hủy/ })).toBeNull();
+    // Only the APP booking, which was not cancelled, keeps its button.
+    expect(within(confirmedList()).getAllByRole('button', { name: /^Hủy/ })).toHaveLength(1);
+  });
+
+  it('AC-19: the owner cancels the APP booking through the owner route, the row stays as "Đã hủy" and the PHONE row is unchanged', async () => {
+    const phone = booking('1', '2026-11-20T10:00:00.000Z', '2026-11-20T11:00:00.000Z', 'PHONE', { name: 'Chú Tư', phone: '0987654321' });
+    const app = booking('2', '2026-11-20T06:00:00.000Z', '2026-11-20T07:00:00.000Z', 'APP', { name: 'An', phone: '0901234567' });
+    const fetch = stubApi([phone, app], () => [200, { ...app, customer: undefined, status: 'CANCELLED', cancelledAt: '2026-11-20T03:00:00.000Z' }]);
+    render(<PhoneBookings />);
+
+    expect(await within(confirmedList()).findByText('An')).toBeTruthy();
+    expect(within(confirmedList()).getAllByRole('button', { name: /^Hủy/ })).toHaveLength(2);
+    fireEvent.click(within(rowOf('An')).getByRole('button', { name: /^Hủy/ }));
+    expect(fetch.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: /^Xác nhận hủy/ }));
+
+    await vi.waitFor(() => expect(rowOf('An').querySelector('.status')?.textContent).toBe('Đã hủy'));
+    expect(fetch).toHaveBeenCalledWith(`/api/owner/bookings/${app.id}/cancel`, expect.objectContaining({ method: 'POST' }));
+    expect(rowOf('An').getAttribute('data-status')).toBe('CANCELLED');
+    expect(rowOf('Chú Tư').getAttribute('data-status')).toBe('CONFIRMED');
+    expect(within(rowOf('Chú Tư')).getByRole('button', { name: /^Hủy/ })).toBeTruthy();
   });
 
   // Review of PR #41: the button is disabled while the call runs, and a browser drops focus from a disabled button.

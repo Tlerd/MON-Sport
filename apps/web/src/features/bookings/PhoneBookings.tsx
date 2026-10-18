@@ -1,8 +1,9 @@
 import { bookingPrice, type BookingView, minuteOfDayVN, type OwnerBookingView, type VenueView } from '@monsport/shared';
-import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useId, useMemo, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 import { formatDay, formatSlot, formatTime, formatVnd, hhmm } from '../../lib/format.ts';
 import { SlotBar } from './BookingForm.tsx';
+import { CancelAsk, useCancelFlow } from './cancel.tsx';
 import { Customer } from './customer.tsx';
 import { DURATIONS, slotAt as at } from './slot.ts';
 import { STATUS_LABEL } from './status.ts';
@@ -11,7 +12,7 @@ import { STATUS_LABEL } from './status.ts';
 const todayVN = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
 const byStart = (a: OwnerBookingView, b: OwnerBookingView) => a.startAt.localeCompare(b.startAt);
 
-/** Brief F-007 (UC-5): the owner enters the booking of a customer who phoned, and cancels it when the customer calls again. */
+/** Brief F-007 (UC-5): the owner enters the booking of a customer who phoned, and cancels a booking (any source) before it starts (F-009). */
 export function PhoneBookings() {
   const [rows, setRows] = useState<OwnerBookingView[] | null>(null);
   const [error, setError] = useState('');
@@ -150,34 +151,7 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
 
 function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingView[] | null; error: string; onCancelled: (b: BookingView) => void }) {
   const heading = useId();
-  const [asking, setAsking] = useState('');
-  const [failure, setFailure] = useState('');
-  const [busy, setBusy] = useState(false);
-  // Each step of the cancel unmounts the button that was pressed, so focus moves to what replaces it.
-  const [focus, setFocus] = useState('');
-  const list = useRef<HTMLUListElement>(null);
-
-  useEffect(() => {
-    if (!focus) return;
-    list.current?.querySelector<HTMLElement>(`[data-focus="${focus}"]`)?.focus();
-    setFocus('');
-  }, [focus]);
-
-  async function cancel(id: string) {
-    if (busy) return;
-    setFailure('');
-    setBusy(true);
-    try {
-      onCancelled(await api<BookingView>(`/api/owner/bookings/${id}/cancel`, { method: 'POST' }));
-      setAsking('');
-      setFocus(id);
-    } catch (err) {
-      setFailure(err instanceof ApiError ? err.message : 'Không hủy được booking');
-      setFocus(id); // the button was disabled while busy, so focus fell to the page body
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { list, failure, ask } = useCancelFlow(async (id) => onCancelled(await api<BookingView>(`/api/owner/bookings/${id}/cancel`, { method: 'POST' })));
 
   return (
     <section className="panel" aria-labelledby={heading}>
@@ -200,18 +174,7 @@ function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingVie
               </span>
               {r.status !== 'CONFIRMED' ? (
                 <span className="status" tabIndex={-1} data-focus={r.id}>{STATUS_LABEL[r.status]}</span>
-              ) : r.source === 'PHONE' && new Date(r.startAt) > new Date() && (
-                asking === r.id ? (
-                  <span className="actions">
-                    <button type="button" className="secondary" autoFocus data-focus={r.id} disabled={busy} aria-label={`Xác nhận hủy booking ${formatSlot(r.startAt, r.endAt)}`} onClick={() => cancel(r.id)}>Xác nhận hủy</button>
-                    <button type="button" className="keep" onClick={() => { setAsking(''); setFocus(r.id); }}>Giữ booking</button>
-                  </span>
-                ) : (
-                  <span className="actions single">
-                    <button type="button" className="keep" data-focus={r.id} aria-label={`Hủy booking ${formatSlot(r.startAt, r.endAt)}`} onClick={() => setAsking(r.id)}>Hủy</button>
-                  </span>
-                )
-              )}
+              ) : new Date(r.startAt) > new Date() && <CancelAsk id={r.id} label={formatSlot(r.startAt, r.endAt)} ask={ask} />}
             </span>
           </li>
         ))}

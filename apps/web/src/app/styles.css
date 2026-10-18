@@ -153,6 +153,9 @@ h2[tabindex='-1']:focus { outline: none; }
 .ticket .meta { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; }
 .ticket .customer { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.625rem; font-weight: 700; }
 .phone { font-weight: 600; color: var(--court); }
+.ticket .where { font-weight: 700; }
+.ticket .call-owner { display: flex; flex-wrap: wrap; align-items: center; gap: 0 0.75rem; margin-top: 0.125rem; color: var(--muted); font-size: 0.875rem; }
+.ticket .call-owner a { padding: 0.5rem 0; }
 .status {
   justify-self: start; margin-top: 0.125rem; padding: 0.125rem 0.625rem; border-radius: 999px;
   font-size: 0.8125rem; font-weight: 700; background: var(--court-soft); color: var(--court-deep);
