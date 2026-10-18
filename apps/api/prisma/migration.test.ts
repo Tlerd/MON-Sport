@@ -123,3 +123,41 @@ describe('migration f011_matches', () => {
     expect(await sqlState(match(4, 50_000, 1))).toBe('23505');
   });
 });
+
+describe('migration f012_lobby_notify', () => {
+  it('AC-14: notifies the lobby channel with the match id when a Match row is inserted and when joinedCount changes', async () => {
+    const listener = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    await listener.connect();
+    try {
+      const payloads: string[] = [];
+      const bookingId = randomUUID();
+      const matchId = randomUUID();
+      listener.on('notification', (msg) => {
+        if (msg.channel === 'lobby' && msg.payload === matchId) {
+          payloads.push(msg.payload);
+        }
+      });
+      await listener.query('LISTEN lobby');
+
+      await db.query(
+        `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+         VALUES ($1, $2, '2026-11-20T16:00:00+07:00', '2026-11-20T17:00:00+07:00', 'PENDING', 'APP', $3, 80000)`,
+        [bookingId, courtId, userId],
+      );
+      await db.query(
+        `INSERT INTO "Match" (id, "bookingId", "hostId", sport, capacity, "pricePerSlot", status, "joinedCount")
+         VALUES ($1, $2, $3, 'BADMINTON', 4, 50000, 'OPEN', 1)`,
+        [matchId, bookingId, userId],
+      );
+      await db.query(`UPDATE "Match" SET "joinedCount" = 2 WHERE id = $1`, [matchId]);
+
+      const deadline = Date.now() + 2000;
+      while (payloads.length < 2 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(payloads).toEqual([matchId, matchId]);
+    } finally {
+      await listener.end();
+    }
+  });
+});

@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-011 done).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-012 step 1).
 
 ## Current state
 
@@ -32,8 +32,8 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 6. Whether owner data needs its own consent, or the contract with the venue covers it. Until account deletion ships, the admin handles deletion requests by hand. Owner: the user.
 7. Whether to build Google sign-in (F-004, plan in `docs/briefs/F-004-dang-nhap-google.md`). Build it only when the user, in their own message, adds it to the intake or writes "chấp nhận F-004", and has done the console steps of that brief. "tiếp tục" is not acceptance. Agents never close this decision under "Autonomy". Record the date and a quote of that message here. F-004 `link-start` calls `ThrottleService.consumeLogin` with the phone of the signed-in user (brief F-006). Owner: the user.
 8. Whether the limits of BR-30 suit venues where players share one Wi-Fi. Check after the first pilot week. Owner: the user.
-9. Whether a search result preselects the court when only one court matches (brief F-010). Whether a cancel notifies the other side (UC-14 has no cancel event), and whether an owner may cancel after the start (brief F-009). Owner: the user.
+9. Whether a search result preselects the court when only one court matches (brief F-010). Whether a cancel notifies the other side (UC-14 has no cancel event), and whether an owner may cancel after the start (brief F-009). Whether non-host players need the host's phone (brief F-012). Owner: the user.
 
 ## Next step
 
-1. F-012 (join and leave a match, view match details and host phone for active players, and real-time lobby SSE updates: UC-8 steps 3–5, 8.0.E1–E4, BR-15, BR-18, BR-20). Write `docs/briefs/F-012-*.md` with `feature-brief`, get Reviewer approval, open issue, and build.
+1. F-012 (`docs/briefs/F-012-vao-roi-tran-va-phong-cho-tuc-thi.md`, issue #68): Step 1 (contract, `Match_notify_lobby` trigger, ADR 0004, AC-14) is in review; next is Step 2 (`feat/68-2-match-join-leave-sse-api`, AC-1 to AC-10) and Step 3 (`feat/68-3-match-join-leave-screens`, AC-11 to AC-13).
