@@ -44,9 +44,14 @@ describe('my booking contract, brief F-009', () => {
     createdAt: '2026-11-20T08:00:00+07:00',
   };
 
-  it('AC-1: a my booking view adds the court, the venue, and the public venue phone', () => {
-    const mine = { ...view, courtName: 'Sân 1', venueName: 'Cầu lông A', venuePhone: '0911111111' };
+  it('AC-1: a my booking view adds the court, the venue, the public venue phone, the sport, and an optional match summary', () => {
+    const mine = { ...view, courtName: 'Sân 1', venueName: 'Cầu lông A', venuePhone: '0911111111', sport: 'BADMINTON', match: null };
     expect(MyBookingView.parse(mine)).toEqual(mine);
+    const withMatch = {
+      ...mine,
+      match: { id: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5d', status: 'OPEN', capacity: 4, joinedCount: 1, pricePerSlot: 50_000 },
+    };
+    expect(MyBookingView.parse(withMatch)).toEqual(withMatch);
     expect(BookingView.safeParse(view).success).toBe(true);
     expect(MyBookingView.safeParse(view).success).toBe(false);
     expect(MyBookingView.safeParse({ ...mine, venuePhone: '911111111' }).success).toBe(false);

@@ -39,10 +39,19 @@ export function toView(b: Booking): BookingView {
   };
 }
 
-type BookingWithVenue = Prisma.BookingGetPayload<{ include: { court: { include: { venue: true } } } }>;
+type BookingWithVenue = Prisma.BookingGetPayload<{ include: { court: { include: { venue: true } }; match: true } }>;
 
 function toMyView(b: BookingWithVenue): MyBookingView {
-  return { ...toView(b), courtName: b.court.name, venueName: b.court.venue.name, venuePhone: b.court.venue.phone };
+  const match = b.match
+    ? {
+        id: b.match.id,
+        status: b.match.status,
+        capacity: b.match.capacity,
+        joinedCount: b.match.joinedCount,
+        pricePerSlot: b.match.pricePerSlot,
+      }
+    : null;
+  return { ...toView(b), courtName: b.court.name, venueName: b.court.venue.name, venuePhone: b.court.venue.phone, sport: b.court.sport, match };
 }
 
 /**
@@ -232,7 +241,7 @@ export class BookingsService {
   ): Promise<{ count: number; booking: BookingWithVenue }> {
     const found = await this.prisma.booking.findUnique({ where: { id: bookingId }, select: { courtId: true } });
     if (!found) throw new NotFoundException('Không tìm thấy booking');
-    const include = { court: { include: { venue: true } } } as const;
+    const include = { court: { include: { venue: true } }, match: true } as const;
     try {
       return await this.prisma.$transaction(async (tx) => {
         await this.lockVenueOf(tx, found.courtId);
@@ -245,6 +254,12 @@ export class BookingsService {
           where: { id: bookingId, ...condition },
           data: { status: 'CANCELLED', cancelledAt: now },
         });
+        if (result.count > 0) {
+          await tx.match.updateMany({
+            where: { bookingId, status: { in: ['OPEN', 'FULL'] } },
+            data: { status: 'CANCELLED' },
+          });
+        }
         return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include }) };
       });
     } catch (error) {
@@ -253,17 +268,8 @@ export class BookingsService {
     }
   }
 
-  /**
-   * Court.venueId never changes, so it is safe to read before the lock. With an ownerId, a venue that moved to
-   * another owner answers 404 before the court lock (brief F-007, contract step 4).
-   */
-  private async lockVenueOf(tx: Pick<PrismaService, 'court' | 'venue' | '$queryRaw'>, courtId: string, ownerId?: string): Promise<void> {
-    const court = await tx.court.findUnique({ where: { id: courtId }, select: { venueId: true } });
-    if (!court) throw new NotFoundException('Không tìm thấy sân');
-    await tx.$queryRaw`SELECT id FROM "Venue" WHERE id = ${court.venueId}::uuid FOR SHARE`;
-    if (!ownerId) return;
-    const venue = await tx.venue.findUnique({ where: { id: court.venueId }, select: { ownerId: true } });
-    if (venue?.ownerId !== ownerId) throw new NotFoundException('Không tìm thấy sân');
+  private lockVenueOf(tx: Pick<PrismaService, 'court' | 'venue' | '$queryRaw'>, courtId: string, ownerId?: string): Promise<void> {
+    return lockVenueOf(tx, courtId, ownerId);
   }
 
   private async findCourt(db: Pick<PrismaService, 'court'>, courtId: string) {
@@ -272,20 +278,24 @@ export class BookingsService {
     return court;
   }
 
-  /** UC-6 (brief F-009): the history of the user, newest first. Their overdue requests expire first (BR-8). */
+  /** UC-6 (brief F-009 & F-011): the history of the user, newest first. Their overdue requests expire and past matches finish first (BR-8, BR-16, BR-19). */
   async mine(userId: string): Promise<MyBookingView[]> {
-    const expireMine = () => this.expire(this.prisma, Prisma.sql`"createdById" = ${userId}::uuid`, this.clock.now());
+    const syncMine = async () => {
+      const now = this.clock.now();
+      await this.expire(this.prisma, Prisma.sql`"createdById" = ${userId}::uuid`, now);
+      await finishPastMatches(this.prisma, Prisma.sql`b."createdById" = ${userId}::uuid`, now);
+    };
     // The rare cycle named on expire ends this statement alone, and the statement is safe to run twice (brief F-009, AC-14).
     // A second 40P01 answers 409, as in the cancel routes.
-    await expireMine().catch((error: unknown) => {
+    await syncMine().catch((error: unknown) => {
       if (!isDeadlock(error)) throw error;
-      return expireMine().catch((again: unknown) => {
+      return syncMine().catch((again: unknown) => {
         throw isDeadlock(again) ? new ConflictException(BUSY) : again;
       });
     });
     const rows = await this.prisma.booking.findMany({
       where: { createdById: userId },
-      include: { court: { include: { venue: true } } },
+      include: { court: { include: { venue: true } }, match: true },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
     return rows.map(toMyView);
@@ -328,6 +338,12 @@ export class BookingsService {
           where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
           data: decision === 'CONFIRMED' ? { status: 'CONFIRMED', confirmedAt: now } : { status: 'REJECTED' },
         });
+        if (result.count > 0 && decision === 'REJECTED') {
+          await tx.match.updateMany({
+            where: { bookingId, status: { in: ['OPEN', 'FULL'] } },
+            data: { status: 'CANCELLED' },
+          });
+        }
         return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } }) };
       });
     } catch (error) {
@@ -341,15 +357,58 @@ export class BookingsService {
     return toView(outcome.booking);
   }
 
-  // BR-8: a request past its deadline becomes EXPIRED. The conditional update is safe to run twice.
-  // The rows are locked in id order first. The owner list and an insert expire the same rows, and two updates
-  // that lock them in different orders can end one with 40P01 (review of PR #40, finding 3). A rare case stays:
-  // an insert that read an earlier now can wait in the EXCLUDE check on a row that the list expires (PR #45, finding 1).
-  private async expire(db: Pick<PrismaService, '$executeRaw'>, scope: Prisma.Sql, now: Date): Promise<void> {
-    await db.$executeRaw`
-      UPDATE "Booking" SET status = 'EXPIRED' WHERE id IN (
+  // BR-8 & BR-16: a request past its deadline becomes EXPIRED, and its open/full match becomes CANCELLED.
+  private expire(db: Pick<PrismaService, '$executeRaw'>, scope: Prisma.Sql, now: Date): Promise<void> {
+    return expireBookings(db, scope, now);
+  }
+}
+
+/**
+ * Court.venueId never changes, so it is safe to read before the lock. With an ownerId, a venue that moved to
+ * another owner answers 404 before the court lock (brief F-007, contract step 4).
+ */
+export async function lockVenueOf(tx: Pick<PrismaService, 'court' | 'venue' | '$queryRaw'>, courtId: string, ownerId?: string): Promise<void> {
+  const court = await tx.court.findUnique({ where: { id: courtId }, select: { venueId: true } });
+  if (!court) throw new NotFoundException('Không tìm thấy sân');
+  await tx.$queryRaw`SELECT id FROM "Venue" WHERE id = ${court.venueId}::uuid FOR SHARE`;
+  if (!ownerId) return;
+  const venue = await tx.venue.findUnique({ where: { id: court.venueId }, select: { ownerId: true } });
+  if (venue?.ownerId !== ownerId) throw new NotFoundException('Không tìm thấy sân');
+}
+
+/**
+ * BR-8 & BR-16: a request past its deadline becomes EXPIRED, and any OPEN or FULL match on it becomes CANCELLED.
+ * The CTE locks Booking rows in id order first, then Match rows in id order, preserving Booking -> Match lock order.
+ */
+export async function expireBookings(db: Pick<PrismaService, '$executeRaw'>, scope: Prisma.Sql, now: Date): Promise<void> {
+  await db.$executeRaw`
+    WITH expired AS (
+      UPDATE "Booking" SET status = 'EXPIRED'
+      WHERE id IN (
         SELECT id FROM "Booking" WHERE ${scope} AND status = 'PENDING' AND "confirmDeadline" < ${now}
         ORDER BY id FOR UPDATE
-      )`;
-  }
+      )
+      RETURNING id
+    )
+    UPDATE "Match" SET status = 'CANCELLED'
+    WHERE id IN (
+      SELECT m.id FROM "Match" m
+      WHERE m."bookingId" IN (SELECT id FROM expired) AND m.status IN ('OPEN', 'FULL')
+      ORDER BY m.id FOR UPDATE
+    )`;
+}
+
+/**
+ * BR-19 (models.md Fig 6): an OPEN or FULL match whose CONFIRMED booking has ended (endAt <= now) becomes FINISHED.
+ * Run after expireBookings so an overdue PENDING booking cancels its match instead of finishing it.
+ */
+export async function finishPastMatches(db: Pick<PrismaService, '$executeRaw'>, scope: Prisma.Sql, now: Date): Promise<void> {
+  await db.$executeRaw`
+    UPDATE "Match" SET status = 'FINISHED'
+    WHERE id IN (
+      SELECT m.id FROM "Match" m
+      JOIN "Booking" b ON b.id = m."bookingId"
+      WHERE ${scope} AND b.status = 'CONFIRMED' AND b."endAt" <= ${now} AND m.status IN ('OPEN', 'FULL')
+      ORDER BY m.id FOR UPDATE
+    )`;
 }
