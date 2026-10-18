@@ -64,7 +64,8 @@ describe('MyBookings', () => {
     render(<MyBookings />);
     await screen.findAllByText('Cầu lông A · Sân 1');
 
-    // The pending row is not cancellable by this test; the confirmed row with 7 hours left is.
+    // The pending row (BR-12) and the confirmed row with 7 hours left (BR-11) both have "Hủy". This test uses the second.
+    expect(within(rowOf('12:00')).getByRole('button', { name: /^Hủy/ })).toBeTruthy();
     fireEvent.click(within(rowOf('17:00')).getByRole('button', { name: /^Hủy/ }));
     expect(screen.getByRole('button', { name: /^Xác nhận hủy/ })).toBeTruthy();
     expect(fetch.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(false);
@@ -111,5 +112,6 @@ describe('MyBookings', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Booking này không hủy được nữa');
     await vi.waitFor(() => expect(screen.getByRole('listitem').getAttribute('data-status')).toBe('CANCELLED'));
     expect(fetch.mock.calls.filter(([url, i]) => url === '/api/bookings/mine' && !i?.method)).toHaveLength(2);
+    await vi.waitFor(() => expect(document.activeElement?.textContent).toBe('Đã hủy'));
   });
 });

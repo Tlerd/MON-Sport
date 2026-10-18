@@ -17,7 +17,7 @@ export function MyBookings({ refresh = 0 }: { refresh?: number }) {
   const { list, failure, ask } = useCancelFlow(async (id) => {
     const done = await api<MyBookingView>(`/api/bookings/${id}/cancel`, { method: 'POST' });
     setRows((all) => all?.map((r) => (r.id === done.id ? done : r)) ?? null);
-  }, () => void load());
+  }, load);
 
   if (!rows) return null;
   const now = new Date();
