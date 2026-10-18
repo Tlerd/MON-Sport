@@ -48,21 +48,25 @@ export function FinancialDashboard() {
 
   // Fetch financial metrics whenever venue, period, or date changes
   useEffect(() => {
-    if (!selectedVenueId) return;
+    if (!selectedVenueId || !date) return;
+    let active = true;
     setLoading(true);
     setError('');
     api<FinancialDashboardView>(
       `/api/owner/venues/${selectedVenueId}/financials?period=${period}&date=${date}`,
     )
       .then((res) => {
-        setData(res);
+        if (active) setData(res);
       })
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : 'Không tải được báo cáo tài chính');
+        if (active) setError(err instanceof ApiError ? err.message : 'Không tải được báo cáo tài chính');
       })
       .finally(() => {
-        setLoading(false);
+        if (active) setLoading(false);
       });
+    return () => {
+      active = false;
+    };
   }, [selectedVenueId, period, date]);
 
   return (
@@ -112,7 +116,7 @@ export function FinancialDashboard() {
                 id="financial-date"
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => setDate(e.target.value || todayVN())}
               />
             </div>
           </div>

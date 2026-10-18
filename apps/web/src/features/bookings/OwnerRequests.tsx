@@ -9,6 +9,7 @@ import { STATUS_LABEL } from './status.ts';
 export function OwnerRequests() {
   const [rows, setRows] = useState<OwnerBookingView[] | null>(null);
   const [error, setError] = useState('');
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     api<OwnerBookingView[]>('/api/owner/bookings').then(setRows, () => setError('Không tải được danh sách yêu cầu'));
@@ -25,6 +26,8 @@ export function OwnerRequests() {
   }
 
   async function togglePaid(id: string, paidAtVenue: boolean) {
+    if (togglingIds.has(id)) return;
+    setTogglingIds((prev) => new Set(prev).add(id));
     setError('');
     try {
       const updated = await api<PaidAtVenueResponse>(`/api/owner/bookings/${id}/paid`, {
@@ -34,6 +37,12 @@ export function OwnerRequests() {
       setRows((list) => list?.map((r) => (r.id === id ? { ...r, paidAtVenue: updated.paidAtVenue } : r)) ?? null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không cập nhật được trạng thái thu tiền');
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -73,6 +82,7 @@ export function OwnerRequests() {
                       <button
                         type="button"
                         className={`btn-toggle-paid ${r.paidAtVenue ? 'secondary' : ''}`}
+                        disabled={togglingIds.has(r.id)}
                         onClick={() => togglePaid(r.id, !r.paidAtVenue)}
                       >
                         {r.paidAtVenue ? 'Đánh dấu chưa thu' : 'Đã thu tiền'}
