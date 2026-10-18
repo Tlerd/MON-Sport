@@ -24,6 +24,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.query('DELETE FROM "Notification" WHERE "userId" = $1', [userId]);
   await db.query('DELETE FROM "MatchPlayer" WHERE "userId" = $1', [userId]);
   await db.query('DELETE FROM "Match" WHERE "hostId" = $1', [userId]);
   await db.query('DELETE FROM "Booking" WHERE "courtId" = $1', [courtId]);
@@ -159,5 +160,38 @@ describe('migration f012_lobby_notify', () => {
     } finally {
       await listener.end();
     }
+  });
+});
+
+describe('migration f013_notifications', () => {
+  it('enforces foreign keys on userId, bookingId, matchId and accepts valid rows', async () => {
+    const bookingId = randomUUID();
+    const matchId = randomUUID();
+    await db.query(
+      `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+       VALUES ($1, $2, '2026-11-20T17:00:00+07:00', '2026-11-20T18:00:00+07:00', 'PENDING', 'APP', $3, 80000)`,
+      [bookingId, courtId, userId],
+    );
+    await db.query(
+      `INSERT INTO "Match" (id, "bookingId", "hostId", sport, capacity, "pricePerSlot", status, "joinedCount")
+       VALUES ($1, $2, $3, 'BADMINTON', 4, 50000, 'OPEN', 1)`,
+      [matchId, bookingId, userId],
+    );
+
+    const notif = (uId: string, bId: string, mId: string | null = null, type = 'BOOKING_REQUESTED') =>
+      db.query(
+        `INSERT INTO "Notification" (id, "userId", type, "bookingId", "matchId")
+         VALUES ($1, $2, $3, $4, $5)`,
+        [randomUUID(), uId, type, bId, mId],
+      );
+
+    expect(await sqlState(notif(randomUUID(), bookingId))).toBe('23503');
+    expect(await sqlState(notif(userId, randomUUID()))).toBe('23503');
+    expect(await sqlState(notif(userId, bookingId, randomUUID()))).toBe('23503');
+
+    expect(await sqlState(notif(userId, bookingId, null, 'BOOKING_REQUESTED'))).toBe('ok');
+    expect(await sqlState(notif(userId, bookingId, matchId, 'MATCH_CANCELLED'))).toBe('ok');
+
+    await db.query('DELETE FROM "Notification" WHERE "userId" = $1', [userId]);
   });
 });
