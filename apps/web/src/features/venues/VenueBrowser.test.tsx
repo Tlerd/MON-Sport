@@ -165,6 +165,7 @@ describe('VenueBrowser search by court name', () => {
     expect(buttons.map((b) => b.textContent)).toEqual([expect.stringContaining('Cầu lông A'), expect.stringContaining('Cầu lông B')]);
     expect(buttons[0].textContent).toContain('Sân 1');
     expect(results().queryByText(/Bóng đá C/)).toBeNull();
+    expect(screen.getByText('Có 2 đơn vị có sân khớp.').closest('[role="status"]')).toBeTruthy();
   });
 
   it('AC-2: "san 1" and "SÂN 1" give the same list, and "san dong" finds Bóng đá C with Sân Đông', async () => {
@@ -200,6 +201,11 @@ describe('VenueBrowser search by court name', () => {
     const note = screen.getByText('Không có sân nào tên như vậy');
     expect(note.closest('[role="status"]')).toBeTruthy();
     expect(screen.queryByRole('list', { name: 'Kết quả tìm sân' })).toBeNull();
+  });
+
+  it('AC-5: a query of only a combining mark counts as empty, and shows no sentence', async () => {
+    type(await open(), '́');
+    expect(screen.queryByText('Không có sân nào tên như vậy')).toBeNull();
   });
 
   it('AC-5: clearing the box, and spaces only, show no result and no sentence', async () => {

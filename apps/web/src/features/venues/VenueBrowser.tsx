@@ -2,7 +2,7 @@ import { type Availability, startOfDayVN, type VenueView } from '@monsport/share
 import { useEffect, useId, useRef, useState } from 'react';
 import { api } from '../../lib/api.ts';
 import { hhmm } from '../../lib/format.ts';
-import { findVenues } from './search.ts';
+import { findVenues, normalizeName } from './search.ts';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
 
@@ -51,7 +51,7 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
   }, [courtId, date]);
 
   const found = findVenues(venues, query);
-  const searching = query.trim() !== '';
+  const searching = normalizeName(query) !== '';
   const venue = venues.find((v) => v.id === venueId);
 
   /** Brief F-010: the reset of the venue select, then focus on the court select. The date stays. */
@@ -75,21 +75,22 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
           Tìm theo tên sân
           <input type="text" inputMode="search" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
         </label>
-      {found.length > 0 && (
-        <ul className="search-results" aria-label="Kết quả tìm sân">
-          {found.map(({ venue: v, courts }) => (
-            <li key={v.id}>
-              <button type="button" onClick={() => openVenue(v.id)}>
-                <strong>{v.name}</strong>
-                <span>{courts.map((c) => c.name).join(', ')}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div role="status" className="live">
-        {searching && found.length === 0 && <p className="empty">Không có sân nào tên như vậy</p>}
-      </div>
+        {found.length > 0 && (
+          <ul className="search-results" aria-label="Kết quả tìm sân">
+            {found.map(({ venue: v, courts }) => (
+              <li key={v.id}>
+                <button type="button" onClick={() => openVenue(v.id)}>
+                  <strong>{v.name}</strong>
+                  <span>{courts.map((c) => c.name).join(', ')}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div role="status" className="live">
+          {searching && found.length === 0 && <p className="empty">Không có sân nào tên như vậy</p>}
+          {found.length > 0 && <p className="hint">Có {found.length} đơn vị có sân khớp.</p>}
+        </div>
       </div>
       <div className="stack">
         <label>
