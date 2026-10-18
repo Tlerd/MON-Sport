@@ -1,13 +1,30 @@
-import { CALL_OWNER_MESSAGE, type MyBookingView, userCancelDecision } from '@monsport/shared';
-import { useCallback, useEffect, useState } from 'react';
-import { api } from '../../lib/api.ts';
+import { CALL_OWNER_MESSAGE, type MatchStatus, type MatchView, type MyBookingView, userCancelDecision } from '@monsport/shared';
+import { type FormEvent, useCallback, useEffect, useState } from 'react';
+import { ApiError, api } from '../../lib/api.ts';
 import { formatDay, formatSlot, formatTime, formatVnd } from '../../lib/format.ts';
 import { CancelAsk, useCancelFlow } from './cancel.tsx';
 import { STATUS_LABEL } from './status.ts';
 
-/** UC-6 (brief F-009): the bookings of the signed-in user, newest first. The user cancels while the rule allows it, or calls the owner. */
-export function MyBookings({ refresh = 0 }: { refresh?: number }) {
+const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
+  OPEN: 'Trận đang mở',
+  FULL: 'Trận đã đủ người',
+  CANCELLED: 'Trận đã hủy',
+  FINISHED: 'Trận đã kết thúc',
+};
+
+/**
+ * UC-6, UC-7, UC-9 (brief F-009 & F-011): the bookings of the signed-in user, newest first.
+ * The user can open a match on a future PENDING/CONFIRMED booking, cancel an open/full match, or cancel a booking without a match.
+ */
+export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; onMatchChanged?: () => void }) {
   const [rows, setRows] = useState<MyBookingView[] | null>(null);
+  const [openingId, setOpeningId] = useState('');
+  const [capacity, setCapacity] = useState('4');
+  const [pricePerSlot, setPricePerSlot] = useState('50000');
+  const [cancelMatchId, setCancelMatchId] = useState('');
+  const [matchBusy, setMatchBusy] = useState(false);
+  const [matchError, setMatchError] = useState('');
+
   const load = useCallback(() => api<MyBookingView[]>('/api/bookings/mine').then(setRows, () => setRows((list) => list ?? [])), []);
   useEffect(() => {
     void load();
@@ -17,20 +34,102 @@ export function MyBookings({ refresh = 0 }: { refresh?: number }) {
   const { list, failure, ask } = useCancelFlow(async (id) => {
     const done = await api<MyBookingView>(`/api/bookings/${id}/cancel`, { method: 'POST' });
     setRows((all) => all?.map((r) => (r.id === done.id ? done : r)) ?? null);
+    onMatchChanged?.();
   }, load);
+
+  function startOpenMatch(bookingId: string) {
+    setMatchError('');
+    setCancelMatchId('');
+    setOpeningId(bookingId);
+    setCapacity('4');
+    setPricePerSlot('50000');
+  }
+
+  async function submitMatch(e: FormEvent, bookingId: string) {
+    e.preventDefault();
+    if (matchBusy) return;
+    setMatchError('');
+    setMatchBusy(true);
+    try {
+      const created = await api<MatchView>('/api/matches', {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId,
+          capacity: Number(capacity),
+          pricePerSlot: Number(pricePerSlot),
+        }),
+      });
+      setRows((all) =>
+        all?.map((r) =>
+          r.id === bookingId
+            ? {
+                ...r,
+                match: {
+                  id: created.id,
+                  status: created.status,
+                  capacity: created.capacity,
+                  joinedCount: created.joinedCount,
+                  pricePerSlot: created.pricePerSlot,
+                },
+              }
+            : r,
+        ) ?? null,
+      );
+      setOpeningId('');
+      onMatchChanged?.();
+    } catch (err) {
+      setMatchError(err instanceof ApiError ? err.message : 'Không mở được trận');
+      await load();
+    } finally {
+      setMatchBusy(false);
+    }
+  }
+
+  async function confirmCancelMatch(bookingId: string, matchId: string) {
+    if (matchBusy) return;
+    setMatchError('');
+    setMatchBusy(true);
+    try {
+      const done = await api<MatchView>(`/api/matches/${matchId}/cancel`, { method: 'POST' });
+      setRows((all) =>
+        all?.map((r) =>
+          r.id === bookingId
+            ? {
+                ...r,
+                status: 'CANCELLED',
+                match: r.match ? { ...r.match, status: done.status } : null,
+              }
+            : r,
+        ) ?? null,
+      );
+      setCancelMatchId('');
+      onMatchChanged?.();
+    } catch (err) {
+      setMatchError(err instanceof ApiError ? err.message : 'Không hủy được trận');
+      setCancelMatchId('');
+      await load();
+    } finally {
+      setMatchBusy(false);
+    }
+  }
 
   if (!rows) return null;
   const now = new Date();
+  const alertText = failure || matchError;
   return (
     <section className="panel">
       <h2>Booking của tôi</h2>
-      {failure && <p className="error" role="alert">{failure}</p>}
+      {alertText && <p className="error" role="alert">{alertText}</p>}
       {rows.length === 0 ? (
         <p className="empty">Bạn chưa có booking nào. Chọn đơn vị ở trên để đặt sân.</p>
       ) : (
         <ul className="tickets" ref={list}>
           {rows.map((b) => {
-            const decision = userCancelDecision({ status: b.status, startAt: new Date(b.startAt) }, now);
+            const startAt = new Date(b.startAt);
+            const decision = userCancelDecision({ status: b.status, startAt }, now);
+            const activeMatch = b.match && (b.match.status === 'OPEN' || b.match.status === 'FULL') ? b.match : null;
+            const canOpenMatch = !b.match && (b.status === 'PENDING' || b.status === 'CONFIRMED') && startAt.getTime() > now.getTime();
+            const label = `${b.venueName} · ${b.courtName}, ${formatSlot(b.startAt, b.endAt)}`;
             return (
               <li key={b.id} className="ticket" data-status={b.status}>
                 <span className="stub">
@@ -42,7 +141,62 @@ export function MyBookings({ refresh = 0 }: { refresh?: number }) {
                   <span>Ngày {formatDay(b.startAt)}</span>
                   <span className="money">{formatVnd(b.priceTotal)}</span>
                   <span className="status" {...(decision !== 'ALLOW' && { tabIndex: -1, 'data-focus': b.id })}>{STATUS_LABEL[b.status]}</span>
-                  {decision === 'ALLOW' && <CancelAsk id={b.id} label={`${b.venueName} · ${b.courtName}, ${formatSlot(b.startAt, b.endAt)}`} ask={ask} />}
+                  {b.match && (
+                    <span className="match-summary">
+                      {`${MATCH_STATUS_LABEL[b.match.status]} · ${b.match.joinedCount}/${b.match.capacity} suất · ${formatVnd(b.match.pricePerSlot)}/suất`}
+                    </span>
+                  )}
+                  {canOpenMatch && openingId !== b.id && (
+                    <span className="actions single">
+                      <button type="button" className="keep" aria-label={`Mở trận ${label}`} onClick={() => startOpenMatch(b.id)}>
+                        Mở trận
+                      </button>
+                    </span>
+                  )}
+                  {canOpenMatch && openingId === b.id && (
+                    <form className="match-form stack" onSubmit={(e) => void submitMatch(e, b.id)}>
+                      <div className="row two">
+                        <label>
+                          Số suất
+                          <input type="number" min={2} max={30} required value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+                        </label>
+                        <label>
+                          Giá mỗi suất (đ)
+                          <input type="number" min={0} max={10_000_000} required value={pricePerSlot} onChange={(e) => setPricePerSlot(e.target.value)} />
+                        </label>
+                      </div>
+                      <span className="actions">
+                        <button type="submit" disabled={matchBusy}>Tạo trận</button>
+                        <button type="button" className="keep" onClick={() => setOpeningId('')}>Đóng</button>
+                      </span>
+                    </form>
+                  )}
+                  {activeMatch && decision === 'ALLOW' && (
+                    cancelMatchId === activeMatch.id ? (
+                      <span className="actions">
+                        <button
+                          type="button"
+                          className="secondary"
+                          autoFocus
+                          disabled={matchBusy}
+                          aria-label={`Xác nhận hủy trận ${label}`}
+                          onClick={() => void confirmCancelMatch(b.id, activeMatch.id)}
+                        >
+                          Xác nhận hủy trận
+                        </button>
+                        <button type="button" className="keep" onClick={() => setCancelMatchId('')}>
+                          Giữ trận
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="actions single">
+                        <button type="button" className="keep" aria-label={`Hủy trận ${label}`} onClick={() => setCancelMatchId(activeMatch.id)}>
+                          Hủy trận
+                        </button>
+                      </span>
+                    )
+                  )}
+                  {!activeMatch && decision === 'ALLOW' && <CancelAsk id={b.id} label={label} ask={ask} />}
                   {decision === 'CALL_OWNER' && (
                     <span className="call-owner">
                       <span>{CALL_OWNER_MESSAGE}</span>

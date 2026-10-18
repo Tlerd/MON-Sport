@@ -114,4 +114,66 @@ describe('MyBookings', () => {
     expect(fetch.mock.calls.filter(([url, i]) => url === '/api/bookings/mine' && !i?.method)).toHaveLength(2);
     await vi.waitFor(() => expect(document.activeElement?.textContent).toBe('Đã hủy'));
   });
+
+  it('AC-15 (F-011): opens a match on a booking without a match, and cancels an OPEN match on a confirmed booking', async () => {
+    const first = row(1, 'PENDING', '2026-11-20T05:00:00.000Z', '2026-11-20T06:00:00.000Z', { sport: 'BADMINTON', match: null });
+    const matchId = '0199a1b2-0000-7000-8000-000000000302';
+    const second = row(2, 'CONFIRMED', '2026-11-20T11:00:00.000Z', '2026-11-20T12:00:00.000Z', {
+      sport: 'BADMINTON',
+      match: { id: matchId, status: 'OPEN', capacity: 4, joinedCount: 1, pricePerSlot: 50_000 },
+    });
+    const fetch = stubApi([[first, second]], (url) => {
+      if (url === '/api/matches') {
+        return [
+          201,
+          {
+            id: '0199a1b2-0000-7000-8000-000000000301',
+            bookingId: first.id,
+            hostId: '0199a1b2-0000-7000-8000-000000000101',
+            hostName: 'An',
+            sport: 'BADMINTON',
+            capacity: 4,
+            joinedCount: 1,
+            pricePerSlot: 50_000,
+            status: 'OPEN',
+            bookingStatus: 'PENDING',
+            startAt: first.startAt,
+            endAt: first.endAt,
+            courtName: 'Sân 1',
+            venueName: 'Cầu lông A',
+            venueAddress: '10 Nguyễn Huệ',
+            createdAt: '2026-11-20T03:00:00.000Z',
+          },
+        ];
+      }
+      return [200, { id: matchId, status: 'CANCELLED', bookingStatus: 'CANCELLED' }];
+    });
+
+    render(<MyBookings />);
+    await screen.findAllByText('Cầu lông A · Sân 1');
+
+    const firstItem = rowOf('12:00');
+    fireEvent.click(within(firstItem).getByRole('button', { name: /^Mở trận/ }));
+    fireEvent.change(within(firstItem).getByLabelText(/^Số suất/), { target: { value: '4' } });
+    fireEvent.change(within(firstItem).getByLabelText(/^Giá mỗi suất/), { target: { value: '50000' } });
+    fireEvent.click(within(firstItem).getByRole('button', { name: 'Tạo trận' }));
+
+    await vi.waitFor(() => expect(within(firstItem).getByText('Trận đang mở · 1/4 suất · 50.000đ/suất')).toBeTruthy());
+    expect(within(firstItem).getByRole('button', { name: /^Hủy trận/ })).toBeTruthy();
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/matches',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ bookingId: first.id, capacity: 4, pricePerSlot: 50_000 }),
+      }),
+    );
+
+    const secondItem = rowOf('18:00');
+    fireEvent.click(within(secondItem).getByRole('button', { name: /^Hủy trận/ }));
+    fireEvent.click(within(secondItem).getByRole('button', { name: /^Xác nhận hủy trận/ }));
+
+    await vi.waitFor(() => expect(secondItem.querySelector('.status')?.textContent).toBe('Đã hủy'));
+    expect(within(secondItem).getByText('Trận đã hủy · 1/4 suất · 50.000đ/suất')).toBeTruthy();
+    expect(fetch).toHaveBeenCalledWith(`/api/matches/${matchId}/cancel`, expect.objectContaining({ method: 'POST' }));
+  });
 });
