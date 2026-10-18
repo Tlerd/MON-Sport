@@ -11,6 +11,7 @@ import {
   minuteOfDayVN,
   type MyBookingView,
   type OwnerBookingView,
+  USER_CANCEL_WINDOW_MS,
   userCancelDecision,
 } from '@monsport/shared';
 import { type Booking, Prisma } from '../../generated/prisma/client.js';
@@ -20,7 +21,6 @@ import { isDeadlock, isExclusionViolation, PrismaService } from '../database/pri
 const TAKEN = 'Khung giờ này vừa có người đặt';
 const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại'; // 40P01 is a 409, not a 500
 const NOT_CANCELLABLE = 'Booking này không hủy được nữa';
-const CALL_OWNER_WINDOW = 6 * 60 * 60_000; // BR-11: the same 6 hours as userCancelDecision
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 export function toView(b: Booking): BookingView {
@@ -210,7 +210,7 @@ export class BookingsService {
         createdById: userId,
         source: 'APP',
         startAt: { gt: now },
-        OR: [{ status: 'PENDING' }, { status: 'CONFIRMED', startAt: { gte: new Date(now.getTime() + CALL_OWNER_WINDOW) } }],
+        OR: [{ status: 'PENDING' }, { status: 'CONFIRMED', startAt: { gte: new Date(now.getTime() + USER_CANCEL_WINDOW_MS) } }],
       },
     );
     if (count === 0) {

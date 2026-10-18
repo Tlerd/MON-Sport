@@ -213,6 +213,12 @@ describe('with the database', () => {
       expect(await rows()).toEqual(before.map((r) => (r.id === overdue ? { ...r, status: 'EXPIRED' } : r)));
     });
 
+    it('AC-9: Bình cannot expire an overdue request of Dũng by trying to cancel it', async () => {
+      const strangers = await book('An', 'B1', '12:00', '13:00', 'PENDING', { confirmDeadline: '09:30' });
+      expect((await ownerCancel('Bình', strangers).expect(404)).body.message).toBe(NOT_FOUND);
+      expect((await row(strangers)).status).toBe('PENDING');
+    });
+
     it('AC-9: Bình cancels a phone booking of the same rule, and the slot is free again', async () => {
       const id = (await enter('17:00', '18:00').expect(201)).body.id as string;
       await ownerCancel('Bình', id).expect(200);
@@ -232,7 +238,9 @@ describe('with the database', () => {
       const res = await mine('An').expect(200);
       expect(res.body.map((b: { id: string }) => b.id)).toEqual([rejected, confirmed, overdue, cancelled]);
       expect(res.body.map((b: { status: string }) => b.status)).toEqual(['REJECTED', 'CONFIRMED', 'EXPIRED', 'CANCELLED']);
-      expect(res.body[0]).toMatchObject({ courtName: 'Sân 2', venueName: 'Cầu lông A', venuePhone: '0911111111' });
+      for (const b of res.body) expect(b).toMatchObject({ venueName: 'Cầu lông A', venuePhone: '0911111111' });
+      for (const b of res.body) expect(b).toHaveProperty('cancelledAt');
+      expect(res.body.map((b: { courtName: string }) => b.courtName)).toEqual(['Sân 2', 'Sân 1', 'Sân 1', 'Sân 1']);
       expect(res.body[3]).toHaveProperty('cancelledAt', new Date(vn('08:30')).toISOString());
       expect((await row(overdue)).status).toBe('EXPIRED');
 

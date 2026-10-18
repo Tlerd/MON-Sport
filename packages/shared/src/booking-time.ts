@@ -40,6 +40,9 @@ export function confirmDeadline(requestedAt: Date, startAt: Date): Date {
   return new Date(Math.min(requestedAt.getTime() + 2 * HOUR, startAt.getTime() - HOUR));
 }
 
+/** BR-11: a user cancels a confirmed booking with this much time or more left. The server and the web share it. */
+export const USER_CANCEL_WINDOW_MS = 6 * HOUR;
+
 /**
  * Brief F-009: what a user may do to their own booking. A pending request is cancelled until it starts (BR-12).
  * A confirmed booking is cancelled with 6 hours or more left (BR-11), and later the user calls the owner.
@@ -49,5 +52,5 @@ export function userCancelDecision(booking: { status: BookingStatus; startAt: Da
   if (untilStart <= 0) return 'NONE';
   if (booking.status === 'PENDING') return 'ALLOW';
   if (booking.status !== 'CONFIRMED') return 'NONE';
-  return untilStart >= 6 * HOUR ? 'ALLOW' : 'CALL_OWNER';
+  return untilStart >= USER_CANCEL_WINDOW_MS ? 'ALLOW' : 'CALL_OWNER';
 }
