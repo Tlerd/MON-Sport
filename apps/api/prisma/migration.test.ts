@@ -195,3 +195,13 @@ describe('migration f013_notifications', () => {
     await db.query('DELETE FROM "Notification" WHERE "userId" = $1', [userId]);
   });
 });
+
+describe('migration f015_financial_index', () => {
+  it('creates the composite index Booking_courtId_startAt_idx on Booking(courtId, startAt)', async () => {
+    const res = await db.query(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'Booking' AND indexname = 'Booking_courtId_startAt_idx'`,
+    );
+    expect(res.rows.length).toBe(1);
+    expect(res.rows[0].indexname).toBe('Booking_courtId_startAt_idx');
+  });
+});

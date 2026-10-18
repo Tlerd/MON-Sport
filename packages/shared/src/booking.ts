@@ -115,6 +115,7 @@ export type MyBookingView = z.infer<typeof MyBookingView>;
 export const CALL_OWNER_MESSAGE = 'Còn dưới 6 giờ nữa tới giờ bắt đầu. Hãy gọi chủ sân';
 
 export const OwnerBookingView = BookingView.extend({
+  paidAtVenue: z.boolean().default(false),
   customer: z.object({ name: z.string(), phone: Phone.nullable() }),
 });
 export type OwnerBookingView = z.infer<typeof OwnerBookingView>;
