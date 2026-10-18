@@ -29,6 +29,7 @@ Người dùng, kể cả người chưa đăng nhập, chọn một sân và m�
 |---|---|
 | Mỗi khoảng trống có một nút "Gọi chủ sân", không phải mỗi giờ một nút | Intake viết "Mỗi giờ còn trống có nút Gọi chủ sân". Một khoảng 20:00–23:00 gồm ba giờ trống, và cả ba cùng một số điện thoại. Một nút cho mỗi khoảng giữ màn hình gọn. Ví dụ UC-2 của intake vẫn đúng: 20:00–21:00 nằm trong một khoảng có nút. Người dùng sửa sau nếu muốn khác |
 | Không giới hạn số ngày xem trước | Intake không có quy tắc này |
+| `USER` chọn đơn vị và sân hai lần: một lần ở mục giờ trống, một lần ở form "Đặt sân" | Gộp hai form nằm ngoài slice này (xem Non-goals) |
 
 ## Acceptance criteria
 
@@ -48,10 +49,10 @@ Giờ trong cột "Then" là giờ `Asia/Ho_Chi_Minh`. Response trả `startAt` 
 | AC-8 | Sân 2 "Cầu lông A" có booking "Đã xác nhận" 19:00–20:00 ngày 21/11 | Gọi availability của Sân 1 "Cầu lông A" và của Sân 1 "Cầu lông B" cho ngày 2026-11-21 | Sân 1 "Cầu lông A": một khoảng 06:00–23:00. Sân 1 "Cầu lông B": một khoảng 08:00–24:00, `opensAt` = 480, `closesAt` = 1440, `endAt` `2026-11-21T17:00:00.000Z` |
 | AC-9 | Không có điều kiện đặc biệt | Gọi availability với `courtId` không có trong DB. Rồi gọi với `:id` = `abc`. Rồi với ngày `2026-13-45`, `21-11-2026`, thiếu `date`, và thêm khóa `x=1` | Sân không có: 404 "Không tìm thấy sân". `abc` và mọi query sai: 400 "Dữ liệu không hợp lệ" |
 | AC-10 | Sân 1 có booking "Đã xác nhận" nhập cho khách "Chú Tư" `0987654321` | Gọi availability không có cookie | Body không có `customer`, `createdById`, `status`, `priceTotal` hay số điện thoại của khách. Server đọc từ DB chỉ `startAt` và `endAt` của booking |
-| AC-11 | Người chưa đăng nhập mở app. `GET /api/venues` trả "Cầu lông A" (`0912345678`) với "Sân 1" và "Sân 2". API availability của ngày 20/11/2026 trả hai khoảng: 10:30–19:00 và 20:00–23:00 | Người dùng chọn "Cầu lông A", "Sân 1", ngày 20/11/2026 | Trang hiện thông báo "App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt." Web gọi `GET /api/courts/<Sân 1>/availability?date=2026-11-20`. Danh sách có hai mục "10:30–19:00" và "20:00–23:00", và không có mục nào chứa 19:00–20:00. Mỗi mục có link "Gọi chủ sân 0912345678" với `href` `tel:0912345678` |
+| AC-11 | Người chưa đăng nhập mở app. `GET /api/venues` trả "Cầu lông A" (`0912345678`) với "Sân 1" và "Sân 2". API availability của ngày 20/11/2026 trả hai khoảng: 10:30–19:00 và 20:00–23:00 | Người dùng chọn "Cầu lông A", "Sân 1", ngày 20/11/2026 | Mục giờ trống hiện thông báo "App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt." Web gọi `GET /api/courts/<Sân 1>/availability?date=2026-11-20`. Danh sách có hai mục "10:30–19:00" và "20:00–23:00", và không có mục nào chứa 19:00–20:00. Mỗi mục có link "Gọi chủ sân 0912345678" với `href` `tel:0912345678` |
 | AC-12 | Như AC-11. API trả `free` rỗng | Người dùng chọn một sân và một ngày | Trang hiện "Hết giờ trống trong ngày này. Hãy chọn ngày khác." trong vùng `role="status"`. Không có link "Gọi chủ sân" cho khoảng giờ |
-| AC-13 | Như AC-11. API trả 500 | Người dùng chọn một sân và một ngày | Trang hiện "Không tải được giờ trống" với `role="alert"`. Danh sách giờ cũ bị xóa |
-| AC-14 | App có người dùng vai trò `USER` đã đăng nhập, rồi một người chưa đăng nhập, rồi chủ sân, rồi admin | Mở app ở từng trạng thái | Người chưa đăng nhập và `USER` thấy mục giờ trống. `USER` vẫn thấy form "Đặt sân" như cũ. Chủ sân và admin không thấy mục này |
+| AC-13 | Như AC-11. Lần chọn đầu trả hai khoảng của AC-11 | Người dùng đổi sang ngày khác, và API trả 500 | Trang hiện "Không tải được giờ trống" với `role="alert"`. Danh sách giờ cũ bị xóa |
+| AC-14 | App có người dùng vai trò `USER` đã đăng nhập, rồi một người chưa đăng nhập, rồi chủ sân, rồi admin | Mở app ở từng trạng thái | Người chưa đăng nhập và `USER` thấy mục giờ trống. Thông báo "App mới ra mắt..." hiện đúng một lần cho mỗi vai trò: mục giờ trống chỉ hiện nó cho người chưa đăng nhập, vì form "Đặt sân" của `USER` đã có thông báo đó. `USER` vẫn thấy form "Đặt sân" như cũ. Chủ sân và admin không thấy mục này |
 | AC-15 | Như AC-11. API của "Cầu lông B" trả một khoảng 08:00–24:00 (`endAt` `2026-11-21T17:00:00.000Z`) | Người dùng chọn "Cầu lông B", "Sân 1", ngày 21/11/2026 | Danh sách có một mục "08:00–24:00" |
 
 ## Contract
@@ -73,7 +74,7 @@ Quy tắc của `freeRanges`, theo thứ tự:
 3. Trừ các khoảng `busy` khỏi cửa sổ từ điểm bắt đầu tới `windowEnd`. Hai khung liền kề không để lại khoảng trống.
 4. Bỏ khoảng ngắn hơn 1 giờ (BR-3).
 
-Màn hình tính phút từ 00:00 của `date`, nên giờ đóng cửa 1440 hiện là "24:00" bằng `hhmm`.
+Màn hình tính phút từ 00:00 của `date`, nên giờ đóng cửa 1440 hiện là "24:00" bằng `hhmm`. Màn hình bỏ response của lần chọn cũ khi `courtId` hoặc `date` không còn khớp lần chọn hiện tại.
 
 Server chỉ đọc. Truy vấn lấy `select: { startAt: true, endAt: true }` của booking có `courtId` này, `status` = `CONFIRMED` hoặc (`status` = `PENDING` và `confirmDeadline` ≥ bây giờ), `startAt` < `windowEnd` và `endAt` > `windowStart`. Server không gọi `expire` và không khóa dòng nào (BR-8). Đọc không cần khóa, vì đặt sân vẫn chặn trùng bằng EXCLUDE (BR-1).
 

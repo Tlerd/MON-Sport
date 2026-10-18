@@ -36,5 +36,5 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-1. F-008: the rest of UC-2. F-002 shipped only the short booking form. Still open: the free hours of a day with "Gọi chủ sân" (2.0 step 5), the search by court name (2.1), and 2.0.E1. Write its brief with `feature-brief`.
+1. F-008: the free hours of a day with "Gọi chủ sân" (UC-2 2.0 step 5, 2.0.E1). Brief `docs/briefs/F-008-xem-gio-trong.md` (PR #50). Then F-010: search by court name (UC-2 2.1), a web-only slice; write its brief with `feature-brief`.
 2. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
