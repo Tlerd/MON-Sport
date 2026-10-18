@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (chore: agent unblock).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-010).
 
 ## Current state
 
@@ -9,7 +9,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 - F-003 is done (issue #20): sign-up with consent (`User.consentAt`, BR-29), the admin screen (owners, venues, courts, lock and unlock), and "Đơn vị của tôi" for owners. AC-1 to AC-30 pass. PRs #19 (brief), #21, #22, #23, #24, #25.
 - F-006 is done (issue #29, PRs #28, #30, #31; brief `docs/briefs/F-006-gioi-han-dang-nhap-va-thu-hoi-phien.md`): login and sign-up limits per phone and per IP in the shared table `AuthThrottle` (BR-30), the weak-password check for new passwords (BR-31), and `User.sessionsValidFrom`, so an admin unlock revokes older sessions (BR-32). The IP is the last `X-Forwarded-For` entry (`trust proxy` = 1). A proxy in front of Cloud Run must change that. The live check on 2026-10-17 passed (comment on PR #31). AC-1 to AC-17 pass.
 - F-005 and F-007 are done. F-005 (issue #35, PRs #34, #36, #37, brief `docs/briefs/F-005-chu-san-sua-gia-va-gio-mo-cua.md`): an owner edits the opening hours and the court prices on "Đơn vị của tôi", and a booking request reads them after the `Court` lock (BR-6). F-007 (issue #39, PRs #38, #40, brief `docs/briefs/F-007-chu-san-nhap-booking-khach-goi-dien.md`): an owner enters and cancels the booking of a customer who phoned. AC-1 to AC-15 pass in F-005, AC-1 to AC-18 in F-007.
-- F-008 is done (issue #51, PRs #50, #52, #53, #54; brief `docs/briefs/F-008-xem-gio-trong.md`): public `GET /api/courts/:id/availability?date=` and the section "Giờ trống" for guests and users. AC-1 to AC-15 pass. One call link for each range, not each hour: the user decides.
+- F-008 is done (issue #51, PRs #50, #52, #53, #54; brief `docs/briefs/F-008-xem-gio-trong.md`): public `GET /api/courts/:id/availability?date=` and the section "Giờ trống" for guests and users. AC-1 to AC-15 pass. One call link for each range, not each hour: the user decides. F-010 is done too (issue #57, PRs #56, #58; brief `docs/briefs/F-010-tim-theo-ten-san.md`): search by court name in "Giờ trống", AC-1 to AC-8 pass. A result opens the venue and never preselects a court: the user decides.
 - Remove `minimumReleaseAgeExclude` from `pnpm-workspace.yaml` when Prisma 7.10.1 passes the release-age gate.
 - Live at https://monsport-774323404592.asia-southeast1.run.app (Cloud Run + Cloud SQL, demo seed data). Each merge to `main` deploys through `.github/workflows/deploy.yml`, which sends the traffic back to the previous revision when `/api/health` fails. Cloud SQL `monsport-db` keeps 7 daily backups (02:00 Asia/Ho_Chi_Minh), point-in-time recovery for 7 days, and deletion protection, since 2026-10-18.
 - Local development uses its own Postgres 18 cluster on `localhost:55432` (`pnpm db:start`, data in `%LOCALAPPDATA%/monsport/pgdata`). Start it again after a reboot. The cluster runs `Asia/Bangkok`, so `PrismaService` sets `TimeZone=UTC` on each connection (Cloud SQL runs UTC). The local database `monsport_dev` needs `prisma migrate reset` before it takes the F-003 and F-006 migrations, because migration f003 changed after it ran there. The reset deletes its data, so the agent left it. `monsport_preview` holds the seed data and every migration.
@@ -32,8 +32,8 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 6. Whether owner data needs its own consent, or the contract with the venue covers it. Until account deletion ships, the admin handles deletion requests by hand. Owner: the user.
 7. Whether to build Google sign-in (F-004, plan in `docs/briefs/F-004-dang-nhap-google.md`). Build it only when the user, in their own message, adds it to the intake or writes "chấp nhận F-004", and has done the console steps of that brief. "tiếp tục" is not acceptance. Agents never close this decision under "Autonomy". Record the date and a quote of that message here. F-004 `link-start` calls `ThrottleService.consumeLogin` with the phone of the signed-in user (brief F-006). Owner: the user.
 8. Whether the limits of BR-30 suit venues where players share one Wi-Fi. Check after the first pilot week. Owner: the user.
+9. Whether a search result preselects the court when only one court matches (brief F-010). Owner: the user.
 
 ## Next step
 
-1. F-010: search by court name (UC-2 2.1), web only: a result opens the venue. Propose in its brief that the match ignores case and accents and maps `đ` to `d`. Write it with `feature-brief`.
-2. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
+1. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
