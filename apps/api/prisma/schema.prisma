@@ -1,5 +1,5 @@
 // Names follow docs/requirements/data-dictionary.md. Brief F-002 adds User, Venue, Court, and Booking. Brief F-003 adds User.consentAt.
-// Brief F-006 adds User.sessionsValidFrom and AuthThrottle.
+// Brief F-006 adds User.sessionsValidFrom and AuthThrottle. Brief F-011 adds Match and MatchPlayer.
 
 generator client {
   provider               = "prisma-client"
@@ -37,6 +37,18 @@ enum BookingSource {
   PHONE
 }
 
+enum MatchStatus {
+  OPEN
+  FULL
+  CANCELLED
+  FINISHED
+}
+
+enum MatchPlayerStatus {
+  ACTIVE
+  LEFT
+}
+
 model User {
   id           String    @id @default(uuid(7)) @db.Uuid
   name         String    @db.VarChar(100)
@@ -49,9 +61,11 @@ model User {
   consentAt    DateTime? @db.Timestamptz(3)
   /// The session guard refuses a cookie issued before this time. The admin unlock sets it. Null: no limit.
   sessionsValidFrom DateTime? @db.Timestamptz(3)
-  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
   venues       Venue[]
   bookings     Booking[]
+  matches      Match[]
+  matchPlayers MatchPlayer[]
 }
 
 model Venue {
@@ -99,9 +113,41 @@ model Booking {
   createdAt       DateTime      @default(now()) @db.Timestamptz(3)
   court           Court         @relation(fields: [courtId], references: [id])
   createdBy       User          @relation(fields: [createdById], references: [id])
+  match           Match?
 
   @@index([courtId, status])
   @@index([createdById])
+}
+
+model Match {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  bookingId    String        @unique @db.Uuid
+  hostId       String        @db.Uuid
+  sport        Sport
+  capacity     Int
+  pricePerSlot Int
+  status       MatchStatus   @default(OPEN)
+  joinedCount  Int
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  booking      Booking       @relation(fields: [bookingId], references: [id])
+  host         User          @relation(fields: [hostId], references: [id])
+  players      MatchPlayer[]
+
+  @@index([status, sport])
+  @@index([hostId])
+}
+
+model MatchPlayer {
+  matchId  String            @db.Uuid
+  userId   String            @db.Uuid
+  status   MatchPlayerStatus
+  joinedAt DateTime          @db.Timestamptz(3)
+  leftAt   DateTime?         @db.Timestamptz(3)
+  match    Match             @relation(fields: [matchId], references: [id])
+  user     User              @relation(fields: [userId], references: [id])
+
+  @@id([matchId, userId])
+  @@index([userId, status])
 }
 
 /// A fixed-window counter of login or sign-up attempts (brief F-006, BR-30). Both Cloud Run instances share it.
@@ -113,3 +159,4 @@ model AuthThrottle {
 
   @@index([windowStart])
 }
+
