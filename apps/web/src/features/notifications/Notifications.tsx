@@ -75,6 +75,7 @@ export function Notifications({ refresh = 0 }: { refresh?: number }) {
         type="button"
         className="notif-bell"
         aria-label="Thông báo"
+        aria-expanded={open}
         title="Thông báo"
         onClick={() => setOpen((prev) => !prev)}
       >
@@ -108,7 +109,7 @@ export function Notifications({ refresh = 0 }: { refresh?: number }) {
             </div>
           </div>
 
-          {data?.items.length === 0 ? (
+          {!data || data.items.length === 0 ? (
             <p className="notif-empty">Chưa có thông báo nào</p>
           ) : (
             <ul className="notif-list">
