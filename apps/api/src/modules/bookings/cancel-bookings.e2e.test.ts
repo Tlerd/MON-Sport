@@ -344,7 +344,7 @@ describe('a transaction that Postgres ends', () => {
       booking: { findMany: vi.fn().mockResolvedValue([]) },
     };
     expect(await service(prisma).mine(USER)).toEqual([]);
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(3);
   });
 
   it('AC-14: another error is not hidden', async () => {

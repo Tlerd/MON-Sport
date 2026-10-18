@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-011 step 1).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-011 step 2).
 
 ## Current state
 
@@ -36,5 +36,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-1. F-011 (issue #64, brief `docs/briefs/F-011-mo-tran-phong-cho-va-huy-tran.md`, step 1 done: AC-14 passes): step 2 (matches API and booking cascades, AC-1 to AC-13) and step 3 (screens, AC-15 and AC-16), then F-012 (join/leave match, match details, SSE lobby).
-
+1. F-011 (issue #64, PR #65 merged; brief `docs/briefs/F-011-mo-tran-phong-cho-va-huy-tran.md`, steps 1–2 done: AC-1 to AC-14 pass): step 3 (screens `MyBookings` open/cancel match and `Lobby`, AC-15 and AC-16), then F-012 (join/leave match, match details, SSE lobby).

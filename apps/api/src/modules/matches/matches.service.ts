@@ -1,0 +1,251 @@
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  CALL_OWNER_MESSAGE,
+  type CreateMatchRequest,
+  type MatchLobbyQuery,
+  type MatchView,
+  startOfDayVN,
+  userCancelDecision,
+} from '@monsport/shared';
+import { Prisma } from '../../generated/prisma/client.js';
+import { expireBookings, finishPastMatches, lockVenueOf } from '../bookings/bookings.service.js';
+import { Clock } from '../database/clock.js';
+import { isDeadlock, PrismaService } from '../database/prisma.service.js';
+
+const ALREADY_HAS_MATCH = 'Booking này đã có trận';
+const NOT_OPENABLE = 'Chỉ mở được trận trên booking đang chờ xác nhận hoặc đã xác nhận';
+const BOOKING_NOT_FOUND = 'Không tìm thấy booking';
+const MATCH_NOT_FOUND = 'Không tìm thấy trận';
+const NOT_CANCELLABLE = 'Trận này không hủy được nữa';
+const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại';
+const DAY_MS = 24 * 60 * 60_000;
+
+const WITH_RELATIONS = {
+  // BR-20: select only the host name so no phone number reaches the lobby response.
+  host: { select: { name: true } },
+  booking: {
+    include: {
+      court: {
+        include: { venue: true },
+      },
+    },
+  },
+} as const;
+
+type MatchRow = Prisma.MatchGetPayload<{ include: typeof WITH_RELATIONS }>;
+
+export function toMatchView(m: MatchRow): MatchView {
+  return {
+    id: m.id,
+    bookingId: m.bookingId,
+    hostId: m.hostId,
+    hostName: m.host.name,
+    sport: m.sport,
+    capacity: m.capacity,
+    joinedCount: m.joinedCount,
+    pricePerSlot: m.pricePerSlot,
+    status: m.status,
+    bookingStatus: m.booking.status,
+    startAt: m.booking.startAt.toISOString(),
+    endAt: m.booking.endAt.toISOString(),
+    courtName: m.booking.court.name,
+    venueName: m.booking.court.venue.name,
+    venueAddress: m.booking.court.venue.address,
+    createdAt: m.createdAt.toISOString(),
+  };
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  for (let e: unknown = error, depth = 0; e && typeof e === 'object' && depth < 5; depth++) {
+    const o = e as {
+      code?: unknown;
+      originalCode?: unknown;
+      meta?: { code?: unknown; driverAdapterError?: { cause?: { originalCode?: unknown } } };
+      cause?: unknown;
+    };
+    if ([o.code, o.originalCode, o.meta?.code, o.meta?.driverAdapterError?.cause?.originalCode].some((c) => c === '23505' || c === 'P2002')) {
+      return true;
+    }
+    e = o.cause;
+  }
+  return /23505|Match_bookingId_key/.test(String((error as Error)?.message ?? ''));
+}
+
+@Injectable()
+export class MatchesService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clock: Clock,
+  ) {}
+
+  /** UC-7 (brief F-011): the host opens a match on their own PENDING or CONFIRMED app booking. */
+  async create(userId: string, input: CreateMatchRequest): Promise<MatchView> {
+    const found = await this.prisma.booking.findUnique({
+      where: { id: input.bookingId },
+      select: { courtId: true, createdById: true, source: true },
+    });
+    if (!found || found.createdById !== userId || found.source !== 'APP') {
+      throw new NotFoundException(BOOKING_NOT_FOUND);
+    }
+    const now = this.clock.now();
+    let outcome:
+      | { kind: 'already_has_match' }
+      | { kind: 'not_openable' }
+      | { kind: 'created'; match: MatchRow };
+    try {
+      outcome = await this.prisma.$transaction(async (tx) => {
+        await lockVenueOf(tx, found.courtId);
+        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
+        const booking = await tx.booking.findUnique({
+          where: { id: input.bookingId },
+          include: { court: true, match: { select: { id: true } } },
+        });
+        if (!booking || booking.createdById !== userId || booking.source !== 'APP') {
+          throw new NotFoundException(BOOKING_NOT_FOUND);
+        }
+        await expireBookings(tx, Prisma.sql`id = ${input.bookingId}::uuid`, now);
+        if (booking.match) {
+          return { kind: 'already_has_match' };
+        }
+        const current = await tx.booking.findUniqueOrThrow({
+          where: { id: input.bookingId },
+          select: { status: true, startAt: true },
+        });
+        if ((current.status !== 'PENDING' && current.status !== 'CONFIRMED') || current.startAt <= now) {
+          return { kind: 'not_openable' };
+        }
+        const created = await tx.match.create({
+          data: {
+            bookingId: booking.id,
+            hostId: userId,
+            sport: booking.court.sport,
+            capacity: input.capacity,
+            pricePerSlot: input.pricePerSlot,
+            status: 'OPEN',
+            joinedCount: 1,
+            createdAt: now,
+            players: {
+              create: {
+                userId,
+                status: 'ACTIVE',
+                joinedAt: now,
+              },
+            },
+          },
+          include: WITH_RELATIONS,
+        });
+        return { kind: 'created', match: created };
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new ConflictException(ALREADY_HAS_MATCH);
+      if (isDeadlock(error)) throw new ConflictException(BUSY);
+      throw error;
+    }
+    // 409 is thrown after the transaction commits so an overdue booking expired above stays EXPIRED (AC-4).
+    if (outcome.kind === 'already_has_match') throw new ConflictException(ALREADY_HAS_MATCH);
+    if (outcome.kind === 'not_openable') throw new ConflictException(NOT_OPENABLE);
+    return toMatchView(outcome.match);
+  }
+
+  /** UC-8 steps 1-2 (brief F-011): public lobby list of OPEN matches starting in the future, ordered by startAt asc. */
+  async list(query: MatchLobbyQuery): Promise<MatchView[]> {
+    const now = this.clock.now();
+    const startAtFilter: Prisma.DateTimeFilter = { gt: now };
+    if (query.date) {
+      const dayStart = startOfDayVN(query.date);
+      const dayEnd = new Date(dayStart.getTime() + DAY_MS);
+      if (dayEnd <= now) return [];
+      if (dayStart > now) startAtFilter.gte = dayStart;
+      startAtFilter.lt = dayEnd;
+    }
+    const syncLobby = async () => {
+      await expireBookings(
+        this.prisma,
+        Prisma.sql`id IN (SELECT "bookingId" FROM "Match" WHERE status IN ('OPEN', 'FULL'))`,
+        now,
+      );
+      await finishPastMatches(this.prisma, Prisma.sql`TRUE`, now);
+    };
+    await syncLobby().catch((error: unknown) => {
+      if (!isDeadlock(error)) throw error;
+      return syncLobby().catch((again: unknown) => {
+        throw isDeadlock(again) ? new ConflictException(BUSY) : again;
+      });
+    });
+    const rows = await this.prisma.match.findMany({
+      where: {
+        status: 'OPEN',
+        ...(query.sport ? { sport: query.sport } : {}),
+        booking: {
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          startAt: startAtFilter,
+        },
+      },
+      include: WITH_RELATIONS,
+      orderBy: [{ booking: { startAt: 'asc' } }, { id: 'asc' }],
+    });
+    return rows.map(toMatchView);
+  }
+
+  /** UC-9 (brief F-011): the host cancels their match, which also cancels the underlying booking (BR-17). */
+  async cancel(userId: string, matchId: string): Promise<MatchView> {
+    const found = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      select: { hostId: true, booking: { select: { courtId: true } } },
+    });
+    if (!found || found.hostId !== userId) {
+      throw new NotFoundException(MATCH_NOT_FOUND);
+    }
+    const now = this.clock.now();
+    let outcome:
+      | { kind: 'call_owner' }
+      | { kind: 'not_cancellable' }
+      | { kind: 'cancelled'; match: MatchRow };
+    try {
+      outcome = await this.prisma.$transaction(async (tx) => {
+        await lockVenueOf(tx, found.booking.courtId);
+        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.booking.courtId}::uuid FOR UPDATE`;
+        const before = await tx.match.findUnique({
+          where: { id: matchId },
+          select: { id: true, hostId: true, bookingId: true },
+        });
+        if (!before || before.hostId !== userId) {
+          throw new NotFoundException(MATCH_NOT_FOUND);
+        }
+        await expireBookings(tx, Prisma.sql`id = ${before.bookingId}::uuid`, now);
+        await finishPastMatches(tx, Prisma.sql`b.id = ${before.bookingId}::uuid`, now);
+        const current = await tx.match.findUniqueOrThrow({
+          where: { id: matchId },
+          include: { booking: { select: { id: true, status: true, startAt: true } } },
+        });
+        if (current.status !== 'OPEN' && current.status !== 'FULL') {
+          return { kind: 'not_cancellable' };
+        }
+        const decision = userCancelDecision(current.booking, now);
+        if (decision === 'CALL_OWNER') {
+          return { kind: 'call_owner' };
+        }
+        if (decision !== 'ALLOW') {
+          return { kind: 'not_cancellable' };
+        }
+        await tx.booking.update({
+          where: { id: current.booking.id },
+          data: { status: 'CANCELLED', cancelledAt: now },
+        });
+        const updated = await tx.match.update({
+          where: { id: matchId },
+          data: { status: 'CANCELLED' },
+          include: WITH_RELATIONS,
+        });
+        return { kind: 'cancelled', match: updated };
+      });
+    } catch (error) {
+      if (isDeadlock(error)) throw new ConflictException(BUSY);
+      throw error;
+    }
+    // 409 is thrown after the transaction commits so an overdue or finished match stays updated in DB (AC-12).
+    if (outcome.kind === 'call_owner') throw new ConflictException(CALL_OWNER_MESSAGE);
+    if (outcome.kind === 'not_cancellable') throw new ConflictException(NOT_CANCELLABLE);
+    return toMatchView(outcome.match);
+  }
+}
