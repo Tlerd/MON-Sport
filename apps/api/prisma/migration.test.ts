@@ -24,6 +24,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.query('DELETE FROM "MatchPlayer" WHERE "userId" = $1', [userId]);
+  await db.query('DELETE FROM "Match" WHERE "hostId" = $1', [userId]);
   await db.query('DELETE FROM "Booking" WHERE "courtId" = $1', [courtId]);
   // By venue and by owner, so a row that a missing CHECK let in does not hide the real failure.
   await db.query('DELETE FROM "Court" WHERE "venueId" = $1', [venueId]);
@@ -94,5 +96,30 @@ describe('migration f006_throttle_sessions', () => {
     expect(await sqlState(row())).toBe('ok');
     expect(await sqlState(row())).toBe('23505');
     await db.query('DELETE FROM "AuthThrottle" WHERE key = $1', [key]);
+  });
+});
+
+describe('migration f011_matches', () => {
+  it('AC-14: refuses invalid capacity, pricePerSlot, or joinedCount with 23514, and a second match on one booking with 23505', async () => {
+    const bookingId = randomUUID();
+    await db.query(
+      `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+       VALUES ($1, $2, '2026-11-20T14:00:00+07:00', '2026-11-20T15:00:00+07:00', 'PENDING', 'APP', $3, 80000)`,
+      [bookingId, courtId, userId],
+    );
+    const match = (capacity: number, pricePerSlot: number, joinedCount: number) =>
+      db.query(
+        `INSERT INTO "Match" (id, "bookingId", "hostId", sport, capacity, "pricePerSlot", status, "joinedCount")
+         VALUES ($1, $2, $3, 'BADMINTON', $4, $5, 'OPEN', $6)`,
+        [randomUUID(), bookingId, userId, capacity, pricePerSlot, joinedCount],
+      );
+    expect(await sqlState(match(1, 50_000, 1))).toBe('23514');
+    expect(await sqlState(match(31, 50_000, 1))).toBe('23514');
+    expect(await sqlState(match(4, -1, 1))).toBe('23514');
+    expect(await sqlState(match(4, 10_000_001, 1))).toBe('23514');
+    expect(await sqlState(match(4, 50_000, 5))).toBe('23514');
+    expect(await sqlState(match(4, 50_000, -1))).toBe('23514');
+    expect(await sqlState(match(4, 0, 1))).toBe('ok');
+    expect(await sqlState(match(4, 50_000, 1))).toBe('23505');
   });
 });

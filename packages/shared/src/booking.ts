@@ -99,7 +99,21 @@ export type MyBookingView = z.infer<typeof MyBookingView>;
 
 export const CALL_OWNER_MESSAGE = 'Còn dưới 6 giờ nữa tới giờ bắt đầu. Hãy gọi chủ sân';
 
-export const OwnerBookingView =BookingView.extend({
+export const OwnerBookingView = BookingView.extend({
   customer: z.object({ name: z.string(), phone: Phone.nullable() }),
 });
 export type OwnerBookingView = z.infer<typeof OwnerBookingView>;
+
+// Brief F-011: declared here and re-exported in match.ts so MyBookingView (step 2) and match.ts share them without a cycle.
+export const MatchStatus = z.enum(['OPEN', 'FULL', 'CANCELLED', 'FINISHED']);
+export type MatchStatus = z.infer<typeof MatchStatus>;
+
+export const MatchSummary = z.object({
+  id: z.uuid(),
+  status: MatchStatus,
+  capacity: z.int().min(2).max(30),
+  joinedCount: z.int().nonnegative(),
+  pricePerSlot: z.int().nonnegative(),
+});
+export type MatchSummary = z.infer<typeof MatchSummary>;
+

@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-010).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-011 step 1).
 
 ## Current state
 
@@ -36,4 +36,5 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-1. UC-7 to UC-9 (matches: open a match on a booking, join and leave, host cancels). Write the brief with `feature-brief`. It must add the match cascade (BR-16, BR-17, UC-6 step 4) inside both cancel routes of F-009, in the same transaction, after the Court lock.
+1. F-011 (issue #64, brief `docs/briefs/F-011-mo-tran-phong-cho-va-huy-tran.md`, step 1 done: AC-14 passes): step 2 (matches API and booking cascades, AC-1 to AC-13) and step 3 (screens, AC-15 and AC-16), then F-012 (join/leave match, match details, SSE lobby).
+
