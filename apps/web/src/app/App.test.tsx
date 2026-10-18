@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.tsx';
 
@@ -115,5 +115,63 @@ describe('App', () => {
     render(<App />);
     await screen.findByText('Chào Admin');
     expect(screen.queryByRole('heading', { name: 'Trận đã vào' })).toBeNull();
+  });
+
+  it('AC-10: an OWNER sees the notification bell with unread badge in the top bar and can open notifications', async () => {
+    const mockNotifs = {
+      unreadCount: 1,
+      items: [
+        {
+          id: '0199a1b2-0000-7000-8000-000000000010',
+          type: 'BOOKING_REQUESTED',
+          bookingId: '0199a1b2-0000-7000-8000-000000000020',
+          matchId: null,
+          readAt: null,
+          createdAt: '2026-11-20T02:00:00.000Z',
+          title: 'Yêu cầu đặt sân mới',
+          message: 'Có yêu cầu đặt sân tại Cầu lông A - Sân 1 khung 20:00 - 21:00 ngày 20/11/2026.',
+          venueName: 'Cầu lông A',
+          courtName: 'Sân 1',
+          startAt: '2026-11-20T13:00:00.000Z',
+          endAt: '2026-11-20T14:00:00.000Z',
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn((url: string, opts?: RequestInit) => {
+      if (url === '/api/auth/me') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'x', name: 'Bình', role: 'OWNER' }) });
+      if (url === '/api/notifications' && (!opts || !opts.method || opts.method === 'GET')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockNotifs) });
+      if (url === `/api/notifications/${mockNotifs.items[0].id}/read` && opts?.method === 'POST') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: mockNotifs.items[0].id, readAt: '2026-11-20T03:00:00.000Z' }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    render(<App />);
+    const bell = await screen.findByRole('button', { name: 'Thông báo' });
+    expect(within(screen.getByRole('banner')).getByText('1')).toBeTruthy();
+
+    fireEvent.click(bell);
+    expect(await screen.findByRole('heading', { name: 'Thông báo' })).toBeTruthy();
+    expect(screen.getByText('Yêu cầu đặt sân mới')).toBeTruthy();
+
+    // Click unread notification
+    fireEvent.click(screen.getByText('Yêu cầu đặt sân mới').closest('li')!);
+    await waitFor(() => {
+      expect(screen.queryByText('1')).toBeNull();
+    });
+  });
+
+  it('AC-11: a USER with no notifications sees "Chưa có thông báo nào" on clicking bell', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'x', name: 'An', role: 'USER' }) });
+      if (url === '/api/notifications') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ unreadCount: 0, items: [] }) });
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    render(<App />);
+    const bell = await screen.findByRole('button', { name: 'Thông báo' });
+    fireEvent.click(bell);
+    expect(await screen.findByRole('heading', { name: 'Thông báo' })).toBeTruthy();
+    expect(screen.getByText('Chưa có thông báo nào')).toBeTruthy();
   });
 });
