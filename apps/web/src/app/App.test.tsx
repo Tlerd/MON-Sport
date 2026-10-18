@@ -79,5 +79,17 @@ describe('App', () => {
     if (heading) await screen.findByRole('heading', { name: heading });
     else await screen.findByText('Chào Bình');
     expect(screen.queryByRole('heading', { name: 'Giờ trống' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Phòng chờ' })).toBeNull();
+  });
+
+  it('AC-16: both a guest and a USER see "Phòng chờ"', async () => {
+    as(null);
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
+    cleanup();
+
+    as({ id: 'x', name: 'An', role: 'USER' });
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
   });
 });

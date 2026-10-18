@@ -6,6 +6,7 @@ import { BookingForm } from '../features/bookings/BookingForm.tsx';
 import { MyBookings } from '../features/bookings/MyBookings.tsx';
 import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
 import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
+import { Lobby } from '../features/matches/Lobby.tsx';
 import { MyVenues } from '../features/venues/MyVenues.tsx';
 import { VenueBrowser } from '../features/venues/VenueBrowser.tsx';
 import { api } from '../lib/api.ts';
@@ -55,13 +56,15 @@ export function App() {
           <>
             <AuthPanel onLogin={setUser} />
             <VenueBrowser notice />
+            <Lobby />
           </>
         )}
         {user?.role === 'USER' && (
           <>
             <VenueBrowser />
+            <Lobby refresh={booked} />
             <BookingForm onBooked={() => setBooked((n) => n + 1)} />
-            <MyBookings refresh={booked} />
+            <MyBookings refresh={booked} onMatchChanged={() => setBooked((n) => n + 1)} />
           </>
         )}
         {user?.role === 'OWNER' && (
