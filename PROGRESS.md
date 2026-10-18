@@ -32,8 +32,8 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 6. Whether owner data needs its own consent, or the contract with the venue covers it. Until account deletion ships, the admin handles deletion requests by hand. Owner: the user.
 7. Whether to build Google sign-in (F-004, plan in `docs/briefs/F-004-dang-nhap-google.md`). Build it only when the user, in their own message, adds it to the intake or writes "chấp nhận F-004", and has done the console steps of that brief. "tiếp tục" is not acceptance. Agents never close this decision under "Autonomy". Record the date and a quote of that message here. F-004 `link-start` calls `ThrottleService.consumeLogin` with the phone of the signed-in user (brief F-006). Owner: the user.
 8. Whether the limits of BR-30 suit venues where players share one Wi-Fi. Check after the first pilot week. Owner: the user.
-9. Whether a search result preselects the court when only one court matches (brief F-010). Owner: the user.
+9. Whether a search result preselects the court when only one court matches (brief F-010). Whether a cancel notifies the other side (UC-14 has no cancel event), and whether an owner may cancel after the start (brief F-009). Owner: the user.
 
 ## Next step
 
-1. F-009: UC-6, a user cancels a booking and sees the booking history. Write its brief with `feature-brief`.
+1. F-009 (brief `docs/briefs/F-009-nguoi-dung-huy-booking-va-xem-lich-su.md`): UC-6, a user cancels a booking and sees the booking history. Step 1: API (user cancel, owner cancel of an `APP` booking, `mine`). Step 2: screens. The match cascade waits for UC-7.
