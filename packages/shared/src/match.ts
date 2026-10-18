@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { Messages, PRICE_MAX } from './account.ts';
-import { BookingStatus, MatchStatus, MatchSummary, Sport } from './booking.ts';
+import { BookingStatus, MatchStatus, MatchSummary, Phone, Sport } from './booking.ts';
 
-// Brief F-011 (UC-7, UC-8, UC-9): matches in the lobby. Names follow docs/requirements/data-dictionary.md.
+// Brief F-011 and F-012 (UC-7, UC-8, UC-9): matches in the lobby. Names follow docs/requirements/data-dictionary.md.
 export { MatchStatus, MatchSummary };
 
 export const MatchPlayerStatus = z.enum(['ACTIVE', 'LEFT']);
@@ -10,6 +10,15 @@ export type MatchPlayerStatus = z.infer<typeof MatchPlayerStatus>;
 
 export const MATCH_CAPACITY_MESSAGE = 'Số suất từ 2 đến 30';
 export const MATCH_PRICE_MESSAGE = 'Giá mỗi suất không hợp lệ';
+
+// Brief F-012 (UC-8, BR-15, BR-18): join and leave error messages.
+export const MATCH_FULL_MESSAGE = 'Trận đã đủ người';
+export const ALREADY_IN_MATCH_MESSAGE = 'Bạn đã ở trong trận này';
+export const NOT_JOINABLE_MESSAGE = 'Trận này không vào được nữa';
+export const HOST_CANNOT_LEAVE_MESSAGE = 'Host không rời trận được. Hãy hủy trận';
+export const NOT_IN_MATCH_MESSAGE = 'Bạn không ở trong trận này';
+export const LEAVE_STARTED_MESSAGE = 'Đã tới giờ bắt đầu, không rời trận được nữa';
+export const NOT_LEAVABLE_MESSAGE = 'Trận này không rời được nữa';
 
 const known = new Set<string>([MATCH_CAPACITY_MESSAGE, MATCH_PRICE_MESSAGE]);
 
@@ -61,3 +70,24 @@ export const MatchView = z.object({
   createdAt: Instant,
 });
 export type MatchView = z.infer<typeof MatchView>;
+
+export const MatchViewerRole = z.enum(['HOST', 'PLAYER', 'NONE']);
+export type MatchViewerRole = z.infer<typeof MatchViewerRole>;
+
+export const MatchPlayerView = z.object({
+  userId: z.uuid(),
+  name: z.string(),
+  phone: Phone.nullable(),
+  joinedAt: Instant,
+});
+export type MatchPlayerView = z.infer<typeof MatchPlayerView>;
+
+/**
+ * Brief F-012 (UC-8, BR-20): match detail with active players.
+ * `phone` is non-null only when `viewerRole === 'HOST'`.
+ */
+export const MatchDetailView = MatchView.extend({
+  players: z.array(MatchPlayerView),
+  viewerRole: MatchViewerRole,
+}).refine((m) => m.players.every((p) => (m.viewerRole === 'HOST' ? p.phone !== null : p.phone === null)));
+export type MatchDetailView = z.infer<typeof MatchDetailView>;
