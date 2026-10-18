@@ -2,6 +2,18 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.tsx';
 
+vi.mock('recharts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('recharts')>();
+  return {
+    ...original,
+    ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => (
+      <div className="recharts-responsive-container" style={{ width: 600, height: 300 }}>
+        {children}
+      </div>
+    ),
+  };
+});
+
 describe('App', () => {
   afterEach(() => {
     cleanup();
@@ -173,5 +185,49 @@ describe('App', () => {
     fireEvent.click(bell);
     expect(await screen.findByRole('heading', { name: 'Thông báo' })).toBeTruthy();
     expect(screen.getByText('Chưa có thông báo nào')).toBeTruthy();
+  });
+
+  it('AC-11: an OWNER switches to "Doanh thu" tab and sees the financial dashboard', async () => {
+    const venue = { id: '0199a1b2-0000-7000-8000-000000000001', name: 'Cầu lông A', address: '123 Đường 3/2', phone: '0901234567', opensAt: 360, closesAt: 1380, courts: [] };
+    const financialData = {
+      venueId: venue.id,
+      venueName: 'Cầu lông A',
+      period: 'week',
+      date: '2026-11-20',
+      startDate: '2026-11-16T00:00:00.000Z',
+      endDate: '2026-11-22T23:59:59.999Z',
+      revenue: 960_000,
+      totalBookings: 10,
+      paidBookings: 8,
+      unpaidBookings: 2,
+      bookedHours: 10,
+      openingHours: 238,
+      occupancyRate: 0.042,
+      peakHours: 4,
+      normalHours: 6,
+      cancelledBookings: 2,
+      rejectedBookings: 1,
+      cancellationRate: 0.1538,
+      rejectionRate: 0.0769,
+      totalCustomers: 5,
+      returningCustomers: 2,
+      chartData: [],
+    };
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'x', name: 'Bình', role: 'OWNER' }) });
+      if (url === '/api/notifications') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ unreadCount: 0, items: [] }) });
+      if (url === '/api/owner/venues') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([venue]) });
+      if (url.startsWith(`/api/owner/venues/${venue.id}/financials`)) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(financialData) });
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' })).toBeTruthy();
+
+    const financeTab = screen.getByRole('button', { name: 'Doanh thu' });
+    fireEvent.click(financeTab);
+
+    expect(await screen.findByRole('heading', { name: 'Báo cáo tài chính' })).toBeTruthy();
+    expect(await screen.findByText('960.000đ')).toBeTruthy();
   });
 });
