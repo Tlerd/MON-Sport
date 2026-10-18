@@ -1,7 +1,8 @@
 import { type Availability, startOfDayVN, type VenueView } from '@monsport/shared';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { api } from '../../lib/api.ts';
 import { hhmm } from '../../lib/format.ts';
+import { findVenues } from './search.ts';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
 
@@ -17,10 +18,19 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
   const [date, setDate] = useState('');
   const [free, setFree] = useState<Availability['free'] | null>(null);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  // A click on a search result asks for focus on the court select. The select exists only after the venue is set, so the
+  // effect moves the focus after the render. A counter asks again on each click, also for the venue that is already picked.
+  const [focusRequest, setFocusRequest] = useState(0);
+  const courtSelect = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
     api<VenueView[]>('/api/venues').then(setVenues, () => setError('Không tải được danh sách đơn vị'));
   }, []);
+
+  useEffect(() => {
+    if (focusRequest > 0) courtSelect.current?.focus();
+  }, [focusRequest]);
 
   // A late answer for an earlier pick must not replace the list of the newer pick.
   useEffect(() => {
@@ -40,7 +50,18 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
     };
   }, [courtId, date]);
 
+  const found = findVenues(venues, query);
+  const searching = query.trim() !== '';
   const venue = venues.find((v) => v.id === venueId);
+
+  /** Brief F-010: the reset of the venue select, then focus on the court select. The date stays. */
+  function openVenue(id: string) {
+    setVenueId(id);
+    setCourtId('');
+    setFree(null);
+    setError('');
+    setFocusRequest((n) => n + 1);
+  }
   const dayStart = date ? startOfDayVN(date).getTime() : 0;
   // Minutes since 00:00 of the day, so a range that ends at 00:00 of the next day shows 24:00.
   const minute = (iso: string) => Math.round((Date.parse(iso) - dayStart) / 60_000);
@@ -49,6 +70,27 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
     <section className="panel" aria-labelledby={heading}>
       <h2 id={heading}>Giờ trống</h2>
       {notice && <p className="notice">{NOTICE}</p>}
+      <div className="stack search-box">
+        <label>
+          Tìm theo tên sân
+          <input type="text" inputMode="search" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+        </label>
+      {found.length > 0 && (
+        <ul className="search-results" aria-label="Kết quả tìm sân">
+          {found.map(({ venue: v, courts }) => (
+            <li key={v.id}>
+              <button type="button" onClick={() => openVenue(v.id)}>
+                <strong>{v.name}</strong>
+                <span>{courts.map((c) => c.name).join(', ')}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div role="status" className="live">
+        {searching && found.length === 0 && <p className="empty">Không có sân nào tên như vậy</p>}
+      </div>
+      </div>
       <div className="stack">
         <label>
           Chọn đơn vị
@@ -60,7 +102,7 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
         {venue && (
           <label>
             Chọn sân
-            <select value={courtId} onChange={(e) => { setCourtId(e.target.value); setFree(null); setError(''); }}>
+            <select ref={courtSelect} value={courtId} onChange={(e) => { setCourtId(e.target.value); setFree(null); setError(''); }}>
               <option value="">Chọn sân</option>
               {venue.courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>

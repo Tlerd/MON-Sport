@@ -64,6 +64,15 @@ describe('App', () => {
     expect(screen.getAllByText(NOTICE)).toHaveLength(1);
   });
 
+  it('AC-7: a user sees the search box once, in the free hours, and the booking form has none', async () => {
+    as({ id: 'x', name: 'An', role: 'USER' });
+    render(<App />);
+    const freeHours = (await screen.findByRole('heading', { name: 'Giờ trống' })).closest('section')!;
+    expect(screen.getAllByLabelText('Tìm theo tên sân')).toHaveLength(1);
+    expect(within(freeHours).getByLabelText('Tìm theo tên sân')).toBeTruthy();
+    expect(within(screen.getByRole('heading', { name: 'Đặt sân' }).closest('section')!).queryByLabelText('Tìm theo tên sân')).toBeNull();
+  });
+
   it.each([['OWNER', 'Yêu cầu đặt sân'], ['ADMIN', null]] as const)('AC-14: a %s does not see the free hours', async (role, heading) => {
     as({ id: 'x', name: 'Bình', role });
     render(<App />);
