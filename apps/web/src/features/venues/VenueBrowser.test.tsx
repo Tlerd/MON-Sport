@@ -82,6 +82,27 @@ describe('VenueBrowser', () => {
     expect(screen.queryByText(/10:30–19:00/)).toBeNull();
   });
 
+  it('AC-13: after a 500, a new pick clears the alert', async () => {
+    stubApi(() => [500, { message: 'Có lỗi, hãy thử lại' }]);
+    render(<VenueBrowser notice />);
+    await pick('Cầu lông A', 'Sân 1', '2026-11-20');
+    expect(await screen.findByRole('alert')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Chọn ngày'), { target: { value: '' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('AC-11: the live region says how many ranges are free', async () => {
+    stubApi(() => availability(COURT_1, '2026-11-20', [
+      { startAt: vn('2026-11-20', '10:30'), endAt: vn('2026-11-20', '19:00') },
+      { startAt: vn('2026-11-20', '20:00'), endAt: vn('2026-11-20', '23:00') },
+    ]));
+    render(<VenueBrowser notice />);
+    await pick('Cầu lông A', 'Sân 1', '2026-11-20');
+
+    expect((await screen.findByText('Có 2 khoảng giờ trống.')).closest('[role="status"]')).toBeTruthy();
+  });
+
   it('AC-13: a late answer for an earlier pick does not replace the list of the newer pick', async () => {
     let releaseFirst!: () => void;
     const first = new Promise<void>((resolve) => (releaseFirst = resolve));

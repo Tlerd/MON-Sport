@@ -52,7 +52,7 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
       <div className="stack">
         <label>
           Chọn đơn vị
-          <select value={venueId} onChange={(e) => { setVenueId(e.target.value); setCourtId(''); setFree(null); }}>
+          <select value={venueId} onChange={(e) => { setVenueId(e.target.value); setCourtId(''); setFree(null); setError(''); }}>
             <option value="">Chọn đơn vị</option>
             {venues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>
@@ -60,7 +60,7 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
         {venue && (
           <label>
             Chọn sân
-            <select value={courtId} onChange={(e) => { setCourtId(e.target.value); setFree(null); }}>
+            <select value={courtId} onChange={(e) => { setCourtId(e.target.value); setFree(null); setError(''); }}>
               <option value="">Chọn sân</option>
               {venue.courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -69,7 +69,7 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
         {venue && (
           <label>
             Chọn ngày
-            <input type="date" value={date} onChange={(e) => { setDate(e.target.value); setFree(null); }} />
+            <input type="date" value={date} onChange={(e) => { setDate(e.target.value); setFree(null); setError(''); }} />
           </label>
         )}
       </div>
@@ -77,6 +77,7 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
       {/* The live region stays in the DOM, so screen readers announce the empty day when it appears. */}
       <div role="status" className="live">
         {free?.length === 0 && <p className="empty">Hết giờ trống trong ngày này. Hãy chọn ngày khác.</p>}
+        {free && free.length > 0 && <p className="hint">Có {free.length} khoảng giờ trống.</p>}
       </div>
       {venue && free && free.length > 0 && (
         <ul className="free-list">
