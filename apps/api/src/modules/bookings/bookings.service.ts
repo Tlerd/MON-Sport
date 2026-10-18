@@ -11,6 +11,7 @@ import {
   minuteOfDayVN,
   type MyBookingView,
   type OwnerBookingView,
+  type PaidAtVenueResponse,
   USER_CANCEL_WINDOW_MS,
   userCancelDecision,
 } from '@monsport/shared';
@@ -406,6 +407,42 @@ export class BookingsService {
       throw new ConflictException(outcome.booking.status === 'EXPIRED' ? 'Yêu cầu đã hết hạn' : 'Yêu cầu không còn chờ xác nhận');
     }
     return toView(outcome.booking);
+  }
+
+  /** Brief F-015 (UC-12): mark booking as paid at venue. */
+  async markPaidAtVenue(ownerId: string, bookingId: string, paidAtVenue: boolean): Promise<PaidAtVenueResponse> {
+    const found = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { courtId: true, court: { select: { venue: { select: { ownerId: true } } } } },
+    });
+    if (!found || found.court.venue.ownerId !== ownerId) {
+      throw new NotFoundException('Không tìm thấy booking');
+    }
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await lockVenueOf(tx, found.courtId);
+        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
+        const booking = await tx.booking.findUniqueOrThrow({
+          where: { id: bookingId },
+          include: { court: { include: { venue: true } } },
+        });
+        if (booking.court.venue.ownerId !== ownerId) {
+          throw new NotFoundException('Không tìm thấy booking');
+        }
+        if (booking.status !== 'CONFIRMED') {
+          throw new BadRequestException('Chỉ đánh dấu thu tiền cho booking đã xác nhận');
+        }
+        const updated = await tx.booking.update({
+          where: { id: bookingId },
+          data: { paidAtVenue },
+        });
+        return { id: updated.id, paidAtVenue: updated.paidAtVenue };
+      });
+    } catch (error) {
+      if (isDeadlock(error)) throw new ConflictException(BUSY);
+      throw error;
+    }
   }
 
   // BR-8 & BR-16: a request past its deadline becomes EXPIRED, and its open/full match becomes CANCELLED.
