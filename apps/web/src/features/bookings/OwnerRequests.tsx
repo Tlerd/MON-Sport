@@ -1,4 +1,4 @@
-import type { BookingView, OwnerBookingView } from '@monsport/shared';
+import type { BookingView, OwnerBookingView, PaidAtVenueResponse } from '@monsport/shared';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 import { formatDay, formatTime, formatVnd } from '../../lib/format.ts';
@@ -21,6 +21,19 @@ export function OwnerRequests() {
       setRows((list) => list?.map((r) => (r.id === id ? { ...r, ...updated, customer: r.customer } : r)) ?? null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không lưu được quyết định');
+    }
+  }
+
+  async function togglePaid(id: string, paidAtVenue: boolean) {
+    setError('');
+    try {
+      const updated = await api<PaidAtVenueResponse>(`/api/owner/bookings/${id}/paid`, {
+        method: 'PATCH',
+        body: JSON.stringify({ paidAtVenue }),
+      });
+      setRows((list) => list?.map((r) => (r.id === id ? { ...r, paidAtVenue: updated.paidAtVenue } : r)) ?? null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Không cập nhật được trạng thái thu tiền');
     }
   }
 
@@ -50,7 +63,23 @@ export function OwnerRequests() {
                   <button type="button" className="secondary" onClick={() => decide(r.id, 'reject')}>Từ chối</button>
                 </span>
               ) : (
-                <span className="status">{STATUS_LABEL[r.status]}</span>
+                <span className="status-wrap">
+                  <span className="status">{STATUS_LABEL[r.status]}</span>
+                  {r.status === 'CONFIRMED' && (
+                    <span className="payment-action">
+                      <span className={`paid-tag ${r.paidAtVenue ? 'paid' : 'unpaid'}`}>
+                        {r.paidAtVenue ? 'Đã thu tiền' : 'Chưa thu tiền'}
+                      </span>
+                      <button
+                        type="button"
+                        className={`btn-toggle-paid ${r.paidAtVenue ? 'secondary' : ''}`}
+                        onClick={() => togglePaid(r.id, !r.paidAtVenue)}
+                      >
+                        {r.paidAtVenue ? 'Đánh dấu chưa thu' : 'Đã thu tiền'}
+                      </button>
+                    </span>
+                  )}
+                </span>
               )}
             </span>
           </li>

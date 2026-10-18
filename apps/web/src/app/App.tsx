@@ -9,6 +9,7 @@ import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
 import { JoinedMatches } from '../features/matches/JoinedMatches.tsx';
 import { Lobby } from '../features/matches/Lobby.tsx';
 import { Notifications } from '../features/notifications/Notifications.tsx';
+import { FinancialDashboard } from '../features/finance/FinancialDashboard.tsx';
 import { MyVenues } from '../features/venues/MyVenues.tsx';
 import { VenueBrowser } from '../features/venues/VenueBrowser.tsx';
 import { api } from '../lib/api.ts';
@@ -24,6 +25,7 @@ const HERO: Record<SessionUser['role'] | 'GUEST', string> = {
 export function App() {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
   const [booked, setBooked] = useState(0);
+  const [ownerTab, setOwnerTab] = useState<'requests' | 'finance' | 'venues'>('requests');
 
   useEffect(() => {
     api<SessionUser>('/api/auth/me').then(setUser, () => setUser(null));
@@ -73,9 +75,37 @@ export function App() {
         )}
         {user?.role === 'OWNER' && (
           <>
-            <OwnerRequests />
-            <PhoneBookings />
-            <MyVenues />
+            <nav className="tabs" aria-label="Chức năng chủ sân">
+              <button
+                type="button"
+                className={ownerTab === 'requests' ? 'active' : ''}
+                onClick={() => setOwnerTab('requests')}
+              >
+                Yêu cầu đặt sân
+              </button>
+              <button
+                type="button"
+                className={ownerTab === 'finance' ? 'active' : ''}
+                onClick={() => setOwnerTab('finance')}
+              >
+                Doanh thu
+              </button>
+              <button
+                type="button"
+                className={ownerTab === 'venues' ? 'active' : ''}
+                onClick={() => setOwnerTab('venues')}
+              >
+                Đơn vị của tôi
+              </button>
+            </nav>
+            {ownerTab === 'requests' && (
+              <>
+                <OwnerRequests />
+                <PhoneBookings />
+              </>
+            )}
+            {ownerTab === 'finance' && <FinancialDashboard />}
+            {ownerTab === 'venues' && <MyVenues />}
           </>
         )}
         {user?.role === 'ADMIN' && <AdminPanel />}

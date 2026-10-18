@@ -30,4 +30,45 @@ describe('OwnerRequests', () => {
     expect(fetch).toHaveBeenCalledWith(`/api/owner/bookings/${PENDING.id}/confirm`, expect.objectContaining({ method: 'POST' }));
     expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull();
   });
+
+  it('AC-12: Bình marks a confirmed booking as paid and toggles payment status', async () => {
+    const confirmedBooking = {
+      ...PENDING,
+      status: 'CONFIRMED',
+      confirmedAt: '2026-11-20T04:00:00.000Z',
+      paidAtVenue: false,
+    };
+    const fetch = vi.fn((url: string, opts?: RequestInit) => {
+      if (url === '/api/owner/bookings') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([confirmedBooking]) });
+      }
+      if (url === `/api/owner/bookings/${confirmedBooking.id}/paid` && opts?.method === 'PATCH') {
+        const body = JSON.parse(opts.body as string);
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ id: confirmedBooking.id, paidAtVenue: body.paidAtVenue }),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not found' }) });
+    });
+    vi.stubGlobal('fetch', fetch);
+    render(<OwnerRequests />);
+
+    expect(await screen.findByText('Đã xác nhận')).toBeTruthy();
+    expect(screen.getByText('Chưa thu tiền')).toBeTruthy();
+
+    const toggleBtn = screen.getByRole('button', { name: 'Đã thu tiền' });
+    fireEvent.click(toggleBtn);
+
+    expect(await screen.findByText('Đánh dấu chưa thu')).toBeTruthy();
+    expect(screen.getByText('Đã thu tiền')).toBeTruthy();
+    expect(fetch).toHaveBeenCalledWith(
+      `/api/owner/bookings/${confirmedBooking.id}/paid`,
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ paidAtVenue: true }),
+      }),
+    );
+  });
 });
