@@ -62,8 +62,40 @@ describe('freeRanges', () => {
     expect(free('2026-11-21', 360, 1380, NOW, held)).toEqual([range('21', '06:00', '23:00')]);
   });
 
-  it('AC-3: a booking that ends before the window cannot cut it', () => {
+  it('AC-3: the busy time of a pending request ends at its deadline, and the earliest start follows now', () => {
+    const held = [busy('20', '20:00', '21:00')];
+    expect(free('2026-11-20', 360, 1380, at('20', '12:00'), held)).toEqual([range('20', '12:30', '20:00'), range('20', '21:00', '23:00')]);
+    expect(free('2026-11-20', 360, 1380, at('20', '12:01'))).toEqual([range('20', '12:30', '23:00')]);
+  });
+
+  it('a booking that ends before the window cannot cut it', () => {
     expect(free('2026-11-21', 360, 1380, NOW, [busy('21', '05:00', '06:00')])).toEqual([range('21', '06:00', '23:00')]);
+  });
+
+  it('a booking that starts before now and ends inside the window cuts its start', () => {
+    expect(free('2026-11-20', 360, 1380, NOW, [busy('20', '09:00', '12:00')])).toEqual([range('20', '12:00', '23:00')]);
+  });
+
+  it('a booking that crosses closing, or starts after it, cuts nothing more', () => {
+    expect(free('2026-11-21', 360, 1380, NOW, [busy('21', '22:00', '23:30')])).toEqual([range('21', '06:00', '22:00')]);
+    expect(free('2026-11-21', 360, 1380, NOW, [busy('21', '23:30', '23:59')])).toEqual([range('21', '06:00', '23:00')]);
+  });
+
+  it('a booking that crosses midnight from the day before cuts the start of the day', () => {
+    const overnight = { startAt: at('20', '23:30'), endAt: at('21', '08:00') };
+    expect(free('2026-11-21', 0, 1440, NOW, [overnight])).toEqual([{ startAt: at('21', '08:00').toISOString(), endAt: '2026-11-21T17:00:00.000Z' }]);
+  });
+
+  it('a day before opening starts at opening, and closing at 24:00 with a booking to 24:00 ends the range there', () => {
+    expect(free('2026-11-20', 360, 1380, at('20', '03:00'))).toEqual([range('20', '06:00', '23:00')]);
+    expect(free('2026-11-21', 480, 1440, NOW, [{ startAt: at('21', '20:00'), endAt: new Date('2026-11-21T17:00:00.000Z') }])).toEqual([range('21', '08:00', '20:00')]);
+  });
+
+  it('does not change the busy array', () => {
+    const held = [busy('20', '20:00', '21:00'), busy('20', '19:00', '20:00')];
+    const copy = held.map((b) => ({ ...b }));
+    free('2026-11-20', 360, 1380, NOW, held);
+    expect(held).toEqual(copy);
   });
 });
 
