@@ -40,4 +40,35 @@ describe('App', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' })).toBeTruthy();
   });
+
+  // Brief F-008 (AC-14): a guest and a user see the free hours, an owner and an admin do not.
+  // The notice shows once for each role: the guest sees it in the free hours, the user in the booking form.
+  const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
+  const as = (me: unknown) => vi.stubGlobal('fetch', vi.fn((url: string) => {
+    const [status, body] = url === '/api/auth/me' ? (me ? [200, me] : [401, { message: 'Bạn cần đăng nhập' }]) : [200, []];
+    return Promise.resolve({ ok: (status as number) < 400, status, json: () => Promise.resolve(body) });
+  }));
+
+  it('AC-14: a guest sees the free hours and the notice once', async () => {
+    as(null);
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Giờ trống' })).toBeTruthy();
+    expect(screen.getAllByText(NOTICE)).toHaveLength(1);
+  });
+
+  it('AC-14: a user sees the free hours and the booking form, and the notice once', async () => {
+    as({ id: 'x', name: 'An', role: 'USER' });
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Giờ trống' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Đặt sân' })).toBeTruthy();
+    expect(screen.getAllByText(NOTICE)).toHaveLength(1);
+  });
+
+  it.each([['OWNER', 'Yêu cầu đặt sân'], ['ADMIN', null]] as const)('AC-14: a %s does not see the free hours', async (role, heading) => {
+    as({ id: 'x', name: 'Bình', role });
+    render(<App />);
+    if (heading) await screen.findByRole('heading', { name: heading });
+    else await screen.findByText('Chào Bình');
+    expect(screen.queryByRole('heading', { name: 'Giờ trống' })).toBeNull();
+  });
 });
