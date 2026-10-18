@@ -75,6 +75,7 @@ Figure 2. Sơ đồ use case: đặt sân và quản trị
 
 ```mermaid
 flowchart LR
+    NguoiDung([Người dùng])
     Host([Host])
     NguoiGhep([Người ghép trận])
     ChuSan([Chủ sân])
@@ -95,6 +96,7 @@ flowchart LR
     Admin --- UC13
     HeThong --- UC14
     UC14 --- ChuSan
+    UC14 --- NguoiDung
     UC14 --- Host
     UC14 --- NguoiGhep
 ```
@@ -105,7 +107,7 @@ Figure 3. Sơ đồ use case: ghép trận và báo cáo
 
 ## Quy trình nghiệp vụ
 
-### Quy trình đặt sân và duyệt yêu cầu
+### Quy trình đặt sân và xác nhận booking
 
 Quy trình đặt sân diễn ra giữa người dùng, hệ thống và chủ sân (xem Figure 4). Hệ thống khóa sân tức thì để ngăn chặn hai người cùng đặt một giờ (BR-1).
 
@@ -309,14 +311,14 @@ Figure 9. Cây quyết định: xử lý yêu cầu hủy booking
 
 ## Ma trận CRUD
 
-Ma trận CRUD liên kết các use case với các thực thể trong cơ sở dữ liệu. Cột `PushSubscription` chỉ có UC-14 đọc và xóa. Chưa có use case nào tạo bảng này.
+Ma trận CRUD liên kết các use case với các thực thể trong cơ sở dữ liệu. Cột `PushSubscription` chỉ có UC-14 đọc và xóa. Chưa có use case nào tạo bảng này. Việc chuyển booking sang "Hết hạn" (BR-8) không thuộc use case nào. Việc đó ghi `Booking` và `Match` như UC-4 từ chối.
 
 | Use case | User | Venue | Court | Booking | Match | MatchPlayer | Notification | PushSubscription |
 |---|---|---|---|---|---|---|---|---|
 | **UC-1 Đăng ký và đăng nhập** | C, R | — | — | — | — | — | — | — |
 | **UC-2 Chọn sân và xem giờ trống** | — | R | R | R | — | — | — | — |
 | **UC-3 Gửi yêu cầu đặt sân** | R | R | R | C | — | — | C | — |
-| **UC-4 Xác nhận hoặc từ chối booking** | R | R | R | R, U | U | — | C | — |
+| **UC-4 Xác nhận hoặc từ chối booking** | R | R | R | R, U | U | R | C | — |
 | **UC-5 Nhập booking của khách gọi điện** | R | R | R | C, R | — | — | — | — |
 | **UC-6 Xem và hủy booking** | R | R | R | R, U | U | R | C | — |
 | **UC-7 Mở trận** | R | — | — | R | C | C | — | — |
