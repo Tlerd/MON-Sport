@@ -63,7 +63,7 @@ function toOwnerView(b: Booking & { createdBy: { name: string; phone: string } |
   const customer = b.source === 'PHONE' || !b.createdBy
     ? { name: b.customerName ?? '', phone: b.customerPhone }
     : { name: b.createdBy.name, phone: b.createdBy.phone };
-  return { ...toView(b), customer };
+  return { ...toView(b), paidAtVenue: b.paidAtVenue, customer };
 }
 
 /** A booking stays on one day inside the opening hours. 23:00-24:00 ends on minute 1440. */

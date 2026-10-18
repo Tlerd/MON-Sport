@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BookingView, CALL_OWNER_MESSAGE, CreateBookingRequest, CreatePhoneBookingRequest, LoginRequest, MyBookingView, PHONE_MESSAGE } from './booking.ts';
+import { BookingView, CALL_OWNER_MESSAGE, CreateBookingRequest, CreatePhoneBookingRequest, LoginRequest, MyBookingView, OwnerBookingView, PHONE_MESSAGE } from './booking.ts';
 
 const slot = { courtId: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b', startAt: '2026-11-20T17:00:00+07:00', endAt: '2026-11-20T18:00:00+07:00' };
 
@@ -79,5 +79,30 @@ describe('booking contract', () => {
 
   it('refuses a phone number that is not 10 digits from 0', () => {
     expect(LoginRequest.safeParse({ phone: '901234567', password: 'x' }).success).toBe(false);
+  });
+
+  it('OwnerBookingView includes paidAtVenue with default false', () => {
+    const ownerBooking = {
+      id: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b',
+      courtId: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c',
+      startAt: '2026-11-20T20:00:00+07:00',
+      endAt: '2026-11-20T21:00:00+07:00',
+      status: 'CONFIRMED',
+      source: 'APP',
+      priceTotal: 120_000,
+      confirmDeadline: null,
+      confirmedAt: '2026-11-20T10:00:00+07:00',
+      cancelledAt: null,
+      createdAt: '2026-11-20T08:00:00+07:00',
+      customer: { name: 'An', phone: '0901234567' },
+    };
+    expect(OwnerBookingView.parse(ownerBooking)).toEqual({
+      ...ownerBooking,
+      paidAtVenue: false,
+    });
+    expect(OwnerBookingView.parse({ ...ownerBooking, paidAtVenue: true })).toEqual({
+      ...ownerBooking,
+      paidAtVenue: true,
+    });
   });
 });

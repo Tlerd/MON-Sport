@@ -126,6 +126,7 @@ model Booking {
 
   @@index([courtId, status])
   @@index([createdById])
+  @@index([courtId, startAt])
 }
 
 model Match {
