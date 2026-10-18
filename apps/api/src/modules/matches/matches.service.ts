@@ -1,9 +1,18 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  ALREADY_IN_MATCH_MESSAGE,
   CALL_OWNER_MESSAGE,
   type CreateMatchRequest,
+  HOST_CANNOT_LEAVE_MESSAGE,
+  LEAVE_STARTED_MESSAGE,
+  MATCH_FULL_MESSAGE,
+  type MatchDetailView,
   type MatchLobbyQuery,
   type MatchView,
+  type MatchViewerRole,
+  NOT_IN_MATCH_MESSAGE,
+  NOT_JOINABLE_MESSAGE,
+  NOT_LEAVABLE_MESSAGE,
   startOfDayVN,
   userCancelDecision,
 } from '@monsport/shared';
@@ -30,9 +39,21 @@ const WITH_RELATIONS = {
       },
     },
   },
-} as const;
+} satisfies Prisma.MatchInclude;
+
+const WITH_DETAIL_RELATIONS = {
+  ...WITH_RELATIONS,
+  players: {
+    where: { status: 'ACTIVE' },
+    orderBy: [{ joinedAt: 'asc' }, { userId: 'asc' }],
+    include: {
+      user: { select: { name: true, phone: true } },
+    },
+  },
+} satisfies Prisma.MatchInclude;
 
 type MatchRow = Prisma.MatchGetPayload<{ include: typeof WITH_RELATIONS }>;
+type MatchDetailRow = Prisma.MatchGetPayload<{ include: typeof WITH_DETAIL_RELATIONS }>;
 
 export function toMatchView(m: MatchRow): MatchView {
   return {
@@ -52,6 +73,26 @@ export function toMatchView(m: MatchRow): MatchView {
     venueName: m.booking.court.venue.name,
     venueAddress: m.booking.court.venue.address,
     createdAt: m.createdAt.toISOString(),
+  };
+}
+
+export function toMatchDetailView(m: MatchDetailRow, viewerId: string): MatchDetailView {
+  const viewerRole: MatchViewerRole =
+    m.hostId === viewerId
+      ? 'HOST'
+      : m.players.some((p) => p.userId === viewerId)
+        ? 'PLAYER'
+        : 'NONE';
+  return {
+    ...toMatchView(m),
+    viewerRole,
+    // BR-20: only the host of the match sees the phone numbers of players.
+    players: m.players.map((p) => ({
+      userId: p.userId,
+      name: p.user.name,
+      phone: viewerRole === 'HOST' ? p.user.phone : null,
+      joinedAt: p.joinedAt.toISOString(),
+    })),
   };
 }
 
@@ -185,6 +226,213 @@ export class MatchesService {
       orderBy: [{ booking: { startAt: 'asc' } }, { id: 'asc' }],
     });
     return rows.map(toMatchView);
+  }
+
+  /** UC-8 flow 8.2 (brief F-012): list matches where the caller has an ACTIVE MatchPlayer row, ordered by startAt desc. */
+  async joined(userId: string): Promise<MatchView[]> {
+    const now = this.clock.now();
+    const syncJoined = async () => {
+      await expireBookings(
+        this.prisma,
+        Prisma.sql`id IN (SELECT m."bookingId" FROM "Match" m JOIN "MatchPlayer" mp ON mp."matchId" = m.id WHERE mp."userId" = ${userId}::uuid AND mp.status = 'ACTIVE')`,
+        now,
+      );
+      await finishPastMatches(
+        this.prisma,
+        Prisma.sql`m.id IN (SELECT "matchId" FROM "MatchPlayer" WHERE "userId" = ${userId}::uuid AND status = 'ACTIVE')`,
+        now,
+      );
+    };
+    await syncJoined().catch((error: unknown) => {
+      if (!isDeadlock(error)) throw error;
+      return syncJoined().catch((again: unknown) => {
+        throw isDeadlock(again) ? new ConflictException(BUSY) : again;
+      });
+    });
+    const rows = await this.prisma.match.findMany({
+      where: {
+        players: {
+          some: { userId, status: 'ACTIVE' },
+        },
+      },
+      include: WITH_RELATIONS,
+      orderBy: [{ booking: { startAt: 'desc' } }, { id: 'desc' }],
+    });
+    return rows.map(toMatchView);
+  }
+
+  /** UC-8 step 3 (brief F-012): match detail with ACTIVE players and BR-20 phone visibility. */
+  async detail(userId: string, matchId: string): Promise<MatchDetailView> {
+    const found = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      select: { bookingId: true },
+    });
+    if (!found) {
+      throw new NotFoundException(MATCH_NOT_FOUND);
+    }
+    const now = this.clock.now();
+    const syncMatch = async () => {
+      await expireBookings(this.prisma, Prisma.sql`id = ${found.bookingId}::uuid`, now);
+      await finishPastMatches(this.prisma, Prisma.sql`b.id = ${found.bookingId}::uuid`, now);
+    };
+    await syncMatch().catch((error: unknown) => {
+      if (!isDeadlock(error)) throw error;
+      return syncMatch().catch((again: unknown) => {
+        throw isDeadlock(again) ? new ConflictException(BUSY) : again;
+      });
+    });
+    const row = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      include: WITH_DETAIL_RELATIONS,
+    });
+    if (!row) {
+      throw new NotFoundException(MATCH_NOT_FOUND);
+    }
+    return toMatchDetailView(row, userId);
+  }
+
+  /** UC-8 step 4 (brief F-012): a user joins an OPEN match. */
+  async join(userId: string, matchId: string): Promise<MatchDetailView> {
+    const found = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      select: { bookingId: true, booking: { select: { courtId: true } } },
+    });
+    if (!found) {
+      throw new NotFoundException(MATCH_NOT_FOUND);
+    }
+    const now = this.clock.now();
+    let outcome:
+      | { kind: 'not_joinable' }
+      | { kind: 'already_in_match' }
+      | { kind: 'match_full' }
+      | { kind: 'joined'; match: MatchDetailRow };
+    try {
+      outcome = await this.prisma.$transaction(async (tx) => {
+        await lockVenueOf(tx, found.booking.courtId);
+        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.booking.courtId}::uuid FOR UPDATE`;
+        await expireBookings(tx, Prisma.sql`id = ${found.bookingId}::uuid`, now);
+        await finishPastMatches(tx, Prisma.sql`b.id = ${found.bookingId}::uuid`, now);
+        const locked = await tx.$executeRaw`SELECT 1 FROM "Match" WHERE "id" = ${matchId}::uuid FOR UPDATE`;
+        if (!locked) {
+          throw new NotFoundException(MATCH_NOT_FOUND);
+        }
+        const current = await tx.match.findUniqueOrThrow({
+          where: { id: matchId },
+          include: {
+            booking: { select: { status: true, startAt: true } },
+            players: { where: { userId }, select: { status: true } },
+          },
+        });
+        if (
+          (current.status !== 'OPEN' && current.status !== 'FULL') ||
+          (current.booking.status !== 'PENDING' && current.booking.status !== 'CONFIRMED') ||
+          current.booking.startAt <= now
+        ) {
+          return { kind: 'not_joinable' };
+        }
+        if (current.players[0]?.status === 'ACTIVE') {
+          return { kind: 'already_in_match' };
+        }
+        if (current.joinedCount >= current.capacity || current.status === 'FULL') {
+          return { kind: 'match_full' };
+        }
+        await tx.matchPlayer.upsert({
+          where: { matchId_userId: { matchId, userId } },
+          create: { matchId, userId, status: 'ACTIVE', joinedAt: now, leftAt: null },
+          update: { status: 'ACTIVE', joinedAt: now, leftAt: null },
+        });
+        const nextJoined = current.joinedCount + 1;
+        const updated = await tx.match.update({
+          where: { id: matchId },
+          data: {
+            joinedCount: nextJoined,
+            status: nextJoined >= current.capacity ? 'FULL' : 'OPEN',
+          },
+          include: WITH_DETAIL_RELATIONS,
+        });
+        return { kind: 'joined', match: updated };
+      });
+    } catch (error) {
+      if (isDeadlock(error)) throw new ConflictException(BUSY);
+      throw error;
+    }
+    // 409 is thrown after the transaction commits so lazy EXPIRED/CANCELLED/FINISHED updates stay persisted (AC-5).
+    if (outcome.kind === 'not_joinable') throw new ConflictException(NOT_JOINABLE_MESSAGE);
+    if (outcome.kind === 'already_in_match') throw new ConflictException(ALREADY_IN_MATCH_MESSAGE);
+    if (outcome.kind === 'match_full') throw new ConflictException(MATCH_FULL_MESSAGE);
+    return toMatchDetailView(outcome.match, userId);
+  }
+
+  /** UC-8 flow 8.1 (brief F-012): a non-host ACTIVE player leaves a match before startAt (BR-18). */
+  async leave(userId: string, matchId: string): Promise<MatchDetailView> {
+    const found = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      select: { bookingId: true, booking: { select: { courtId: true } } },
+    });
+    if (!found) {
+      throw new NotFoundException(MATCH_NOT_FOUND);
+    }
+    const now = this.clock.now();
+    let outcome:
+      | { kind: 'host_cannot_leave' }
+      | { kind: 'not_in_match' }
+      | { kind: 'not_leavable' }
+      | { kind: 'leave_started' }
+      | { kind: 'left'; match: MatchDetailRow };
+    try {
+      outcome = await this.prisma.$transaction(async (tx) => {
+        await lockVenueOf(tx, found.booking.courtId);
+        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.booking.courtId}::uuid FOR UPDATE`;
+        await expireBookings(tx, Prisma.sql`id = ${found.bookingId}::uuid`, now);
+        await finishPastMatches(tx, Prisma.sql`b.id = ${found.bookingId}::uuid`, now);
+        const locked = await tx.$executeRaw`SELECT 1 FROM "Match" WHERE "id" = ${matchId}::uuid FOR UPDATE`;
+        if (!locked) {
+          throw new NotFoundException(MATCH_NOT_FOUND);
+        }
+        const current = await tx.match.findUniqueOrThrow({
+          where: { id: matchId },
+          include: {
+            booking: { select: { status: true, startAt: true } },
+            players: { where: { userId }, select: { status: true } },
+          },
+        });
+        if (current.hostId === userId) {
+          return { kind: 'host_cannot_leave' };
+        }
+        if (current.players[0]?.status !== 'ACTIVE') {
+          return { kind: 'not_in_match' };
+        }
+        if (current.status !== 'OPEN' && current.status !== 'FULL') {
+          return { kind: 'not_leavable' };
+        }
+        if (current.booking.startAt <= now) {
+          return { kind: 'leave_started' };
+        }
+        await tx.matchPlayer.update({
+          where: { matchId_userId: { matchId, userId } },
+          data: { status: 'LEFT', leftAt: now },
+        });
+        const nextJoined = current.joinedCount - 1;
+        const updated = await tx.match.update({
+          where: { id: matchId },
+          data: {
+            joinedCount: nextJoined,
+            status: 'OPEN',
+          },
+          include: WITH_DETAIL_RELATIONS,
+        });
+        return { kind: 'left', match: updated };
+      });
+    } catch (error) {
+      if (isDeadlock(error)) throw new ConflictException(BUSY);
+      throw error;
+    }
+    // 409 is thrown after the transaction commits so lazy EXPIRED/CANCELLED/FINISHED updates stay persisted (AC-6).
+    if (outcome.kind === 'host_cannot_leave') throw new ConflictException(HOST_CANNOT_LEAVE_MESSAGE);
+    if (outcome.kind === 'not_in_match') throw new ConflictException(NOT_IN_MATCH_MESSAGE);
+    if (outcome.kind === 'not_leavable') throw new ConflictException(NOT_LEAVABLE_MESSAGE);
+    if (outcome.kind === 'leave_started') throw new ConflictException(LEAVE_STARTED_MESSAGE);
+    return toMatchDetailView(outcome.match, userId);
   }
 
   /** UC-9 (brief F-011): the host cancels their match, which also cancels the underlying booking (BR-17). */
