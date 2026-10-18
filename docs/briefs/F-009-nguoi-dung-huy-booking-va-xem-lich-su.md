@@ -5,7 +5,7 @@ lang: vi
 
 # F-009: Người dùng hủy booking và xem lịch sử
 
-Status: draft
+Status: accepted (review round 2, pull request #59)
 Source:
 
 - Intake `docs/requirements/intake-monsport-v1.md`:
@@ -92,10 +92,9 @@ Thứ tự ở `POST /api/bookings/:id/cancel`. Bước 2 tới 7 chạy trong m
 6. Một lệnh `updateMany` có điều kiện: `id`, `createdById` = người gọi, `source` = `APP`, `startAt` > bây giờ, và (`status` = `PENDING`, hoặc `status` = `CONFIRMED` và `startAt` ≥ bây giờ + 6 giờ). Lệnh đặt `status` = `CANCELLED` và `cancelledAt` = bây giờ. Một lệnh quyết định, nên hai lần hủy song song không cùng thắng.
 7. Transaction trả `{ count, booking }`: số dòng đổi và booking đọc lại.
 
-Sau khi transaction commit:
+Sau khi transaction commit, khi `count` = 0, `userCancelDecision` chọn 409 `CALL_OWNER` hay 409 `NONE`. Cách này giữ `EXPIRED` mà bước 5 đã ghi, như `decide` ("The answer comes after the commit").
 
-1. `count` = 0: `userCancelDecision` chọn 409 `CALL_OWNER` hay 409 `NONE`. Cách này giữ `EXPIRED` mà bước 5 đã ghi, như `decide` ("The answer comes after the commit").
-2. Lỗi `40P01` hoặc `P2034` của transaction đổi thành 409 "Yêu cầu đang được xử lý, hãy thử lại", qua `isDeadlock`.
+Bọc cả transaction bằng `try/catch`. Lỗi `40P01` hoặc `P2034` làm transaction bị ngắt và không commit. `catch` đổi lỗi đó thành 409 "Yêu cầu đang được xử lý, hãy thử lại", qua `isDeadlock`, như `decide`.
 
 `POST /api/owner/bookings/:id/cancel` đổi như sau:
 
