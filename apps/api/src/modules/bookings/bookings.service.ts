@@ -17,6 +17,7 @@ import {
 import { type Booking, Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
 import { isDeadlock, isExclusionViolation, PrismaService } from '../database/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 const TAKEN = 'Khung giờ này vừa có người đặt';
 const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại'; // 40P01 is a 409, not a 500
@@ -83,6 +84,7 @@ export class BookingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   /** UC-3: a user asks for a time slot on a court. */
@@ -172,7 +174,7 @@ export class BookingsService {
       assertOpen(court, startAt, endAt);
       // BR-8 without a job: expired requests on this court stop holding their time before the insert.
       await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
-      return tx.booking.create({
+      const created = await tx.booking.create({
         data: {
           ...fields,
           courtId: court.id,
@@ -182,6 +184,14 @@ export class BookingsService {
           createdAt: now,
         },
       });
+      if (created.source === 'APP') {
+        await this.notifications?.createNotification(tx, {
+          userId: court.venue.ownerId,
+          type: 'BOOKING_REQUESTED',
+          bookingId: created.id,
+        });
+      }
+      return created;
     });
   }
 
@@ -255,10 +265,24 @@ export class BookingsService {
           data: { status: 'CANCELLED', cancelledAt: now },
         });
         if (result.count > 0) {
-          await tx.match.updateMany({
-            where: { bookingId, status: { in: ['OPEN', 'FULL'] } },
-            data: { status: 'CANCELLED' },
+          const match = await tx.match.findUnique({
+            where: { bookingId },
+            include: { players: { where: { status: 'ACTIVE' } } },
           });
+          if (match && (match.status === 'OPEN' || match.status === 'FULL')) {
+            await tx.match.update({
+              where: { id: match.id },
+              data: { status: 'CANCELLED' },
+            });
+            for (const player of match.players) {
+              await this.notifications?.createNotification(tx, {
+                userId: player.userId,
+                type: 'MATCH_CANCELLED',
+                bookingId,
+                matchId: match.id,
+              });
+            }
+          }
         }
         return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include }) };
       });
@@ -338,11 +362,38 @@ export class BookingsService {
           where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
           data: decision === 'CONFIRMED' ? { status: 'CONFIRMED', confirmedAt: now } : { status: 'REJECTED' },
         });
-        if (result.count > 0 && decision === 'REJECTED') {
-          await tx.match.updateMany({
-            where: { bookingId, status: { in: ['OPEN', 'FULL'] } },
-            data: { status: 'CANCELLED' },
-          });
+        if (result.count > 0) {
+          if (decision === 'CONFIRMED') {
+            await this.notifications?.createNotification(tx, {
+              userId: booking.createdById,
+              type: 'BOOKING_CONFIRMED',
+              bookingId,
+            });
+          } else {
+            await this.notifications?.createNotification(tx, {
+              userId: booking.createdById,
+              type: 'BOOKING_REJECTED',
+              bookingId,
+            });
+            const match = await tx.match.findUnique({
+              where: { bookingId },
+              include: { players: { where: { status: 'ACTIVE' } } },
+            });
+            if (match && (match.status === 'OPEN' || match.status === 'FULL')) {
+              await tx.match.update({
+                where: { id: match.id },
+                data: { status: 'CANCELLED' },
+              });
+              for (const player of match.players) {
+                await this.notifications?.createNotification(tx, {
+                  userId: player.userId,
+                  type: 'MATCH_CANCELLED',
+                  bookingId,
+                  matchId: match.id,
+                });
+              }
+            }
+          }
         }
         return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } }) };
       });

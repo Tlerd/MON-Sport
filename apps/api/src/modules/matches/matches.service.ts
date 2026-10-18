@@ -20,6 +20,7 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { expireBookings, finishPastMatches, lockVenueOf } from '../bookings/bookings.service.js';
 import { Clock } from '../database/clock.js';
 import { isDeadlock, PrismaService } from '../database/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 const ALREADY_HAS_MATCH = 'Booking này đã có trận';
 const NOT_OPENABLE = 'Chỉ mở được trận trên booking đang chờ xác nhận hoặc đã xác nhận';
@@ -117,6 +118,7 @@ export class MatchesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   /** UC-7 (brief F-011): the host opens a match on their own PENDING or CONFIRMED app booking. */
@@ -485,6 +487,18 @@ export class MatchesService {
           data: { status: 'CANCELLED' },
           include: WITH_RELATIONS,
         });
+        const players = await tx.matchPlayer.findMany({
+          where: { matchId, status: 'ACTIVE' },
+          select: { userId: true },
+        });
+        for (const p of players) {
+          await this.notifications?.createNotification(tx, {
+            userId: p.userId,
+            type: 'MATCH_CANCELLED',
+            bookingId: current.booking.id,
+            matchId,
+          });
+        }
         return { kind: 'cancelled', match: updated };
       });
     } catch (error) {
