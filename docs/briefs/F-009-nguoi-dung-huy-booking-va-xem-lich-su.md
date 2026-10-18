@@ -57,7 +57,7 @@ Dữ liệu:
 | AC-6 | An có các booking: "Bị từ chối", "Hết hạn", "Đã hủy", một booking "Đã xác nhận" 09:00–10:30 (giờ bắt đầu đã qua), và một booking "Chờ xác nhận" 12:00–13:00 có hạn xác nhận 09:30 mà DB còn ghi `PENDING` | An hủy từng booking | Mỗi booking nhận 409 "Booking này không hủy được nữa". Booking cuối chuyển sang `EXPIRED` trong DB (BR-8). Không booking nào đổi, trừ booking cuối. Hủy booking "Đã hủy" lần hai nhận cùng câu lỗi |
 | AC-7 | An có booking "Chờ xác nhận". Bình có booking `PHONE` "Đã xác nhận". Còn Chi, Bình, admin, và một request không có cookie | Chi hủy booking của An. An hủy booking `PHONE` của Bình. An hủy một UUID không có. An hủy `abc`. Bình, admin và request không cookie gọi `POST /api/bookings/<id>/cancel` | Chi nhận 404 "Không tìm thấy booking". An hủy booking `PHONE` nhận 404 "Không tìm thấy booking". UUID không có nhận 404. `abc` nhận 400 "Dữ liệu không hợp lệ". Bình 403, admin 403 (BR-22), không cookie 401. Không booking nào đổi |
 | AC-8 | An có hai booking "Đã xác nhận" trên "Sân 1" của Bình: 15:00–16:00 và 20:00–21:00. Bây giờ là 10:00 | Bình gọi `POST /api/owner/bookings/<id>/cancel` với từng booking | Cả hai nhận 200. `status` = `CANCELLED`, `cancelledAt` = 10:00. Chủ sân hủy được booking `APP` tới giờ bắt đầu, không có mốc 6 giờ: người dùng gọi chủ sân để hủy muộn (6.0.E1) |
-| AC-9 | Bình có: booking `APP` "Chờ xác nhận" của An, booking `APP` "Bị từ chối", booking `APP` "Đã xác nhận" 09:00–10:30, và một booking `APP` "Đã xác nhận" trên sân của Dũng | Bình hủy từng booking | Booking "Chờ xác nhận" nhận 409 "Yêu cầu đang chờ xác nhận. Hãy từ chối yêu cầu này". "Bị từ chối" và "Đã xác nhận" đã bắt đầu nhận 409 "Booking này không hủy được nữa". Booking của Dũng nhận 404 "Không tìm thấy booking" (BR-23). Admin gọi route này nhận 403 (BR-22). Không booking nào đổi |
+| AC-9 | Năm booking `APP`. Bốn booking trên sân của Bình: "Chờ xác nhận" còn hạn, "Chờ xác nhận" có hạn xác nhận 09:30 đã qua mà DB còn ghi `PENDING`, "Bị từ chối", và "Đã xác nhận" 09:00–10:30. Booking thứ năm "Đã xác nhận" nằm trên sân của Dũng | Bình hủy từng booking | Booking "Chờ xác nhận" còn hạn nhận 409 "Yêu cầu đang chờ xác nhận. Hãy từ chối yêu cầu này". Booking quá hạn, "Bị từ chối" và "Đã xác nhận" đã bắt đầu nhận 409 "Booking này không hủy được nữa". Booking quá hạn là `EXPIRED` trong DB. Booking của Dũng nhận 404 "Không tìm thấy booking" (BR-23), và không đổi. Admin gọi route này nhận 403 (BR-22). Không booking nào khác đổi |
 | AC-10 | An có 4 booking, tạo lần lượt lúc 08:00, 08:10, 08:20, 08:30. Trạng thái: "Đã hủy", "Chờ xác nhận" có hạn 09:30 đã qua mà DB còn ghi `PENDING`, "Đã xác nhận", "Bị từ chối". Chi có 1 booking. Bình có 1 booking `PHONE` | An gọi `GET /api/bookings/mine`. Rồi Bình, admin và request không cookie gọi route đó | An nhận đúng 4 booking, mới nhất trước (tạo lúc 08:30 đầu tiên). Mỗi booking có `courtName`, `venueName`, `venuePhone`, `status`, `cancelledAt`. Booking quá hạn hiện `EXPIRED`, và DB ghi `EXPIRED`. Không có booking của Chi hay của Bình. Bình 403, admin 403, không cookie 401 |
 | AC-11 | An có booking "Đã xác nhận" 20:00–21:00 | 20 request của An hủy booking đó, gửi cùng lúc | Đúng 1 request nhận 200. 19 request nhận 409 "Booking này không hủy được nữa". Không request nào nhận 500. `cancelledAt` có đúng một giá trị |
 | AC-12 | An có booking "Chờ xác nhận" 12:00–13:00 với hạn xác nhận 11:00. Bây giờ là 10:00 | 10 request của An hủy và 10 request của Bình xác nhận, gửi cùng lúc | Đúng 1 request nhận 200. Mọi request khác nhận 409. Không request nào nhận 500. Nếu một lần xác nhận thắng, booking là `CONFIRMED` và các lần hủy nhận 409 "Còn dưới 6 giờ nữa tới giờ bắt đầu. Hãy gọi chủ sân". Nếu một lần hủy thắng, booking là `CANCELLED` |
@@ -65,7 +65,7 @@ Dữ liệu:
 | AC-14 | Service nhận một transaction bị Postgres ngắt bằng `40P01` (hoặc `P2034`) ở route hủy của người dùng, ở route hủy của chủ sân, và ở `mine` | Gọi từng route | Hai route hủy trả 409 "Yêu cầu đang được xử lý, hãy thử lại", không phải 500, và đi qua `isDeadlock`. `mine` chạy lại lệnh `EXPIRE` một lần, rồi trả 409 cùng câu khi lần hai cũng bị ngắt |
 | AC-15 | Web: `MyBookings` nhận từ API 5 booking: "Chờ xác nhận", "Đã xác nhận", "Bị từ chối", "Hết hạn", "Đã hủy" | Mở trang người dùng | Mỗi dòng hiện "Cầu lông A · Sân 1", ngày, giờ, giá, và nhãn trạng thái (`STATUS_LABEL`). Thứ tự giữ như API. Dòng "Đã hủy" có `data-status="CANCELLED"`. Khi API trả danh sách rỗng, trang hiện "Bạn chưa có booking nào" |
 | AC-16 | Web: danh sách có booking "Chờ xác nhận" chưa tới giờ và booking "Đã xác nhận" còn 7 giờ | Người dùng bấm "Hủy" ở booking "Đã xác nhận", rồi bấm "Xác nhận hủy" | Bấm "Hủy" hiện "Xác nhận hủy" và "Giữ booking", và chưa gọi API. Bấm "Xác nhận hủy" gọi `POST /api/bookings/<id>/cancel`. Dòng đó ở lại trong danh sách với nhãn "Đã hủy", không còn nút. Focus chuyển tới nhãn mới. Bấm "Giữ booking" đưa focus về nút "Hủy" và không gọi API |
-| AC-17 | Web: danh sách có booking "Đã xác nhận" còn 5 giờ, và booking "Bị từ chối", "Hết hạn", "Đã hủy", và "Đã xác nhận" đã bắt đầu | Mở trang người dùng | Booking còn 5 giờ không có nút "Hủy". Dòng đó hiện "Còn dưới 6 giờ tới giờ bắt đầu. Hãy gọi chủ sân." và một link "Gọi chủ sân" với `href` `tel:0911111111` (6.0.E1). Bốn booking kia không có nút "Hủy" và không có link gọi |
+| AC-17 | Web: danh sách có booking "Đã xác nhận" còn 5 giờ, và booking "Bị từ chối", "Hết hạn", "Đã hủy", và "Đã xác nhận" đã bắt đầu | Mở trang người dùng | Booking còn 5 giờ không có nút "Hủy". Dòng đó hiện "Còn dưới 6 giờ nữa tới giờ bắt đầu. Hãy gọi chủ sân" (hằng số `CALL_OWNER_MESSAGE` của `packages/shared`, cùng câu với API) và một link "Gọi chủ sân" với `href` `tel:0911111111` (6.0.E1). Bốn booking kia không có nút "Hủy" và không có link gọi |
 | AC-18 | Web: API trả 409 "Booking này không hủy được nữa" khi người dùng xác nhận hủy | Người dùng bấm "Xác nhận hủy" | Trang hiện câu lỗi đó với `role="alert"`. Web tải lại danh sách từ `GET /api/bookings/mine` và dòng hiện trạng thái mới của server |
 | AC-19 | Web: danh sách "Booking đã xác nhận" của chủ sân nhận một booking `APP` chưa tới giờ (còn 3 giờ) và một booking `PHONE` chưa tới giờ | Chủ sân bấm "Hủy" ở booking `APP`, rồi bấm "Xác nhận hủy" | Cả hai booking có nút "Hủy". Web gọi `POST /api/owner/bookings/<id>/cancel`. Dòng `APP` ở lại với nhãn "Đã hủy". Dòng `PHONE` không đổi. Test F-007 AC-18 đổi theo: booking `APP` chưa tới giờ giờ có nút "Hủy" |
 
@@ -76,22 +76,34 @@ Zod trong `packages/shared/src/booking.ts` là nguồn duy nhất. Hàm thuần 
 | Endpoint or schema | Change | Request | Response and errors |
 |---|---|---|---|
 | `MyBookingView` | new | — | `BookingView` thêm `courtName` (chuỗi), `venueName` (chuỗi), `venuePhone` (`Phone`). `venuePhone` là số công khai của đơn vị, như `VenueView.phone`. Chỉ người đặt thấy view này |
+| `CALL_OWNER_MESSAGE` | new | — | Hằng số chuỗi "Còn dưới 6 giờ nữa tới giờ bắt đầu. Hãy gọi chủ sân". API và web cùng dùng |
 | `userCancelDecision(booking, now)` | new | `booking`: `{ status, startAt }`. `now`: thời điểm | `'ALLOW'` khi `status` = `PENDING` và `startAt` > `now` (BR-12), hoặc khi `status` = `CONFIRMED` và `startAt` − `now` ≥ 6 giờ (BR-11). `'CALL_OWNER'` khi `status` = `CONFIRMED`, `startAt` > `now`, và còn dưới 6 giờ. `'NONE'` ở mọi trường hợp khác. Server và web cùng dùng hàm này để chọn câu lỗi và nút |
 | `GET /api/bookings/mine` | changed | — | 200 `MyBookingView[]`, xếp theo `createdAt` giảm dần, rồi `id` giảm dần. Chỉ booking có `createdById` là người gọi. Chạy lệnh `EXPIRE` cho các yêu cầu quá hạn của người gọi trước khi đọc (BR-8). Thêm `@Roles('USER')`: 403 cho `OWNER` và `ADMIN`, 401 khi không có phiên |
 | `POST /api/bookings/:id/cancel` | new | — | 200 `MyBookingView` với `status` = `CANCELLED`. 400 "Dữ liệu không hợp lệ" khi `:id` không phải UUID (pipe `Id`). 401. 403 khi không phải `USER` (BR-22). 404 "Không tìm thấy booking" khi booking không có, không phải của người gọi, hoặc `source` = `PHONE`. 409 "Còn dưới 6 giờ nữa tới giờ bắt đầu. Hãy gọi chủ sân" khi quyết định là `CALL_OWNER`. 409 "Booking này không hủy được nữa" khi quyết định là `NONE`. 409 "Yêu cầu đang được xử lý, hãy thử lại" khi `40P01` hoặc `P2034` |
 | `POST /api/owner/bookings/:id/cancel` | changed | — | 200 `BookingView` với `status` = `CANCELLED` cho booking "Đã xác nhận" của đơn vị của người gọi, mọi `source`, khi `startAt` > bây giờ. Bỏ lỗi "Chỉ hủy được booking bạn nhập cho khách gọi điện". 409 "Yêu cầu đang chờ xác nhận. Hãy từ chối yêu cầu này" khi `status` = `PENDING` sau `EXPIRE`. 409 "Booking này không hủy được nữa" ở mọi trường hợp khác. 409 "Yêu cầu đang được xử lý, hãy thử lại" khi `40P01` hoặc `P2034`. Mã 400, 401, 403, 404 như F-007 |
 
-Thứ tự ở `POST /api/bookings/:id/cancel`. Mọi bước chạy trong một transaction, trừ bước 1:
+Thứ tự ở `POST /api/bookings/:id/cancel`. Bước 2 tới 7 chạy trong một transaction. Transaction không ném lỗi 409, vì lỗi làm rollback bước `EXPIRE`:
 
 1. Kiểm UUID. Đọc `courtId` của booking. Không có: 404.
 2. Khóa dòng `Venue` của sân (`FOR SHARE`), như `lockVenueOf`.
 3. Khóa dòng `Court` (`FOR UPDATE`).
-4. Chuyển booking này sang `EXPIRED` khi nó `PENDING` và quá hạn (BR-8), như `decide`.
-5. Một lệnh `updateMany` có điều kiện: `id`, `createdById` = người gọi, `source` = `APP`, `startAt` > bây giờ, và (`status` = `PENDING`, hoặc `status` = `CONFIRMED` và `startAt` ≥ bây giờ + 6 giờ). Lệnh đặt `status` = `CANCELLED` và `cancelledAt` = bây giờ. Một lệnh quyết định, nên hai lần hủy song song không cùng thắng.
-6. Khi lệnh không đổi dòng nào, route đọc booking. Booking không thuộc người gọi, hoặc `source` = `PHONE`: 404. Còn lại: `userCancelDecision` chọn `CALL_OWNER` hay `NONE`.
-7. Lỗi `40P01` hoặc `P2034` của transaction đổi thành 409 "Yêu cầu đang được xử lý, hãy thử lại", qua `isDeadlock`, như `decide`.
+4. Đọc booking. Booking không thuộc người gọi (`createdById`), hoặc `source` = `PHONE`: 404. Bước này ở trước `EXPIRE`, nên một người lạ không ghi được gì lên booking của người khác, như `decide`.
+5. Chuyển booking này sang `EXPIRED` khi nó `PENDING` và quá hạn (BR-8).
+6. Một lệnh `updateMany` có điều kiện: `id`, `createdById` = người gọi, `source` = `APP`, `startAt` > bây giờ, và (`status` = `PENDING`, hoặc `status` = `CONFIRMED` và `startAt` ≥ bây giờ + 6 giờ). Lệnh đặt `status` = `CANCELLED` và `cancelledAt` = bây giờ. Một lệnh quyết định, nên hai lần hủy song song không cùng thắng.
+7. Transaction trả `{ count, booking }`: số dòng đổi và booking đọc lại.
 
-`POST /api/owner/bookings/:id/cancel` đổi như sau: thêm khóa `Court` (`FOR UPDATE`) sau khóa `Venue`, thêm bước `EXPIRE` của booking, và đổi điều kiện `updateMany` từ `source` = `PHONE` thành mọi `source`. Phần còn lại giữ như F-007.
+Sau khi transaction commit:
+
+1. `count` = 0: `userCancelDecision` chọn 409 `CALL_OWNER` hay 409 `NONE`. Cách này giữ `EXPIRED` mà bước 5 đã ghi, như `decide` ("The answer comes after the commit").
+2. Lỗi `40P01` hoặc `P2034` của transaction đổi thành 409 "Yêu cầu đang được xử lý, hãy thử lại", qua `isDeadlock`.
+
+`POST /api/owner/bookings/:id/cancel` đổi như sau:
+
+- Thêm khóa `Court` (`FOR UPDATE`) sau khóa `Venue`.
+- Kiểm chủ đơn vị (404) trước bước `EXPIRE`, rồi thêm bước `EXPIRE` của booking.
+- Đổi điều kiện `updateMany` từ `source` = `PHONE` thành mọi `source`.
+- Chọn mã 409 sau commit, như route của người dùng. Lệnh `EXPIRE` ở lại khi route trả 409 (AC-9).
+- Phần còn lại giữ như F-007.
 
 Thứ tự khóa của mọi route sau slice này:
 
@@ -153,6 +165,7 @@ Màn hình web:
 - Chủ sân không hủy yêu cầu "Chờ xác nhận". Chủ sân từ chối yêu cầu đó (UC-4).
 - Người dùng hủy booking "Chờ xác nhận" tới đúng giờ bắt đầu. Hạn xác nhận (BR-7) luôn qua trước giờ bắt đầu, nên một yêu cầu quá hạn đã thành "Hết hạn" và không hủy được.
 - Route hủy chạy bước `EXPIRE` trước, như `decide`. Người dùng không hủy được yêu cầu mà server đã coi là "Hết hạn".
+- Booking "Đã xác nhận" đã bắt đầu có quyết định `NONE`: không hiện link gọi. Figure 9 của models.md gửi cả trường hợp này tới "gọi điện cho chủ sân". Brief khác Figure 9 vì chủ sân cũng không hủy được sau giờ bắt đầu.
 - Mốc 6 giờ gồm cả mốc: còn đúng 6 giờ thì hủy được. BR-11 viết "từ 6 giờ trở lên".
 - `GET /api/bookings/mine` chỉ cho vai trò `USER`. Chủ sân không còn gọi được route này, nên booking `PHONE` mà chủ sân nhập không hiện ở đó. Câu hỏi này mở từ brief F-007. Chủ sân xem booking `PHONE` ở "Booking đã xác nhận".
 - Lịch sử xếp theo `createdAt` giảm dần, rồi `id` giảm dần. Đó là "mới nhất trước" của 6.0 bước 2. Lịch sử không giới hạn số dòng.
