@@ -92,4 +92,28 @@ describe('App', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
   });
+
+  it('AC-13: a USER sees "Trận đã vào", while guests, owners, and admins do not', async () => {
+    as({ id: 'x', name: 'An', role: 'USER' });
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Trận đã vào' })).toBeTruthy();
+    cleanup();
+
+    as(null);
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Trận đã vào' })).toBeNull();
+    cleanup();
+
+    as({ id: 'x', name: 'Bình', role: 'OWNER' });
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' });
+    expect(screen.queryByRole('heading', { name: 'Trận đã vào' })).toBeNull();
+    cleanup();
+
+    as({ id: 'x', name: 'Admin', role: 'ADMIN' });
+    render(<App />);
+    await screen.findByText('Chào Admin');
+    expect(screen.queryByRole('heading', { name: 'Trận đã vào' })).toBeNull();
+  });
 });

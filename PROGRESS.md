@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-012 step 2).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-012 step 3).
 
 ## Current state
 
@@ -36,4 +36,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-1. F-012 (`docs/briefs/F-012-vao-roi-tran-va-phong-cho-tuc-thi.md`, issue #68): Step 1 merged; Step 2 (`feat/68-2-match-join-leave-sse-api`, AC-1 to AC-10) is in review; next is Step 3 (`feat/68-3-match-join-leave-screens`, AC-11 to AC-13).
+1. F-012 (`docs/briefs/F-012-vao-roi-tran-va-phong-cho-tuc-thi.md`, issue #68): Steps 1 and 2 merged; Step 3 (`feat/68-3-match-join-leave-screens`, AC-11 to AC-13) is in review; next is merge, deploy, and verify live.
