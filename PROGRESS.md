@@ -36,4 +36,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-1. F-009 (brief `docs/briefs/F-009-nguoi-dung-huy-booking-va-xem-lich-su.md`): UC-6, a user cancels a booking and sees the booking history. Step 1: API (user cancel, owner cancel of an `APP` booking, `mine`). Step 2: screens. The match cascade waits for UC-7.
+1. F-009 (brief `docs/briefs/F-009-nguoi-dung-huy-booking-va-xem-lich-su.md`): UC-6, a user cancels a booking and sees the booking history (issue #60). Step 1, the API (user cancel, owner cancel of an `APP` booking, `mine`), is in review. Step 2: the screens. The match cascade waits for UC-7.

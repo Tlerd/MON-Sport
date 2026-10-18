@@ -2,13 +2,17 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import {
   bookingPrice,
   type BookingView,
+  CALL_OWNER_MESSAGE,
   confirmDeadline,
   type CreateBookingRequest,
   type CreatePhoneBookingRequest,
   isLongEnough,
   isOnGrid,
   minuteOfDayVN,
+  type MyBookingView,
   type OwnerBookingView,
+  USER_CANCEL_WINDOW_MS,
+  userCancelDecision,
 } from '@monsport/shared';
 import { type Booking, Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
@@ -16,6 +20,7 @@ import { isDeadlock, isExclusionViolation, PrismaService } from '../database/pri
 
 const TAKEN = 'Khung giờ này vừa có người đặt';
 const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại'; // 40P01 is a 409, not a 500
+const NOT_CANCELLABLE = 'Booking này không hủy được nữa';
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 export function toView(b: Booking): BookingView {
@@ -32,6 +37,12 @@ export function toView(b: Booking): BookingView {
     cancelledAt: iso(b.cancelledAt),
     createdAt: b.createdAt.toISOString(),
   };
+}
+
+type BookingWithVenue = Prisma.BookingGetPayload<{ include: { court: { include: { venue: true } } } }>;
+
+function toMyView(b: BookingWithVenue): MyBookingView {
+  return { ...toView(b), courtName: b.court.name, venueName: b.court.venue.name, venuePhone: b.court.venue.phone };
 }
 
 /**
@@ -166,28 +177,80 @@ export class BookingsService {
   }
 
   /**
-   * Brief F-007: an owner cancels a phone booking of their venue until it starts. One conditional update decides,
-   * so a cancel cannot pass a start time or a parallel cancel. A refused cancel reads the booking to pick the error.
-   * The venue row is locked FOR SHARE first, as in insertUnderLock, so an admin move of the venue waits.
+   * Brief F-009: an owner cancels a confirmed booking of their venue, of any source, until it starts. There is no
+   * 6-hour mark: a user who is too late calls the owner, and the owner cancels here (intake 6.0.E1). A pending
+   * request is rejected with UC-4, not cancelled.
    */
-  async cancelPhoneBooking(ownerId: string, bookingId: string): Promise<BookingView> {
+  async cancelAsOwner(ownerId: string, bookingId: string): Promise<BookingView> {
     const now = this.clock.now();
-    return this.prisma.$transaction(async (tx) => {
-      const found = await tx.booking.findUnique({ where: { id: bookingId }, select: { courtId: true } });
-      if (!found) throw new NotFoundException('Không tìm thấy booking');
-      await this.lockVenueOf(tx, found.courtId);
-      const result = await tx.booking.updateMany({
-        where: { id: bookingId, source: 'PHONE', status: 'CONFIRMED', startAt: { gt: now }, court: { venue: { ownerId } } },
-        data: { status: 'CANCELLED', cancelledAt: now },
+    const { count, booking } = await this.cancelUnderLock(
+      bookingId,
+      now,
+      (b) => b.court.venue.ownerId === ownerId, // BR-23
+      { status: 'CONFIRMED', startAt: { gt: now }, court: { venue: { ownerId } } },
+    );
+    if (count === 0) {
+      throw new ConflictException(booking.status === 'PENDING' ? 'Yêu cầu đang chờ xác nhận. Hãy từ chối yêu cầu này' : NOT_CANCELLABLE);
+    }
+    return toView(booking);
+  }
+
+  /**
+   * Brief F-009 (UC-6): a user cancels their own app booking. BR-12 and BR-11 are in the condition of the update, so a
+   * cancel cannot pass the start time, the 6-hour mark, or a parallel cancel or confirm. The decision for a refused
+   * cancel comes from userCancelDecision, the function that the web uses to show the button.
+   */
+  async cancelOwn(userId: string, bookingId: string): Promise<MyBookingView> {
+    const now = this.clock.now();
+    const { count, booking } = await this.cancelUnderLock(
+      bookingId,
+      now,
+      (b) => b.createdById === userId && b.source === 'APP', // a phone booking answers as if it did not exist
+      {
+        createdById: userId,
+        source: 'APP',
+        startAt: { gt: now },
+        OR: [{ status: 'PENDING' }, { status: 'CONFIRMED', startAt: { gte: new Date(now.getTime() + USER_CANCEL_WINDOW_MS) } }],
+      },
+    );
+    if (count === 0) {
+      throw new ConflictException(userCancelDecision(booking, now) === 'CALL_OWNER' ? CALL_OWNER_MESSAGE : NOT_CANCELLABLE);
+    }
+    return toMyView(booking);
+  }
+
+  /**
+   * The cancel of an owner and of a user share one transaction. The lock order is Venue (FOR SHARE), Court (FOR UPDATE),
+   * then the Booking row, as in decide. The caller picks the 409 after the commit, because a 409 inside the transaction
+   * would roll back the expire of this booking (BR-8). A transaction that Postgres ends with 40P01 does not commit.
+   */
+  private async cancelUnderLock(
+    bookingId: string,
+    now: Date,
+    visible: (booking: BookingWithVenue) => boolean,
+    condition: Prisma.BookingWhereInput,
+  ): Promise<{ count: number; booking: BookingWithVenue }> {
+    const found = await this.prisma.booking.findUnique({ where: { id: bookingId }, select: { courtId: true } });
+    if (!found) throw new NotFoundException('Không tìm thấy booking');
+    const include = { court: { include: { venue: true } } } as const;
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await this.lockVenueOf(tx, found.courtId);
+        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
+        // The check comes before the expire, so a stranger writes nothing on the booking of another (BR-23).
+        const before = await tx.booking.findUnique({ where: { id: bookingId }, include });
+        if (!before || !visible(before)) throw new NotFoundException('Không tìm thấy booking');
+        await this.expire(tx, Prisma.sql`id = ${bookingId}::uuid`, now);
+        const result = await tx.booking.updateMany({
+          where: { id: bookingId, ...condition },
+          data: { status: 'CANCELLED', cancelledAt: now },
+        });
+        return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include }) };
       });
-      const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
-      if (booking.court.venue.ownerId !== ownerId) throw new NotFoundException('Không tìm thấy booking'); // BR-23
-      if (result.count === 0) {
-        if (booking.source === 'APP') throw new ConflictException('Chỉ hủy được booking bạn nhập cho khách gọi điện'); // until F-009
-        throw new ConflictException('Booking này không hủy được nữa');
-      }
-      return toView(booking);
-    });
+    } catch (error) {
+      if (isDeadlock(error)) throw new ConflictException(BUSY);
+      throw error;
+    }
   }
 
   /**
@@ -209,9 +272,23 @@ export class BookingsService {
     return court;
   }
 
-  async mine(userId: string): Promise<BookingView[]> {
-    const rows = await this.prisma.booking.findMany({ where: { createdById: userId }, orderBy: { createdAt: 'desc' } });
-    return rows.map(toView);
+  /** UC-6 (brief F-009): the history of the user, newest first. Their overdue requests expire first (BR-8). */
+  async mine(userId: string): Promise<MyBookingView[]> {
+    const expireMine = () => this.expire(this.prisma, Prisma.sql`"createdById" = ${userId}::uuid`, this.clock.now());
+    // The rare cycle named on expire ends this statement alone, and the statement is safe to run twice (brief F-009, AC-14).
+    // A second 40P01 answers 409, as in the cancel routes.
+    await expireMine().catch((error: unknown) => {
+      if (!isDeadlock(error)) throw error;
+      return expireMine().catch((again: unknown) => {
+        throw isDeadlock(again) ? new ConflictException(BUSY) : again;
+      });
+    });
+    const rows = await this.prisma.booking.findMany({
+      where: { createdById: userId },
+      include: { court: { include: { venue: true } } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    return rows.map(toMyView);
   }
 
   /** UC-4: the requests on the venues of one owner (BR-23). */

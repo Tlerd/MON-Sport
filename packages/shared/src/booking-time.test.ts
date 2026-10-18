@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingPrice, confirmDeadline, isLongEnough, isOnGrid, minuteOfDayVN } from './booking-time.ts';
+import { bookingPrice, confirmDeadline, isLongEnough, isOnGrid, minuteOfDayVN, userCancelDecision } from './booking-time.ts';
 
 // "Sân 1" of "Cầu lông A" in brief F-002: 80.000đ normal, 120.000đ peak, per hour.
 const NORMAL = 80_000;
@@ -23,6 +23,37 @@ describe('confirmDeadline', () => {
 
   it('AC-9: a request at 18:30 for 20:00 has its deadline at 19:00', () => {
     expect(confirmDeadline(vn('18:30'), vn('20:00'))).toEqual(vn('19:00'));
+  });
+});
+
+// Brief F-009. A booking starts at 20:00.
+describe('userCancelDecision', () => {
+  const at2000 = vn('20:00');
+  const decide = (status: Parameters<typeof userCancelDecision>[0]['status'], now: Date, startAt = at2000) =>
+    userCancelDecision({ status, startAt }, now);
+
+  it('AC-3: a confirmed booking with 7 hours left may be cancelled', () => {
+    expect(decide('CONFIRMED', vn('13:00'))).toBe('ALLOW');
+  });
+
+  it('AC-4: a confirmed booking with 5 hours left asks for a call to the owner', () => {
+    expect(decide('CONFIRMED', vn('15:00'))).toBe('CALL_OWNER');
+  });
+
+  it('AC-5: exactly 6 hours left is allowed, and 1 ms less is not', () => {
+    expect(decide('CONFIRMED', new Date(vn('14:00').getTime()))).toBe('ALLOW');
+    expect(decide('CONFIRMED', new Date(vn('14:00').getTime() + 1))).toBe('CALL_OWNER');
+  });
+
+  it('AC-2: a pending request may be cancelled at any time before the start, and not at the start', () => {
+    expect(decide('PENDING', vn('19:59'))).toBe('ALLOW');
+    expect(decide('PENDING', at2000)).toBe('NONE');
+  });
+
+  it('AC-6: a started booking and the other statuses cannot be cancelled', () => {
+    expect(decide('CONFIRMED', at2000)).toBe('NONE');
+    expect(decide('CONFIRMED', vn('21:00'))).toBe('NONE');
+    for (const status of ['REJECTED', 'EXPIRED', 'CANCELLED'] as const) expect(decide(status, vn('10:00'))).toBe('NONE');
   });
 });
 
