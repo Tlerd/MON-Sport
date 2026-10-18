@@ -8,6 +8,7 @@ import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
 import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
 import { JoinedMatches } from '../features/matches/JoinedMatches.tsx';
 import { Lobby } from '../features/matches/Lobby.tsx';
+import { Notifications } from '../features/notifications/Notifications.tsx';
 import { MyVenues } from '../features/venues/MyVenues.tsx';
 import { VenueBrowser } from '../features/venues/VenueBrowser.tsx';
 import { api } from '../lib/api.ts';
@@ -39,6 +40,7 @@ export function App() {
         <span className="brand">MONSPORT</span>
         {user && (
           <span className="who">
+            <Notifications refresh={booked} />
             <span className="avatar" aria-hidden="true">{initial(user.name)}</span>
             <span className="name">{user.name}</span>
             <button type="button" className="link" onClick={logout}>Đăng xuất</button>

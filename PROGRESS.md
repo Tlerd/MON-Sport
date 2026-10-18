@@ -36,4 +36,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-1. F-013 (`docs/briefs/F-013-thong-bao-trong-app.md`, issue #72): Step 1 merged; Step 2 (`feat/72-2-notification-api`, Notifications API and triggers) is ready; next is review, merge, then Step 3 (Screens).
+1. F-013 (`docs/briefs/F-013-thong-bao-trong-app.md`, issue #72): Step 1 & 2 merged; Step 3 (`feat/72-3-notification-screens`, Bell and drawer) is ready; next is review, merge, deploy.
