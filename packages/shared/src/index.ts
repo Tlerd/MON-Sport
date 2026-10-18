@@ -5,4 +5,5 @@ export * from './account.ts';
 export * from './common-passwords.ts';
 export * from './availability.ts';
 export * from './match.ts';
+export * from './notification.ts';
 

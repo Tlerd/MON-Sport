@@ -1,5 +1,5 @@
 // Names follow docs/requirements/data-dictionary.md. Brief F-002 adds User, Venue, Court, and Booking. Brief F-003 adds User.consentAt.
-// Brief F-006 adds User.sessionsValidFrom and AuthThrottle. Brief F-011 adds Match and MatchPlayer.
+// Brief F-006 adds User.sessionsValidFrom and AuthThrottle. Brief F-011 adds Match and MatchPlayer. Brief F-013 adds Notification.
 
 generator client {
   provider               = "prisma-client"
@@ -17,6 +17,13 @@ enum Role {
   ADMIN
   OWNER
   USER
+}
+
+enum NotificationType {
+  BOOKING_REQUESTED
+  BOOKING_CONFIRMED
+  BOOKING_REJECTED
+  MATCH_CANCELLED
 }
 
 enum Sport {
@@ -66,6 +73,7 @@ model User {
   bookings     Booking[]
   matches      Match[]
   matchPlayers MatchPlayer[]
+  notifications Notification[]
 }
 
 model Venue {
@@ -114,6 +122,7 @@ model Booking {
   court           Court         @relation(fields: [courtId], references: [id])
   createdBy       User          @relation(fields: [createdById], references: [id])
   match           Match?
+  notifications   Notification[]
 
   @@index([courtId, status])
   @@index([createdById])
@@ -132,6 +141,7 @@ model Match {
   booking      Booking       @relation(fields: [bookingId], references: [id])
   host         User          @relation(fields: [hostId], references: [id])
   players      MatchPlayer[]
+  notifications Notification[]
 
   @@index([status, sport])
   @@index([hostId])
@@ -158,5 +168,22 @@ model AuthThrottle {
   windowStart DateTime @db.Timestamptz(3)
 
   @@index([windowStart])
+}
+
+/// Brief F-013 (UC-14): In-app notifications. Names follow docs/requirements/data-dictionary.md.
+model Notification {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  userId    String           @db.Uuid
+  type      NotificationType
+  bookingId String           @db.Uuid
+  matchId   String?          @db.Uuid
+  readAt    DateTime?        @db.Timestamptz(3)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  user      User             @relation(fields: [userId], references: [id])
+  booking   Booking          @relation(fields: [bookingId], references: [id])
+  match     Match?           @relation(fields: [matchId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
 }
 
