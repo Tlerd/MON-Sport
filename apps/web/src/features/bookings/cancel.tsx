@@ -6,7 +6,7 @@ import { ApiError } from '../../lib/api.ts';
  * the failure, and the focus. Each step of a cancel unmounts the button that was pressed, so focus moves to
  * the element with `data-focus` set to the row id.
  */
-export function useCancelFlow(run: (id: string) => Promise<void>, onFail?: () => void) {
+export function useCancelFlow(run: (id: string) => Promise<void>, onFail?: () => Promise<unknown>) {
   const [asking, setAsking] = useState('');
   const [failure, setFailure] = useState('');
   const [busy, setBusy] = useState(false);
@@ -29,8 +29,9 @@ export function useCancelFlow(run: (id: string) => Promise<void>, onFail?: () =>
       setFocus(id);
     } catch (err) {
       setFailure(err instanceof ApiError ? err.message : 'Không hủy được booking');
-      setFocus(id); // the button was disabled while busy, so focus fell to the page body
-      onFail?.();
+      // The reload comes first: the row may lose its button, and the label that replaces it takes the focus.
+      await onFail?.();
+      setFocus(id);
     } finally {
       setBusy(false);
     }
