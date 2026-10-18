@@ -433,11 +433,14 @@ export class BookingsService {
         if (booking.status !== 'CONFIRMED') {
           throw new BadRequestException('Chỉ đánh dấu thu tiền cho booking đã xác nhận');
         }
-        const updated = await tx.booking.update({
-          where: { id: bookingId },
+        const updated = await tx.booking.updateMany({
+          where: { id: bookingId, status: 'CONFIRMED' },
           data: { paidAtVenue },
         });
-        return { id: updated.id, paidAtVenue: updated.paidAtVenue };
+        if (updated.count === 0) {
+          throw new BadRequestException('Chỉ đánh dấu thu tiền cho booking đã xác nhận');
+        }
+        return { id: bookingId, paidAtVenue };
       });
     } catch (error) {
       if (isDeadlock(error)) throw new ConflictException(BUSY);

@@ -6,6 +6,7 @@ import {
   type FinancialQuery,
   minuteOfDayVN,
 } from '@monsport/shared';
+import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 
 const VN_OFFSET_HOURS = 7;
@@ -27,7 +28,10 @@ function createVNMidnight(year: number, month: number, day: number): Date {
 
 @Injectable()
 export class FinanceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clock: Clock,
+  ) {}
 
   async getDashboard(ownerId: string, venueId: string, query: FinancialQuery): Promise<FinancialDashboardView> {
     const venue = await this.prisma.venue.findUnique({
@@ -39,7 +43,7 @@ export class FinanceService {
     }
 
     const period: FinancialPeriod = query.period ?? 'week';
-    const dateStr = query.date ?? formatVN(new Date());
+    const dateStr = query.date ?? formatVN(this.clock.now());
 
     const { year, month, day } = getVNParts(dateStr);
     const anchorMidnight = createVNMidnight(year, month, day);
@@ -112,7 +116,9 @@ export class FinanceService {
         startAt: { gte: startDate, lte: endDate },
       },
       include: {
-        createdBy: true,
+        createdBy: {
+          select: { phone: true },
+        },
       },
     });
 
