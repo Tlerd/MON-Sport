@@ -7,6 +7,7 @@ import { MyBookings } from '../features/bookings/MyBookings.tsx';
 import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
 import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
 import { MyVenues } from '../features/venues/MyVenues.tsx';
+import { VenueBrowser } from '../features/venues/VenueBrowser.tsx';
 import { api } from '../lib/api.ts';
 
 const HERO: Record<SessionUser['role'] | 'GUEST', string> = {
@@ -50,9 +51,15 @@ export function App() {
         </div>
       )}
       <main>
-        {user === null && <AuthPanel onLogin={setUser} />}
+        {user === null && (
+          <>
+            <AuthPanel onLogin={setUser} />
+            <VenueBrowser notice />
+          </>
+        )}
         {user?.role === 'USER' && (
           <>
+            <VenueBrowser />
             <BookingForm onBooked={() => setBooked((n) => n + 1)} />
             <MyBookings refresh={booked} />
           </>
