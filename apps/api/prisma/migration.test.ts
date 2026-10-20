@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -24,6 +25,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.query('DELETE FROM "PushSubscription" WHERE "userId" = $1', [userId]);
   await db.query('DELETE FROM "Notification" WHERE "userId" = $1', [userId]);
   await db.query('DELETE FROM "MatchPlayer" WHERE "userId" = $1', [userId]);
   await db.query('DELETE FROM "Match" WHERE "hostId" = $1', [userId]);
@@ -193,6 +195,97 @@ describe('migration f013_notifications', () => {
     expect(await sqlState(notif(userId, bookingId, matchId, 'MATCH_CANCELLED'))).toBe('ok');
 
     await db.query('DELETE FROM "Notification" WHERE "userId" = $1', [userId]);
+  });
+});
+
+describe('migration f014_web_push', () => {
+  const booking = async (start: string, end: string) => {
+    const bookingId = randomUUID();
+    await db.query(
+      `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+       VALUES ($1, $2, $3, $4, 'PENDING', 'APP', $5, 80000)`,
+      [bookingId, courtId, `2026-11-20T${start}:00+07:00`, `2026-11-20T${end}:00+07:00`, userId],
+    );
+    return bookingId;
+  };
+  const subscription = (endpoint: string, uId = userId) =>
+    db.query(`INSERT INTO "PushSubscription" (id, "userId", endpoint, p256dh, auth) VALUES ($1, $2, $3, 'p', 'a')`, [randomUUID(), uId, endpoint]);
+
+  it('AC-19: a LISTEN session gets the id of a new Notification row on the push channel, and nothing else', async () => {
+    const listener = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    await listener.connect();
+    try {
+      const bookingId = await booking('12:00', '13:00');
+      const notificationId = randomUUID();
+      const received: { channel: string; payload: string | undefined }[] = [];
+      listener.on('notification', (msg) => received.push({ channel: msg.channel, payload: msg.payload }));
+      await listener.query('LISTEN push');
+
+      await db.query(`INSERT INTO "Notification" (id, "userId", type, "bookingId") VALUES ($1, $2, 'BOOKING_REQUESTED', $3)`, [notificationId, userId, bookingId]);
+      // An update or a read mark must not notify again: only INSERT fires the trigger.
+      await db.query(`UPDATE "Notification" SET "readAt" = now() WHERE id = $1`, [notificationId]);
+
+      const deadline = Date.now() + 2000;
+      while (received.length < 1 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(received).toEqual([{ channel: 'push', payload: notificationId }]);
+
+      const { rows } = await db.query('SELECT "pushedAt" FROM "Notification" WHERE id = $1', [notificationId]);
+      expect(rows).toEqual([{ pushedAt: null }]);
+    } finally {
+      await listener.end();
+    }
+  });
+
+  it('AC-19: PushSubscription.endpoint is unique, and userId is a foreign key', async () => {
+    const endpoint = `https://fcm.googleapis.com/fcm/send/${randomUUID()}`;
+    expect(await sqlState(subscription(endpoint))).toBe('ok');
+    expect(await sqlState(subscription(endpoint))).toBe('23505');
+    expect(await sqlState(subscription(`${endpoint}-2`, randomUUID()))).toBe('23503');
+  });
+
+  it('AC-19: the columns have the lengths of the Zod schemas', async () => {
+    const { rows } = await db.query(
+      `SELECT column_name, character_maximum_length, data_type, datetime_precision
+       FROM information_schema.columns WHERE table_name = 'PushSubscription' AND column_name IN ('endpoint', 'p256dh', 'auth', 'createdAt')
+       ORDER BY column_name`,
+    );
+    expect(rows).toEqual([
+      { column_name: 'auth', character_maximum_length: 100, data_type: 'character varying', datetime_precision: null },
+      { column_name: 'createdAt', character_maximum_length: null, data_type: 'timestamp with time zone', datetime_precision: 3 },
+      { column_name: 'endpoint', character_maximum_length: 2048, data_type: 'character varying', datetime_precision: null },
+      { column_name: 'p256dh', character_maximum_length: 200, data_type: 'character varying', datetime_precision: null },
+    ]);
+  });
+
+  it('AC-19: Notification.pushedAt is a nullable timestamptz(3)', async () => {
+    const { rows } = await db.query(
+      `SELECT data_type, datetime_precision, is_nullable FROM information_schema.columns WHERE table_name = 'Notification' AND column_name = 'pushedAt'`,
+    );
+    expect(rows).toEqual([{ data_type: 'timestamp with time zone', datetime_precision: 3, is_nullable: 'YES' }]);
+  });
+
+  it('AC-19: the migration sets pushedAt = createdAt on the rows that exist before it', async () => {
+    // Run the UPDATE of the migration file itself on a row with a null pushedAt, then roll back.
+    const sql = readFileSync(new URL('./migrations/20261020000000_f014_web_push/migration.sql', import.meta.url), 'utf8');
+    const update = sql.match(/^UPDATE "Notification"[^;]*;/m)?.[0];
+    expect(update).toBeDefined();
+    const bookingId = await booking('10:00', '11:00');
+    const notificationId = randomUUID();
+    await db.query('BEGIN');
+    try {
+      await db.query(
+        `INSERT INTO "Notification" (id, "userId", type, "bookingId", "createdAt") VALUES ($1, $2, 'BOOKING_REQUESTED', $3, '2026-10-01T03:00:00Z')`,
+        [notificationId, userId, bookingId],
+      );
+      await db.query(update!);
+      const { rows } = await db.query('SELECT "pushedAt" = "createdAt" AS same, "pushedAt" IS NOT NULL AS set FROM "Notification" WHERE id = $1', [notificationId]);
+      expect(rows).toEqual([{ same: true, set: true }]);
+    } finally {
+      await db.query('ROLLBACK');
+    }
   });
 });
 

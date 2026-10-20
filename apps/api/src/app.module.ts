@@ -7,9 +7,10 @@ import { FinanceModule } from './modules/finance/finance.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MatchesModule } from './modules/matches/matches.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { PushModule } from './modules/push/push.module.js';
 import { VenuesModule } from './modules/venues/venues.module.js';
 
 @Module({
-  imports: [DatabaseModule, HealthModule, AuthModule, VenuesModule, BookingsModule, MatchesModule, AdminModule, NotificationsModule, FinanceModule],
+  imports: [DatabaseModule, HealthModule, AuthModule, VenuesModule, BookingsModule, MatchesModule, AdminModule, NotificationsModule, FinanceModule, PushModule],
 })
 export class AppModule {}
