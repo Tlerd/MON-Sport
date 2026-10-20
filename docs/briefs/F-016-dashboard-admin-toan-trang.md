@@ -104,8 +104,9 @@ Dữ liệu mẫu chung:
 
 - `AdminStatsQuerySchema`:
   ```ts
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isRealDate).optional()
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isRealDate).refine(d => d >= '2000-01-01' && d <= '2999-12-31').optional()
   ```
+  Giới hạn năm tránh ngày quá xa làm hàm tuần trả chuỗi sai.
 
 - `AdminVenueStat`:
   ```ts
