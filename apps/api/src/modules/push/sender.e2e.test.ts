@@ -197,7 +197,8 @@ describe('push sender (F-014 step 2)', () => {
     expect(call.payload.body).toBe('Có yêu cầu đặt sân tại Cầu lông A - Sân 1 khung 20:00 - 21:00 ngày 20/11/2026.');
     const json = JSON.stringify(call.payload);
     expect(Object.keys(call.payload).sort()).toEqual(['body', 'notificationId', 'title']);
-    expect(json).not.toMatch(/\d{9,}/);
+    // The id is a random uuid and may hold a long run of digits, so the phone-shaped check covers the text fields only.
+    expect(JSON.stringify({ title: call.payload.title, body: call.payload.body })).not.toMatch(/\d{9,}/);
     for (const phone of ['0901234567', '0912345678', '0911111111']) expect(json).not.toContain(phone);
     expect(await db.notification.count({ where: { pushedAt: null } })).toBe(0);
   });
