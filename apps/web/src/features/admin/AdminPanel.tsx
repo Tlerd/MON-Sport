@@ -2,12 +2,33 @@ import type { AccountView } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 import { AccountLock } from './AccountLock.tsx';
+import { AdminStats } from './AdminStats.tsx';
 import { VenueAdmin } from './VenueAdmin.tsx';
 
 const message = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
-/** UC-10: the admin creates owners, venues, and courts, and locks accounts (brief F-003). */
+/** The admin screen: accounts and venues (brief F-003), and the numbers of the whole site (brief F-016). */
 export function AdminPanel() {
+  const [tab, setTab] = useState<'accounts' | 'stats'>('accounts');
+
+  return (
+    <>
+      <nav className="tabs" aria-label="Chức năng quản trị">
+        <button type="button" className={tab === 'accounts' ? 'active' : ''} aria-pressed={tab === 'accounts'} onClick={() => setTab('accounts')}>
+          Tài khoản và đơn vị
+        </button>
+        <button type="button" className={tab === 'stats' ? 'active' : ''} aria-pressed={tab === 'stats'} onClick={() => setTab('stats')}>
+          Số liệu
+        </button>
+      </nav>
+      {tab === 'stats' && <AdminStats />}
+      {tab === 'accounts' && <AccountsTab />}
+    </>
+  );
+}
+
+/** UC-10: the admin creates owners, venues, and courts, and locks accounts (brief F-003). */
+function AccountsTab() {
   const [owners, setOwners] = useState<AccountView[]>([]);
   const [error, setError] = useState('');
 
