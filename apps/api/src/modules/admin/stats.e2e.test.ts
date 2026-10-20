@@ -162,9 +162,17 @@ describe('Admin stats API (F-016 / UC-13)', () => {
   it('AC-3: counts an active user once, from bookings, joins and hosted matches in the week', async () => {
     // An creates an APP booking on 17/11 and joins a match on 20/11.
     await booking({ who: 'An', source: 'APP', createdAt: vn('2026-11-17') });
-    // Matches sit on bookings that the owner made by phone, outside the week.
-    const hosted = await match({ bookingId: await booking({ who: 'Bình', source: 'PHONE' }), host: 'Lan', createdAt: vn('2026-11-19') });
-    const other = await match({ bookingId: await booking({ who: 'Bình', source: 'PHONE' }), host: 'Dũng', createdAt: OUTSIDE });
+    // Matches sit on bookings that the owner made by phone. Those PHONE bookings are created in the week, and Dũng (an owner) hosts a match in the week: neither counts.
+    const hosted = await match({
+      bookingId: await booking({ who: 'Bình', source: 'PHONE', createdAt: vn('2026-11-18') }),
+      host: 'Lan',
+      createdAt: vn('2026-11-19'),
+    });
+    const other = await match({
+      bookingId: await booking({ who: 'Bình', source: 'PHONE', createdAt: vn('2026-11-18') }),
+      host: 'Dũng',
+      createdAt: vn('2026-11-19'),
+    });
     await db.matchPlayer.create({ data: { matchId: other, userId: ids['Chi'], status: 'ACTIVE', joinedAt: vn('2026-11-18') } });
     await db.matchPlayer.create({ data: { matchId: hosted, userId: ids['An'], status: 'ACTIVE', joinedAt: vn('2026-11-20') } });
     // Mai is active only on 25/11. Her match falls in no week day.
@@ -259,7 +267,8 @@ describe('Admin stats API (F-016 / UC-13)', () => {
     });
     const open = await match({ bookingId: overdue, host: 'An', status: 'OPEN', createdAt });
     await db.matchPlayer.create({ data: { matchId: open, userId: ids['Chi'], status: 'ACTIVE', joinedAt: createdAt } });
-    await booking({ who: 'Lan', status: 'CONFIRMED', createdAt, confirmedAt: createdAt });
+    const confirmed = await booking({ who: 'Lan', status: 'CONFIRMED', createdAt, confirmedAt: createdAt });
+    const kept = await match({ bookingId: confirmed, host: 'Lan', status: 'OPEN', createdAt });
 
     const snapshot = async () => ({
       users: await db.user.findMany({ orderBy: { id: 'asc' } }),
@@ -274,6 +283,7 @@ describe('Admin stats API (F-016 / UC-13)', () => {
     expect(after).toEqual(before);
     expect(after.bookings.find((b) => b.id === overdue)?.status).toBe('PENDING');
     expect(after.matches.find((m) => m.id === open)?.status).toBe('OPEN');
+    expect(after.matches.find((m) => m.id === kept)?.status).toBe('OPEN');
   });
 
   it('AC-11: a Sunday 23:30 booking counts in the week and a Monday 00:00 booking does not', async () => {

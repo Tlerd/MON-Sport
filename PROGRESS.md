@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-18 (F-012 step 3).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-20 (F-016 step 2).
 
 ## Current state
 
@@ -37,4 +37,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-1. F-016 (UC-13 Admin dashboard, brief `docs/briefs/F-016-dashboard-admin-toan-trang.md`, accepted): build step 1 (contract and date helpers in `packages/shared`), then step 2 (API `GET /api/admin/stats`), then step 3 (the "Số liệu" tab in `AdminPanel`).
+1. F-016 (UC-13 Admin dashboard, brief `docs/briefs/F-016-dashboard-admin-toan-trang.md`): steps 1 and 2 are done (contract, date helpers, API `GET /api/admin/stats`). Build step 3: the "Số liệu" tab in `AdminPanel`.
