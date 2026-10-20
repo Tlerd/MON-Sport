@@ -88,8 +88,14 @@ describe('isAllowedPushEndpoint (brief F-014, Contract 1)', () => {
     const long = 'https://' + Array(5).fill('a'.repeat(60)).join('.') + '.push.apple.com/x';
     expect(long.length - '/x'.length - 'https://'.length).toBeGreaterThan(253);
     expect(isAllowedPushEndpoint(long)).toBe(false);
-    // 253 characters is the limit. 4 labels of 60 characters and ".push.apple.com" make 255.
+    // 253 characters is the limit. 4 labels of 60 characters and ".push.apple.com" make 258.
     const host = (labels: number, length: number) => Array(labels).fill('a'.repeat(length)).join('.') + '.push.apple.com';
+    // The exact boundary: 3 labels of 63 and one label of 46 or 47, then ".push.apple.com", make 253 or 254.
+    const edge = (last: number) => [...Array(3).fill('a'.repeat(63)), 'b'.repeat(last)].join('.') + '.push.apple.com';
+    expect(edge(46)).toHaveLength(253);
+    expect(isAllowedPushEndpoint(`https://${edge(46)}/x`)).toBe(true);
+    expect(edge(47)).toHaveLength(254);
+    expect(isAllowedPushEndpoint(`https://${edge(47)}/x`)).toBe(false);
     expect(host(3, 60).length).toBeLessThanOrEqual(253);
     expect(isAllowedPushEndpoint(`https://${host(3, 60)}/x`)).toBe(true);
     expect(host(4, 60).length).toBeGreaterThan(253);

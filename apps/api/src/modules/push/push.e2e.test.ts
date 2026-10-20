@@ -319,8 +319,12 @@ describe('push subscriptions (F-014 step 1)', () => {
       await db.pushSubscription.deleteMany();
       await subscribe('An', sub(SAMPLE));
       const results = await Promise.all(['Bình', 'Quản trị', 'An'].map((who) => subscribe(who, sub(SAMPLE))));
-      for (const res of results) expect(res.status, `round ${round}`).toBeLessThan(500);
+      // The row exists all the time, so each call updates it (200). A failed attempt needs another request to change the owner
+      // in between, and only 2 other requests exist, so the third attempt succeeds.
+      for (const res of results) expect(res.status, `round ${round}`).toBe(200);
       expect(await countAll(), `round ${round}`).toBe(1);
+      const owner = await db.pushSubscription.findFirstOrThrow({ select: { userId: true } });
+      expect([ids['Bình'], ids['Quản trị'], ids.An], `round ${round}`).toContain(owner.userId);
     }
   });
 
