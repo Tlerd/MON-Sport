@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-20 (F-014 step 1).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-20 (F-014 step 2).
 
 ## Current state
 
@@ -37,4 +37,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-F-014 steps 2 and 3 remain (sender, then screen). See brief docs/briefs/F-014-thong-bao-web-push.md. After step 2 merges, run `gcloud run services update monsport --region asia-southeast1 --no-cpu-throttling`.
+F-014 step 3 remains (screen, brief docs/briefs/F-014-thong-bao-web-push.md). The lead sets --no-cpu-throttling on monsport after the step 2 merge: run `gcloud run services update monsport --region asia-southeast1 --no-cpu-throttling` if it is not done.
