@@ -1,5 +1,5 @@
 import type { NotificationsListResponse } from '@monsport/shared';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Notifications } from './Notifications.tsx';
 
@@ -187,20 +187,19 @@ describe('Notifications', () => {
   });
 
   it('AC-21: the drawer shows no Web Push button and no hint when the server answers 404', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((url: string) => {
-        if (url === '/api/push/public-key') {
-          return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Thông báo đẩy chưa bật' }) });
-        }
-        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ unreadCount: 0, items: [] }) });
-      }),
-    );
+    const fetchMock = vi.fn((url: string) => {
+      if (url === '/api/push/public-key') {
+        return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Thông báo đẩy chưa bật' }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ unreadCount: 0, items: [] }) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Thông báo' }));
     await screen.findByText('Chưa có thông báo nào');
-    await new Promise((r) => setTimeout(r, 20));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/push/public-key', expect.anything()));
+    await act(async () => {});
 
     expect(screen.queryByText(/thiết bị này/)).toBeNull();
     expect(screen.queryByText(/chưa hỗ trợ thông báo/)).toBeNull();

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resyncPush, urlBase64ToUint8Array } from '../../lib/push.ts';
 import { PushToggle } from './PushToggle.tsx';
@@ -117,7 +117,13 @@ describe('PushToggle', () => {
     const b = setup();
     render(<PushToggle userId={AN} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: ENABLE }));
+    const button = await screen.findByRole('button', { name: ENABLE });
+    const fetchCallsBeforeTap = b.fetch.mock.calls.length;
+    fireEvent.click(button);
+
+    // iOS: the permission dialog must start inside the tap, so nothing async comes before it.
+    expect(b.notification.requestPermission).toHaveBeenCalledTimes(1);
+    expect(b.fetch.mock.calls.length).toBe(fetchCallsBeforeTap);
 
     expect(await screen.findByRole('button', { name: DISABLE })).toBeTruthy();
     expect(b.notification.requestPermission).toHaveBeenCalledTimes(1);
@@ -130,6 +136,27 @@ describe('PushToggle', () => {
     expect(subscribeOptions.applicationServerKey).toHaveLength(65);
     expect(b.calls('POST')).toEqual([{ endpoint: ENDPOINT, keys: KEYS }]);
     expect(localStorage.getItem(USER_KEY)).toBe(AN);
+  });
+
+  it('AC-13: one button element stays in the page and keeps the keyboard focus after enabling and after disabling', async () => {
+    setup();
+    render(<PushToggle userId={AN} />);
+    const button = await screen.findByRole('button', { name: ENABLE });
+    button.focus();
+    expect(document.activeElement).toBe(button);
+
+    fireEvent.click(button);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    await screen.findByRole('button', { name: DISABLE });
+    await waitFor(() => expect(button.getAttribute('aria-disabled')).toBe('false'));
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: DISABLE })).toBe(button);
+    expect(document.activeElement).toBe(button);
+
+    fireEvent.click(button);
+    await screen.findByRole('button', { name: ENABLE });
+    expect(screen.getByRole('button', { name: ENABLE })).toBe(button);
+    expect(document.activeElement).toBe(button);
   });
 
   it('AC-13: the button is disabled while it works, and a failed subscribe shows an alert and a working button', async () => {
@@ -200,15 +227,17 @@ describe('PushToggle', () => {
     const { container } = render(<PushToggle userId={AN} />);
 
     await waitFor(() => expect(b.fetch).toHaveBeenCalledWith('/api/push/public-key', expect.anything()));
-    await new Promise((r) => setTimeout(r, 20));
+    await act(async () => {});
     expect(container.innerHTML).toBe('');
   });
 
   it('AC-21: the same holds in a browser with no PushManager, and while the key still loads', async () => {
-    setup({ keyStatus: 404, supported: false });
+    const b = setup({ keyStatus: 404, supported: false });
     const { container } = render(<PushToggle userId={AN} />);
     expect(container.innerHTML).toBe('');
-    await new Promise((r) => setTimeout(r, 20));
+
+    await waitFor(() => expect(b.fetch).toHaveBeenCalledWith('/api/push/public-key', expect.anything()));
+    await act(async () => {});
     expect(container.innerHTML).toBe('');
   });
 
@@ -230,6 +259,19 @@ describe('PushToggle', () => {
 
       await resyncPush(AN);
       render(<PushToggle userId={AN} />);
+
+      expect(await screen.findByRole('button', { name: ENABLE })).toBeTruthy();
+      expect(b.calls('POST')).toEqual([]);
+      expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem(USER_KEY)).toBeNull();
+    });
+
+    it('AC-22: when localStorage holds An and Bình is signed in, there is no POST, the browser unsubscribes, and the button says "Nhận..."', async () => {
+      const b = setup({ permission: 'granted', subscribed: true, storedUser: AN });
+      const subscription = b.subscription()!;
+
+      await resyncPush(BINH);
+      render(<PushToggle userId={BINH} />);
 
       expect(await screen.findByRole('button', { name: ENABLE })).toBeTruthy();
       expect(b.calls('POST')).toEqual([]);

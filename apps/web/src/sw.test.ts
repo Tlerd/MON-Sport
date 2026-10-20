@@ -15,7 +15,7 @@ function loadWorker() {
     registration: { showNotification },
     skipWaiting: vi.fn(() => Promise.resolve()),
     clients: {
-      matchAll: vi.fn((): Promise<{ focus: typeof focus }[]> => Promise.resolve([])),
+      matchAll: vi.fn((_options?: unknown): Promise<unknown[]> => Promise.resolve([])),
       openWindow: vi.fn(() => Promise.resolve()),
       claim: vi.fn(() => Promise.resolve()),
     },
@@ -85,9 +85,19 @@ describe('sw.js', () => {
     }
   });
 
-  it('AC-17: notificationclick closes the notification and focuses the first open window', async () => {
+  it('AC-17: notificationclick closes the notification, focuses the first open window, and navigates it to "/"', async () => {
     const { handlers, scope, focus } = loadWorker();
-    scope.clients.matchAll.mockResolvedValue([{ focus }]);
+    const order: string[] = [];
+    focus.mockImplementation(() => {
+      order.push('focus');
+      return Promise.resolve();
+    });
+    const navigate = vi.fn(() => {
+      order.push('navigate');
+      return Promise.resolve();
+    });
+    const second = { focus: vi.fn(), navigate: vi.fn() };
+    scope.clients.matchAll.mockResolvedValue([{ focus, navigate }, second]);
     const close = vi.fn();
     const event = lifecycleEvent({ notification: { close } });
 
@@ -97,8 +107,35 @@ describe('sw.js', () => {
     expect(event.waitUntil).toHaveBeenCalledTimes(1);
     await Promise.all(event.waited);
     expect(scope.clients.matchAll).toHaveBeenCalledWith({ type: 'window', includeUncontrolled: true });
+    expect(order).toEqual(['focus', 'navigate']);
+    expect(navigate).toHaveBeenCalledWith('/');
+    expect(second.focus).not.toHaveBeenCalled();
+    expect(scope.clients.openWindow).not.toHaveBeenCalled();
+  });
+
+  it('AC-17: notificationclick only focuses a window that has no navigate method', async () => {
+    const { handlers, scope, focus } = loadWorker();
+    scope.clients.matchAll.mockResolvedValue([{ focus }]);
+    const event = lifecycleEvent({ notification: { close: vi.fn() } });
+
+    handlers.notificationclick!(event);
+
+    await expect(Promise.all(event.waited)).resolves.toBeDefined();
     expect(focus).toHaveBeenCalledTimes(1);
     expect(scope.clients.openWindow).not.toHaveBeenCalled();
+  });
+
+  it('AC-17: an error of navigate or of focus never rejects the notificationclick', async () => {
+    const { handlers, scope } = loadWorker();
+    const event = lifecycleEvent({ notification: { close: vi.fn() } });
+    scope.clients.matchAll.mockResolvedValue([{ focus: vi.fn(() => Promise.resolve()), navigate: vi.fn(() => Promise.reject(new Error('blocked'))) }]);
+    handlers.notificationclick!(event);
+    await expect(Promise.all(event.waited)).resolves.toBeDefined();
+
+    const second = lifecycleEvent({ notification: { close: vi.fn() } });
+    scope.clients.matchAll.mockResolvedValue([{ focus: vi.fn(() => Promise.reject(new Error('no focus'))), navigate: vi.fn() }]);
+    handlers.notificationclick!(second);
+    await expect(Promise.all(second.waited)).resolves.toBeDefined();
   });
 
   it('AC-17: notificationclick opens "/" when no window is open', async () => {

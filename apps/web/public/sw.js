@@ -33,8 +33,13 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
-      if (windows.length > 0) return windows[0].focus();
-      return self.clients.openWindow('/');
+      if (windows.length === 0) return self.clients.openWindow('/');
+      // An open window may sit on any page, so it also goes to "/". Not every browser has `navigate`, and an error is not fatal.
+      const client = windows[0];
+      return Promise.resolve()
+        .then(() => client.focus())
+        .then(() => ('navigate' in client ? client.navigate('/') : undefined))
+        .catch(() => undefined);
     }),
   );
 });

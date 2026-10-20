@@ -64,14 +64,19 @@ export function PushToggle({ userId }: { userId: string }) {
     <div className="push-toggle">
       {state === 'unsupported' && <p className="push-note">{UNSUPPORTED}</p>}
       {state === 'denied' && <p className="push-note push-denied">{DENIED}</p>}
-      {state === 'off' && (
-        <button type="button" className="push-button" disabled={busy} onClick={turnOn}>
-          Nhận thông báo trên thiết bị này
-        </button>
-      )}
-      {state === 'on' && (
-        <button type="button" className="push-button quiet" disabled={busy} onClick={turnOff}>
-          Tắt thông báo trên thiết bị này
+      {(state === 'off' || state === 'on') && (
+        // One element for both states, so the keyboard focus stays on it. While it works it is aria-disabled, not
+        // disabled: a disabled button loses the focus.
+        <button
+          type="button"
+          className={state === 'on' ? 'push-button quiet' : 'push-button'}
+          aria-disabled={busy}
+          onClick={() => {
+            if (busy) return;
+            void (state === 'on' ? turnOff() : turnOn());
+          }}
+        >
+          {state === 'on' ? 'Tắt thông báo trên thiết bị này' : 'Nhận thông báo trên thiết bị này'}
         </button>
       )}
       {error && (

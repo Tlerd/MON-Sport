@@ -319,8 +319,10 @@ h2[tabindex='-1']:focus { outline: none; }
 }
 .push-button { width: 100%; min-height: 2.75rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.3; }
 .push-button.quiet { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--control); }
-.push-button.quiet:hover:not(:disabled) { background: var(--court-soft); }
-.push-button.quiet:disabled { background: var(--rule); box-shadow: none; }
+.push-button.quiet:hover:not([aria-disabled='true']) { background: var(--court-soft); }
+/* aria-disabled keeps the focus, so the busy look is here and not in `button:disabled`. */
+.push-button[aria-disabled='true'] { background: var(--rule); color: var(--muted); box-shadow: none; cursor: not-allowed; }
+.push-button:hover[aria-disabled='true'] { background: var(--rule); }
 .push-note { font-size: 0.8125rem; line-height: 1.45; color: var(--muted); }
 .push-denied { padding: 0.5rem 0.625rem; border-radius: 8px; background: var(--flood-soft); color: var(--flood-ink); }
 
