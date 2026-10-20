@@ -160,6 +160,36 @@ describe('AdminPanel', () => {
     expect(within(lock).queryByRole('button', { name: 'Khóa' })).toBeNull();
   });
 
+  it('AC-13: shows the tabs "Tài khoản và đơn vị" (open by default) and "Số liệu", and loads the stats only when the second opens', async () => {
+    const api = fakeApi();
+    const STATS = {
+      date: '2026-11-20', weekStart: '2026-11-16', weekEnd: '2026-11-22', accounts: { ADMIN: 1, OWNER: 3, USER: 40 },
+      newUsers: 5, activeUsers: 3, avgConfirmMinutes: null, expiryRate: 0, venues: [],
+    };
+    const fetch = vi.fn((url: string, init?: RequestInit) =>
+      url.startsWith('/api/admin/stats') ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(STATS) }) : api(url, init));
+    vi.stubGlobal('fetch', fetch);
+    render(<AdminPanel />);
+
+    const tabs = screen.getByRole('navigation', { name: 'Chức năng quản trị' });
+    expect(within(tabs).getByRole('button', { name: 'Tài khoản và đơn vị' }).className).toBe('active');
+    expect(within(tabs).getByRole('button', { name: 'Số liệu' }).className).toBe('');
+    expect(await screen.findByRole('heading', { name: 'Chủ sân' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Đơn vị' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Khóa tài khoản' })).toBeTruthy();
+    expect(fetch.mock.calls.some(([u]) => String(u).startsWith('/api/admin/stats'))).toBe(false);
+
+    fireEvent.click(within(tabs).getByRole('button', { name: 'Số liệu' }));
+
+    expect(await screen.findByText('16/11 – 22/11/2026')).toBeTruthy();
+    expect(within(tabs).getByRole('button', { name: 'Số liệu' }).className).toBe('active');
+    expect(screen.queryByRole('heading', { name: 'Khóa tài khoản' })).toBeNull();
+
+    fireEvent.click(within(tabs).getByRole('button', { name: 'Tài khoản và đơn vị' }));
+    expect(await screen.findByRole('heading', { name: 'Khóa tài khoản' })).toBeTruthy();
+    expect(screen.queryByText('16/11 – 22/11/2026')).toBeNull();
+  });
+
   it('says so when no account has the phone number', async () => {
     vi.stubGlobal('fetch', fakeApi());
     render(<AdminPanel />);
