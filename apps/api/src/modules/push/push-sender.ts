@@ -44,9 +44,10 @@ export class WebPushSender extends PushSender {
       if (typeof statusCode === 'number') return { statusCode };
       const message = String((error as Error | null)?.message ?? '');
       if (/timeout|timed out/i.test(message)) throw new PushSendError('timeout');
-      // A socket error carries a `code` (ECONNREFUSED, ECONNRESET). An error with no code comes from web-push itself, before
-      // any request: a bad VAPID key or a bad key of the device.
-      throw new PushSendError(typeof (error as { code?: unknown } | null)?.code === 'string' ? 'network' : 'invalid');
+      // A socket error carries a `code` (ECONNREFUSED, ECONNRESET). An error with no code, or with an ERR_CRYPTO_ code, comes
+      // from web-push itself, before any request: a bad VAPID key or a bad key of the device.
+      const code = (error as { code?: unknown } | null)?.code;
+      throw new PushSendError(typeof code === 'string' && !code.startsWith('ERR_CRYPTO_') ? 'network' : 'invalid');
     }
   }
 }

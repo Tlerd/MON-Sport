@@ -32,7 +32,7 @@ Chọn phương án 2.
   - Dòng được tạo lúc không instance nào nghe (khởi động lại, kết nối rớt trong 1 giây). Dòng giữ `pushedAt` rỗng, và bộ gửi không bù lại lúc khởi động.
   - Tiến trình chết sau khi giành dòng và trước khi gửi xong. `pushedAt` đã có giá trị, nên không instance nào gửi lại.
 
-  Danh sách thông báo trong app vẫn đủ trong cả hai trường hợp. Khóa VAPID sai làm mọi lần gửi lỗi trước khi gọi mạng. Vì vậy bộ gửi kiểm ba giá trị lúc khởi động. Khóa sai thì tắt Web Push, không mở `LISTEN push` và không giành dòng nào. Lỗi gửi không làm hỏng yêu cầu ghi dữ liệu. Dịch vụ push trả 404 hoặc 410 thì bộ gửi xóa đăng ký. Lỗi khác (500, hết thời gian chờ, khóa không hợp lệ) giữ đăng ký và không gửi lại. Danh sách thông báo trong app vẫn đủ. Lỗi gửi không làm hỏng yêu cầu ghi dữ liệu. Dịch vụ push trả 404 hoặc 410 thì bộ gửi xóa đăng ký. Lỗi khác (500, hết thời gian chờ) giữ đăng ký và không gửi lại.
+  Danh sách thông báo trong app vẫn đủ trong cả hai trường hợp. Khóa VAPID sai làm mọi lần gửi lỗi trước khi gọi mạng. Vì vậy bộ gửi kiểm ba giá trị lúc khởi động. Khóa sai thì tắt Web Push, không mở `LISTEN push` và không giành dòng nào. Lỗi gửi không làm hỏng yêu cầu ghi dữ liệu. Dịch vụ push trả 404 hoặc 410 thì bộ gửi xóa đăng ký. Lỗi khác (500, hết thời gian chờ, khóa không hợp lệ) giữ đăng ký và không gửi lại.
 
 ## Consequences
 

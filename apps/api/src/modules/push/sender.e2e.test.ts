@@ -401,6 +401,11 @@ describe('push sender (F-014 step 2)', () => {
     const invalid = (await sender.send(target, payload, vapid, options).catch((e: unknown) => e)) as PushSendError;
     expect(invalid).toBeInstanceOf(PushSendError);
     expect(invalid.kind).toBe('invalid');
+
+    // A device key of the right length that is not on the curve fails inside the crypto library with an ERR_CRYPTO_ code.
+    spy.mockRejectedValueOnce(Object.assign(new Error('Failed to translate Buffer to a EC_POINT'), { code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY' }));
+    const badPoint = (await sender.send(target, payload, vapid, options).catch((e: unknown) => e)) as PushSendError;
+    expect(badPoint.kind).toBe('invalid');
   });
 
   it('AC-10 (sender): a bad VAPID key or a bad key of the device fails before the request as kind invalid', async () => {
