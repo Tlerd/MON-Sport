@@ -2,6 +2,10 @@ import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/prisma/client.js';
 
+// Connections per instance: this pool, plus 1 for LISTEN lobby (ADR 0004) and 1 for LISTEN push (ADR 0005).
+// With 2 Cloud Run instances that makes 20 of the 25 connections of db-f1-micro.
+const POOL_MAX = 8;
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor() {
@@ -9,7 +13,7 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
       // The adapter sends a Date as UTC clock time without an offset, and Postgres reads that in the session time zone.
       // UTC on each connection keeps every write of a Date (ORM and raw SQL) right on a server with another zone, such as the local cluster.
       // An `options` in DATABASE_URL replaces this one, so repeat `-c TimeZone=UTC` there.
-      adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, options: '-c TimeZone=UTC' }),
+      adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, options: '-c TimeZone=UTC', max: POOL_MAX }),
       // Under a burst (AC-1: 50 requests on one slot) a transaction can wait more than the 2 s default for a connection.
       transactionOptions: { maxWait: 10_000, timeout: 10_000 },
     });

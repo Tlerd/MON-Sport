@@ -91,6 +91,36 @@ curl.exe https://<url>/api/health
 
 Kết quả đúng là `{"status":"ok","db":"up"}`. Mở URL trên điện thoại để xem trang web.
 
+## 7b. Bật Web Push (F-014)
+
+Web Push cần một cặp khóa VAPID. Khóa riêng nằm trong Secret Manager, ghim ở version 1. Khóa công khai và chủ đề là biến môi trường thường. Thiếu một trong ba thì Web Push tắt và API vẫn chạy bình thường. Lý do nằm ở `docs/adr/0005-thong-bao-web-push.md`.
+
+Chạy một lần, trong PowerShell. Lệnh tạo khóa ghi thẳng vào tệp tạm. Không in khóa ra màn hình, không dán vào chat, issue hay commit.
+
+```powershell
+$Keys = New-TemporaryFile
+npx --yes web-push generate-vapid-keys --json > $Keys
+$Pair = Get-Content $Keys -Raw | ConvertFrom-Json
+$Tmp = New-TemporaryFile
+Set-Content -Path $Tmp -NoNewline -Value $Pair.privateKey
+gcloud secrets create monsport-vapid-private-key --data-file=$Tmp
+Remove-Item $Tmp
+$Public = $Pair.publicKey
+Remove-Item $Keys
+gcloud run services update monsport --region=$Region --update-secrets="VAPID_PRIVATE_KEY=monsport-vapid-private-key:1" --update-env-vars="VAPID_PUBLIC_KEY=$Public,VAPID_SUBJECT=mailto:<email của bạn>"
+Remove-Variable Pair, Public
+```
+
+Không tạo lại cặp khóa sau khi có người dùng đăng ký. Mỗi đăng ký gắn với khóa công khai lúc tạo, nên khóa mới làm mọi đăng ký cũ mất hiệu lực.
+
+Việc gửi push chạy ngay sau khi API trả lời. Mặc định, Cloud Run giảm CPU của instance khi không có yêu cầu, nên push có thể chậm hơn 30 giây. Cấp CPU luôn bật cho dịch vụ:
+
+```powershell
+gcloud run services update monsport --region asia-southeast1 --no-cpu-throttling
+```
+
+Cloud Run tính tiền theo thời gian instance sống, không chỉ lúc có yêu cầu. Để quay lại cách tính cũ, chạy lệnh trên với `--cpu-throttling`.
+
 ## 8. Thêm dữ liệu mẫu (tùy chọn)
 
 App chưa có màn hình đăng ký (UC-1) và quản lý đơn vị (UC-10). Để thử app, nạp dữ liệu mẫu: 6 tài khoản và 3 đơn vị.

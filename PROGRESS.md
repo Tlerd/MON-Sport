@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-20 (F-014 step 1).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-20 (F-014 step 2).
 
 ## Current state
 
