@@ -11,13 +11,23 @@ export const PUSH_HOST_ALLOWLIST = {
   suffixes: ['.push.apple.com', '.notify.windows.com', '.push.services.mozilla.com'],
 } as const;
 
-/** True for an https URL without port or userinfo, on an allowed host. Never throws. A non-string gives false. */
+// Lowercase letters, digits, and hyphens in labels, with at least one dot and no empty label.
+const CANONICAL_HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+
+/**
+ * True for an https URL without port or userinfo, on an allowed host. Never throws. A non-string gives false.
+ * It accepts the canonical form only (`new URL(url).href === url`). The WHATWG parser decodes `%2E`, drops a tab, and maps
+ * the ideographic full stop to a dot, while the legacy `url.parse` of `web-push` reads another host from the same text.
+ * `https://10.0.0.5%2E.push.apple.com/x` is one such text. A canonical text has one reading in both parsers.
+ */
 export function isAllowedPushEndpoint(url: unknown): boolean {
   if (typeof url !== 'string') return false;
   try {
     const parsed = new URL(url);
+    if (parsed.href !== url) return false;
     if (parsed.protocol !== 'https:' || parsed.port !== '' || parsed.username !== '' || parsed.password !== '') return false;
     const host = parsed.hostname;
+    if (!CANONICAL_HOST.test(host)) return false;
     return (
       (PUSH_HOST_ALLOWLIST.hosts as readonly string[]).includes(host) ||
       PUSH_HOST_ALLOWLIST.suffixes.some((suffix) => host.endsWith(suffix))

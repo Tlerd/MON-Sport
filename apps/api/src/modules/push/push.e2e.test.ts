@@ -1,10 +1,10 @@
 import 'reflect-metadata';
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { hash } from '@node-rs/argon2';
 import { Messages, type PushPublicKeyResponse } from '@monsport/shared';
 import request from 'supertest';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../../app.module.js';
 import { setupApp } from '../../setup-app.js';
 import { issueSession } from '../auth/session.js';
@@ -15,6 +15,7 @@ const START = new Date('2026-11-20T03:00:00Z');
 const clock = { at: START, now() { return this.at; } };
 const SAMPLE = 'https://fcm.googleapis.com/fcm/send/abc123';
 const KEYS = { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' };
+const VAPID_VARS = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'] as const;
 const PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
 
 let app: INestApplication;
@@ -45,11 +46,16 @@ afterAll(async () => {
 });
 
 describe('push subscriptions (F-014 step 1)', () => {
-  const savedKey = process.env.VAPID_PUBLIC_KEY;
+  const saved = Object.fromEntries(VAPID_VARS.map((name) => [name, process.env[name]]));
+  const setVapid = () => {
+    process.env.VAPID_PUBLIC_KEY = PUBLIC_KEY;
+    process.env.VAPID_PRIVATE_KEY = 'test-private-key-not-real';
+    process.env.VAPID_SUBJECT = 'mailto:test@example.com';
+  };
 
   beforeEach(async () => {
     clock.at = START;
-    process.env.VAPID_PUBLIC_KEY = PUBLIC_KEY;
+    setVapid();
     await db.$executeRawUnsafe('TRUNCATE "PushSubscription", "Notification", "MatchPlayer", "Match", "Booking", "Court", "Venue", "User", "AuthThrottle" CASCADE');
     const user = (name: string, phone: string, role: 'ADMIN' | 'OWNER' | 'USER') =>
       db.user.create({ data: { name, phone, role, passwordHash } }).then((u) => (ids[name] = u.id));
@@ -61,12 +67,15 @@ describe('push subscriptions (F-014 step 1)', () => {
   });
 
   afterEach(() => {
-    if (savedKey === undefined) delete process.env.VAPID_PUBLIC_KEY;
-    else process.env.VAPID_PUBLIC_KEY = savedKey;
+    vi.restoreAllMocks();
+    for (const name of VAPID_VARS) {
+      if (saved[name] === undefined) delete process.env[name];
+      else process.env[name] = saved[name];
+    }
   });
 
   it('AC-1: An reads the public key, a guest gets 401, and a missing key gives 404', async () => {
-    process.env.VAPID_PUBLIC_KEY = PUBLIC_KEY;
+    setVapid();
     const ok = await publicKey('An');
     expect(ok.status).toBe(200);
     expect(ok.body satisfies PushPublicKeyResponse).toEqual({ publicKey: PUBLIC_KEY });
@@ -82,8 +91,29 @@ describe('push subscriptions (F-014 step 1)', () => {
     process.env.VAPID_PUBLIC_KEY = '';
     expect((await publicKey('An')).status).toBe(404);
 
-    process.env.VAPID_PUBLIC_KEY = PUBLIC_KEY;
+    setVapid();
     expect((await publicKey('An')).status).toBe(200);
+  });
+
+  it('AC-1: the feature is off unless all three VAPID variables are set, for GET and for POST', async () => {
+    for (const name of ['VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'] as const) {
+      for (const value of [undefined, '', '   ']) {
+        setVapid();
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+        const label = `${name}=${JSON.stringify(value)}`;
+        const get = await publicKey('An');
+        expect(get.status, label).toBe(404);
+        expect(get.body.message, label).toBe('Thông báo đẩy chưa bật');
+        const post = await subscribe('An', sub(SAMPLE));
+        expect(post.status, label).toBe(404);
+        expect(post.body.message, label).toBe('Thông báo đẩy chưa bật');
+      }
+    }
+    expect(await countAll()).toBe(0);
+    setVapid();
+    expect((await publicKey('An')).status).toBe(200);
+    expect((await subscribe('An', sub(SAMPLE))).status).toBe(201);
   });
 
   it('AC-1: every signed-in role reads the key, and the other two routes answer 404 or 401 as the contract says', async () => {
@@ -169,6 +199,9 @@ describe('push subscriptions (F-014 step 1)', () => {
       'https://user:pw@fcm.googleapis.com/x',
       'https://fcm.googleapis.com.evil.com/x',
       'https://evilnotify.windows.com/x',
+      'https://10.0.0.5%2E.push.apple.com/x',
+      'https://10.0.0.5%2e.push.apple.com/x',
+      'https://FCM.GoogleAPIs.com/x',
     ];
     for (const endpoint of bad) {
       const res = await subscribe('An', sub(endpoint));
@@ -185,6 +218,23 @@ describe('push subscriptions (F-014 step 1)', () => {
     }
     expect((await http().post('/api/push/subscriptions').set('Cookie', `session=${issueSession(ids.An, clock.now())}`)).status).toBe(400);
     expect(await countAll()).toBe(0);
+  });
+
+  it('AC-4: a refused endpoint logs its host only, never the endpoint or the keys', async () => {
+    const lines: string[] = [];
+    for (const method of ['log', 'warn', 'error', 'debug', 'verbose', 'fatal'] as const) {
+      vi.spyOn(Logger.prototype, method).mockImplementation((...args: unknown[]) => void lines.push(args.map(String).join(' ')));
+    }
+    const secret = 'https://internal.example.com/secret/path?token=abc123';
+    expect((await subscribe('An', sub(secret))).status).toBe(400);
+    expect((await subscribe('An', sub('not a url with secret-text'))).status).toBe(400);
+    expect((await subscribe('An', { endpoint: 42, keys: KEYS })).status).toBe(400);
+    const text = lines.join(' | ');
+    expect(text).toContain('internal.example.com');
+    expect(text).toContain('unparseable');
+    for (const leak of ['secret/path', 'token=abc123', 'https://internal', 'secret-text', KEYS.auth, KEYS.p256dh]) {
+      expect(text, leak).not.toContain(leak);
+    }
   });
 
   it('AC-4: the endpoints of Windows and Apple pass', async () => {
@@ -224,6 +274,29 @@ describe('push subscriptions (F-014 step 1)', () => {
     const left = await db.pushSubscription.findMany({ where: { userId: ids.An }, orderBy: { id: 'asc' } });
     expect(left).toHaveLength(5);
     expect(left.map((row) => row.endpoint)).not.toContain('https://fcm.googleapis.com/fcm/send/t1');
+  });
+
+  it('AC-5: two users at 5 devices swap their oldest endpoints in parallel, with no 5xx and at most 5 rows each', async () => {
+    for (let round = 0; round < 4; round++) {
+      await db.pushSubscription.deleteMany();
+      clock.at = new Date(START.getTime() + round * 100_000);
+      for (let i = 1; i <= 5; i++) {
+        await subscribe('An', sub(`https://fcm.googleapis.com/fcm/send/a${i}`));
+        await subscribe('Bình', sub(`https://fcm.googleapis.com/fcm/send/b${i}`));
+        clock.at = new Date(clock.at.getTime() + 1000);
+      }
+      const results = await Promise.all([
+        subscribe('An', sub('https://fcm.googleapis.com/fcm/send/b1')),
+        subscribe('Bình', sub('https://fcm.googleapis.com/fcm/send/a1')),
+        subscribe('An', sub('https://fcm.googleapis.com/fcm/send/b2')),
+        subscribe('Bình', sub('https://fcm.googleapis.com/fcm/send/a2')),
+      ]);
+      for (const res of results) expect(res.status, `round ${round}`).toBeLessThan(500);
+      expect(await db.pushSubscription.count({ where: { userId: ids.An } })).toBeLessThanOrEqual(5);
+      expect(await db.pushSubscription.count({ where: { userId: ids['Bình'] } })).toBeLessThanOrEqual(5);
+      // An endpoint belongs to one user at most.
+      expect(await db.pushSubscription.count()).toBeLessThanOrEqual(10);
+    }
   });
 
   it('AC-5: parallel subscriptions of one user never leave more than 5 rows', async () => {

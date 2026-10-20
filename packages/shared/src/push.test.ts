@@ -17,7 +17,6 @@ describe('isAllowedPushEndpoint (brief F-014, Contract 1)', () => {
       'https://updates.push.services.mozilla.com/wpush/v2/abc',
       'https://a.b.push.services.mozilla.com/x',
       'https://api.push.apple.com/3/device/abc',
-      'https://FCM.GoogleAPIs.com/x',
     ]) {
       expect(isAllowedPushEndpoint(url), url).toBe(true);
     }
@@ -57,6 +56,31 @@ describe('isAllowedPushEndpoint (brief F-014, Contract 1)', () => {
       'not a url',
     ]) {
       expect(isAllowedPushEndpoint(url), url).toBe(false);
+    }
+  });
+
+  it('AC-4: accepts only the canonical form, so the WHATWG parser and the legacy url.parse of web-push read one host', () => {
+    for (const url of [
+      // The WHATWG host ends with .push.apple.com, and the legacy parser reads 10.0.0.5.
+      'https://10.0.0.5%2E.push.apple.com/x',
+      'https://10.0.0.5%2e.push.apple.com/x',
+      'https://fcm.googleapis%2Ecom/x',
+      // The parser strips a tab and a newline inside the host.
+      'https://fcm.goo\tgleapis.com/x',
+      'https://fcm.goo\ngleapis.com/x',
+      // The ideographic full stop maps to a dot.
+      'https://fcm.googleapis%E3%80%82com/x',
+      'https://fcm.googleapis。com/x',
+      // The parser lowercases the host and drops a default port, so the text differs from its href.
+      'https://FCM.GoogleAPIs.com/x',
+      'https://fcm.googleapis.com:443/x',
+      // A trailing dot and an empty label.
+      'https://fcm.googleapis.com./x',
+      'https://x..push.apple.com/x',
+      ' https://fcm.googleapis.com/x',
+      'https://fcm.googleapis.com/x ',
+    ]) {
+      expect(isAllowedPushEndpoint(url), JSON.stringify(url)).toBe(false);
     }
   });
 

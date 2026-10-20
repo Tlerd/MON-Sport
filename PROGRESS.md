@@ -37,4 +37,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-F-014 steps 2 and 3 remain (sender, then screen). See brief docs/briefs/F-014-thong-bao-web-push.md.
+F-014 steps 2 and 3 remain (sender, then screen). See brief docs/briefs/F-014-thong-bao-web-push.md. After step 2 merges, run `gcloud run services update monsport --region asia-southeast1 --no-cpu-throttling`.
