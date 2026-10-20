@@ -70,7 +70,7 @@ describe('Notifications', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<Notifications />);
+    render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
 
     // Shows bell with badge "1"
     const bell = await screen.findByRole('button', { name: 'Thông báo' });
@@ -123,7 +123,7 @@ describe('Notifications', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<Notifications />);
+    render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
     const bell = await screen.findByRole('button', { name: 'Thông báo' });
     fireEvent.click(bell);
 
@@ -154,12 +154,55 @@ describe('Notifications', () => {
       }),
     );
 
-    render(<Notifications />);
+    render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
     const bell = await screen.findByRole('button', { name: 'Thông báo' });
     expect(screen.queryByText('0')).toBeNull();
 
     fireEvent.click(bell);
     expect(await screen.findByRole('heading', { name: 'Thông báo' })).toBeTruthy();
     expect(screen.getByText('Chưa có thông báo nào')).toBeTruthy();
+  });
+
+  it('AC-13: the drawer holds the button "Nhận thông báo trên thiết bị này" when the server has Web Push on', async () => {
+    Object.defineProperty(navigator, 'serviceWorker', { value: { getRegistration: () => Promise.resolve(undefined) }, configurable: true });
+    vi.stubGlobal('PushManager', class {});
+    vi.stubGlobal('Notification', { permission: 'default', requestPermission: vi.fn() });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const body = url === '/api/push/public-key' ? { publicKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' } : { unreadCount: 0, items: [] };
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+      }),
+    );
+
+    try {
+      render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
+      expect(screen.queryByRole('button', { name: 'Nhận thông báo trên thiết bị này' })).toBeNull();
+      fireEvent.click(await screen.findByRole('button', { name: 'Thông báo' }));
+
+      expect(await screen.findByRole('button', { name: 'Nhận thông báo trên thiết bị này' })).toBeTruthy();
+    } finally {
+      Reflect.deleteProperty(navigator, 'serviceWorker');
+    }
+  });
+
+  it('AC-21: the drawer shows no Web Push button and no hint when the server answers 404', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/push/public-key') {
+          return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Thông báo đẩy chưa bật' }) });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ unreadCount: 0, items: [] }) });
+      }),
+    );
+
+    render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Thông báo' }));
+    await screen.findByText('Chưa có thông báo nào');
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(screen.queryByText(/thiết bị này/)).toBeNull();
+    expect(screen.queryByText(/chưa hỗ trợ thông báo/)).toBeNull();
   });
 });
