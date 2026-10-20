@@ -7,11 +7,12 @@ export type PushVapid = { publicKey: string; privateKey: string; subject: string
 export type PushOptions = { ttl: number; urgency: 'high'; timeoutMs: number };
 
 /**
- * Thrown when a send fails without an HTTP answer (timeout, network). The text names the kind only. The error of the
+ * Thrown when a send fails without an HTTP answer. The kind is `timeout`, `network` (a socket error), or `invalid` (web-push
+ * refused the VAPID key or the key of the device before any request). The text names the kind only. The error of the
  * HTTP client can hold the endpoint of a device, which is personal data, so it never leaves this file.
  */
 export class PushSendError extends Error {
-  constructor(readonly kind: 'timeout' | 'network') {
+  constructor(readonly kind: 'timeout' | 'network' | 'invalid') {
     super(`Push send failed (${kind})`);
   }
 }
@@ -42,7 +43,26 @@ export class WebPushSender extends PushSender {
       const statusCode = (error as { statusCode?: unknown } | null)?.statusCode;
       if (typeof statusCode === 'number') return { statusCode };
       const message = String((error as Error | null)?.message ?? '');
-      throw new PushSendError(/timeout|timed out/i.test(message) ? 'timeout' : 'network');
+      if (/timeout|timed out/i.test(message)) throw new PushSendError('timeout');
+      // A socket error carries a `code` (ECONNREFUSED, ECONNRESET). An error with no code comes from web-push itself, before
+      // any request: a bad VAPID key or a bad key of the device.
+      throw new PushSendError(typeof (error as { code?: unknown } | null)?.code === 'string' ? 'network' : 'invalid');
     }
+  }
+}
+
+/**
+ * True when web-push accepts the three VAPID values (subject, public key, private key). `setVapidDetails` validates them and
+ * also stores them as global defaults, so the call is undone at once. `send` passes the values on each call.
+ */
+export function isValidVapid(vapid: PushVapid): boolean {
+  const lib = webpush as unknown as { setVapidDetails(...args: (string | null)[]): void };
+  try {
+    lib.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    lib.setVapidDetails(null);
   }
 }

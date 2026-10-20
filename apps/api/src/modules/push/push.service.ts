@@ -3,7 +3,7 @@ import { formatNotificationContent, isAllowedPushEndpoint, type NotificationType
 import pg from 'pg';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
-import { PushSender, type PushVapid } from './push-sender.js';
+import { isValidVapid, PushSender, type PushVapid } from './push-sender.js';
 
 const RECONNECT_DELAY_MS = 1_000;
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -51,8 +51,14 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    if (!readVapid()) {
+    const vapid = readVapid();
+    if (!vapid) {
       this.logger.log('Web Push is off');
+      return;
+    }
+    // A bad key makes every send fail before the request. Better to stay off than to claim rows that no one can send.
+    if (!isValidVapid(vapid)) {
+      this.logger.error('Web Push is off (invalid VAPID keys)');
       return;
     }
     await this.connect();
@@ -179,6 +185,8 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     if (error instanceof SendTimeout) return 'timeout';
     const kind = (error as { kind?: unknown } | null)?.kind;
     if (kind === 'timeout' || kind === 'network') return kind;
+    // The row stays: a bad VAPID secret must not delete the devices of every user.
+    if (kind === 'invalid') return 'invalid key data';
     const code = (error as { code?: unknown } | null)?.code;
     return typeof code === 'string' ? `code ${code}` : 'unknown';
   }
@@ -192,9 +200,11 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
       const work = this.handle(msg.payload).finally(() => this.inflight.delete(work));
       this.inflight.add(work);
     });
-    const scheduleReconnect = () => {
+    const scheduleReconnect = (error?: unknown) => {
       if (this.stopped || this.client !== client) return;
       this.client = null;
+      // The error code only. The text of a connection error can hold the connection string.
+      this.logger.warn(`Push listener lost, new try in ${RECONNECT_DELAY_MS} ms (${this.describe(error)})`);
       void client.end().catch(() => undefined);
       this.reconnectTimer = setTimeout(() => {
         this.reconnectTimer = null;
@@ -206,8 +216,8 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     try {
       await client.connect();
       await client.query('LISTEN push');
-    } catch {
-      scheduleReconnect();
+    } catch (error) {
+      scheduleReconnect(error);
     }
   }
 }

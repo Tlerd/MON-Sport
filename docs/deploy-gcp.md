@@ -99,7 +99,7 @@ Chạy một lần, trong PowerShell. Lệnh tạo khóa ghi thẳng vào tệp 
 
 ```powershell
 $Keys = New-TemporaryFile
-npx --yes web-push generate-vapid-keys --json > $Keys
+npx --yes web-push@3.6.7 generate-vapid-keys --json > $Keys
 $Pair = Get-Content $Keys -Raw | ConvertFrom-Json
 $Tmp = New-TemporaryFile
 Set-Content -Path $Tmp -NoNewline -Value $Pair.privateKey

@@ -2,9 +2,10 @@ import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/prisma/client.js';
 
-// Connections per instance: this pool, plus 1 for LISTEN lobby (ADR 0004) and 1 for LISTEN push (ADR 0005).
-// With 2 Cloud Run instances that makes 20 of the 25 connections of db-f1-micro.
-const POOL_MAX = 8;
+// Connections per instance: this pool (6), the health pool of `Database` in modules/health (max 2), 1 for LISTEN lobby (ADR 0004),
+// and 1 for LISTEN push (ADR 0005). That is 10 per instance. With 2 Cloud Run instances it makes 20 of the 25 connections of
+// db-f1-micro, and Cloud SQL keeps some of the 25 for itself. Recount before you raise this number (ADR 0005, item c).
+const POOL_MAX = 6;
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {

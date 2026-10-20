@@ -18,7 +18,9 @@ const vn = (hhmm: string, day = '2026-11-20') => `${day}T${hhmm.length === 5 ? `
 const clock = { at: new Date(vn('10:00')), now() { return this.at; } };
 const KEYS = { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' };
 const EP = (name: string) => `https://fcm.googleapis.com/fcm/send/${name}`;
-const VAPID = { VAPID_PUBLIC_KEY: 'test-public-key', VAPID_PRIVATE_KEY: 'test-private-key-not-real', VAPID_SUBJECT: 'mailto:test@example.com' };
+// A real pair: PushService checks the three values with web-push at start up. The pair is made for this run and is no secret.
+const PAIR = webpush.generateVAPIDKeys();
+const VAPID = { VAPID_PUBLIC_KEY: PAIR.publicKey, VAPID_PRIVATE_KEY: PAIR.privateKey, VAPID_SUBJECT: 'mailto:test@example.com' };
 
 type Call = { sub: PushTarget; payload: PushPayload; vapid: PushVapid; options: PushOptions };
 
@@ -389,10 +391,41 @@ describe('push sender (F-014 step 2)', () => {
     expect(timeout).toBeInstanceOf(PushSendError);
     expect((timeout as PushSendError).kind).toBe('timeout');
 
-    spy.mockRejectedValueOnce(new Error(`connect ECONNREFUSED ${EP('e-an')}`));
+    spy.mockRejectedValueOnce(Object.assign(new Error(`connect ECONNREFUSED ${EP('e-an')}`), { code: 'ECONNREFUSED' }));
     const network = (await sender.send(target, payload, vapid, options).catch((e: unknown) => e)) as PushSendError;
     expect(network.kind).toBe('network');
     expect(network.message).not.toContain('fcm.googleapis.com');
+
+    // An error with no code and no status comes from web-push before the request: a bad key.
+    spy.mockRejectedValueOnce(new Error('Vapid private key should be 32 bytes long when decoded.'));
+    const invalid = (await sender.send(target, payload, vapid, options).catch((e: unknown) => e)) as PushSendError;
+    expect(invalid).toBeInstanceOf(PushSendError);
+    expect(invalid.kind).toBe('invalid');
+  });
+
+  it('AC-10 (sender): a bad VAPID key or a bad key of the device fails before the request as kind invalid', async () => {
+    const sender = new WebPushSender();
+    const payload = { title: 't', body: 'b', notificationId: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b' };
+    const options = { ttl: 3600, urgency: 'high' as const, timeoutMs: 123 };
+    const good = { publicKey: PAIR.publicKey, privateKey: PAIR.privateKey, subject: 'mailto:test@example.com' };
+    const badVapid = await sender.send({ endpoint: EP('e-an'), ...KEYS }, payload, { ...good, privateKey: 'not-a-key' }, options).catch((e: unknown) => e);
+    expect((badVapid as PushSendError).kind).toBe('invalid');
+    const badDevice = await sender.send({ endpoint: EP('e-an'), p256dh: 'AAAA', auth: KEYS.auth }, payload, good, options).catch((e: unknown) => e);
+    expect((badDevice as PushSendError).kind).toBe('invalid');
+  });
+
+  it('AC-10: an invalid key error keeps the device row and logs invalid key data', async () => {
+    await subscribeDevice('An', EP('e-an'));
+    fake.answer = async () => {
+      throw new PushSendError('invalid');
+    };
+    const lines = captureLogs();
+    const bookingId = await book('An', '20:00', '21:00');
+    await confirmBooking('Bình', bookingId).expect(200);
+    await waitFor(() => fake.calls.length > 0, 'push attempt');
+    await settle(1);
+    expect(await db.pushSubscription.count()).toBe(1);
+    expect(lines.join(' | ')).toContain('Push send failed (invalid key data)');
   });
 });
 
@@ -426,6 +459,39 @@ describe('push sender without VAPID keys (F-014 step 2)', () => {
     const row = await db.notification.findFirstOrThrow();
     expect(row.pushedAt).toBeNull();
     await app.get(PushService).idle();
+    expect(fake.calls).toEqual([]);
+    expect(await sessions()).toBe(0);
+    expect(await db.pushSubscription.count()).toBe(1);
+  });
+});
+
+describe('push sender with invalid VAPID keys (F-014 step 2)', () => {
+  let restoreEnv: () => void;
+
+  beforeAll(async () => {
+    passwordHash = await hash('test-password');
+    // Set, non-empty, and not a key: the start up check of web-push refuses all three shapes below.
+    restoreEnv = setEnv({ VAPID_PUBLIC_KEY: 'not-a-public-key', VAPID_PRIVATE_KEY: 'not-a-private-key', VAPID_SUBJECT: 'mailto:test@example.com' });
+    const probe = await boot();
+    await waitFor(async () => (await probe.get(PrismaService).$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM pg_stat_activity WHERE application_name = 'monsport-push' AND datname = current_database()`)[0].n === 0, 'earlier LISTEN sessions closed');
+    await probe.close();
+    app = await boot();
+    db = app.get(PrismaService);
+  });
+
+  afterAll(async () => {
+    await app?.close();
+    restoreEnv?.();
+  });
+
+  beforeEach(seed);
+
+  it('AC-12: invalid VAPID keys at start up keep Web Push off, with no push session, and a booking request still succeeds', async () => {
+    expect(await sessions()).toBe(0);
+    await subscribeDevice('Bình', EP('e-binh'));
+    await requestBooking('An', { courtId: ids.A1, startAt: vn('20:00'), endAt: vn('21:00') }).expect(201);
+    await app.get(PushService).idle();
+    expect((await db.notification.findFirstOrThrow()).pushedAt).toBeNull();
     expect(fake.calls).toEqual([]);
     expect(await sessions()).toBe(0);
     expect(await db.pushSubscription.count()).toBe(1);
