@@ -9,7 +9,9 @@ import { isDeadlock, PrismaService } from '../database/prisma.service.js';
 export const MAX_SUBSCRIPTIONS = 5;
 const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại';
 const ATTEMPTS = 3;
-const OWNER_LOOPS = 3;
+
+/** Thrown inside the transaction when another user took the endpoint after the first read. The caller retries. */
+class OwnerChanged extends Error {}
 
 let lastMs = 0;
 let sequence = 0;
@@ -55,19 +57,22 @@ export class SubscriptionsService {
    * Returns true when the row is new.
    *
    * Lock order: the User rows involved, in ascending id (FOR NO KEY UPDATE), then PushSubscription rows. The caller and the
-   * current owner of the endpoint are both locked, in one statement with ORDER BY id. So two users who swap devices at the
-   * same moment lock in the same order and cannot deadlock. The lock serializes the writes of one user, so the limit of 5
-   * holds under parallel calls. It does not conflict with the key share lock of a foreign key insert, so a booking or a
-   * notification of the same user does not wait for it. This transaction takes no Venue, Court, or Booking lock.
+   * current owner of the endpoint are both locked, in one statement with ORDER BY id, so two users who swap devices at the
+   * same moment take the locks in the same order. If the owner changes after the lock, the transaction rolls back and the
+   * next attempt locks the new set in one sorted statement. A deadlock that still happens is retried too. An attempt that
+   * ends with a deadlock or a changed owner counts as one of 3, and the last failure gives 409. The lock serializes the
+   * writes of one user, so the limit of 5 holds under parallel calls. It does not conflict with the key share lock of a
+   * foreign key insert, so a booking or a notification of the same user does not wait for it. This transaction takes no
+   * Venue, Court, or Booking lock.
    */
   async subscribe(userId: string, input: PushSubscribeRequest): Promise<boolean> {
     for (let attempt = 1; ; attempt++) {
       try {
         return await this.save(userId, input);
       } catch (error) {
-        // A deadlock or a serialization failure can run again.
-        if (isDeadlock(error) && attempt < ATTEMPTS) continue;
-        throw this.safe(error, isDeadlock(error));
+        const again = error instanceof OwnerChanged || isDeadlock(error);
+        if (again && attempt < ATTEMPTS) continue;
+        throw this.safe(error, again);
       }
     }
   }
@@ -85,21 +90,15 @@ export class SubscriptionsService {
     const now = this.clock.now();
     const { endpoint, keys } = input;
     return this.prisma.$transaction(async (tx) => {
-      // Read the owner without a lock, lock the users, then read it again. The owner can change between the two reads.
-      const locked = new Set<string>();
-      let settled = false;
-      for (let loop = 0; loop < OWNER_LOOPS && !settled; loop++) {
-        const owner = await this.ownerOf(tx, endpoint);
-        const wanted = [...new Set([userId, ...(owner ? [owner] : [])])].filter((id) => !locked.has(id)).sort();
-        if (wanted.length > 0) {
-          const ids = Prisma.join(wanted.map((id) => Prisma.sql`${id}::uuid`));
-          await tx.$executeRaw`SELECT 1 FROM "User" WHERE "id" IN (${ids}) ORDER BY "id" FOR NO KEY UPDATE`;
-          wanted.forEach((id) => locked.add(id));
-        }
-        const after = await this.ownerOf(tx, endpoint);
-        settled = after === null || locked.has(after);
-      }
-      if (!settled) throw new ConflictException(BUSY);
+      // Read the owner without a lock, lock the users in one sorted statement, then read the owner again.
+      const owner = await this.ownerOf(tx, endpoint);
+      const wanted = [...new Set([userId, ...(owner ? [owner] : [])])].sort();
+      const ids = Prisma.join(wanted.map((id) => Prisma.sql`${id}::uuid`));
+      await tx.$executeRaw`SELECT 1 FROM "User" WHERE "id" IN (${ids}) ORDER BY "id" FOR NO KEY UPDATE`;
+      // The owner changed between the two reads, so a user that this transaction did not lock owns the row now. Roll back and
+      // start again: the next attempt locks every id in one sorted statement.
+      const after = await this.ownerOf(tx, endpoint);
+      if (after !== null && !wanted.includes(after)) throw new OwnerChanged();
 
       const rows = await tx.$queryRaw<{ created: boolean }[]>`
         INSERT INTO "PushSubscription" ("id", "userId", "endpoint", "p256dh", "auth", "createdAt")

@@ -18,7 +18,9 @@ const CANONICAL_HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
  * True for an https URL without port or userinfo, on an allowed host. Never throws. A non-string gives false.
  * It accepts the canonical form only (`new URL(url).href === url`). The WHATWG parser decodes `%2E`, drops a tab, and maps
  * the ideographic full stop to a dot, while the legacy `url.parse` of `web-push` reads another host from the same text.
- * `https://10.0.0.5%2E.push.apple.com/x` is one such text. A canonical text has one reading in both parsers.
+ * `https://10.0.0.5%2E.push.apple.com/x` is one such text. A canonical text has one reading in both parsers, as long as its
+ * host also fits the DNS limits: 253 characters in all and 63 in a label. The legacy parser returns an empty hostname for a
+ * host over 255 characters, and `https.request` then goes to localhost. So the limits are part of this guarantee.
  */
 export function isAllowedPushEndpoint(url: unknown): boolean {
   if (typeof url !== 'string') return false;
@@ -27,7 +29,7 @@ export function isAllowedPushEndpoint(url: unknown): boolean {
     if (parsed.href !== url) return false;
     if (parsed.protocol !== 'https:' || parsed.port !== '' || parsed.username !== '' || parsed.password !== '') return false;
     const host = parsed.hostname;
-    if (!CANONICAL_HOST.test(host)) return false;
+    if (!CANONICAL_HOST.test(host) || host.length > 253 || host.split('.').some((label) => label.length > 63)) return false;
     return (
       (PUSH_HOST_ALLOWLIST.hosts as readonly string[]).includes(host) ||
       PUSH_HOST_ALLOWLIST.suffixes.some((suffix) => host.endsWith(suffix))

@@ -84,6 +84,27 @@ describe('isAllowedPushEndpoint (brief F-014, Contract 1)', () => {
     }
   });
 
+  it('AC-4: refuses a host over the DNS limits, because the legacy url.parse returns an empty hostname for a host over 255 characters', () => {
+    const long = 'https://' + Array(5).fill('a'.repeat(60)).join('.') + '.push.apple.com/x';
+    expect(long.length - '/x'.length - 'https://'.length).toBeGreaterThan(253);
+    expect(isAllowedPushEndpoint(long)).toBe(false);
+    // 253 characters is the limit. 4 labels of 60 characters and ".push.apple.com" make 255.
+    const host = (labels: number, length: number) => Array(labels).fill('a'.repeat(length)).join('.') + '.push.apple.com';
+    expect(host(3, 60).length).toBeLessThanOrEqual(253);
+    expect(isAllowedPushEndpoint(`https://${host(3, 60)}/x`)).toBe(true);
+    expect(host(4, 60).length).toBeGreaterThan(253);
+    expect(isAllowedPushEndpoint(`https://${host(4, 60)}/x`)).toBe(false);
+    // A label has 63 characters at most.
+    expect(isAllowedPushEndpoint(`https://${'a'.repeat(63)}.push.apple.com/x`)).toBe(true);
+    expect(isAllowedPushEndpoint(`https://${'a'.repeat(64)}.push.apple.com/x`)).toBe(false);
+    expect(isAllowedPushEndpoint(`https://${'a'.repeat(64)}.notify.windows.com/x`)).toBe(false);
+  });
+
+  it('AC-4: accepts a normal long endpoint, with a long path', () => {
+    expect(isAllowedPushEndpoint(`https://fcm.googleapis.com/fcm/send/${'abcDEF123_-'.repeat(120)}`)).toBe(true);
+    expect(isAllowedPushEndpoint(`https://wns2-par02p.notify.windows.com/w/?token=${'A'.repeat(1500)}`)).toBe(true);
+  });
+
   it('returns false for any non-string and never throws', () => {
     for (const value of [undefined, null, 0, 1, true, {}, [], ['https://fcm.googleapis.com/x'], Symbol('x'), () => 'x', 10n]) {
       expect(isAllowedPushEndpoint(value), String(typeof value)).toBe(false);

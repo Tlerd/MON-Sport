@@ -276,26 +276,51 @@ describe('push subscriptions (F-014 step 1)', () => {
     expect(left.map((row) => row.endpoint)).not.toContain('https://fcm.googleapis.com/fcm/send/t1');
   });
 
-  it('AC-5: two users at 5 devices swap their oldest endpoints in parallel, with no 5xx and at most 5 rows each', async () => {
-    for (let round = 0; round < 4; round++) {
+  const ep = (name: string) => `https://fcm.googleapis.com/fcm/send/${name}`;
+  const seed = async (round: number, perUser: number) => {
+    await db.pushSubscription.deleteMany();
+    clock.at = new Date(START.getTime() + round * 100_000);
+    for (let i = 1; i <= perUser; i++) {
+      await subscribe('An', sub(ep(`a${i}`)));
+      await subscribe('Bình', sub(ep(`b${i}`)));
+      clock.at = new Date(clock.at.getTime() + 1000);
+    }
+  };
+  const owned = async (who: string) => (await endpointsOf(who)).map((e) => e.slice(ep('').length)).sort();
+
+  it('AC-5: two users at 4 devices swap one endpoint each in parallel, and every call answers 200 with 4 rows each', async () => {
+    for (let round = 0; round < 6; round++) {
+      await seed(round, 4);
+      const results = await Promise.all([subscribe('An', sub(ep('b1'))), subscribe('Bình', sub(ep('a1')))]);
+      expect(results.map((res) => res.status), `round ${round}`).toEqual([200, 200]);
+      expect(await owned('An'), `round ${round}`).toEqual(['a2', 'a3', 'a4', 'b1']);
+      expect(await owned('Bình'), `round ${round}`).toEqual(['a1', 'b2', 'b3', 'b4']);
+    }
+  });
+
+  it('AC-5: two users at 5 devices swap their oldest endpoints in parallel, with no 5xx, 5 rows each, and each user owns the endpoint they asked for', async () => {
+    for (let round = 0; round < 6; round++) {
+      await seed(round, 5);
+      const results = await Promise.all([subscribe('An', sub(ep('b1'))), subscribe('Bình', sub(ep('a1')))]);
+      // The limit of 5 deletes the oldest row of the user who took the first swap, which is the endpoint that the other user
+      // asks for. So the second call saves a new row (201) and the first call updates one (200).
+      expect(results.map((res) => res.status).sort(), `round ${round}`).toEqual([200, 201]);
+      const [an, binh] = [await owned('An'), await owned('Bình')];
+      expect(an, `round ${round}`).toHaveLength(5);
+      expect(binh, `round ${round}`).toHaveLength(5);
+      expect(an, `round ${round}`).toContain('b1');
+      expect(binh, `round ${round}`).toContain('a1');
+      expect(await countAll()).toBe(10);
+    }
+  });
+
+  it('AC-3: three users take one endpoint in parallel, and it ends with exactly one owner and no 5xx', async () => {
+    for (let round = 0; round < 6; round++) {
       await db.pushSubscription.deleteMany();
-      clock.at = new Date(START.getTime() + round * 100_000);
-      for (let i = 1; i <= 5; i++) {
-        await subscribe('An', sub(`https://fcm.googleapis.com/fcm/send/a${i}`));
-        await subscribe('Bình', sub(`https://fcm.googleapis.com/fcm/send/b${i}`));
-        clock.at = new Date(clock.at.getTime() + 1000);
-      }
-      const results = await Promise.all([
-        subscribe('An', sub('https://fcm.googleapis.com/fcm/send/b1')),
-        subscribe('Bình', sub('https://fcm.googleapis.com/fcm/send/a1')),
-        subscribe('An', sub('https://fcm.googleapis.com/fcm/send/b2')),
-        subscribe('Bình', sub('https://fcm.googleapis.com/fcm/send/a2')),
-      ]);
+      await subscribe('An', sub(SAMPLE));
+      const results = await Promise.all(['Bình', 'Quản trị', 'An'].map((who) => subscribe(who, sub(SAMPLE))));
       for (const res of results) expect(res.status, `round ${round}`).toBeLessThan(500);
-      expect(await db.pushSubscription.count({ where: { userId: ids.An } })).toBeLessThanOrEqual(5);
-      expect(await db.pushSubscription.count({ where: { userId: ids['Bình'] } })).toBeLessThanOrEqual(5);
-      // An endpoint belongs to one user at most.
-      expect(await db.pushSubscription.count()).toBeLessThanOrEqual(10);
+      expect(await countAll(), `round ${round}`).toBe(1);
     }
   });
 
