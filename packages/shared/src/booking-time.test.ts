@@ -84,24 +84,24 @@ describe('grid and length', () => {
 
 // Brief F-016, Contract item 1. All dates are in Asia/Ho_Chi_Minh (BR-27).
 describe('vnDateString', () => {
-  it('AC-2: 17:30Z on 15/11 is 00:30 on 16/11 in Vietnam', () => {
+  it('F-016 week helper for AC-2: 17:30Z on 15/11 is 00:30 on 16/11 in Vietnam', () => {
     expect(vnDateString(new Date('2026-11-15T17:30:00Z'))).toBe('2026-11-16');
   });
 
-  it('AC-11: 16:59:59Z on 22/11 is still Sunday 22/11, and 17:00:00Z is Monday 23/11', () => {
+  it('F-016 week helper for AC-11: 16:59:59Z on 22/11 is still Sunday 22/11, and 17:00:00Z is Monday 23/11', () => {
     expect(vnDateString(new Date('2026-11-22T16:59:59Z'))).toBe('2026-11-22');
     expect(vnDateString(new Date('2026-11-22T17:00:00Z'))).toBe('2026-11-23');
   });
 });
 
 describe('isRealDate', () => {
-  it('AC-9: accepts real dates, including a leap day', () => {
+  it('F-016 week helper for AC-9: accepts real dates, including a leap day', () => {
     expect(isRealDate('2026-11-20')).toBe(true);
     expect(isRealDate('2028-02-29')).toBe(true);
     expect(isRealDate('2026-12-31')).toBe(true);
   });
 
-  it('AC-9: refuses a day or a month that does not exist', () => {
+  it('F-016 week helper for AC-9: refuses a day or a month that does not exist', () => {
     expect(isRealDate('2026-02-30')).toBe(false);
     expect(isRealDate('2027-02-29')).toBe(false);
     expect(isRealDate('2026-04-31')).toBe(false);
@@ -110,7 +110,7 @@ describe('isRealDate', () => {
     expect(isRealDate('2026-11-00')).toBe(false);
   });
 
-  it('AC-9: returns false and never throws for any other string', () => {
+  it('F-016 week helper for AC-9: returns false and never throws for any other string', () => {
     for (const text of ['abc', '', ' ', '2026-1-1', '20261120', '2026-11-20T00:00:00Z', '2026-11-20 ', '\u0000', '9'.repeat(10_000)]) {
       expect(() => isRealDate(text)).not.toThrow();
       expect(isRealDate(text)).toBe(false);
@@ -139,22 +139,22 @@ describe('addDaysYmd', () => {
 });
 
 describe('vnWeekRange', () => {
-  it('AC-12: Monday 23/11 starts its own week 23/11 to 29/11', () => {
+  it('F-016 week helper for AC-12: Monday 23/11 starts its own week 23/11 to 29/11', () => {
     const week = vnWeekRange('2026-11-23');
     expect([week.weekStart, week.weekEnd]).toEqual(['2026-11-23', '2026-11-29']);
   });
 
-  it('AC-2: Sunday 22/11 belongs to the week 16/11 to 22/11', () => {
+  it('F-016 week helper for AC-2: Sunday 22/11 belongs to the week 16/11 to 22/11', () => {
     const week = vnWeekRange('2026-11-22');
     expect([week.weekStart, week.weekEnd]).toEqual(['2026-11-16', '2026-11-22']);
   });
 
-  it('AC-1: a day in the middle of the week gives the same week', () => {
+  it('F-016 week helper for AC-1: a day in the middle of the week gives the same week', () => {
     const week = vnWeekRange('2026-11-20');
     expect([week.weekStart, week.weekEnd]).toEqual(['2026-11-16', '2026-11-22']);
   });
 
-  it('AC-11: from is Monday 00:00 in Vietnam, and to is the next Monday 00:00, not included', () => {
+  it('F-016 week helper for AC-11: from is Monday 00:00 in Vietnam, and to is the next Monday 00:00, not included', () => {
     const { from, to } = vnWeekRange('2026-11-20');
     expect(from).toEqual(new Date('2026-11-16T00:00:00+07:00'));
     expect(from.toISOString()).toBe('2026-11-15T17:00:00.000Z');
@@ -179,7 +179,7 @@ describe('vnWeekRange', () => {
     expect([week.weekStart, week.weekEnd]).toEqual(['2028-02-28', '2028-03-05']);
   });
 
-  it('matches the Monday start of finance.service.ts for every day of a week', () => {
+  it('every day of a week maps to its Monday', () => {
     for (let i = 0; i < 7; i++) {
       const day = addDaysYmd('2026-11-16', i);
       expect(vnWeekRange(day).weekStart).toBe('2026-11-16');

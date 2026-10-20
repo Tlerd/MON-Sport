@@ -6,6 +6,8 @@ export const AdminStatsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải theo định dạng YYYY-MM-DD')
     .refine(isRealDate, 'Ngày không có thật')
+    // Years outside this range make toISOString() write a longer year, so the week helpers would return a broken date.
+    .refine((d) => d >= '2000-01-01' && d <= '2999-12-31', 'Ngày ngoài khoảng 2000 đến 2999')
     .optional(),
 });
 export type AdminStatsQuery = z.infer<typeof AdminStatsQuerySchema>;
