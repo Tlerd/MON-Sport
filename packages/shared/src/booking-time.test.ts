@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { bookingPrice, confirmDeadline, isLongEnough, isOnGrid, minuteOfDayVN, userCancelDecision } from './booking-time.ts';
+import {
+  addDaysYmd,
+  bookingPrice,
+  confirmDeadline,
+  isLongEnough,
+  isOnGrid,
+  isRealDate,
+  minuteOfDayVN,
+  userCancelDecision,
+  vnDateString,
+  vnWeekRange,
+} from './booking-time.ts';
 
 // "Sân 1" of "Cầu lông A" in brief F-002: 80.000đ normal, 120.000đ peak, per hour.
 const NORMAL = 80_000;
@@ -68,5 +79,110 @@ describe('grid and length', () => {
 
   it('needs 1 hour or more', () => {
     expect([isLongEnough(vn('19:00'), vn('20:00')), isLongEnough(vn('19:00'), vn('19:30'))]).toEqual([true, false]);
+  });
+});
+
+// Brief F-016, Contract item 1. All dates are in Asia/Ho_Chi_Minh (BR-27).
+describe('vnDateString', () => {
+  it('AC-2: 17:30Z on 15/11 is 00:30 on 16/11 in Vietnam', () => {
+    expect(vnDateString(new Date('2026-11-15T17:30:00Z'))).toBe('2026-11-16');
+  });
+
+  it('AC-11: 16:59:59Z on 22/11 is still Sunday 22/11, and 17:00:00Z is Monday 23/11', () => {
+    expect(vnDateString(new Date('2026-11-22T16:59:59Z'))).toBe('2026-11-22');
+    expect(vnDateString(new Date('2026-11-22T17:00:00Z'))).toBe('2026-11-23');
+  });
+});
+
+describe('isRealDate', () => {
+  it('AC-9: accepts real dates, including a leap day', () => {
+    expect(isRealDate('2026-11-20')).toBe(true);
+    expect(isRealDate('2028-02-29')).toBe(true);
+    expect(isRealDate('2026-12-31')).toBe(true);
+  });
+
+  it('AC-9: refuses a day or a month that does not exist', () => {
+    expect(isRealDate('2026-02-30')).toBe(false);
+    expect(isRealDate('2027-02-29')).toBe(false);
+    expect(isRealDate('2026-04-31')).toBe(false);
+    expect(isRealDate('2026-13-45')).toBe(false);
+    expect(isRealDate('2026-00-10')).toBe(false);
+    expect(isRealDate('2026-11-00')).toBe(false);
+  });
+
+  it('AC-9: returns false and never throws for any other string', () => {
+    for (const text of ['abc', '', ' ', '2026-1-1', '20261120', '2026-11-20T00:00:00Z', '2026-11-20 ', '\u0000', '9'.repeat(10_000)]) {
+      expect(() => isRealDate(text)).not.toThrow();
+      expect(isRealDate(text)).toBe(false);
+    }
+  });
+});
+
+describe('addDaysYmd', () => {
+  it('adds and subtracts days', () => {
+    expect(addDaysYmd('2026-11-20', 7)).toBe('2026-11-27');
+    expect(addDaysYmd('2026-11-20', -7)).toBe('2026-11-13');
+    expect(addDaysYmd('2026-11-20', 0)).toBe('2026-11-20');
+  });
+
+  it('rolls over a month and a year', () => {
+    expect(addDaysYmd('2026-11-30', 1)).toBe('2026-12-01');
+    expect(addDaysYmd('2026-12-31', 1)).toBe('2027-01-01');
+    expect(addDaysYmd('2027-01-01', -1)).toBe('2026-12-31');
+  });
+
+  it('knows the leap day', () => {
+    expect(addDaysYmd('2028-02-28', 1)).toBe('2028-02-29');
+    expect(addDaysYmd('2028-02-29', 1)).toBe('2028-03-01');
+    expect(addDaysYmd('2027-02-28', 1)).toBe('2027-03-01');
+  });
+});
+
+describe('vnWeekRange', () => {
+  it('AC-12: Monday 23/11 starts its own week 23/11 to 29/11', () => {
+    const week = vnWeekRange('2026-11-23');
+    expect([week.weekStart, week.weekEnd]).toEqual(['2026-11-23', '2026-11-29']);
+  });
+
+  it('AC-2: Sunday 22/11 belongs to the week 16/11 to 22/11', () => {
+    const week = vnWeekRange('2026-11-22');
+    expect([week.weekStart, week.weekEnd]).toEqual(['2026-11-16', '2026-11-22']);
+  });
+
+  it('AC-1: a day in the middle of the week gives the same week', () => {
+    const week = vnWeekRange('2026-11-20');
+    expect([week.weekStart, week.weekEnd]).toEqual(['2026-11-16', '2026-11-22']);
+  });
+
+  it('AC-11: from is Monday 00:00 in Vietnam, and to is the next Monday 00:00, not included', () => {
+    const { from, to } = vnWeekRange('2026-11-20');
+    expect(from).toEqual(new Date('2026-11-16T00:00:00+07:00'));
+    expect(from.toISOString()).toBe('2026-11-15T17:00:00.000Z');
+    expect(to).toEqual(new Date('2026-11-23T00:00:00+07:00'));
+    // 23:30 on Sunday is in the week. 00:00 on the next Monday is not.
+    const inWeek = new Date('2026-11-22T23:30:00+07:00').getTime();
+    const nextMonday = new Date('2026-11-23T00:00:00+07:00').getTime();
+    expect(inWeek >= from.getTime() && inWeek < to.getTime()).toBe(true);
+    expect(nextMonday >= from.getTime() && nextMonday < to.getTime()).toBe(false);
+  });
+
+  it('rolls over a month and a year', () => {
+    const month = vnWeekRange('2026-12-02');
+    expect([month.weekStart, month.weekEnd]).toEqual(['2026-11-30', '2026-12-06']);
+    const year = vnWeekRange('2027-01-01');
+    expect([year.weekStart, year.weekEnd]).toEqual(['2026-12-28', '2027-01-03']);
+    expect(year.to).toEqual(new Date('2027-01-04T00:00:00+07:00'));
+  });
+
+  it('keeps the leap day inside its week', () => {
+    const week = vnWeekRange('2028-02-29');
+    expect([week.weekStart, week.weekEnd]).toEqual(['2028-02-28', '2028-03-05']);
+  });
+
+  it('matches the Monday start of finance.service.ts for every day of a week', () => {
+    for (let i = 0; i < 7; i++) {
+      const day = addDaysYmd('2026-11-16', i);
+      expect(vnWeekRange(day).weekStart).toBe('2026-11-16');
+    }
   });
 });

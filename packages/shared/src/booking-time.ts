@@ -54,3 +54,56 @@ export function userCancelDecision(booking: { status: BookingStatus; startAt: Da
   if (booking.status !== 'CONFIRMED') return 'NONE';
   return untilStart >= USER_CANCEL_WINDOW_MS ? 'ALLOW' : 'CALL_OWNER';
 }
+
+const DAY = 24 * HOUR;
+const YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Midnight of a calendar day as a UTC instant, or NaN when the day does not exist. setUTCFullYear keeps years 0 to 99 as they are. */
+function utcMidnight(ymd: string): number {
+  const match = YMD.exec(ymd);
+  if (!match) return Number.NaN;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  const real = date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return real ? date.getTime() : Number.NaN;
+}
+
+function formatYmd(utcMs: number): string {
+  return new Date(utcMs).toISOString().slice(0, 10);
+}
+
+/** Brief F-016: the calendar day of an instant in Asia/Ho_Chi_Minh, as YYYY-MM-DD. */
+export function vnDateString(at: Date): string {
+  return formatYmd(at.getTime() + VN_OFFSET);
+}
+
+/** Brief F-016: true for a day that exists, such as 2028-02-29. False for any other string. It never throws. */
+export function isRealDate(ymd: string): boolean {
+  return typeof ymd === 'string' && !Number.isNaN(utcMidnight(ymd));
+}
+
+/** Brief F-016: the calendar day that is `days` after `ymd` (before when negative). Throws a RangeError when `ymd` is not a real date. */
+export function addDaysYmd(ymd: string, days: number): string {
+  const base = utcMidnight(ymd);
+  if (Number.isNaN(base)) throw new RangeError(`Not a real date: ${ymd}`);
+  return formatYmd(base + days * DAY);
+}
+
+/**
+ * Brief F-016: the Monday to Sunday week of a day in Asia/Ho_Chi_Minh.
+ * `from` is Monday 00:00. `to` is the next Monday 00:00 and is not part of the week: filter with `gte: from, lt: to`.
+ */
+export function vnWeekRange(ymd: string): { weekStart: string; weekEnd: string; from: Date; to: Date } {
+  const base = utcMidnight(ymd);
+  if (Number.isNaN(base)) throw new RangeError(`Not a real date: ${ymd}`);
+  const daysFromMonday = (new Date(base).getUTCDay() + 6) % 7; // Sunday is 0 and counts 6 days from Monday.
+  const mondayUtc = base - daysFromMonday * DAY;
+  const from = new Date(mondayUtc - VN_OFFSET);
+  return {
+    weekStart: formatYmd(mondayUtc),
+    weekEnd: formatYmd(mondayUtc + 6 * DAY),
+    from,
+    to: new Date(from.getTime() + 7 * DAY),
+  };
+}
