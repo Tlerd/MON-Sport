@@ -28,7 +28,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 2. The pilot date. Owner: the user.
 3. Bookings per day after 6 months. Owner: the user.
 4. Whether Luật 91/2025 requires more than the consent box and the notice that F-003 ships (`PRIVACY_NOTICE` in `packages/shared/src/account.ts`), and the final text of the notice. Owner: the user, with a legal adviser.
-5. Whether the Google Cloud trial becomes production. It runs on Cloud Run and Cloud SQL (ADR 0003, `docs/deploy-gcp.md`). Owner: the user.
+5. Whether the Google Cloud trial becomes production. It runs on Cloud Run and Cloud SQL (ADR 0003, `docs/deploy-gcp.md`). Whether to keep `--no-cpu-throttling` for Web Push (brief F-014, higher cost). Owner: the user.
 6. Whether owner data needs its own consent, or the contract with the venue covers it. Until account deletion ships, the admin handles deletion requests by hand. Owner: the user.
 7. Whether to build Google sign-in (F-004, plan in `docs/briefs/F-004-dang-nhap-google.md`). Build it only when the user, in their own message, adds it to the intake or writes "chấp nhận F-004", and has done the console steps of that brief. "tiếp tục" is not acceptance. Agents never close this decision under "Autonomy". Record the date and a quote of that message here. F-004 `link-start` calls `ThrottleService.consumeLogin` with the phone of the signed-in user (brief F-006). Owner: the user.
 8. Whether the limits of BR-30 suit venues where players share one Wi-Fi. Check after the first pilot week. Owner: the user.
@@ -37,4 +37,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-F-014 (UC-14 Web Push, planned in the non-goals of `docs/briefs/F-013-thong-bao-trong-app.md`): write the brief with `feature-brief`. It needs VAPID keys and a Service Worker.
+F-014 (UC-14 Web Push, brief `docs/briefs/F-014-thong-bao-web-push.md`, accepted): build steps 1 to 3. The VAPID keys are set on Cloud Run (2026-10-20). After step 2 merges, run `--no-cpu-throttling` on `monsport`.
