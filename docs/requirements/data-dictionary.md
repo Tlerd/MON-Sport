@@ -56,9 +56,10 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | MatchPlayerStatus | Trạng thái của một người trong trận | enum | — | `ACTIVE` còn suất · `LEFT` đã rời |
 | MatchStatus | Trạng thái của trận | enum | — | `OPEN` Mở · `FULL` Đầy · `CANCELLED` Đã hủy · `FINISHED` Đã đá xong |
 | money | Số tiền | integer | — | Đơn vị VND, số nguyên (BR-25) |
-| Notification | Một thông báo trong app | id + userId + type + bookingId + (matchId) + (readAt) + createdAt | — | — |
+| Notification | Một thông báo trong app | id + userId + type + bookingId + (matchId) + (readAt) + (pushedAt) + createdAt | — | — |
 | Notification.bookingId | Booking của sự kiện | id của Booking | 36 | — |
 | Notification.matchId | Trận của sự kiện | id của Match | 36 | Có khi `type` = `MATCH_CANCELLED` |
+| Notification.pushedAt | Lúc một instance API nhận gửi Web Push cho thông báo này | timestamptz(3) | — | Rỗng khi chưa gửi. Dòng có từ trước F-014 mang giá trị `createdAt` |
 | Notification.readAt | Lúc người nhận đọc | timestamptz(3) | — | — |
 | Notification.type | Loại sự kiện | NotificationType | — | — |
 | Notification.userId | Người nhận | id của User | 36 | — |
@@ -66,7 +67,7 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | phone | Số điện thoại Việt Nam | text | 10 | 10 chữ số, bắt đầu bằng `0` |
 | PushSubscription | Một thiết bị nhận Web Push | id + userId + endpoint + p256dh + auth + createdAt | — | — |
 | PushSubscription.auth | Khóa xác thực Web Push | text | ≤ 100 | — |
-| PushSubscription.endpoint | Địa chỉ push của trình duyệt | text | ≤ 1000 | Duy nhất |
+| PushSubscription.endpoint | Địa chỉ push của trình duyệt | text | ≤ 2048 | Duy nhất |
 | PushSubscription.p256dh | Khóa công khai Web Push | text | ≤ 200 | — |
 | PushSubscription.userId | Chủ của thiết bị | id của User | 36 | — |
 | Role | Vai trò tài khoản | enum | — | `ADMIN` · `OWNER` (chủ sân) · `USER` (người dùng) |

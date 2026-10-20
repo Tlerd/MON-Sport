@@ -1,5 +1,6 @@
 // Names follow docs/requirements/data-dictionary.md. Brief F-002 adds User, Venue, Court, and Booking. Brief F-003 adds User.consentAt.
 // Brief F-006 adds User.sessionsValidFrom and AuthThrottle. Brief F-011 adds Match and MatchPlayer. Brief F-013 adds Notification.
+// Brief F-014 adds PushSubscription and Notification.pushedAt.
 
 generator client {
   provider               = "prisma-client"
@@ -74,6 +75,7 @@ model User {
   matches      Match[]
   matchPlayers MatchPlayer[]
   notifications Notification[]
+  pushSubscriptions PushSubscription[]
 }
 
 model Venue {
@@ -179,6 +181,8 @@ model Notification {
   bookingId String           @db.Uuid
   matchId   String?          @db.Uuid
   readAt    DateTime?        @db.Timestamptz(3)
+  /// Brief F-014: when an API instance claimed the row for Web Push. Null: not sent yet. Rows older than the migration hold createdAt.
+  pushedAt  DateTime?        @db.Timestamptz(3)
   createdAt DateTime         @default(now()) @db.Timestamptz(3)
   user      User             @relation(fields: [userId], references: [id])
   booking   Booking          @relation(fields: [bookingId], references: [id])
@@ -186,5 +190,19 @@ model Notification {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, readAt])
+}
+
+/// Brief F-014 (UC-14): one device that receives Web Push. The endpoint is unique, so a browser belongs to one user (Assumption 2).
+/// It is personal data of the device: delete the row when the user unsubscribes or the push service answers 404 or 410.
+model PushSubscription {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique @db.VarChar(2048)
+  p256dh    String   @db.VarChar(200)
+  auth      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
 }
 
