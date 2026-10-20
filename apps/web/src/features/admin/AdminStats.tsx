@@ -31,6 +31,7 @@ export function AdminStats() {
   const [data, setData] = useState<AdminStatsView | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reload, setReload] = useState(0); // "Thử lại" bumps it to run the request again
 
   useEffect(() => {
     let active = true; // a slow answer for an older week must not replace a newer one
@@ -58,7 +59,7 @@ export function AdminStats() {
     return () => {
       active = false;
     };
-  }, [date]);
+  }, [date, reload]);
 
   // Before the first answer there is no day to move from.
   const move = (days: number) =>
@@ -84,7 +85,12 @@ export function AdminStats() {
         </button>
       </div>
 
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && (
+        <>
+          <p className="error" role="alert">{error}</p>
+          <button type="button" onClick={() => setReload((n) => n + 1)}>Thử lại</button>
+        </>
+      )}
       {loading && !data && !error && <p className="empty">Đang tải số liệu…</p>}
 
       {data && (

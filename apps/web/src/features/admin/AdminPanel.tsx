@@ -14,10 +14,10 @@ export function AdminPanel() {
   return (
     <>
       <nav className="tabs" aria-label="Chức năng quản trị">
-        <button type="button" className={tab === 'accounts' ? 'active' : ''} onClick={() => setTab('accounts')}>
+        <button type="button" className={tab === 'accounts' ? 'active' : ''} aria-pressed={tab === 'accounts'} onClick={() => setTab('accounts')}>
           Tài khoản và đơn vị
         </button>
-        <button type="button" className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>
+        <button type="button" className={tab === 'stats' ? 'active' : ''} aria-pressed={tab === 'stats'} onClick={() => setTab('stats')}>
           Số liệu
         </button>
       </nav>

@@ -103,6 +103,22 @@ describe('AdminStats', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Không có quyền');
   });
 
+  it('AC-13: "Thử lại" asks again after the first load fails, and shows the numbers', async () => {
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ message: 'Lỗi máy chủ' }) }))
+      .mockImplementation(() => ok(WEEK));
+    vi.stubGlobal('fetch', fetch);
+    render(<AdminStats />);
+
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+
+    expect(await screen.findByText('Người dùng mới')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('AC-13: asks for the week of today first, with no date in the request', async () => {
     const fetch = vi.fn((_url: string) => ok(WEEK));
     vi.stubGlobal('fetch', fetch);

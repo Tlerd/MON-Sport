@@ -183,6 +183,7 @@ describe('AdminPanel', () => {
 
     expect(await screen.findByText('16/11 – 22/11/2026')).toBeTruthy();
     expect(within(tabs).getByRole('button', { name: 'Số liệu' }).className).toBe('active');
+    expect(within(tabs).getByRole('button', { name: 'Số liệu', pressed: true })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Khóa tài khoản' })).toBeNull();
 
     fireEvent.click(within(tabs).getByRole('button', { name: 'Tài khoản và đơn vị' }));
