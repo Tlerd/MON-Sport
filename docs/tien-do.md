@@ -10,10 +10,10 @@ Cập nhật: 21/10/2026. Nguồn: `docs/requirements/intake-monsport-v1.md` (UC
 
 ## Kết quả
 
-**14 trên 14 use case đã code, test pass và deploy (100%).**
-Còn 1 việc kiểm tay: thử UC-14 trên điện thoại thật.
+**13 trên 14 use case xong (93%).**
+UC-14 (thông báo đẩy) chưa đạt: test thật cho thấy hai bên không nhận được thông báo cùng lúc.
 
-Ký hiệu: ✅ xong. 🟡 xong, còn một việc kiểm tay. ⬜ chưa làm.
+Ký hiệu: ✅ xong. 🔴 đã code nhưng test thật chưa đạt. ⬜ chưa làm.
 
 ## Theo use case
 
@@ -32,7 +32,7 @@ Ký hiệu: ✅ xong. 🟡 xong, còn một việc kiểm tay. ⬜ chưa làm.
 | UC-11 | Chủ sân sửa giá và giờ mở cửa | F-005 | ✅ |
 | UC-12 | Dashboard tài chính của chủ sân | F-015 | ✅ |
 | UC-13 | Dashboard toàn trang của admin | F-016 | ✅ |
-| UC-14 | Thông báo trong app và Web Push | F-013, F-014 | 🟡 chưa thử trên điện thoại thật |
+| UC-14 | Thông báo trong app và Web Push | F-013, F-014 | 🔴 thông báo trong app có. Web Push chưa đạt |
 
 ## Theo thứ tự ra mắt (intake, mục Assumptions)
 
@@ -41,7 +41,7 @@ Ký hiệu: ✅ xong. 🟡 xong, còn một việc kiểm tay. ⬜ chưa làm.
 | 1 | UC-1, UC-10, UC-11 | ✅ 3 trên 3 |
 | 2 | UC-2 đến UC-6 | ✅ 5 trên 5 |
 | 3 | UC-7 đến UC-9 | ✅ 3 trên 3 |
-| 4 | UC-14 | 🟡 1 trên 1, chờ thử điện thoại |
+| 4 | UC-14 | 🔴 0 trên 1, Web Push chưa đạt |
 | 5 | UC-12, UC-13 | ✅ 2 trên 2 |
 
 ## Theo brief
@@ -61,14 +61,18 @@ Ký hiệu: ✅ xong. 🟡 xong, còn một việc kiểm tay. ⬜ chưa làm.
 | F-011 | Mở trận, hủy trận | ✅ |
 | F-012 | Vào và rời trận, phòng chờ tức thì | ✅ |
 | F-013 | Thông báo trong app | ✅ |
-| F-014 | Web Push | 🟡 |
+| F-014 | Web Push | 🔴 chưa đạt |
 | F-015 | Dashboard chủ sân | ✅ |
 | F-016 | Dashboard admin | ✅ |
 
-14 trên 14 brief nằm trong intake đã xong. F-004 nằm ngoài intake.
+13 trên 14 brief nằm trong intake đã xong. F-004 nằm ngoài intake.
 
 ## Còn lại
 
-1. 🟡 Thử Web Push trên điện thoại thật qua địa chỉ HTTPS của Cloud Run. Điện thoại chủ sân phải nhận push trong 30 giây (ví dụ nghiệm thu của UC-14).
-2. ⬜ F-004 chờ bạn viết "chấp nhận F-004" (quyết định 7).
-3. ⬜ 10 quyết định mở trong `PROGRESS.md`. Quan trọng nhất: số sân của từng đơn vị, ngày chạy thử, định nghĩa người dùng hoạt động, và nội dung thông báo theo Luật 91/2025.
+Quyết định của bạn ngày 21/10/2026: làm Android trước, rồi mới làm iPhone.
+
+1. ⬜ **Sửa lỗi Web Push.** Khi bấm một thao tác, chủ sân và người đặt không nhận được thông báo cùng lúc. Chưa rõ nguyên nhân. Điều tra trước khi sửa.
+2. ⬜ **Android trước.** Web Push chạy trên Chrome Android. Nghiệm thu: điện thoại Android của chủ sân nhận push trong 30 giây sau yêu cầu đặt sân (ví dụ nghiệm thu của UC-14).
+3. ⬜ **iPhone sau.** Safari chưa hiện thông báo vì chưa có app. Làm sau khi Android đạt.
+4. ⬜ F-004 chờ bạn viết "chấp nhận F-004" (quyết định 7).
+5. ⬜ 10 quyết định mở trong `PROGRESS.md`. Quan trọng nhất: số sân của từng đơn vị, ngày chạy thử, định nghĩa người dùng hoạt động, và nội dung thông báo theo Luật 91/2025.
