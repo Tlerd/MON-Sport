@@ -36,10 +36,13 @@ const CHEATS = [/\b(it|test|describe)\.(skip|only|todo)\b/, /@ts-(ignore|nocheck
 // Real isolation needs a separate OS user, a sandbox, or a container.
 const CREDENTIAL_VARS = ['GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GOOGLE_APPLICATION_CREDENTIALS', 'CLOUDSDK_AUTH_ACCESS_TOKEN'];
 
+/** The one directory that holds the empty gh, gcloud, and git config of an attempt. The caller clears it before and after the agent runs. */
+export const emptyConfigDir = (dir) => join(tmpdir(), 'monsport-autofix', basename(dir));
+
 export function agentEnv(env, dir) {
   const clean = { ...env };
   for (const key of CREDENTIAL_VARS) delete clean[key];
-  const empty = join(tmpdir(), 'monsport-autofix', basename(dir));
+  const empty = emptyConfigDir(dir);
   return {
     ...clean,
     GH_CONFIG_DIR: join(empty, 'gh'),
@@ -189,7 +192,9 @@ function fix(pr, attempt) {
   const model = process.env.AUTOFIX_MODEL ?? 'gemini-4-argon-medium';
   const minutes = Number(process.env.AUTOFIX_TIMEOUT_MINUTES ?? 40);
   log(`#${pr.number}: ${agent} --model ${model} starts in ${dir}`);
+  rmSync(emptyConfigDir(dir), { recursive: true, force: true }); // an earlier attempt may have written config here
   const run = sh(agent, ['--model', model, '--dangerously-skip-permissions', '--print-timeout', `${minutes}m`, '-p', prompt(pr, sha, ciLog)], { cwd: dir, env: agentEnv(process.env, dir), timeout: (minutes + 5) * 60_000 });
+  rmSync(emptyConfigDir(dir), { recursive: true, force: true });
   const said = (run.out || run.err).split('\n').slice(-15).join('\n');
   log(`#${pr.number}: agent exit ${run.ok ? 0 : 'non-zero'}\n${said}`);
 

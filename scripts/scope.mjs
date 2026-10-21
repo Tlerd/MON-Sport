@@ -9,8 +9,12 @@
 import { spawnSync } from 'node:child_process';
 
 // A token is a path when it has a folder, or has no star. A bare "*.test.ts" would allow any folder, so it is dropped.
+// A star in the first folder ("*/*", "**/x.ts") would allow .github/ and scripts/, so it is dropped too.
+const starFirst = (token) => token.split('/')[0].includes('*');
 const ticks = (text) =>
-  [...text.matchAll(/`([^`\s]+)`/g)].map((m) => m[1]).filter((t) => /[./]/.test(t) && (t.includes('/') || !t.includes('*')));
+  [...text.matchAll(/`([^`\s]+)`/g)]
+    .map((m) => m[1])
+    .filter((t) => /[./]/.test(t) && (t.includes('/') || !t.includes('*')) && !starFirst(t));
 
 /** The backticked paths in the Paths cell of one row of the step table, the table whose header holds "Paths". */
 export function briefStepPaths(briefText, step) {
@@ -51,7 +55,7 @@ export function allowedPaths(body = '', readBrief = () => '') {
 }
 
 const globToRegExp = (token) => new RegExp(`^${token.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`);
-const allows = (token, file) => (token.includes('*') ? token.includes('/') && globToRegExp(token).test(file) : token.endsWith('/') ? file.startsWith(token) : file === token);
+const allows = (token, file) => (token.includes('*') ? token.includes('/') && !starFirst(token) && globToRegExp(token).test(file) : token.endsWith('/') ? file.startsWith(token) : file === token);
 
 export const outOfScope = (files, allowed) => files.filter((file) => !allowed.some((token) => allows(token, file)));
 

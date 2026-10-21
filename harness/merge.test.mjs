@@ -58,12 +58,24 @@ test('two markers for one head are one round, so a retried comment does not acce
 });
 
 test('only the newest run of a check counts, so an old red run of an edited check does not block', () => {
-  const run = (conclusion, startedAt) => ({ __typename: 'CheckRun', workflowName: 'pr-gates', name: 'gates', status: 'COMPLETED', conclusion, startedAt });
-  const rollup = [run('FAILURE', '2026-10-22T01:00:00Z'), run('SUCCESS', '2026-10-22T02:00:00Z')];
-  expect(latestChecks(rollup)).toEqual([rollup[1]]);
-  expect(mergeBlockers(pr({ statusCheckRollup: rollup }))).toEqual([]);
-  expect(mergeBlockers(pr({ statusCheckRollup: [rollup[1], rollup[0]].reverse().reverse() }))).toEqual([]);
+  const run = (conclusion, time) => ({ __typename: 'CheckRun', workflowName: 'pr-gates', name: 'gates', status: 'COMPLETED', conclusion, startedAt: time, completedAt: time });
+  const old = run('FAILURE', '2026-10-22T01:00:00Z');
+  const fresh = run('SUCCESS', '2026-10-22T02:00:00Z');
+  expect(latestChecks([old, fresh])).toEqual([fresh]);
+  // The order of the rollup does not decide: the time does.
+  expect(latestChecks([fresh, old])).toEqual([fresh]);
+  expect(mergeBlockers(pr({ statusCheckRollup: [fresh, old] }))).toEqual([]);
   expect(mergeBlockers(pr({ statusCheckRollup: [run('SUCCESS', '2026-10-22T01:00:00Z'), run('FAILURE', '2026-10-22T02:00:00Z')] }))).toHaveLength(1);
+});
+
+// A queued rerun has no usable start time. It must not lose to the old green run of the same check.
+test('a queued or running rerun of a check blocks, whatever its time and its place in the rollup', () => {
+  const done = { __typename: 'CheckRun', workflowName: 'pr-gates', name: 'gates', status: 'COMPLETED', conclusion: 'SUCCESS', startedAt: '2026-10-22T02:00:00Z', completedAt: '2026-10-22T02:01:00Z' };
+  for (const startedAt of [null, '', '0001-01-01T00:00:00Z', '2026-10-22T01:00:00Z']) {
+    const queued = { __typename: 'CheckRun', workflowName: 'pr-gates', name: 'gates', status: 'QUEUED', conclusion: null, startedAt };
+    expect(mergeBlockers(pr({ statusCheckRollup: [done, queued] }))).toHaveLength(1);
+    expect(mergeBlockers(pr({ statusCheckRollup: [queued, done] }))).toHaveLength(1);
+  }
 });
 
 test('the merge command pins the head that was checked', () => {

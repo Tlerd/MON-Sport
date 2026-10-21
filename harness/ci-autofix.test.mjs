@@ -1,7 +1,7 @@
 // Proves the decisions of scripts/ci-autofix.mjs without GitHub, git, or an agent.
 
 import { expect, test } from 'vitest';
-import { agentEnv, attemptsLeft, ciState, diffProblems, failedRunIds, MARKER, pickPullRequest } from '../scripts/ci-autofix.mjs';
+import { agentEnv, attemptsLeft, emptyConfigDir, ciState, diffProblems, failedRunIds, MARKER, pickPullRequest } from '../scripts/ci-autofix.mjs';
 
 const run = (conclusion, status = 'COMPLETED', id = '101') => ({
   __typename: 'CheckRun',
@@ -94,6 +94,9 @@ test('the agent environment drops credentials and points gh, gcloud, and git at 
     expect(env[key]).toMatch(/pr-7/);
     expect(env[key].startsWith('/work/pr-7')).toBe(false);
   }
+  // One directory holds all three, so one rmSync before and after an attempt clears what the agent wrote.
+  for (const key of ['GH_CONFIG_DIR', 'CLOUDSDK_CONFIG', 'GIT_CONFIG_GLOBAL']) expect(env[key].startsWith(emptyConfigDir('/work/pr-7'))).toBe(true);
+  expect(emptyConfigDir('/work/pr-7')).not.toBe(emptyConfigDir('/work/pr-8'));
   expect(env.GIT_CONFIG_NOSYSTEM).toBe('1');
   expect(env.GIT_TERMINAL_PROMPT).toBe('0');
   expect(env.GIT_AUTHOR_NAME).toBeTruthy();

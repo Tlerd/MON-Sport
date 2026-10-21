@@ -79,6 +79,15 @@ test('a star without a folder never allows a file', () => {
   expect(outOfScope(['apps/api/a.e2e.test.ts'], ['*.e2e.test.ts'])).toEqual(['apps/api/a.e2e.test.ts']);
 });
 
+// "*/*" or "**/x" would allow .github/ and scripts/, so a star in the first folder is never a path.
+test('a star in the first folder allows nothing, in a description and in a list', () => {
+  for (const token of ['*/*', '**/x.ts', '*', '*/scripts/a.ts', 'ap*/api/a.ts']) {
+    expect(outOfScope(['scripts/a.ts', 'apps/api/a.ts', 'x.ts'], [token])).toEqual(['scripts/a.ts', 'apps/api/a.ts', 'x.ts']);
+    expect(allowedPaths(`## Allowed paths\n- \`${token}\``, () => '')).toEqual([]);
+  }
+  expect(outOfScope(['apps/api/a.ts'], ['apps/*/a.ts'])).toEqual([]);
+});
+
 test('a description without a list allows nothing', () => {
   expect(allowedPaths('## Changes\n- x', () => '')).toEqual([]);
   expect(outOfScope(['a.ts'], [])).toEqual(['a.ts']);

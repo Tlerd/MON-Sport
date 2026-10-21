@@ -28,13 +28,25 @@ function acceptedAfterTwoRounds(pr, rounds) {
   return accepted.some((head) => sameHead(pr.headRefOid, head));
 }
 
-/** The newest run of each check. An edit of the description reruns pr-gates, and the old red run stays in the rollup. */
+// A queued run has no start time: GitHub sends null, an empty string, or the zero time 0001-01-01.
+// A missing or zero time sorts as the newest, never as the oldest.
+const timeOf = (check) => {
+  const time = String(check.completedAt || check.startedAt || '');
+  return time && !time.startsWith('0001') ? time : '9999';
+};
+const unfinished = (check) => check.__typename === 'CheckRun' && check.status !== 'COMPLETED';
+
+/**
+ * The newest run of each check. An edit of the description reruns pr-gates, and the old run stays in the rollup.
+ * A run that has not finished always wins: the check is pending, and a green run of the same check must not hide that.
+ */
 export function latestChecks(rollup = []) {
   const newest = new Map();
   for (const check of rollup) {
     const key = check.__typename === 'CheckRun' ? `run:${check.workflowName}/${check.name}` : `status:${check.context}`;
     const seen = newest.get(key);
-    if (!seen || String(check.startedAt ?? '') >= String(seen.startedAt ?? '')) newest.set(key, check);
+    const wins = !seen || (unfinished(check) !== unfinished(seen) ? unfinished(check) : timeOf(check) >= timeOf(seen));
+    if (wins) newest.set(key, check);
   }
   return [...newest.values()];
 }
