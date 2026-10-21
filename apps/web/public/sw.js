@@ -25,9 +25,20 @@ self.addEventListener('push', (event) => {
     // No data, or data that is not JSON: the fallback title shows.
   }
   event.waitUntil(
-    self.registration.showNotification(title, { body, data: { notificationId }, icon: '/icon-192.png' }),
+    Promise.all([
+      self.registration.showNotification(title, { body, data: { notificationId }, icon: '/icon-192.png' }),
+      tellWindows(),
+    ]),
   );
 });
+
+// An open page reloads its notification list at once (AC-23). A failure here must never stop the notification from showing.
+function tellWindows() {
+  return Promise.resolve()
+    .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+    .then((windows) => windows.forEach((client) => client.postMessage({ type: 'push-received' })))
+    .catch(() => undefined);
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

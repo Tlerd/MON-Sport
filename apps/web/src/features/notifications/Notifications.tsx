@@ -9,6 +9,9 @@ import { api } from '../../lib/api.ts';
 import { formatDay, formatTime } from '../../lib/format.ts';
 import { PushToggle } from './PushToggle.tsx';
 
+/** How often a visible page asks the server for new notifications. A Web Push or a return to the tab reloads at once. */
+const RELOAD_MS = 15_000;
+
 /**
  * Brief F-013 (UC-14): in-app notification bell, dropdown drawer, and read actions.
  * Brief F-014: the drawer holds the button for Web Push on this device. `userId` is the signed-in user.
@@ -18,7 +21,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => {
+  const load = useCallback((keepOnError = false) => {
     return api<NotificationsListResponse | NotificationItemView[]>('/api/notifications')
       .then((res) => {
         const normalized: NotificationsListResponse = Array.isArray(res)
@@ -26,12 +29,36 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
           : res;
         setData(normalized);
       })
-      .catch(() => setData(null));
+      .catch(() => {
+        if (!keepOnError) setData(null);
+      });
   }, []);
 
   useEffect(() => {
     void load();
   }, [load, refresh]);
+
+  // AC-23: the other side acts, not this user, so the list follows the server. A failed background reload keeps the list.
+  useEffect(() => {
+    const reload = () => {
+      if (document.visibilityState === 'visible') void load(true);
+    };
+    const onWorkerMessage = (event: Event) => {
+      if ((event as MessageEvent).data?.type === 'push-received') reload();
+    };
+    const candidate = 'serviceWorker' in navigator ? navigator.serviceWorker : null;
+    const worker = typeof candidate?.addEventListener === 'function' ? candidate : null;
+    const timer = setInterval(reload, RELOAD_MS);
+    document.addEventListener('visibilitychange', reload);
+    window.addEventListener('focus', reload);
+    worker?.addEventListener('message', onWorkerMessage);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', reload);
+      window.removeEventListener('focus', reload);
+      worker?.removeEventListener('message', onWorkerMessage);
+    };
+  }, [load]);
 
   async function markOneRead(item: NotificationItemView) {
     if (item.readAt || busy) return;

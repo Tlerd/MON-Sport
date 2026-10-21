@@ -51,6 +51,31 @@ describe('sw.js', () => {
     });
   });
 
+  it('AC-23: a push tells every open window to reload its notification list', async () => {
+    const { handlers, scope } = loadWorker();
+    const postMessage = vi.fn();
+    scope.clients.matchAll.mockResolvedValueOnce([{ postMessage }, { postMessage }]);
+    const event = lifecycleEvent({ data: { json: () => ({ title: 'T', body: 'B', notificationId: NOTIFICATION_ID }) } });
+
+    handlers.push!(event);
+    await Promise.all(event.waited);
+
+    expect(scope.clients.matchAll).toHaveBeenCalledWith({ type: 'window', includeUncontrolled: true });
+    expect(postMessage).toHaveBeenCalledTimes(2);
+    expect(postMessage).toHaveBeenCalledWith({ type: 'push-received' });
+  });
+
+  it('AC-23: the notification still shows when the window list fails', async () => {
+    const { handlers, scope, showNotification } = loadWorker();
+    scope.clients.matchAll.mockRejectedValueOnce(new Error('no clients'));
+    const event = lifecycleEvent({ data: { json: () => ({ title: 'T', body: 'B' }) } });
+
+    handlers.push!(event);
+
+    await expect(Promise.all(event.waited)).resolves.toBeDefined();
+    expect(showNotification).toHaveBeenCalledTimes(1);
+  });
+
   it('AC-17: a push with data that is not JSON still shows the fallback "MONSPORT: Bạn có thông báo mới"', async () => {
     const { handlers, showNotification } = loadWorker();
     const event = lifecycleEvent({

@@ -204,4 +204,79 @@ describe('Notifications', () => {
     expect(screen.queryByText(/thiết bị này/)).toBeNull();
     expect(screen.queryByText(/chưa hỗ trợ thông báo/)).toBeNull();
   });
+
+  describe('AC-23: the list follows the server without a click', () => {
+    const empty: NotificationsListResponse = { unreadCount: 0, items: [] };
+    const reply = (body: NotificationsListResponse) => ({ ok: true, status: 200, json: () => Promise.resolve(body) });
+
+    /** The first answer is the empty list. Every later answer holds one unread item, like a request from the other side. */
+    function stubServer() {
+      let calls = 0;
+      const fetchMock = vi.fn((url: string) => {
+        if (url === '/api/notifications') return Promise.resolve(reply(++calls === 1 ? empty : mockNotifs));
+        return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    }
+
+    it('reloads when the tab becomes visible again', async () => {
+      stubServer();
+      render(<Notifications userId="u1" />);
+      await waitFor(() => expect(screen.queryByText('1')).toBeNull());
+
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+    });
+
+    it('reloads on a timer while the tab is visible', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        stubServer();
+        render(<Notifications userId="u1" />);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(15_000);
+        });
+        await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('reloads when the service worker reports a push', async () => {
+      const worker = new EventTarget();
+      vi.stubGlobal('navigator', { ...navigator, serviceWorker: worker });
+      stubServer();
+      render(<Notifications userId="u1" />);
+      await waitFor(() => expect(screen.queryByText('1')).toBeNull());
+
+      await act(async () => {
+        worker.dispatchEvent(new MessageEvent('message', { data: { type: 'push-received' } }));
+      });
+
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+    });
+
+    it('keeps the list on screen when a background reload fails', async () => {
+      let calls = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) => {
+          if (url !== '/api/notifications') return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+          return ++calls === 1 ? Promise.resolve(reply(mockNotifs)) : Promise.reject(new Error('offline'));
+        }),
+      );
+      render(<Notifications userId="u1" />);
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      expect(screen.getByText('1')).toBeTruthy();
+    });
+  });
 });
