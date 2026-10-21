@@ -1,0 +1,28 @@
+name: pr-gates
+
+# Two gates read the pull request description, so an edit of the description runs them again.
+# The heavy checks stay in ci.yml and do not rerun on an edit.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: pr-gates-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    env:
+      PR_BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - name: The changed paths are allowed
+        run: node scripts/scope.mjs --base origin/${{ github.base_ref }}
+      - name: Each listed AC has a test
+        run: node scripts/ac-check.mjs --base origin/${{ github.base_ref }}

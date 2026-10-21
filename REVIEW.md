@@ -44,3 +44,4 @@ Do not review these paths:
 - Start with a count by severity, for example `0 high, 1 medium, 2 low`.
 - When no finding is medium or higher, write "No blocking findings" on its own line.
 - List what you could not confirm, and where you looked.
+- End with the marker line, and nothing after it: `<!-- review head=<sha> high=<n> medium=<n> -->`. `<sha>` is the head you reviewed (`gh pr view <n> --json headRefOid`). The counts are the findings of that rating that are not pre-existing. `scripts/merge.mjs` merges only when the latest marker for the current head shows 0 and 0.

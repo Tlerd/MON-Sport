@@ -28,6 +28,28 @@ const PASSED = new Set(['SUCCESS', 'SKIPPED', 'NEUTRAL']);
 const PROTECTED = [/^\.github\//, /^\.githooks\//, /^\.claude\//, /^\.agents\//, /^\.gemini\//, /^scripts\//, /^harness\//, /^AGENTS\.md$/, /^\.dependency-cruiser\.cjs$/, /(^|\/)vitest\.config\.[cm]?[jt]s$/];
 const CHEATS = [/\b(it|test|describe)\.(skip|only|todo)\b/, /@ts-(ignore|nocheck|expect-error)/, /eslint-disable/];
 
+// The agent runs with --dangerously-skip-permissions. Prompt text does not stop it from pushing or deploying,
+// so its shell gets no GitHub, Google Cloud, or git credential: tokens are dropped and the config
+// directories of gh, gcloud, and git point at empty places inside the worktree.
+const CREDENTIAL_VARS = ['GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GOOGLE_APPLICATION_CREDENTIALS', 'CLOUDSDK_AUTH_ACCESS_TOKEN'];
+
+export function agentEnv(env, dir) {
+  const clean = { ...env };
+  for (const key of CREDENTIAL_VARS) delete clean[key];
+  return {
+    ...clean,
+    GH_CONFIG_DIR: join(dir, '.no-gh'),
+    CLOUDSDK_CONFIG: join(dir, '.no-gcloud'),
+    GIT_CONFIG_GLOBAL: join(dir, '.no-gitconfig'),
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_AUTHOR_NAME: 'monsport-autofix',
+    GIT_AUTHOR_EMAIL: 'autofix@users.noreply.github.com',
+    GIT_COMMITTER_NAME: 'monsport-autofix',
+    GIT_COMMITTER_EMAIL: 'autofix@users.noreply.github.com',
+  };
+}
+
 /** 'red' when a check failed, 'pending' while one runs, 'green' when all passed, 'none' without checks. */
 export function ciState(rollup = []) {
   if (!rollup?.length) return 'none';
@@ -160,7 +182,7 @@ function fix(pr, attempt) {
   const model = process.env.AUTOFIX_MODEL ?? 'gemini-4-argon-medium';
   const minutes = Number(process.env.AUTOFIX_TIMEOUT_MINUTES ?? 40);
   log(`#${pr.number}: ${agent} --model ${model} starts in ${dir}`);
-  const run = sh(agent, ['--model', model, '--dangerously-skip-permissions', '--print-timeout', `${minutes}m`, '-p', prompt(pr, sha, ciLog)], { cwd: dir, timeout: (minutes + 5) * 60_000 });
+  const run = sh(agent, ['--model', model, '--dangerously-skip-permissions', '--print-timeout', `${minutes}m`, '-p', prompt(pr, sha, ciLog)], { cwd: dir, env: agentEnv(process.env, dir), timeout: (minutes + 5) * 60_000 });
   const said = (run.out || run.err).split('\n').slice(-15).join('\n');
   log(`#${pr.number}: agent exit ${run.ok ? 0 : 'non-zero'}\n${said}`);
 

@@ -1,7 +1,7 @@
 // Proves the decisions of scripts/ci-autofix.mjs without GitHub, git, or an agent.
 
 import { expect, test } from 'vitest';
-import { attemptsLeft, ciState, diffProblems, failedRunIds, MARKER, pickPullRequest } from '../scripts/ci-autofix.mjs';
+import { agentEnv, attemptsLeft, ciState, diffProblems, failedRunIds, MARKER, pickPullRequest } from '../scripts/ci-autofix.mjs';
 
 const run = (conclusion, status = 'COMPLETED', id = '101') => ({
   __typename: 'CheckRun',
@@ -71,4 +71,19 @@ test('a fix may not touch the harness, delete a test, or switch a check off', ()
   expect(diffProblems([['D', 'apps/web/src/features/bookings/BookingForm.test.tsx']], [])).toHaveLength(1);
   expect(diffProblems([['M', 'a.ts']], ["+  it.skip('AC-1: x', () => {});"])).toHaveLength(1);
   expect(diffProblems([['M', 'a.ts']], ['+  // @ts-ignore'])).toHaveLength(1);
+});
+
+// The agent runs with --dangerously-skip-permissions, so "do not push" in the prompt is not a control.
+// Its environment carries no GitHub, Google Cloud, or git credential.
+test('the agent environment drops credentials and points gh, gcloud, and git at empty config', () => {
+  const env = agentEnv({ PATH: '/bin', GH_TOKEN: 'x', GITHUB_TOKEN: 'y', GOOGLE_APPLICATION_CREDENTIALS: 'z', DATABASE_URL: 'db' }, '/work/pr-7');
+  expect(env.PATH).toBe('/bin');
+  expect(env.DATABASE_URL).toBe('db');
+  for (const key of ['GH_TOKEN', 'GITHUB_TOKEN', 'GOOGLE_APPLICATION_CREDENTIALS']) expect(env).not.toHaveProperty(key);
+  expect(env.GH_CONFIG_DIR).toMatch(/pr-7/);
+  expect(env.CLOUDSDK_CONFIG).toMatch(/pr-7/);
+  expect(env.GIT_CONFIG_GLOBAL).toMatch(/pr-7/);
+  expect(env.GIT_CONFIG_NOSYSTEM).toBe('1');
+  expect(env.GIT_TERMINAL_PROMPT).toBe('0');
+  expect(env.GIT_AUTHOR_NAME).toBeTruthy();
 });
