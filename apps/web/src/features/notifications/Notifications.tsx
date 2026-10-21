@@ -7,11 +7,13 @@ import type {
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../lib/api.ts';
 import { formatDay, formatTime } from '../../lib/format.ts';
+import { PushToggle } from './PushToggle.tsx';
 
 /**
  * Brief F-013 (UC-14): in-app notification bell, dropdown drawer, and read actions.
+ * Brief F-014: the drawer holds the button for Web Push on this device. `userId` is the signed-in user.
  */
-export function Notifications({ refresh = 0 }: { refresh?: number }) {
+export function Notifications({ userId, refresh = 0 }: { userId: string; refresh?: number }) {
   const [data, setData] = useState<NotificationsListResponse | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -108,6 +110,8 @@ export function Notifications({ refresh = 0 }: { refresh?: number }) {
               </button>
             </div>
           </div>
+
+          <PushToggle userId={userId} />
 
           {!data || data.items.length === 0 ? (
             <p className="notif-empty">Chưa có thông báo nào</p>

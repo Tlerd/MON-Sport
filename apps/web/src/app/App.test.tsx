@@ -187,6 +187,87 @@ describe('App', () => {
     expect(screen.getByText('Chưa có thông báo nào')).toBeTruthy();
   });
 
+  /** A signed-in browser that holds a Web Push subscription. `calls` records the order of the steps. */
+  function withPush(options: { unsubscribeFails?: boolean; deleteStatus?: number } = {}) {
+    const calls: string[] = [];
+    const subscription = {
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc123',
+      toJSON: () => ({ endpoint: 'https://fcm.googleapis.com/fcm/send/abc123', keys: { p256dh: 'p', auth: 'a' } }),
+      unsubscribe: vi.fn(() => {
+        calls.push('unsubscribe');
+        return options.unsubscribeFails ? Promise.reject(new Error('boom')) : Promise.resolve(true);
+      }),
+    };
+    const registration = { pushManager: { getSubscription: () => Promise.resolve(subscription) } };
+    Object.defineProperty(navigator, 'serviceWorker', { value: { getRegistration: () => Promise.resolve(registration) }, configurable: true });
+    vi.stubGlobal('PushManager', class {});
+    vi.stubGlobal('Notification', { permission: 'granted' });
+    localStorage.setItem('monsport.push.user', 'x');
+    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      let status = 200;
+      let body: unknown = [];
+      if (url === '/api/auth/me') body = { id: 'x', name: 'An', role: 'USER' };
+      else if (url === '/api/auth/logout') {
+        calls.push('logout');
+        body = {};
+      } else if (url === '/api/push/subscriptions') {
+        calls.push(`${method} push`);
+        if (method === 'DELETE') status = options.deleteStatus ?? 204;
+      }
+      return Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
+    }));
+    return { calls, subscription };
+  }
+
+  const cleanupPush = () => {
+    Reflect.deleteProperty(navigator, 'serviceWorker');
+    localStorage.clear();
+  };
+
+  it('AC-20: "Đăng xuất" unsubscribes and sends DELETE for the endpoint before it calls logout', async () => {
+    const { calls, subscription } = withPush();
+    try {
+      render(<App />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Đăng xuất' }));
+
+      expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
+      expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(calls.slice(calls.indexOf('unsubscribe'))).toEqual(['unsubscribe', 'DELETE push', 'logout']);
+      const del = (fetch as ReturnType<typeof vi.fn>).mock.calls.find(([, init]) => init?.method === 'DELETE')!;
+      expect(JSON.parse(del[1].body)).toEqual({ endpoint: 'https://fcm.googleapis.com/fcm/send/abc123' });
+      expect(localStorage.getItem('monsport.push.user')).toBeNull();
+    } finally {
+      cleanupPush();
+    }
+  });
+
+  it('AC-20: an error of the unsubscribe and of the DELETE does not block the logout', async () => {
+    const { calls } = withPush({ unsubscribeFails: true, deleteStatus: 500 });
+    try {
+      render(<App />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Đăng xuất' }));
+
+      expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
+      expect(calls).toContain('logout');
+      expect(calls.indexOf('logout')).toBeGreaterThan(calls.indexOf('DELETE push'));
+    } finally {
+      cleanupPush();
+    }
+  });
+
+  it('AC-22: a signed-in user who turned Web Push on sends the subscription again once, after the page loads', async () => {
+    const { calls } = withPush();
+    try {
+      render(<App />);
+      await screen.findByRole('button', { name: 'Đăng xuất' });
+
+      await waitFor(() => expect(calls).toEqual(['POST push']));
+    } finally {
+      cleanupPush();
+    }
+  });
+
   it('AC-11: an OWNER switches to "Doanh thu" tab and sees the financial dashboard', async () => {
     const venue = { id: '0199a1b2-0000-7000-8000-000000000001', name: 'Cầu lông A', address: '123 Đường 3/2', phone: '0901234567', opensAt: 360, closesAt: 1380, courts: [] };
     const financialData = {
