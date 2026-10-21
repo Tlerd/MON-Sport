@@ -8,6 +8,7 @@ const RECONNECT_DELAY_MS = 1_000;
 // the service runs with --concurrency=60 (docs/deploy-gcp.md), so 40 streams leave 20 slots for the API.
 const DEFAULT_MAX_STREAMS = 40;
 const RETRY_WHEN_FULL_MS = 30_000;
+const RETRY_WHEN_OPEN_MS = 3_000;
 
 function maxStreams(): number {
   const value = Number(process.env.LOBBY_STREAM_MAX);
@@ -51,9 +52,11 @@ export class LobbyEvents implements OnModuleInit, OnModuleDestroy {
    * EventSource then connects again after that time. A 503 would stop it for good, and the viewer would lose live updates.
    */
   stream(): Observable<MessageEvent> {
+    // EventSource keeps the last `retry` it saw. The first ping of an admitted client resets it to a short time, so a viewer
+    // that was refused once does not wait 30 seconds after each cut of the stream (Cloud Run ends a request after 300 seconds).
     const pings = interval(PING_INTERVAL_MS).pipe(
       startWith(0),
-      map((): MessageEvent => ({ type: 'ping', data: '' })),
+      map((_, index): MessageEvent => (index === 0 ? { type: 'ping', data: '', retry: RETRY_WHEN_OPEN_MS } : { type: 'ping', data: '' })),
     );
     const merged = merge(pings, this.events.asObservable());
     return new Observable<MessageEvent>((subscriber) => {

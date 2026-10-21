@@ -8,8 +8,14 @@ import { setupApp } from '../../setup-app.js';
 
 // Over the cap, GET /api/matches/stream answers 200 with one ping that carries `retry:`, and then ends.
 // A 503 would make EventSource give up, so a viewer past the cap would never get live updates again.
+// "retry: 3000" is a prefix of "retry: 30000", so the short one is matched with its line end.
+const OPEN_RETRY = 'retry: 3000\n';
+const FULL_RETRY = 'retry: 30000\n';
+
 let app: INestApplication;
 let port = 0;
+// Every request is closed in afterAll, so a failed assertion cannot leave an open stream that makes app.close() wait.
+const requests: http.ClientRequest[] = [];
 
 beforeAll(async () => {
   process.env.LOBBY_STREAM_MAX = '1';
@@ -22,6 +28,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   delete process.env.LOBBY_STREAM_MAX;
+  for (const request of requests) request.destroy();
   await app?.close();
 });
 
@@ -34,15 +41,17 @@ function read(waitMs: number): Promise<{ reply: Reply; request: http.ClientReque
     const request = http.get(`http://127.0.0.1:${port}/api/matches/stream`, (res) => {
       reply.status = res.statusCode;
       reply.contentType = String(res.headers['content-type'] ?? '');
+      const timer = setTimeout(() => resolve({ reply, request }), waitMs);
       res.on('data', (chunk: Buffer) => {
         reply.body += chunk.toString('utf8');
       });
       res.on('end', () => {
+        clearTimeout(timer);
         reply.ended = true;
         resolve({ reply, request });
       });
-      setTimeout(() => resolve({ reply, request }), waitMs);
     });
+    requests.push(request);
     request.on('error', reject);
   });
 }
@@ -53,19 +62,20 @@ describe('lobby stream cap over HTTP', () => {
     expect(holder.reply.status).toBe(200);
     expect(holder.reply.contentType).toMatch(/text\/event-stream/);
     expect(holder.reply.ended).toBe(false);
-    expect(holder.reply.body).not.toContain('retry:');
+    expect(holder.reply.body).toContain(OPEN_RETRY);
+    expect(holder.reply.body).not.toContain(FULL_RETRY);
 
     const refused = await read(2_000);
     expect(refused.reply.status).toBe(200);
     expect(refused.reply.contentType).toMatch(/text\/event-stream/);
-    expect(refused.reply.body).toContain('retry: 30000');
+    expect(refused.reply.body).toContain(FULL_RETRY);
     expect(refused.reply.ended).toBe(true);
 
     holder.request.destroy();
     let admitted = false;
     for (let attempt = 0; attempt < 20 && !admitted; attempt++) {
       const next = await read(300);
-      admitted = !next.reply.ended && !next.reply.body.includes('retry:');
+      admitted = !next.reply.ended && next.reply.body.includes(OPEN_RETRY) && !next.reply.body.includes(FULL_RETRY);
       next.request.destroy();
       if (!admitted) await new Promise((resolve) => setTimeout(resolve, 100));
     }

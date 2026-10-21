@@ -4,7 +4,10 @@ import { LobbyEvents } from './lobby-events.service.js';
 
 // Each SSE client holds one Cloud Run request slot while it listens, so a cap per instance keeps slots free for the API.
 // A client past the cap gets one ping that tells the browser to retry later, and the stream ends. A 503 would stop EventSource for good.
+// An admitted client is told a short retry on its first ping. EventSource keeps the last `retry` it saw, so a viewer that was
+// refused once would otherwise wait 30 seconds after every cut of the stream.
 const RETRY_MS = 30_000;
+const RETRY_OPEN_MS = 3_000;
 
 function listen(lobby: LobbyEvents) {
   const events: MessageEvent[] = [];
@@ -18,7 +21,8 @@ function listen(lobby: LobbyEvents) {
   return { events, state, subscription };
 }
 
-const admitted = (client: ReturnType<typeof listen>) => !client.state.completed && client.events.every((event) => event.retry === undefined);
+const admitted = (client: ReturnType<typeof listen>) =>
+  !client.state.completed && client.events.length >= 1 && client.events[0].retry === RETRY_OPEN_MS && client.events.slice(1).every((event) => event.retry === undefined);
 const refused = (client: ReturnType<typeof listen>) => client.state.completed && client.events.length === 1 && client.events[0].retry === RETRY_MS;
 
 describe('lobby SSE cap', () => {

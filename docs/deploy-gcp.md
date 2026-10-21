@@ -83,7 +83,7 @@ gcloud run deploy monsport --source . --region=$Region --allow-unauthenticated -
 
 `--concurrency=60` giới hạn số request mà một instance giữ cùng lúc. Mặc định là 80. Mỗi instance có pool 6 kết nối database (`prisma.service.ts`), nên request thêm chỉ chờ trong pool.
 
-Mỗi người xem phòng chờ giữ một slot suốt thời gian kết nối stream. API giới hạn 40 stream mỗi instance (biến `LOBBY_STREAM_MAX`), nên còn 20 slot cho request đặt sân. Người xem thứ 41 nhận một stream trả về mã 200, có một sự kiện `ping` kèm `retry: 30000`, rồi kết thúc. Trình duyệt tự kết nối lại sau 30 giây. Mã 503 không dùng ở đây, vì `EventSource` dừng hẳn sau mã khác 200.
+Mỗi người xem phòng chờ giữ một slot suốt thời gian kết nối stream. API giới hạn 40 stream mỗi instance (biến `LOBBY_STREAM_MAX`), nên còn 20 slot cho request đặt sân. Người xem thứ 41 nhận một stream trả về mã 200, có một sự kiện `ping` kèm `retry: 30000`, rồi kết thúc. Trình duyệt tự kết nối lại sau 30 giây. Trình duyệt giữ giá trị `retry` cuối cùng, nên ping đầu tiên của mỗi người xem được nhận đặt lại `retry: 3000`, để lần Cloud Run cắt stream kế tiếp chỉ mất khoảng 3 giây. Mã 503 không dùng ở đây, vì `EventSource` dừng hẳn sau mã khác 200.
 
 Hai con số 60 và 40 là ước lượng, chưa qua load test. Hãy tăng cả hai cùng lúc, và chỉ sau khi load test cho thấy còn dư tải. Workflow deploy đặt cùng cờ, nên mỗi lần deploy giữ nguyên giá trị.
 
