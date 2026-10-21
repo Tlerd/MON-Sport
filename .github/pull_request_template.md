@@ -5,7 +5,7 @@ Refs #
 
 ## Brief and step
 
-<!-- For example: docs/briefs/F-002-<slug>.md, step 1 of 3 (schema). -->
+<!-- Write the brief and the step on one line, for example: docs/briefs/F-002-<slug>.md, step 1 of 3. The check pr-gates reads the Paths cell of that step from the base branch. List the brief file itself under "Allowed paths" when this pull request edits it. -->
 
 ## Allowed paths
 

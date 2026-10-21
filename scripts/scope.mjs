@@ -1,21 +1,29 @@
 #!/usr/bin/env node
 // Gate: a pull request changes only the paths that its brief step or its description allows.
 // The description lists them under "## Allowed paths". It may also name a brief and a step
-// ("docs/briefs/F-014-x.md, step 2 of 3"), and then the Paths cell of that step counts too.
+// ("docs/briefs/F-014-x.md, step 2 of 3") under "## Brief and step", and then the Paths cell of that step,
+// read from the base branch, counts too.
 //
 // CI: PR_BODY=<description> node scripts/scope.mjs --base origin/main
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
 
-const ticks = (text) => [...text.matchAll(/`([^`\s]+)`/g)].map((m) => m[1]).filter((t) => /[./]/.test(t));
+// A token is a path when it has a folder, or has no star. A bare "*.test.ts" would allow any folder, so it is dropped.
+const ticks = (text) =>
+  [...text.matchAll(/`([^`\s]+)`/g)].map((m) => m[1]).filter((t) => /[./]/.test(t) && (t.includes('/') || !t.includes('*')));
 
-/** The backticked paths in the Paths cell of one row of a brief's step table. */
+/** The backticked paths in the Paths cell of one row of the step table, the table whose header holds "Paths". */
 export function briefStepPaths(briefText, step) {
-  const rows = briefText.split(/\r?\n/).filter((line) => line.startsWith('|'));
-  const column = rows.find((row) => /\|\s*Paths\s*\|/.test(row))?.split('|').findIndex((cell) => cell.trim() === 'Paths');
-  const row = rows.find((line) => line.split('|')[1]?.trim() === String(step));
-  return column > 0 && row ? ticks(row.split('|')[column] ?? '') : [];
+  const lines = briefText.split(/\r?\n/);
+  const header = lines.findIndex((line) => line.startsWith('|') && line.split('|').some((cell) => cell.trim() === 'Paths'));
+  if (header < 0) return [];
+  const column = lines[header].split('|').findIndex((cell) => cell.trim() === 'Paths');
+  for (const line of lines.slice(header + 2)) {
+    if (!line.startsWith('|')) break;
+    const cells = line.split('|');
+    if (cells[1]?.trim() === String(step)) return ticks(cells[column] ?? '');
+  }
+  return [];
 }
 
 function section(body, heading) {
@@ -27,32 +35,40 @@ function section(body, heading) {
   return (end < 0 ? rest : rest.slice(0, end)).join('\n');
 }
 
-/** Paths from "## Allowed paths", plus the brief file and the step row that the description names. */
-export function allowedPaths(body = '', readBrief = (file) => (existsSync(file) ? readFileSync(file, 'utf8') : '')) {
+/**
+ * Paths from "## Allowed paths", plus the Paths cell of the step that "## Brief and step" names.
+ * Only those two sections count: the template comments and the other sections can hold example paths.
+ * The caller reads the brief from the base branch, so a pull request cannot widen its own step.
+ * The brief file itself is allowed only when "Allowed paths" lists it.
+ */
+export function allowedPaths(body = '', readBrief = () => '') {
   const paths = ticks(section(body, 'Allowed paths'));
-  const brief = /docs\/briefs\/[\w.-]+\.md/.exec(body)?.[0];
-  const step = /step\s+(\d+)\s+of\s+\d+/i.exec(body)?.[1];
-  if (brief) {
-    paths.push(brief);
-    if (step) paths.push(...briefStepPaths(readBrief(brief), step));
-  }
+  const named = section(body, 'Brief and step');
+  const brief = /docs\/briefs\/[\w.-]+\.md/.exec(named)?.[0];
+  const step = /step\s+(\d+)\s+of\s+\d+/i.exec(named)?.[1];
+  if (brief && step) paths.push(...briefStepPaths(readBrief(brief), step));
   return paths;
 }
 
-const allows = (token, file) =>
-  token.endsWith('*') ? file.startsWith(token.slice(0, -1)) : token.endsWith('/') ? file.startsWith(token) : file === token;
+const globToRegExp = (token) => new RegExp(`^${token.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`);
+const allows = (token, file) => (token.includes('*') ? token.includes('/') && globToRegExp(token).test(file) : token.endsWith('/') ? file.startsWith(token) : file === token);
 
 export const outOfScope = (files, allowed) => files.filter((file) => !allowed.some((token) => allows(token, file)));
 
 if (import.meta.main) {
   const base = process.argv[process.argv.indexOf('--base') + 1] || 'origin/main';
-  const diff = spawnSync('git', ['diff', '--name-only', `${base}...HEAD`], { encoding: 'utf8' });
+  // --no-renames lists the old path of a moved file too, so a move out of a protected folder is seen.
+  const diff = spawnSync('git', ['diff', '--name-only', '--no-renames', `${base}...HEAD`], { encoding: 'utf8' });
   if (diff.status !== 0) {
     console.error(`FAIL scope: git diff ${base}...HEAD failed\n${diff.stderr}`);
     process.exit(1);
   }
   const files = diff.stdout.split('\n').filter(Boolean);
-  const allowed = allowedPaths(process.env.PR_BODY ?? '');
+  const readBase = (file) => {
+    const shown = spawnSync('git', ['show', `${base}:${file}`], { encoding: 'utf8' });
+    return shown.status === 0 ? shown.stdout : '';
+  };
+  const allowed = allowedPaths(process.env.PR_BODY ?? '', readBase);
   const outside = outOfScope(files, allowed);
   if (files.length && !allowed.length) {
     console.error('FAIL scope: the pull request description lists no allowed path\nFix: list the paths under "## Allowed paths", one backticked path or prefix per line.');

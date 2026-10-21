@@ -10,11 +10,15 @@ concurrency:
   group: pr-gates-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   gates:
     runs-on: ubuntu-latest
     env:
       PR_BODY: ${{ github.event.pull_request.body }}
+      BASE: origin/${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -23,6 +27,6 @@ jobs:
         with:
           node-version: 26
       - name: The changed paths are allowed
-        run: node scripts/scope.mjs --base origin/${{ github.base_ref }}
+        run: node scripts/scope.mjs --base "$BASE"
       - name: Each listed AC has a test
-        run: node scripts/ac-check.mjs --base origin/${{ github.base_ref }}
+        run: node scripts/ac-check.mjs --base "$BASE"

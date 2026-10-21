@@ -73,6 +73,15 @@ test('a fix may not touch the harness, delete a test, or switch a check off', ()
   expect(diffProblems([['M', 'a.ts']], ['+  // @ts-ignore'])).toHaveLength(1);
 });
 
+// The description gate (pr-gates) fails for a reason that code cannot fix, so autofix does not start on it.
+test('a failed pr-gates run does not start an autofix, and a failed ci run still does', () => {
+  const gates = { ...run('FAILURE'), workflowName: 'pr-gates' };
+  const ci = { ...run('SUCCESS'), workflowName: 'ci' };
+  const authors = ['Tlerd'];
+  expect(pickPullRequest([pr(1, [ci, gates])], authors)[0].action).toBe('skip');
+  expect(pickPullRequest([pr(1, [{ ...run('FAILURE'), workflowName: 'ci' }, gates])], authors)[0].action).toBe('fix');
+});
+
 // The agent runs with --dangerously-skip-permissions, so "do not push" in the prompt is not a control.
 // Its environment carries no GitHub, Google Cloud, or git credential.
 test('the agent environment drops credentials and points gh, gcloud, and git at empty config', () => {
@@ -80,9 +89,11 @@ test('the agent environment drops credentials and points gh, gcloud, and git at 
   expect(env.PATH).toBe('/bin');
   expect(env.DATABASE_URL).toBe('db');
   for (const key of ['GH_TOKEN', 'GITHUB_TOKEN', 'GOOGLE_APPLICATION_CREDENTIALS']) expect(env).not.toHaveProperty(key);
-  expect(env.GH_CONFIG_DIR).toMatch(/pr-7/);
-  expect(env.CLOUDSDK_CONFIG).toMatch(/pr-7/);
-  expect(env.GIT_CONFIG_GLOBAL).toMatch(/pr-7/);
+  // The empty config sits outside the worktree, so `git add -A` never commits it.
+  for (const key of ['GH_CONFIG_DIR', 'CLOUDSDK_CONFIG', 'GIT_CONFIG_GLOBAL']) {
+    expect(env[key]).toMatch(/pr-7/);
+    expect(env[key].startsWith('/work/pr-7')).toBe(false);
+  }
   expect(env.GIT_CONFIG_NOSYSTEM).toBe('1');
   expect(env.GIT_TERMINAL_PROMPT).toBe('0');
   expect(env.GIT_AUTHOR_NAME).toBeTruthy();

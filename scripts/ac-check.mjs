@@ -7,15 +7,15 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
-/** Labels from lines such as "- [x] AC-3: BookingForm.test.tsx". A line with nothing after the colon is unfilled. */
+/** Labels from lines such as "- [x] AC-3: BookingForm.test.tsx" or "AC-3a: ...". A line with nothing after the colon is unfilled. */
 export function listedAcs(body = '') {
-  const labels = [...body.matchAll(/^\s*-\s*\[[ xX]\]\s*(AC-\d+)[ \t]*:[ \t]*\S/gm)].map((m) => m[1]);
+  const labels = [...body.matchAll(/^[ \t]*(?:-[ \t]*(?:\[[ xX]\][ \t]*)?)?(AC-\d+[a-z]?)[ \t]*:[ \t]*\S/gm)].map((m) => m[1]);
   return [...new Set(labels)];
 }
 
-/** Labels at the start of a test title: right after "(" or alone on a line. */
+/** Labels at the start of a title: right after "it(" or "test(", or alone on a line for a wrapped title. A skipped test does not count. */
 export function testedAcs(text) {
-  const found = [...text.matchAll(/(?:\(\s*|^\s*)(['"`])(AC-\d+)(?!\d)/gm)].map((m) => m[2]);
+  const found = [...text.matchAll(/(?:\b(?:it|test)\(\s*|^[ \t]*)(['"`])(AC-\d+[a-z]?)(?![\w])/gm)].map((m) => m[2]);
   return new Set(found);
 }
 
@@ -28,7 +28,7 @@ if (import.meta.main) {
     console.log('ac-check ok: the description lists no AC');
     process.exit(0);
   }
-  const diff = spawnSync('git', ['diff', '--name-only', `${base}...HEAD`], { encoding: 'utf8' });
+  const diff = spawnSync('git', ['diff', '--name-only', '--no-renames', `${base}...HEAD`], { encoding: 'utf8' });
   if (diff.status !== 0) {
     console.error(`FAIL ac-check: git diff ${base}...HEAD failed\n${diff.stderr}`);
     process.exit(1);

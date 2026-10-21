@@ -28,20 +28,34 @@ function acceptedAfterTwoRounds(pr, rounds) {
   return accepted.some((head) => sameHead(pr.headRefOid, head));
 }
 
+/** The newest run of each check. An edit of the description reruns pr-gates, and the old red run stays in the rollup. */
+export function latestChecks(rollup = []) {
+  const newest = new Map();
+  for (const check of rollup) {
+    const key = check.__typename === 'CheckRun' ? `run:${check.workflowName}/${check.name}` : `status:${check.context}`;
+    const seen = newest.get(key);
+    if (!seen || String(check.startedAt ?? '') >= String(seen.startedAt ?? '')) newest.set(key, check);
+  }
+  return [...newest.values()];
+}
+
+/** The merge command. `--match-head-commit` refuses a head that moved after the check. */
+export const mergeArgs = (number, pr) => ['pr', 'merge', number, '--merge', '--delete-branch', '--match-head-commit', pr.headRefOid];
+
 /** Reasons not to merge. An empty list means merge. */
 export function mergeBlockers(pr) {
   const blockers = [];
   if (pr.state !== 'OPEN') blockers.push(`the pull request is ${pr.state}`);
   if (pr.isDraft) blockers.push('the pull request is a draft');
   if (pr.headRefName === 'main') blockers.push('the head branch is main');
-  const checks = ciState(pr.statusCheckRollup);
+  const checks = ciState(latestChecks(pr.statusCheckRollup));
   if (checks !== 'green') blockers.push(`checks are ${checks}; wait for green with gh pr checks <n> --watch --fail-fast`);
 
   const markers = (pr.comments ?? []).map((c) => reviewMarker(c.body)).filter(Boolean);
   const mine = markers.filter((m) => sameHead(pr.headRefOid, m.head));
   const latest = mine.at(-1);
   if (!latest) blockers.push(`no Reviewer marker for head ${pr.headRefOid.slice(0, 7)}; run a Reviewer round on this head`);
-  else if ((latest.high || latest.medium) && !acceptedAfterTwoRounds(pr, markers.length)) blockers.push(`the Reviewer left ${latest.high} high and ${latest.medium} medium finding(s) open; fix them and run a new Reviewer round`);
+  else if ((latest.high || latest.medium) && !acceptedAfterTwoRounds(pr, new Set(markers.map((m) => m.head.slice(0, 7))).size)) blockers.push(`the Reviewer left ${latest.high} high and ${latest.medium} medium finding(s) open; fix them and run a new Reviewer round`);
   return blockers;
 }
 
@@ -56,7 +70,8 @@ if (import.meta.main) {
     console.error(`FAIL merge: gh pr view ${number} failed\n${view.stderr}`);
     process.exit(1);
   }
-  const blockers = mergeBlockers(JSON.parse(view.stdout));
+  const pr = JSON.parse(view.stdout);
+  const blockers = mergeBlockers(pr);
   if (blockers.length) {
     console.error(`FAIL merge #${number}:\n${blockers.map((b) => `- ${b}`).join('\n')}`);
     process.exit(1);
@@ -65,7 +80,7 @@ if (import.meta.main) {
     console.log(`merge ok (dry run): #${number} has no blocker`);
     process.exit(0);
   }
-  const merge = spawnSync('gh', ['pr', 'merge', number, '--merge', '--delete-branch'], { encoding: 'utf8' });
+  const merge = spawnSync('gh', mergeArgs(number, pr), { encoding: 'utf8' });
   process.stdout.write(merge.stdout ?? '');
   process.stderr.write(merge.stderr ?? '');
   process.exit(merge.status ?? 1);

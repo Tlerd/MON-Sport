@@ -15,7 +15,8 @@
 
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, openSync, closeSync, rmSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const LABEL = 'agent-autofix';
@@ -28,19 +29,22 @@ const PASSED = new Set(['SUCCESS', 'SKIPPED', 'NEUTRAL']);
 const PROTECTED = [/^\.github\//, /^\.githooks\//, /^\.claude\//, /^\.agents\//, /^\.gemini\//, /^scripts\//, /^harness\//, /^AGENTS\.md$/, /^\.dependency-cruiser\.cjs$/, /(^|\/)vitest\.config\.[cm]?[jt]s$/];
 const CHEATS = [/\b(it|test|describe)\.(skip|only|todo)\b/, /@ts-(ignore|nocheck|expect-error)/, /eslint-disable/];
 
-// The agent runs with --dangerously-skip-permissions. Prompt text does not stop it from pushing or deploying,
-// so its shell gets no GitHub, Google Cloud, or git credential: tokens are dropped and the config
-// directories of gh, gcloud, and git point at empty places inside the worktree.
+// The agent runs with --dangerously-skip-permissions. Prompt text does not stop it from pushing or deploying.
+// Its shell gets no token in the environment, and gh, gcloud, and git read an empty config outside the worktree,
+// so `git add -A` never commits it. This stops accidental use of the user's logins. It does not isolate:
+// the agent runs as the same OS user, and it can point the config variables back at the real directories.
+// Real isolation needs a separate OS user, a sandbox, or a container.
 const CREDENTIAL_VARS = ['GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GOOGLE_APPLICATION_CREDENTIALS', 'CLOUDSDK_AUTH_ACCESS_TOKEN'];
 
 export function agentEnv(env, dir) {
   const clean = { ...env };
   for (const key of CREDENTIAL_VARS) delete clean[key];
+  const empty = join(tmpdir(), 'monsport-autofix', basename(dir));
   return {
     ...clean,
-    GH_CONFIG_DIR: join(dir, '.no-gh'),
-    CLOUDSDK_CONFIG: join(dir, '.no-gcloud'),
-    GIT_CONFIG_GLOBAL: join(dir, '.no-gitconfig'),
+    GH_CONFIG_DIR: join(empty, 'gh'),
+    CLOUDSDK_CONFIG: join(empty, 'gcloud'),
+    GIT_CONFIG_GLOBAL: join(empty, 'gitconfig'),
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_TERMINAL_PROMPT: '0',
     GIT_AUTHOR_NAME: 'monsport-autofix',
@@ -59,8 +63,11 @@ export function ciState(rollup = []) {
   return 'pending';
 }
 
+// The description gate fails for a reason that code cannot fix: the fix is an edit of the pull request description.
+const codeChecks = (rollup = []) => rollup.filter((c) => c.workflowName !== 'pr-gates');
+
 export function failedRunIds(rollup = []) {
-  const ids = rollup
+  const ids = codeChecks(rollup)
     .filter((c) => c.__typename === 'CheckRun' && FAILED.has(c.conclusion))
     .map((c) => /\/actions\/runs\/(\d+)/.exec(c.detailsUrl ?? '')?.[1])
     .filter(Boolean);
@@ -82,7 +89,7 @@ export function pickPullRequest(prs, authors) {
   return [...prs]
     .sort((a, b) => a.number - b.number)
     .map((pr) => {
-      const state = ciState(pr.statusCheckRollup);
+      const state = ciState(codeChecks(pr.statusCheckRollup));
       if (pr.isCrossRepository) return { pr, action: 'skip', reason: 'comes from a fork' };
       if (!authors.includes(pr.author?.login)) return { pr, action: 'skip', reason: `author ${pr.author?.login} is not allowed` };
       if (pr.headRefName === 'main') return { pr, action: 'skip', reason: 'head branch is main' };
@@ -188,7 +195,7 @@ function fix(pr, attempt) {
 
   const commits = must('git', ['rev-list', `${sha}..HEAD`], { cwd: dir });
   if (!commits) return report(pr, attempt, `The agent made no commit. Its last words:\n\n${said}`);
-  const files = must('git', ['diff', '--name-status', `${sha}..HEAD`], { cwd: dir }).split('\n').filter(Boolean).map((l) => l.split('\t'));
+  const files = must('git', ['diff', '--name-status', '--no-renames', `${sha}..HEAD`], { cwd: dir }).split('\n').filter(Boolean).map((l) => l.split('\t'));
   const added = must('git', ['diff', '-U0', `${sha}..HEAD`], { cwd: dir }).split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++'));
   const problems = diffProblems(files.map(([s, ...p]) => [s, p.at(-1)]), added);
   if (problems.length) return report(pr, attempt, `The fix was not pushed:\n${problems.map((p) => `- ${p}`).join('\n')}`);

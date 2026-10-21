@@ -1,7 +1,7 @@
 // Proves the decisions of scripts/merge.mjs: the one way to merge a pull request.
 
 import { expect, test } from 'vitest';
-import { mergeBlockers, reviewMarker } from '../scripts/merge.mjs';
+import { latestChecks, mergeArgs, mergeBlockers, reviewMarker } from '../scripts/merge.mjs';
 
 const HEAD = 'abc1234def5678abc1234def5678abc1234def56';
 const green = [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }];
@@ -45,10 +45,29 @@ test('a closed, draft, or main pull request blocks', () => {
 // AGENTS.md "Autonomy": after 2 review rounds an open finding is recorded and the work continues.
 test('an accepted marker lets an open finding pass only after 2 review rounds', () => {
   const accepted = { body: `<!-- review-accepted head=${HEAD.slice(0, 7)} -->` };
-  const open = (n) => Array.from({ length: n }, () => marker(HEAD, 0, 1));
-  expect(mergeBlockers(pr({ comments: [...open(1), accepted] }))).toHaveLength(1);
-  expect(mergeBlockers(pr({ comments: [...open(2), accepted] }))).toEqual([]);
-  expect(mergeBlockers(pr({ comments: [...open(2), { body: '<!-- review-accepted head=0000000 -->' }] }))).toHaveLength(1);
+  const round1 = marker('1111111111', 0, 1);
+  const round2 = marker(HEAD, 0, 1);
+  expect(mergeBlockers(pr({ comments: [round2, accepted] }))).toHaveLength(1);
+  expect(mergeBlockers(pr({ comments: [round1, round2, accepted] }))).toEqual([]);
+  expect(mergeBlockers(pr({ comments: [round1, round2, { body: '<!-- review-accepted head=0000000 -->' }] }))).toHaveLength(1);
+});
+
+test('two markers for one head are one round, so a retried comment does not accept a finding', () => {
+  const accepted = { body: `<!-- review-accepted head=${HEAD.slice(0, 7)} -->` };
+  expect(mergeBlockers(pr({ comments: [marker(HEAD, 0, 1), marker(HEAD, 0, 1), accepted] }))).toHaveLength(1);
+});
+
+test('only the newest run of a check counts, so an old red run of an edited check does not block', () => {
+  const run = (conclusion, startedAt) => ({ __typename: 'CheckRun', workflowName: 'pr-gates', name: 'gates', status: 'COMPLETED', conclusion, startedAt });
+  const rollup = [run('FAILURE', '2026-10-22T01:00:00Z'), run('SUCCESS', '2026-10-22T02:00:00Z')];
+  expect(latestChecks(rollup)).toEqual([rollup[1]]);
+  expect(mergeBlockers(pr({ statusCheckRollup: rollup }))).toEqual([]);
+  expect(mergeBlockers(pr({ statusCheckRollup: [rollup[1], rollup[0]].reverse().reverse() }))).toEqual([]);
+  expect(mergeBlockers(pr({ statusCheckRollup: [run('SUCCESS', '2026-10-22T01:00:00Z'), run('FAILURE', '2026-10-22T02:00:00Z')] }))).toHaveLength(1);
+});
+
+test('the merge command pins the head that was checked', () => {
+  expect(mergeArgs('95', pr())).toEqual(['pr', 'merge', '95', '--merge', '--delete-branch', '--match-head-commit', HEAD]);
 });
 
 test('reviewMarker reads the numbers and ignores text that is not a marker', () => {
