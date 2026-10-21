@@ -336,6 +336,63 @@ describe('Notifications', () => {
       expect(screen.getByText('1')).toBeTruthy();
     });
 
+    it('AC-23: a push that comes while a reload is running makes one more reload when it ends', async () => {
+      const worker = new EventTarget();
+      vi.stubGlobal('navigator', { ...navigator, serviceWorker: worker });
+      let calls = 0;
+      let releaseSecond: () => void = () => undefined;
+      const fetchMock = vi.fn((url: string) => {
+        if (url !== '/api/notifications') return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+        if (++calls === 2) {
+          return new Promise((resolve) => {
+            releaseSecond = () => resolve(reply(empty));
+          });
+        }
+        return Promise.resolve(reply(calls === 1 ? empty : mockNotifs));
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      render(<Notifications userId="u1" />);
+      await waitFor(() => expect(calls).toBe(1));
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
+      await waitFor(() => expect(calls).toBe(2));
+
+      await act(async () => {
+        worker.dispatchEvent(new MessageEvent('message', { data: { type: 'push-received' } }));
+      });
+      expect(calls).toBe(2);
+      await act(async () => {
+        releaseSecond();
+      });
+
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+      expect(calls).toBe(3);
+    });
+
+    it('AC-23: a reload that never answers does not stop the next reloads', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        let calls = 0;
+        const fetchMock = vi.fn((url: string) => {
+          if (url !== '/api/notifications') return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+          return ++calls === 2 ? new Promise(() => undefined) : Promise.resolve(reply(calls === 1 ? empty : mockNotifs));
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        render(<Notifications userId="u1" />);
+        await waitFor(() => expect(calls).toBe(1));
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(60_000);
+        });
+
+        await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+        expect(calls).toBeGreaterThanOrEqual(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('AC-23: a slow reload that started before "mark all read" does not bring the badge back', async () => {
       let calls = 0;
       let releaseSlow: () => void = () => undefined;
