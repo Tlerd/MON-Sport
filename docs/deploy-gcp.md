@@ -81,7 +81,11 @@ foreach ($Role in "roles/cloudsql.client", "roles/secretmanager.secretAccessor",
 gcloud run deploy monsport --source . --region=$Region --allow-unauthenticated --add-cloudsql-instances=$Conn --update-secrets="DATABASE_URL=monsport-database-url:latest,SESSION_SECRET=monsport-session-secret:latest" --memory=512Mi --max-instances=2 --concurrency=60
 ```
 
-`--concurrency=60` caps the requests that one instance holds at once. The default is 80. Each instance has a pool of 6 database connections (`prisma.service.ts`), so more requests only wait in the pool. The lobby stream holds one slot per client, and the API caps it at 40 per instance (`LOBBY_STREAM_MAX`), which leaves 20 slots for booking requests. Raise both numbers together, and only after a load test shows the headroom. The deploy workflow sets the same flag, so a deploy keeps it.
+`--concurrency=60` giới hạn số request mà một instance giữ cùng lúc. Mặc định là 80. Mỗi instance có pool 6 kết nối database (`prisma.service.ts`), nên request thêm chỉ chờ trong pool.
+
+Mỗi người xem phòng chờ giữ một slot suốt thời gian kết nối stream. API giới hạn 40 stream mỗi instance (biến `LOBBY_STREAM_MAX`), nên còn 20 slot cho request đặt sân. Người xem thứ 41 nhận một stream trả về mã 200, có một sự kiện `ping` kèm `retry: 30000`, rồi kết thúc. Trình duyệt tự kết nối lại sau 30 giây. Mã 503 không dùng ở đây, vì `EventSource` dừng hẳn sau mã khác 200.
+
+Hai con số 60 và 40 là ước lượng, chưa qua load test. Hãy tăng cả hai cùng lúc, và chỉ sau khi load test cho thấy còn dư tải. Workflow deploy đặt cùng cờ, nên mỗi lần deploy giữ nguyên giá trị.
 
 Cloud Build dựng image từ `Dockerfile`. Mỗi lần container khởi động, nó chạy `prisma migrate deploy` trước khi chạy server. Lệnh in ra một URL dạng `https://monsport-....run.app`.
 

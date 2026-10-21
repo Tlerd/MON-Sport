@@ -1,4 +1,4 @@
-import { Injectable, type MessageEvent, type OnModuleDestroy, type OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, type MessageEvent, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import pg from 'pg';
 import { interval, map, merge, Observable, startWith, Subject } from 'rxjs';
 
@@ -7,6 +7,7 @@ const RECONNECT_DELAY_MS = 1_000;
 // Each client holds one Cloud Run request slot while it listens. The cap keeps slots free for booking requests:
 // the service runs with --concurrency=60 (docs/deploy-gcp.md), so 40 streams leave 20 slots for the API.
 const DEFAULT_MAX_STREAMS = 40;
+const RETRY_WHEN_FULL_MS = 30_000;
 
 function maxStreams(): number {
   const value = Number(process.env.LOBBY_STREAM_MAX);
@@ -44,15 +45,23 @@ export class LobbyEvents implements OnModuleInit, OnModuleDestroy {
     this.events.complete();
   }
 
-  /** Answers 503 when this instance already serves its cap. A slot is held from subscribe to unsubscribe. */
+  /**
+   * A slot is held from subscribe to unsubscribe. The cap is checked and the count raised in the same synchronous step,
+   * so parallel requests cannot pass it together. Past the cap the client gets one ping with `retry` and the stream ends.
+   * EventSource then connects again after that time. A 503 would stop it for good, and the viewer would lose live updates.
+   */
   stream(): Observable<MessageEvent> {
-    if (this.open >= maxStreams()) throw new ServiceUnavailableException('Phòng chờ đang đông, hãy thử lại sau');
     const pings = interval(PING_INTERVAL_MS).pipe(
       startWith(0),
       map((): MessageEvent => ({ type: 'ping', data: '' })),
     );
     const merged = merge(pings, this.events.asObservable());
     return new Observable<MessageEvent>((subscriber) => {
+      if (this.open >= maxStreams()) {
+        subscriber.next({ type: 'ping', data: '', retry: RETRY_WHEN_FULL_MS });
+        subscriber.complete();
+        return undefined;
+      }
       this.open++;
       const inner = merged.subscribe(subscriber);
       return () => {
