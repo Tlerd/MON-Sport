@@ -4,7 +4,7 @@ import type {
   NotificationReadResponse,
   NotificationsListResponse,
 } from '@monsport/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api.ts';
 import { formatDay, formatTime } from '../../lib/format.ts';
 import { PushToggle } from './PushToggle.tsx';
@@ -21,16 +21,27 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // `latest` numbers each request. A list that arrives after a newer request, or after a read action, is dropped, so a slow
+  // reload cannot bring back a badge that the user just cleared.
+  const latest = useRef(0);
+  const pending = useRef(0);
+
   const load = useCallback((keepOnError = false) => {
+    const number = ++latest.current;
+    pending.current++;
     return api<NotificationsListResponse | NotificationItemView[]>('/api/notifications')
       .then((res) => {
+        if (number !== latest.current) return;
         const normalized: NotificationsListResponse = Array.isArray(res)
           ? { unreadCount: 0, items: res }
           : res;
         setData(normalized);
       })
       .catch(() => {
-        if (!keepOnError) setData(null);
+        if (!keepOnError && number === latest.current) setData(null);
+      })
+      .finally(() => {
+        pending.current--;
       });
   }, []);
 
@@ -41,7 +52,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
   // AC-23: the other side acts, not this user, so the list follows the server. A failed background reload keeps the list.
   useEffect(() => {
     const reload = () => {
-      if (document.visibilityState === 'visible') void load(true);
+      if (document.visibilityState === 'visible' && pending.current === 0) void load(true);
     };
     const onWorkerMessage = (event: Event) => {
       if ((event as MessageEvent).data?.type === 'push-received') reload();
@@ -62,6 +73,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
 
   async function markOneRead(item: NotificationItemView) {
     if (item.readAt || busy) return;
+    latest.current++;
     try {
       const res = await api<NotificationReadResponse>(`/api/notifications/${item.id}/read`, {
         method: 'POST',
@@ -80,6 +92,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
 
   async function markAllRead() {
     if (!data || data.unreadCount === 0 || busy) return;
+    latest.current++;
     setBusy(true);
     try {
       await api<NotificationReadAllResponse>('/api/notifications/read-all', { method: 'POST' });
