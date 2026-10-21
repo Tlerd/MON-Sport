@@ -1,9 +1,17 @@
-import { Injectable, type MessageEvent, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { Injectable, type MessageEvent, type OnModuleDestroy, type OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
 import pg from 'pg';
-import { interval, map, merge, type Observable, startWith, Subject } from 'rxjs';
+import { interval, map, merge, Observable, startWith, Subject } from 'rxjs';
 
 const PING_INTERVAL_MS = 25_000;
 const RECONNECT_DELAY_MS = 1_000;
+// Each client holds one Cloud Run request slot while it listens. The cap keeps slots free for booking requests:
+// the service runs with --concurrency=60 (docs/deploy-gcp.md), so 40 streams leave 20 slots for the API.
+const DEFAULT_MAX_STREAMS = 40;
+
+function maxStreams(): number {
+  const value = Number(process.env.LOBBY_STREAM_MAX);
+  return Number.isInteger(value) && value > 0 ? value : DEFAULT_MAX_STREAMS;
+}
 
 /**
  * Brief F-012 (UC-8, AC-9, ADR 0004): one dedicated PostgreSQL `LISTEN lobby` connection per API instance.
@@ -16,6 +24,7 @@ export class LobbyEvents implements OnModuleInit, OnModuleDestroy {
   private client: pg.Client | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
+  private open = 0;
 
   async onModuleInit(): Promise<void> {
     await this.connect();
@@ -35,12 +44,22 @@ export class LobbyEvents implements OnModuleInit, OnModuleDestroy {
     this.events.complete();
   }
 
+  /** Answers 503 when this instance already serves its cap. A slot is held from subscribe to unsubscribe. */
   stream(): Observable<MessageEvent> {
+    if (this.open >= maxStreams()) throw new ServiceUnavailableException('Phòng chờ đang đông, hãy thử lại sau');
     const pings = interval(PING_INTERVAL_MS).pipe(
       startWith(0),
       map((): MessageEvent => ({ type: 'ping', data: '' })),
     );
-    return merge(pings, this.events.asObservable());
+    const merged = merge(pings, this.events.asObservable());
+    return new Observable<MessageEvent>((subscriber) => {
+      this.open++;
+      const inner = merged.subscribe(subscriber);
+      return () => {
+        this.open--;
+        inner.unsubscribe();
+      };
+    });
   }
 
   private async connect(): Promise<void> {

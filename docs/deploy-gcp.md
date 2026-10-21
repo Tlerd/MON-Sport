@@ -78,8 +78,10 @@ foreach ($Role in "roles/cloudsql.client", "roles/secretmanager.secretAccessor",
 ## 7. Deploy
 
 ```powershell
-gcloud run deploy monsport --source . --region=$Region --allow-unauthenticated --add-cloudsql-instances=$Conn --update-secrets="DATABASE_URL=monsport-database-url:latest,SESSION_SECRET=monsport-session-secret:latest" --memory=512Mi --max-instances=2
+gcloud run deploy monsport --source . --region=$Region --allow-unauthenticated --add-cloudsql-instances=$Conn --update-secrets="DATABASE_URL=monsport-database-url:latest,SESSION_SECRET=monsport-session-secret:latest" --memory=512Mi --max-instances=2 --concurrency=60
 ```
+
+`--concurrency=60` caps the requests that one instance holds at once. The default is 80. Each instance has a pool of 6 database connections (`prisma.service.ts`), so more requests only wait in the pool. The lobby stream holds one slot per client, and the API caps it at 40 per instance (`LOBBY_STREAM_MAX`), which leaves 20 slots for booking requests. Raise both numbers together, and only after a load test shows the headroom. The deploy workflow sets the same flag, so a deploy keeps it.
 
 Cloud Build dựng image từ `Dockerfile`. Mỗi lần container khởi động, nó chạy `prisma migrate deploy` trước khi chạy server. Lệnh in ra một URL dạng `https://monsport-....run.app`.
 
