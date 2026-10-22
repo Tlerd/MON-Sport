@@ -38,7 +38,8 @@ Sau khi đăng nhập, mỗi vai trò vào màn đầu tiên của mình. Ngư�
 Mỗi bước là một brief và một hoặc vài pull request, theo `AGENTS.md`.
 
 1. **Token và component nền.** Gồm:
-   - `tokens.css`.
+   - Script sinh `tokens.css` của web và app từ front matter của `DESIGN.md`, dùng `designmd export --format dtcg`. Không gõ tay giá trị token.
+   - Thêm `designmd lint DESIGN.md` vào `pnpm check`, để token sai bị chặn như test sai.
    - Icon môn trong `packages/shared/icons`.
    - Các component `Chip`, `StatusBadge`, `EmptyState`.
 2. **Router và khung điều hướng.** Gồm:
