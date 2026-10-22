@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MONSPORT mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --c-court: #0F7B53; --c-court-ink: #FFFFFF; --c-ink: #16201B; --c-ink-2: #5B6660;
+  --c-canvas: #EEF1EF; --c-surface: #FFFFFF; --c-line: #DCE2DE; --c-peak: #C98A00;
+  --st-wait: #A15C00; --st-wait-bg: #FFF3E0; --st-ok: #0F7B53; --st-ok-bg: #E3F4EC;
+  --st-no: #B42318; --st-no-bg: #FDECEA; --st-off: #5B6660; --st-off-bg: #EEF1EF;
+  --page: #E4E8E5;
+  --ease: cubic-bezier(.2,.8,.2,1);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--c-ink); font: 15px/1.45 "Be Vietnam Pro", system-ui, sans-serif; }
+.doc { max-width: 1360px; margin: 0 auto; padding: 24px 16px 64px; }
+.doc > h1 { font-size: 26px; margin: 0 0 6px; }
+.doc > p { margin: 0 0 8px; color: var(--c-ink-2); max-width: 70ch; }
+.doc > h2 { font-size: 20px; margin: 40px 0 6px; }
+.lead { margin: 0 0 16px; color: var(--c-ink-2); max-width: 75ch; }
+svg.i { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+svg.i.lg { width: 24px; height: 24px; }
+svg.i.sm { width: 16px; height: 16px; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ---------- phones ---------- */
+.phones { display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start; }
+.phone-wrap { display: flex; flex-direction: column; gap: 10px; }
+.phone-wrap figcaption { font-size: 14px; color: var(--c-ink-2); max-width: 390px; }
+.phone { position: relative; width: 390px; max-width: calc(100vw - 32px); height: 780px; border-radius: 44px; border: 10px solid #1d2420; background: var(--c-canvas); overflow: hidden; box-shadow: 0 30px 60px -30px rgba(10,30,20,.45); }
+.scroller { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; padding: 104px 0 170px; }
+.scroller::-webkit-scrollbar { display: none; }
+.statusbar { position: absolute; top: 0; left: 0; right: 0; height: 36px; background: var(--c-surface); z-index: 6; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 13px; font-weight: 600; }
+.topbar { position: absolute; top: 36px; left: 0; right: 0; height: 52px; background: var(--c-surface); z-index: 5; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; transition: transform 200ms var(--ease); }
+.logo { font-weight: 700; font-size: 22px; letter-spacing: -.02em; color: var(--c-court); flex: 1; }
+.iconbtn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--c-canvas); color: var(--c-ink); display: grid; place-items: center; cursor: pointer; position: relative; }
+.iconbtn .dot { position: absolute; top: 6px; right: 6px; min-width: 16px; height: 16px; border-radius: 999px; background: var(--st-no); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; padding: 0 4px; }
+.ctxbar { position: absolute; top: 88px; left: 0; right: 0; z-index: 4; background: var(--c-surface); border-bottom: 1px solid var(--c-line); display: flex; gap: 8px; padding: 8px 12px; overflow-x: auto; scrollbar-width: none; transition: transform 200ms var(--ease); }
+.ctxbar::-webkit-scrollbar { display: none; }
+.tabbar { position: absolute; left: 12px; right: 12px; bottom: 14px; height: 60px; border-radius: 999px; background: rgba(255,255,255,.92); backdrop-filter: blur(14px); box-shadow: 0 8px 24px -8px rgba(10,30,20,.3), 0 0 0 1px rgba(10,30,20,.06); z-index: 5; display: flex; align-items: center; justify-content: space-around; padding: 0 6px; transition: transform 220ms var(--ease); }
+.tab { flex: 1; height: 48px; border-radius: 999px; display: grid; place-items: center; color: var(--c-ink-2); position: relative; }
+.tab.on { background: var(--st-ok-bg); color: var(--c-court); }
+.tab .dot { position: absolute; top: 4px; left: 52%; min-width: 16px; height: 16px; border-radius: 999px; background: var(--st-no); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; padding: 0 4px; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: #CFE3D8; color: var(--c-court); display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.actionbar { position: absolute; left: 12px; right: 12px; bottom: 86px; z-index: 5; background: var(--c-surface); border-radius: 16px; box-shadow: 0 8px 24px -8px rgba(10,30,20,.35), 0 0 0 1px rgba(10,30,20,.06); display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 16px; transition: transform 220ms var(--ease), opacity 160ms; }
+.actionbar[hidden] { display: flex; opacity: 0; pointer-events: none; transform: translateY(20px); }
+.actionbar .sum { flex: 1; min-width: 0; }
+.actionbar .sum b { display: block; font-size: 15px; }
+.actionbar .sum span { font-size: 13px; color: var(--c-ink-2); }
+.btn { border: 0; border-radius: 10px; background: var(--c-court); color: var(--c-court-ink); font: 600 15px/1 "Be Vietnam Pro", sans-serif; padding: 12px 16px; cursor: pointer; white-space: nowrap; }
+.btn.ghost { background: var(--c-canvas); color: var(--c-ink); }
+.btn:focus-visible, .iconbtn:focus-visible, .chip:focus-visible, .slot:focus-visible { outline: 3px solid #7FC4A8; outline-offset: 2px; }
+
+/* hidden state, as in DESIGN.md */
+.phone.bars-off .topbar { transform: translateY(-100%); }
+.phone.bars-off .ctxbar { transform: translateY(-52px); }
+.phone.bars-off .tabbar { transform: translateY(calc(100% + 20px)); }
+.phone.bars-off .actionbar:not([hidden]) { transform: translateY(72px); }
+@media (prefers-reduced-motion: reduce) { .topbar, .ctxbar, .tabbar, .actionbar { transition: none; } }
+
+.chip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--c-line); background: var(--c-surface); color: var(--c-ink); font: 600 13px/1 "Be Vietnam Pro", sans-serif; cursor: pointer; white-space: nowrap; }
+.chip.on { background: var(--c-court); border-color: var(--c-court); color: var(--c-court-ink); }
+.chip small { font-weight: 400; opacity: .8; }
+
+.card { background: var(--c-surface); padding: 14px 16px; margin-bottom: 8px; }
+.card h3 { margin: 0; font-size: 17px; line-height: 22px; }
+.meta { font-size: 13px; color: var(--c-ink-2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.row { display: flex; align-items: center; gap: 10px; }
+.grow { flex: 1; min-width: 0; }
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge.wait { color: var(--st-wait); background: var(--st-wait-bg); }
+.badge.ok { color: var(--st-ok); background: var(--st-ok-bg); }
+.badge.off { color: var(--st-off); background: var(--st-off-bg); }
+.sport { width: 32px; height: 32px; border-radius: 10px; background: var(--st-ok-bg); color: var(--c-court); display: grid; place-items: center; flex: none; }
+
+.court { padding: 12px 0 14px; border-top: 1px solid var(--c-line); }
+.court:first-of-type { border-top: 0; }
+.court-head { display: flex; align-items: center; gap: 8px; padding: 0 16px 8px; }
+.court-head b { font-size: 15px; }
+.slots { display: flex; gap: 6px; overflow-x: auto; padding: 0 16px; scrollbar-width: none; }
+.slots::-webkit-scrollbar { display: none; }
+.slot { flex: none; width: 64px; height: 48px; border-radius: 8px; border: 1px solid var(--c-line); background: var(--c-surface); font: 600 13px/1.1 "Be Vietnam Pro", sans-serif; color: var(--c-ink); display: grid; place-items: center; align-content: center; gap: 2px; cursor: pointer; position: relative; }
+.slot small { font-weight: 400; font-size: 11px; color: var(--c-ink-2); }
+.slot.peak::before { content: ""; position: absolute; top: -1px; left: 10px; right: 10px; height: 3px; border-radius: 0 0 3px 3px; background: var(--c-peak); }
+.slot.taken { background: var(--c-canvas); border-color: transparent; color: #A3ACA7; cursor: not-allowed; text-decoration: line-through; }
+.slot.taken small { color: #A3ACA7; }
+.slot.sel { background: var(--c-court); border-color: var(--c-court); color: #fff; }
+.slot.sel small { color: #D5EEE2; }
+
+.post { background: var(--c-surface); margin-bottom: 8px; }
+.post-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px 6px; }
+.post-head .avatar { width: 40px; height: 40px; font-size: 15px; }
+.post-head b { font-size: 15px; display: block; }
+.post-body { padding: 4px 16px 12px; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; font-size: 14px; margin-top: 8px; }
+.facts svg { color: var(--c-ink-2); }
+.seats { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.seat { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--c-surface); margin-left: -8px; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: #CFE3D8; color: var(--c-court); }
+.seat:first-child { margin-left: 0; }
+.seat.free { background: var(--c-surface); border: 1.5px dashed #A3ACA7; color: transparent; }
+.post-actions { display: flex; border-top: 1px solid var(--c-line); }
+.post-actions button { flex: 1; height: 44px; border: 0; background: none; font: 600 14px "Be Vietnam Pro", sans-serif; color: var(--c-ink-2); display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.post-actions button.go { color: var(--c-court); }
+.section-title { padding: 14px 16px 8px; font-size: 15px; font-weight: 700; display: flex; justify-content: space-between; }
+.section-title a { color: var(--c-court); font-weight: 600; font-size: 13px; text-decoration: none; }
+
+/* ---------- desktop ---------- */
+.desk-wrap { overflow-x: auto; padding-bottom: 8px; }
+.desk { width: 1280px; height: 760px; background: var(--c-canvas); border-radius: 12px; overflow: hidden; box-shadow: 0 30px 60px -30px rgba(10,30,20,.45), 0 0 0 1px rgba(10,30,20,.08); display: flex; flex-direction: column; }
+.d-top { height: 60px; flex: none; background: var(--c-surface); border-bottom: 1px solid var(--c-line); display: flex; align-items: center; gap: 28px; padding: 0 24px; }
+.d-top .logo { flex: none; }
+.d-nav { display: flex; gap: 4px; flex: 1; }
+.d-nav a { height: 60px; display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--c-ink-2); font-weight: 600; text-decoration: none; border-bottom: 3px solid transparent; }
+.d-nav a.on { color: var(--c-court); border-bottom-color: var(--c-court); }
+.d-user { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.d-body { flex: 1; min-height: 0; display: flex; }
+.pane { background: var(--c-surface); overflow: hidden; display: flex; flex-direction: column; }
+.pane-l { width: 300px; flex: none; border-right: 1px solid var(--c-line); }
+.pane-r { width: 320px; flex: none; border-left: 1px solid var(--c-line); padding: 20px; gap: 14px; }
+.pane-m { flex: 1; min-width: 0; padding: 20px 24px; gap: 14px; background: var(--c-surface); }
+.search { margin: 16px; height: 40px; border-radius: 10px; background: var(--c-canvas); display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--c-ink-2); font-size: 14px; }
+.venue { display: flex; gap: 12px; padding: 12px 16px; border-left: 3px solid transparent; cursor: pointer; }
+.venue.on { background: #F3F8F5; border-left-color: var(--c-court); }
+.venue b { display: block; font-size: 15px; }
+.v-head h2 { margin: 0; font-size: 24px; line-height: 30px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: 76px repeat(22, minmax(0, 1fr)); gap: 3px; align-items: stretch; }
+.grid .h { font-size: 11px; color: var(--c-ink-2); text-align: left; padding-bottom: 4px; grid-column: span 2; }
+.grid .lab { font-size: 14px; font-weight: 600; display: flex; align-items: center; }
+.cell { height: 44px; border-radius: 6px; border: 1px solid var(--c-line); background: var(--c-surface); cursor: pointer; position: relative; padding: 0; font: 600 11px "Be Vietnam Pro", sans-serif; }
+.cell.peak { box-shadow: inset 0 3px 0 var(--c-peak); }
+.cell.taken { background: var(--c-canvas); border-color: transparent; cursor: not-allowed; }
+.cell.sel { background: var(--c-court); border-color: var(--c-court); }
+.cell.ok { background: var(--st-ok-bg); border-color: #B9DFCC; color: var(--st-ok); text-align: left; padding: 0 6px; overflow: hidden; white-space: nowrap; cursor: pointer; }
+.cell.wait { background: var(--st-wait-bg); border-color: #F2CF9A; color: var(--st-wait); text-align: left; padding: 0 6px; overflow: hidden; white-space: nowrap; cursor: pointer; }
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--c-ink-2); align-items: center; }
+.legend i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; border: 1px solid var(--c-line); }
+.sumbox { border: 1px solid var(--c-line); border-radius: 12px; padding: 16px; }
+.sumbox dl { margin: 10px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 14px; }
+.sumbox dt { color: var(--c-ink-2); }
+.sumbox dd { margin: 0; text-align: right; font-weight: 600; }
+.total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--c-line); margin-top: 12px; padding-top: 12px; }
+.total b { font-size: 24px; }
+.hint { font-size: 13px; color: var(--c-ink-2); display: flex; gap: 8px; }
+.side { width: 220px; flex: none; background: var(--c-surface); border-right: 1px solid var(--c-line); display: flex; flex-direction: column; padding: 12px; gap: 2px; }
+.side a { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 12px; border-radius: 10px; color: var(--c-ink); text-decoration: none; font-weight: 600; font-size: 14px; }
+.side a.on { background: var(--st-ok-bg); color: var(--c-court); }
+.side a .n { margin-left: auto; background: var(--st-no); color: #fff; border-radius: 999px; font-size: 11px; padding: 1px 7px; }
+.side .sp { flex: 1; }
+.venue-switch { border: 1px solid var(--c-line); border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.req { border: 1px solid var(--c-line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; }
+.req.on { border-color: var(--c-court); box-shadow: 0 0 0 1px var(--c-court); }
+.req .two { display: flex; gap: 8px; }
+.req .meta { white-space: nowrap; }
+.req .two .btn { flex: 1; }
+.note { font-size: 13px; color: var(--c-ink-2); margin-top: 10px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-badminton" viewBox="0 0 24 24"><path d="M7 3.5 9.6 14.5M17 3.5 14.4 14.5M12 3v11.5M7 3.5c1.5.8 3.2 1.2 5 1.2s3.5-.4 5-1.2"/><path d="M9.6 14.5h4.8v1.8a2.4 2.4 0 0 1-4.8 0z"/><path d="M8.2 9.2c1.2.4 2.5.6 3.8.6s2.6-.2 3.8-.6"/></symbol>
+    <symbol id="i-football" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m12 7.6 3.3 2.4-1.3 3.9h-4L8.7 10z"/><path d="M12 7.6V3.2M15.3 10l4.1-1.4M14 13.9l2.5 3.6M10 13.9l-2.5 3.6M8.7 10 4.6 8.6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9"/><path d="M10 20a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-court" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M3 9h3v6H3M21 9h-3v6h3"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.2a6.5 6.5 0 0 1 3 5.8"/></symbol>
+    <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 0 0 4v0a2 2 0 0 1 0 4v2h18v-2a2 2 0 0 1 0-4v0a2 2 0 0 0 0-4V6H3z"/><path d="M14 6v12" stroke-dasharray="2 2"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M14.5 9.2c-.5-.8-1.4-1.2-2.5-1.2-1.5 0-2.5.8-2.5 2s1 1.7 2.5 2 2.5.8 2.5 2-1 2-2.5 2c-1.1 0-2-.4-2.5-1.2M12 6.5V8M12 16v1.5"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5.5 5h13L21 13v6H3v-6z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="M8 16v-5M12 16V8M16 16v-3"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 9.5 5.5 4h13L20 9.5M4 9.5V20h16V9.5M4 9.5h16"/><path d="M9.5 20v-5h5v5"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.5 3.5h3l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2 2A16.5 16.5 0 0 1 4.5 5.5a2 2 0 0 1 2-2"/></symbol>
+  </defs>
+</svg>
+
+<div class="doc">
+  <h1>MONSPORT · mockup</h1>
+  <p>Theo <code>DESIGN.md</code>. Phần trên là app mobile, phần dưới là web desktop. Dữ liệu là dữ liệu seed.</p>
+
+  <h2>App mobile</h2>
+  <p class="lead">Cuộn trong khung điện thoại. Cuộn xuống thì thanh trên và thanh tab trượt ra ngoài, còn chip ngày dính lên mép trên. Cuộn lên thì hai thanh quay lại. Bấm một ô giờ còn trống để thanh hành động hiện ra.</p>
+  <div class="phones">
+
+    <figure class="phone-wrap" style="margin:0">
+      <div class="phone" data-phone>
+        <div class="statusbar"><span class="tnum">20:41</span><span>●●●</span></div>
+        <header class="topbar">
+          <button class="iconbtn" aria-label="Quay lại"><svg class="i lg"><use href="#i-back"/></svg></button>
+          <span class="logo" style="color:var(--c-ink);font-size:18px">Cầu lông A</span>
+          <button class="iconbtn" aria-label="Gọi chủ sân"><svg class="i"><use href="#i-phone"/></svg></button>
+          <button class="iconbtn" aria-label="Thêm"><svg class="i"><use href="#i-more"/></svg></button>
+        </header>
+        <nav class="ctxbar" aria-label="Chọn ngày">
+          <button class="chip">Hôm nay</button>
+          <button class="chip on">T7 24/10</button>
+          <button class="chip">CN 25/10</button>
+          <button class="chip">T2 26/10</button>
+          <button class="chip">T3 27/10</button>
+          <button class="chip"><svg class="i sm"><use href="#i-cal"/></svg>Ngày khác</button>
+        </nav>
+        <div class="scroller">
+          <div class="card">
+            <div class="row">
+              <span class="sport"><svg class="i"><use href="#i-badminton"/></svg></span>
+              <div class="grow">
+                <h3>Cầu lông A</h3>
+                <div class="meta"><svg class="i sm"><use href="#i-pin"/></svg>12 Lê Lợi, Q.1 · 06:00–23:00</div>
+              </div>
+            </div>
+            <div class="meta" style="margin-top:10px"><span class="badge ok"><svg class="i sm"><use href="#i-coin"/></svg>80k/giờ</span><span class="badge wait"><svg class="i sm"><use href="#i-clock"/></svg>120k từ 17:00</span></div>
+          </div>
+
+          <div style="background:var(--c-surface);margin-bottom:8px" data-courts></div>
+
+          <div class="section-title">Trận đang mở ở đây <a href="#">Xem tất cả</a></div>
+          <article class="post">
+            <div class="post-head"><span class="avatar">C</span><div class="grow"><b>Chi</b><span class="meta">Sân 2 · 19:00–21:00</span></div><span class="badge ok"><svg class="i sm"><use href="#i-users"/></svg>Mở</span></div>
+            <div class="post-body"><div class="seats"><span class="seat">C</span><span class="seat">H</span><span class="seat free">.</span><span class="seat free">.</span><span class="meta">2/4 · 40k/suất</span></div></div>
+            <div class="post-actions"><button>Chi tiết</button><button class="go"><svg class="i sm"><use href="#i-users"/></svg>Vào trận</button></div>
+          </article>
+          <div style="height:120px"></div>
+        </div>
+        <div class="actionbar" hidden data-action>
+          <div class="sum"><b data-sum-title>Sân 1 · 20:00–21:00</b><span data-sum-price class="tnum">120.000đ · giờ cao điểm</span></div>
+          <button class="btn">Gửi yêu cầu</button>
+        </div>
+        <nav class="tabbar" aria-label="Điều hướng">
+          <span class="tab on" aria-label="Đặt sân"><svg class="i lg"><use href="#i-court"/></svg></span>
+          <span class="tab" aria-label="Phòng chờ"><svg class="i lg"><use href="#i-users"/></svg></span>
+          <span class="tab" aria-label="Lịch của tôi"><svg class="i lg"><use href="#i-ticket"/></svg></span>
+          <span class="tab" aria-label="Thông báo"><svg class="i lg"><use href="#i-bell"/></svg><span class="dot">2</span></span>
+          <span class="tab" aria-label="Tôi"><span class="avatar">A</span></span>
+        </nav>
+      </div>
+      <figcaption>Đặt sân trong một đơn vị: chip ngày, mỗi sân một hàng ô giờ cuộn ngang. Vạch vàng là giờ cao điểm. Bấm ô thì thanh hành động hiện.</figcaption>
+    </figure>
+
+    <figure class="phone-wrap" style="margin:0">
+      <div class="phone" data-phone>
+        <div class="statusbar"><span class="tnum">20:41</span><span>●●●</span></div>
+        <header class="topbar">
+          <span class="logo">monsport</span>
+          <button class="iconbtn" aria-label="Mở trận"><svg class="i"><use href="#i-plus"/></svg></button>
+          <button class="iconbtn" aria-label="Tìm"><svg class="i"><use href="#i-search"/></svg></button>
+        </header>
+        <nav class="ctxbar" aria-label="Lọc trận">
+          <button class="chip on">Tất cả</button>
+          <button class="chip"><svg class="i sm"><use href="#i-badminton"/></svg>Cầu lông</button>
+          <button class="chip"><svg class="i sm"><use href="#i-football"/></svg>Bóng đá</button>
+          <button class="chip"><svg class="i sm"><use href="#i-cal"/></svg>T7 24/10</button>
+        </nav>
+        <div class="scroller" data-feed></div>
+        <nav class="tabbar" aria-label="Điều hướng">
+          <span class="tab" aria-label="Đặt sân"><svg class="i lg"><use href="#i-court"/></svg></span>
+          <span class="tab on" aria-label="Phòng chờ"><svg class="i lg"><use href="#i-users"/></svg></span>
+          <span class="tab" aria-label="Lịch của tôi"><svg class="i lg"><use href="#i-ticket"/></svg></span>
+          <span class="tab" aria-label="Thông báo"><svg class="i lg"><use href="#i-bell"/></svg><span class="dot">2</span></span>
+          <span class="tab" aria-label="Tôi"><span class="avatar">A</span></span>
+        </nav>
+      </div>
+      <figcaption>Phòng chờ là một feed. Mỗi trận là một thẻ như bài đăng: host, icon môn, giờ, sân, suất còn trống, nút Vào trận.</figcaption>
+    </figure>
+  </div>
+
+  <h2>Web · người chơi · Đặt sân</h2>
+  <p class="lead">Ba cột: đơn vị ở bên trái, lưới sân × giờ ở giữa, tóm tắt và nút gửi ở bên phải. Phần tóm tắt luôn hiện. Bấm ô trống để chọn giờ.</p>
+  <div class="desk-wrap">
+    <div class="desk">
+      <div class="d-top">
+        <span class="logo">monsport</span>
+        <nav class="d-nav">
+          <a class="on" href="#"><svg class="i"><use href="#i-court"/></svg>Đặt sân</a>
+          <a href="#"><svg class="i"><use href="#i-users"/></svg>Phòng chờ</a>
+          <a href="#"><svg class="i"><use href="#i-ticket"/></svg>Lịch của tôi</a>
+        </nav>
+        <button class="iconbtn" aria-label="Thông báo"><svg class="i"><use href="#i-bell"/></svg><span class="dot">2</span></button>
+        <span class="d-user"><span class="avatar">A</span>An</span>
+      </div>
+      <div class="d-body">
+        <aside class="pane pane-l">
+          <div class="search"><svg class="i sm"><use href="#i-search"/></svg>Tìm đơn vị hoặc sân</div>
+          <div class="chips" style="padding:0 16px 12px">
+            <button class="chip on">Tất cả</button>
+            <button class="chip"><svg class="i sm"><use href="#i-badminton"/></svg>Cầu lông</button>
+            <button class="chip"><svg class="i sm"><use href="#i-football"/></svg>Bóng đá</button>
+          </div>
+          <div class="venue on"><span class="sport"><svg class="i"><use href="#i-badminton"/></svg></span><div><b>Cầu lông A</b><span class="meta">2 sân · 80k–120k</span></div></div>
+          <div class="venue"><span class="sport"><svg class="i"><use href="#i-badminton"/></svg></span><div><b>Cầu lông B</b><span class="meta">2 sân · 70k–100k</span></div></div>
+          <div class="venue"><span class="sport"><svg class="i"><use href="#i-football"/></svg></span><div><b>Bóng đá A</b><span class="meta">1 sân · 300k–500k</span></div></div>
+        </aside>
+        <main class="pane pane-m">
+          <div class="v-head row">
+            <div class="grow"><h2>Cầu lông A</h2><div class="meta"><svg class="i sm"><use href="#i-pin"/></svg>12 Lê Lợi, Q.1 · Mở 06:00–23:00 · <svg class="i sm"><use href="#i-phone"/></svg>0912 345 678</div></div>
+          </div>
+          <div class="chips">
+            <button class="chip">Hôm nay</button><button class="chip on">T7 24/10</button><button class="chip">CN 25/10</button><button class="chip">T2 26/10</button><button class="chip">T3 27/10</button><button class="chip"><svg class="i sm"><use href="#i-cal"/></svg>Ngày khác</button>
+          </div>
+          <div class="grid" data-grid="player"></div>
+          <div class="legend"><span><i></i>Còn trống</span><span><i style="background:var(--c-canvas);border-color:transparent"></i>Đã có người</span><span><i style="box-shadow:inset 0 3px 0 var(--c-peak)"></i>Giờ cao điểm</span><span><i style="background:var(--c-court);border-color:var(--c-court)"></i>Bạn chọn</span></div>
+        </main>
+        <aside class="pane pane-r">
+          <div class="sumbox">
+            <b>Yêu cầu của bạn</b>
+            <dl class="tnum"><dt>Sân</dt><dd data-d-court>Sân 1</dd><dt>Ngày</dt><dd>T7 24/10</dd><dt>Giờ</dt><dd data-d-time>20:00–21:00</dd></dl>
+            <div class="total"><span class="meta">Tạm tính</span><b class="tnum" data-d-price>120.000đ</b></div>
+          </div>
+          <button class="btn" style="width:100%;padding:14px">Gửi yêu cầu</button>
+          <div class="hint"><svg class="i sm"><use href="#i-clock"/></svg>Chủ sân xác nhận trước 22:00 hôm nay. Bạn trả tiền tại sân.</div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <h2>Web · chủ sân · Lịch sân</h2>
+  <p class="lead">Sidebar giữ số yêu cầu đang chờ. Lưới cho thấy cả ngày của mọi sân. Ô cam là yêu cầu đang chờ, bấm để duyệt ở cột phải. Ô trống thì bấm để nhập booking khách gọi điện.</p>
+  <div class="desk-wrap">
+    <div class="desk">
+      <div class="d-top">
+        <span class="logo">monsport</span>
+        <span class="grow"></span>
+        <button class="iconbtn" aria-label="Thông báo"><svg class="i"><use href="#i-bell"/></svg></button>
+        <span class="d-user"><span class="avatar">B</span>Bình</span>
+      </div>
+      <div class="d-body">
+        <nav class="side" aria-label="Chủ sân">
+          <a href="#"><svg class="i"><use href="#i-inbox"/></svg>Yêu cầu<span class="n">2</span></a>
+          <a class="on" href="#"><svg class="i"><use href="#i-cal"/></svg>Lịch sân</a>
+          <a href="#"><svg class="i"><use href="#i-chart"/></svg>Doanh thu</a>
+          <a href="#"><svg class="i"><use href="#i-store"/></svg>Đơn vị và giá</a>
+          <span class="sp"></span>
+          <div class="venue-switch"><span class="sport" style="width:28px;height:28px"><svg class="i sm"><use href="#i-badminton"/></svg></span><span class="grow">Cầu lông A</span><svg class="i sm"><use href="#i-chev"/></svg></div>
+        </nav>
+        <main class="pane pane-m">
+          <div class="row">
+            <h2 class="grow" style="margin:0;font-size:24px;white-space:nowrap">Lịch sân</h2>
+            <div class="chips"><button class="chip">Hôm qua</button><button class="chip on">Hôm nay</button><button class="chip">Ngày mai</button></div>
+            <button class="btn"><span style="font-size:18px;line-height:0">+</span> Booking khách gọi</button>
+          </div>
+          <div class="grid" data-grid="owner"></div>
+          <div class="legend"><span><i style="background:var(--st-ok-bg);border-color:#B9DFCC"></i>Đã xác nhận</span><span><i style="background:var(--st-wait-bg);border-color:#F2CF9A"></i>Chờ xác nhận</span><span><i></i>Trống, bấm để nhập</span></div>
+        </main>
+        <aside class="pane pane-r">
+          <b>Đang chờ bạn</b>
+          <div class="req on">
+            <div class="row"><span class="avatar">A</span><div class="grow"><b>An</b><div class="meta tnum">Sân 1 · 20:00–21:00</div></div><span class="badge wait"><svg class="i sm"><use href="#i-clock"/></svg>1 giờ 40</span></div>
+            <div class="meta tnum">120.000đ · gửi lúc 19:58</div>
+            <div class="two"><button class="btn ghost">Từ chối</button><button class="btn"><svg class="i sm" style="vertical-align:-3px"><use href="#i-check"/></svg> Xác nhận</button></div>
+          </div>
+          <div class="req">
+            <div class="row"><span class="avatar">C</span><div class="grow"><b>Chi</b><div class="meta tnum">Sân 2 · 19:00–21:00</div></div><span class="badge wait"><svg class="i sm"><use href="#i-clock"/></svg>55 phút</span></div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Mobile: courts and slots.
+const COURTS = ['Sân 1', 'Sân 2', 'Sân 3', 'Sân 4', 'Sân 5', 'Sân 6'];
+const TAKEN = { 'Sân 1': ['18:00', '19:00'], 'Sân 2': ['19:00', '20:00'], 'Sân 3': ['17:00'], 'Sân 4': [], 'Sân 5': ['20:00', '21:00'], 'Sân 6': ['15:00'] };
+const HOURS = ['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+const price = (h) => (h >= '17:00' && h < '22:00' ? 120 : 80);
+const courtsEl = document.querySelector('[data-courts]');
+courtsEl.innerHTML = COURTS.map((c) => `
+  <div class="court">
+    <div class="court-head"><svg class="i sm" style="color:var(--c-court)"><use href="#i-badminton"/></svg><b>${c}</b><span class="meta">· còn ${HOURS.length - TAKEN[c].length} giờ</span></div>
+    <div class="slots">${HOURS.map((h) => {
+      const taken = TAKEN[c].includes(h);
+      const peak = price(h) === 120;
+      return `<button class="slot${taken ? ' taken' : ''}${peak ? ' peak' : ''}" data-court="${c}" data-h="${h}" ${taken ? 'disabled aria-label="' + h + ' đã có người"' : ''}><span class="tnum">${h}</span><small class="tnum">${price(h)}k</small></button>`;
+    }).join('')}</div>
+  </div>`).join('');
+const action = document.querySelector('[data-action]');
+courtsEl.addEventListener('click', (e) => {
+  const b = e.target.closest('.slot:not(.taken)');
+  if (!b) return;
+  courtsEl.querySelectorAll('.slot.sel').forEach((s) => s.classList.remove('sel'));
+  b.classList.add('sel');
+  const h = b.dataset.h;
+  const end = String(Number(h.slice(0, 2)) + 1).padStart(2, '0') + ':00';
+  document.querySelector('[data-sum-title]').textContent = `${b.dataset.court} · ${h}–${end}`;
+  document.querySelector('[data-sum-price]').textContent = `${price(h)}.000đ${price(h) === 120 ? ' · giờ cao điểm' : ''}`;
+  action.hidden = false;
+});
+
+// Mobile: lobby feed.
+const MATCHES = [
+  ['A', 'An', 'badminton', 'Cầu lông A · Sân 1', '20:00–21:00', 3, 4, '50k', 'wait', 'Chưa xác nhận'],
+  ['H', 'Hùng', 'football', 'Bóng đá A · Sân 1', '19:00–20:30', 7, 10, '45k', 'ok', 'Đã xác nhận'],
+  ['C', 'Chi', 'badminton', 'Cầu lông A · Sân 2', '19:00–21:00', 2, 4, '40k', 'ok', 'Đã xác nhận'],
+  ['M', 'Minh', 'badminton', 'Cầu lông B · Sân 1', '18:00–19:00', 4, 4, '35k', 'off', 'Đầy'],
+  ['T', 'Tú', 'football', 'Bóng đá A · Sân 1', '21:00–22:00', 4, 10, '50k', 'wait', 'Chưa xác nhận'],
+];
+document.querySelector('[data-feed]').innerHTML = MATCHES.map(([ini, host, sport, place, time, n, cap, p, st, stLabel]) => `
+  <article class="post">
+    <div class="post-head"><span class="avatar">${ini}</span><div class="grow"><b>${host}</b><span class="meta">mở trận · 12 phút trước</span></div><button class="iconbtn" style="background:none" aria-label="Thêm"><svg class="i"><use href="#i-more"/></svg></button></div>
+    <div class="post-body">
+      <div class="facts tnum">
+        <svg class="i"><use href="#i-${sport}"/></svg><b>${sport === 'badminton' ? 'Cầu lông' : 'Bóng đá'} · T7 24/10 · ${time}</b>
+        <svg class="i"><use href="#i-pin"/></svg><span>${place}</span>
+        <svg class="i"><use href="#i-coin"/></svg><span>${p}/suất · trả host tại sân</span>
+      </div>
+      <div class="seats">${Array.from({ length: Math.min(cap, 6) }, (_, i) => `<span class="seat${i >= n ? ' free' : ''}">${i < n ? 'ABCDHMNT'[i] : '.'}</span>`).join('')}<span class="meta tnum">${n}/${cap}</span><span class="grow"></span><span class="badge ${st}">${stLabel}</span></div>
+    </div>
+    <div class="post-actions"><button>Chi tiết</button><button class="go" ${n >= cap ? 'disabled style="color:#A3ACA7"' : ''}><svg class="i sm"><use href="#i-users"/></svg>${n >= cap ? 'Trận đã đủ người' : 'Vào trận'}</button></div>
+  </article>`).join('') + '<div style="height:80px"></div>';
+
+// Hide on scroll, the rule of DESIGN.md.
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+document.querySelectorAll('[data-phone]').forEach((phone) => {
+  const sc = phone.querySelector('.scroller');
+  let last = 0;
+  sc.addEventListener('scroll', () => {
+    if (reduce) return;
+    const y = sc.scrollTop;
+    const atEnd = y + sc.clientHeight >= sc.scrollHeight - 4;
+    if (y < 52 || atEnd) phone.classList.remove('bars-off');
+    else if (y - last > 8) phone.classList.add('bars-off');
+    else if (last - y > 8) phone.classList.remove('bars-off');
+    if (Math.abs(y - last) > 8 || y < 52) last = y;
+  }, { passive: true });
+});
+
+// Desktop grids: 06:00 to 23:00 would be wide; show 13:00 to 24:00 in 30-minute cells.
+const cols = Array.from({ length: 22 }, (_, i) => 13 * 60 + i * 30);
+const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+function grid(el, rows, mode) {
+  let html = '<div></div>' + cols.filter((_, i) => i % 2 === 0).map((m) => `<div class="h tnum">${hhmm(m)}</div>`).join('');
+  for (const [court, bookings] of rows) {
+    html += `<div class="lab">${court}</div>`;
+    for (let i = 0; i < cols.length; i++) {
+      const m = cols[i];
+      const b = bookings.find((x) => m >= x[0] && m < x[1]);
+      const peak = m >= 17 * 60 && m < 22 * 60 ? ' peak' : '';
+      if (b && mode === 'player') html += `<button class="cell taken${peak}" disabled aria-label="${court} ${hhmm(m)} đã có người"></button>`;
+      else if (b) {
+        const first = m === b[0];
+        html += `<button class="cell ${b[2]}" aria-label="${court} ${hhmm(m)} ${b[3]}">${first ? b[3] : ''}</button>`;
+      } else html += `<button class="cell${peak}" data-c="${court}" data-m="${m}" aria-label="${court} ${hhmm(m)} trống"></button>`;
+    }
+  }
+  el.innerHTML = html;
+}
+const H = (h, mm = 0) => h * 60 + mm;
+const playerGrid = document.querySelector('[data-grid="player"]');
+grid(playerGrid, [['Sân 1', [[H(15), H(16)], [H(18), H(20)]]], ['Sân 2', [[H(13), H(14), '', ''], [H(19), H(21)]]]], 'player');
+const pick = (court, m) => {
+  playerGrid.querySelectorAll('.cell.sel').forEach((c) => c.classList.remove('sel'));
+  [m, m + 30].forEach((x) => playerGrid.querySelector(`[data-c="${court}"][data-m="${x}"]`)?.classList.add('sel'));
+  const p = m >= H(17) && m < H(22) ? 120 : 80;
+  document.querySelector('[data-d-court]').textContent = court;
+  document.querySelector('[data-d-time]').textContent = `${hhmm(m)}–${hhmm(m + 60)}`;
+  document.querySelector('[data-d-price]').textContent = `${p}.000đ`;
+};
+pick('Sân 1', H(20));
+playerGrid.addEventListener('click', (e) => {
+  const c = e.target.closest('.cell[data-c]');
+  if (c) pick(c.dataset.c, Number(c.dataset.m));
+});
+grid(document.querySelector('[data-grid="owner"]'), [
+  ['Sân 1', [[H(14), H(15), 'ok', 'Minh'], [H(18), H(20), 'ok', 'Khách gọi · Lan'], [H(20), H(21), 'wait', 'An · chờ']]],
+  ['Sân 2', [[H(13), H(14, 30), 'ok', 'Hùng'], [H(19), H(21), 'wait', 'Chi · chờ'], [H(21), H(22), 'ok', 'Tú']]],
+], 'owner');
+</script>
+</body>
+</html>
