@@ -35,7 +35,7 @@ packages/shared/src/                   Zod schemas: the one source of the API co
 - Use the terms of the table "Tên gọi" in the intake. Take the names of tables, types, and fields from the data model in `docs/requirements/` when it exists.
 - When the intake or a brief leaves a field or a business rule open, decide as "Autonomy" says. Do not invent a rule that conflicts with the intake.
 - Record a decision that is costly to reverse as a new file in `docs/adr/`.
-- Draw diagrams as the skill `ba-kit:ba-diagrams` says (Mermaid in Markdown) for ERD, state, and any diagram that lives in a requirements document. Use the 200Lab skill `diagram-director` for an animated system or request-flow diagram. Keep its sheet beside the HTML file.
+- Draw diagrams with the skill `ba-diagrams` (Mermaid in Markdown) for an ERD, a state diagram, and any diagram inside a requirements document. Use the 200Lab skill `diagram-director` (from the 200Lab MCP server) for an animated system or request-flow diagram outside those documents. Save it as `docs/diagrams/<name>.html` with `<name>.sheet.md` beside it. Without `diagram-director`, draw a Mermaid `sequenceDiagram` with `ba-diagrams`.
 
 ## Agent roles
 
