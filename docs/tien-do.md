@@ -19,7 +19,7 @@ Ký hiệu: ✅ xong. 🟡 xong một phần. 🔴 đã code nhưng test thật 
 
 | UC | Việc | Brief | Trạng thái |
 |---|---|---|---|
-| UC-1 | Đăng ký và đăng nhập | F-002, F-003, F-006, F-004, F-018 | 🟡 số điện thoại và mật khẩu xong. Google: code xong, chờ bật trên live. Zalo: chưa làm |
+| UC-1 | Đăng ký và đăng nhập | F-002, F-003, F-006, F-004, F-018 (chưa có brief) | 🟡 số điện thoại và mật khẩu xong. Google: code xong, chờ bật trên live. Zalo: chưa làm |
 | UC-2 | Chọn sân, xem giờ trống, tìm theo tên sân | F-002, F-008, F-010 | ✅ |
 | UC-3 | Gửi yêu cầu đặt sân | F-002 | ✅ |
 | UC-4 | Chủ sân xác nhận hoặc từ chối | F-002 | ✅ |
@@ -38,7 +38,7 @@ Ký hiệu: ✅ xong. 🟡 xong một phần. 🔴 đã code nhưng test thật 
 
 | Đợt | Use case | Tiến độ |
 |---|---|---|
-| 1 | UC-1, UC-10, UC-11 | ✅ 3 trên 3 |
+| 1 | UC-1, UC-10, UC-11 | 🟡 2 trên 3, UC-1 còn Google và Zalo |
 | 2 | UC-2 đến UC-6 | ✅ 5 trên 5 |
 | 3 | UC-7 đến UC-9 | ✅ 3 trên 3 |
 | 4 | UC-14 | 🔴 0 trên 1, Web Push chưa đạt |
@@ -72,7 +72,7 @@ Ký hiệu: ✅ xong. 🟡 xong một phần. 🔴 đã code nhưng test thật 
 
 ## Hôm nay, 23/10/2026
 
-27 pull request đã merge (#94 đến #126). Mỗi lần merge tự deploy lên live. Bản cuối có `/api/health` trả `ok`.
+27 pull request đã merge, số từ #94 đến #126. Mỗi lần merge tự deploy lên live. Bản cuối có `/api/health` trả `ok`.
 
 1. **Thông báo đến cùng lúc (UC-14).** Danh sách thông báo tải lại khi có push, khi mở lại tab và theo chu kỳ (#94, #101).
 2. **Giao diện web mới (F-017).** Màn hình web theo `DESIGN.md`, dùng được ở 390px, 1024px và 1440px (#102, #104, #105, #107, #108).
