@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
 import { ApiError } from '@monsport/client';
 import { SessionProvider } from '../../app/session.tsx';
@@ -16,6 +16,10 @@ vi.mock('@monsport/client', async () => {
 describe('Tab Tôi and Login Sheet', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it('guest logs in with 0901234567 and correct password; sheet closes, calls GET /api/auth/me, and shows user', async () => {
@@ -134,5 +138,33 @@ describe('Tab Tôi and Login Sheet', () => {
     });
     expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
     expect(screen.getByRole('alert').textContent).toBe('Quá nhiều yêu cầu, vui lòng thử lại sau 5 phút');
+  });
+
+  it('shows "Không kết nối được. Thử lại sau" when login throws a non-ApiError', async () => {
+    vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
+      if (path === '/api/auth/me') throw new ApiError(401, 'Chưa đăng nhập');
+      if (path === '/api/auth/login') throw new Error('Network failure');
+      return {};
+    });
+
+    render(
+      <SessionProvider>
+        <ToiScreen />
+      </SessionProvider>,
+    );
+
+    const openBtn = await screen.findByRole('button', { name: 'Đăng nhập' });
+    fireEvent.click(openBtn);
+
+    fireEvent.change(screen.getByLabelText('Số điện thoại'), { target: { value: '0901234567' } });
+    fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'password' } });
+
+    const submitBtn = screen.getAllByRole('button', { name: 'Đăng nhập' }).find((btn) => btn.getAttribute('type') === 'submit')!;
+    await act(async () => {
+      fireEvent.click(submitBtn);
+    });
+
+    expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
+    expect(screen.getByRole('alert').textContent).toBe('Không kết nối được. Thử lại sau');
   });
 });

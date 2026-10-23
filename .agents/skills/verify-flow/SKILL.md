@@ -11,7 +11,7 @@ Drive the running app through a user flow. Each step asserts a state (an API ans
 
 1. Pick the flows from the table below. A screen change needs the flows that touch that screen. After a deploy, run all flows.
 2. Local: run `pnpm db:start`, `pnpm dev:api`, and `pnpm dev:web`. Point `apps/api/.env` at a database with the seed data and every migration (`monsport_preview` locally).
-3. Run `node .agents/skills/verify-flow/scripts/run.mjs [flow ...] [--target local|live] [--base-url URL] [--headed]`. No flow name runs all flows.
+3. Run `node .agents/skills/verify-flow/scripts/run.mjs [flow ...] [--app web|mobile] [--target local|live] [--base-url URL] [--headed]`. No flow name runs all flows for that app (`web` flows by default, `mobile-shell` for `mobile`).
 4. On `FAILED`, open the `-FAIL.png` screenshot and the flow file. Fix the app, or fix the flow when the screen changed on purpose. Run again until `PASSED`.
 5. Attach `report.md` and the screenshots of the changed screen to the pull request, or to a comment on it after a deploy.
 
@@ -24,6 +24,7 @@ The run is done when the last line says `PASSED` and each flow you picked has PA
 | Login, booking form, price, "Booking của tôi" (UC-3, F-002) | `player-request` | [flows/player-request.md](flows/player-request.md) |
 | "Yêu cầu đặt sân", confirm, reject, the player sees the new state (UC-4, F-002) | `owner-decide` | [flows/owner-decide.md](flows/owner-decide.md) |
 | Phone booking, schedule grid (UC-5, F-007) | `phone-booking` | [flows/phone-booking.md](flows/phone-booking.md) |
+| Mobile shell, tab bar scroll and hide/show (F-019) | `mobile-shell` | [flows/mobile-shell.md](flows/mobile-shell.md) |
 
 To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each state change, register it in `FLOWS` in `scripts/run.mjs`, and add a row and a flow file here.
 

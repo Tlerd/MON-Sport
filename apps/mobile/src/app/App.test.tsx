@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
@@ -57,7 +57,7 @@ describe('App Shell', () => {
       loading: false,
     });
 
-    const { rerender } = render(
+    render(
       <MemoryRouter initialEntries={['/']}>
         <App />
       </MemoryRouter>,
@@ -68,9 +68,9 @@ describe('App Shell', () => {
     const tabNames = Array.from(buttons).map((btn) => btn.getAttribute('aria-label'));
     expect(tabNames).toEqual(['Yêu cầu', 'Lịch sân', 'Doanh thu', 'Thông báo', 'Tôi']);
 
-    // Check count badge 2
-    const badge = await screen.findByText('2');
-    expect(badge).toBeDefined();
+    // Check count badge 2 within the Yêu cầu tab button
+    const yeuCauButton = within(nav).getByRole('button', { name: 'Yêu cầu' });
+    await waitFor(() => expect(within(yeuCauButton).getByText('2')).toBeDefined());
 
     expect(clientModule.api).toHaveBeenCalledWith('/api/owner/bookings?status=PENDING');
 
@@ -84,8 +84,10 @@ describe('App Shell', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByText('2')).toBeNull();
-    expect(screen.queryByText('0')).toBeNull();
+    await waitFor(() => expect(clientModule.api).toHaveBeenCalledWith('/api/owner/bookings?status=PENDING'));
+    const navZero = screen.getByRole('navigation', { name: 'Điều hướng' });
+    const yeuCauButtonZero = within(navZero).getByRole('button', { name: 'Yêu cầu' });
+    expect(within(yeuCauButtonZero).queryByText(/\d+/)).toBeNull();
   });
 
   it('AC-13: admin logged in sees "Dùng web để quản trị", link to /admin, and no tab bar', () => {

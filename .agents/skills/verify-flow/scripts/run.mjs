@@ -3,12 +3,15 @@
 // Exit code: 0 when no step failed, 1 when a step failed, 2 when the input is wrong or the app is not reachable.
 
 import { spawnSync } from 'node:child_process';
+import mobileShell from './mobile-shell.mjs';
 import ownerDecide from './owner-decide.mjs';
 import phoneBooking from './phone-booking.mjs';
 import playerRequest from './player-request.mjs';
 import { parseOptions, ROOT, Run } from './lib.mjs';
 
-const FLOWS = { 'player-request': playerRequest, 'owner-decide': ownerDecide, 'phone-booking': phoneBooking };
+const WEB_FLOWS = { 'player-request': playerRequest, 'owner-decide': ownerDecide, 'phone-booking': phoneBooking };
+const MOBILE_FLOWS = { 'mobile-shell': mobileShell };
+const FLOWS = { ...WEB_FLOWS, ...MOBILE_FLOWS };
 
 let opts;
 try {
@@ -17,7 +20,8 @@ try {
   console.error(error.message);
   process.exit(2);
 }
-const names = opts.flows.length ? opts.flows : Object.keys(FLOWS);
+const defaultFlows = opts.app === 'mobile' ? MOBILE_FLOWS : WEB_FLOWS;
+const names = opts.flows.length ? opts.flows : Object.keys(defaultFlows);
 const unknown = names.filter((n) => !FLOWS[n]);
 if (unknown.length) {
   console.error(`Unknown flow: ${unknown.join(', ')}. Flows: ${Object.keys(FLOWS).join(', ')}`);

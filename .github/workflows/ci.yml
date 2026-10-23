@@ -63,7 +63,7 @@ jobs:
       - name: The API and the web app answer
         run: |
           for i in $(seq 1 30); do
-            if curl --fail --silent localhost:8080/api/health && curl --fail --silent localhost:8080/ | grep --quiet 'id="root"'; then exit 0; fi
+            if curl --fail --silent localhost:8080/api/health && curl --fail --silent localhost:8080/ | grep --quiet 'id="root"' && curl --fail --silent localhost:8080/app/ | grep --quiet '/app/manifest.webmanifest'; then exit 0; fi
             sleep 2
           done
           docker logs app
@@ -81,6 +81,10 @@ jobs:
           DATABASE_URL: postgresql://monsport:monsport@localhost:5432/monsport_prod
       - name: The booking flows pass in a browser
         run: node .agents/skills/verify-flow/scripts/run.mjs --base-url http://localhost:8080
+        env:
+          VERIFY_BROWSER: chrome
+      - name: The mobile flow passes in a browser
+        run: node .agents/skills/verify-flow/scripts/run.mjs --app mobile --base-url http://localhost:8080
         env:
           VERIFY_BROWSER: chrome
       - if: always()

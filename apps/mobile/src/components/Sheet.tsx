@@ -18,22 +18,25 @@ export function Sheet({ open, onClose, title, children, primaryAction }: SheetPr
   const dialogRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
-  const { setLocked } = useBars();
+  const releaseRef = useRef<(() => void) | null>(null);
+  const { lock } = useBars();
 
   useEffect(() => {
-    if (open) {
-      openerRef.current = document.activeElement as HTMLElement | null;
-      setLocked(true);
-      return () => {
-        setLocked(false);
-      };
-    } else {
-      setLocked(false);
-    }
-  }, [open, setLocked]);
+    if (!open) return;
+    openerRef.current = document.activeElement as HTMLElement | null;
+    const release = lock();
+    releaseRef.current = release;
+    return () => {
+      release();
+      releaseRef.current = null;
+    };
+  }, [open, lock]);
 
   const handleClose = () => {
-    setLocked(false);
+    if (releaseRef.current) {
+      releaseRef.current();
+      releaseRef.current = null;
+    }
     onClose();
     // Return focus to opener
     openerRef.current?.focus();

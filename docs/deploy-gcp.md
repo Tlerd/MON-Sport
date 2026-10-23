@@ -87,7 +87,7 @@ Mỗi người xem phòng chờ giữ một slot suốt thời gian kết nối 
 
 Hai con số 60 và 40 là ước lượng, chưa qua load test. Hãy tăng cả hai cùng lúc, và chỉ sau khi load test cho thấy còn dư tải. Workflow deploy đặt cùng cờ, nên mỗi lần deploy giữ nguyên giá trị.
 
-Cloud Build dựng image từ `Dockerfile`. Mỗi lần container khởi động, nó chạy `prisma migrate deploy` trước khi chạy server. Lệnh in ra một URL dạng `https://monsport-....run.app`.
+Cloud Build dựng image từ `Dockerfile`. Image phục vụ app mobile ở `/app/` từ `MOBILE_DIST`. Mỗi lần container khởi động, nó chạy `prisma migrate deploy` trước khi chạy server. Lệnh in ra một URL dạng `https://monsport-....run.app`.
 
 Kiểm tra:
 
