@@ -71,7 +71,7 @@ Ký hiệu: ✅ xong. 🔴 đã code nhưng test thật chưa đạt. ⬜ chưa 
 
 Quyết định của bạn ngày 21/10/2026: làm Android trước, rồi mới làm iPhone.
 
-1. ⬜ **Sửa lỗi Web Push.** Khi bấm một thao tác, chủ sân và người đặt không nhận được thông báo cùng lúc. Chưa rõ nguyên nhân. Điều tra trước khi sửa.
+1. 🟡 **Sửa lỗi thông báo không đến cùng lúc.** Nguyên nhân tìm được: server gửi push đúng, nhưng danh sách thông báo trong app chỉ tải lại sau thao tác của chính người dùng. Đã sửa trên nhánh `fix/live-notification-refresh` (AC-23), chưa merge vì bạn muốn deploy một lần cuối.
 2. ⬜ **Android trước.** Web Push chạy trên Chrome Android. Nghiệm thu: điện thoại Android của chủ sân nhận push trong 30 giây sau yêu cầu đặt sân (ví dụ nghiệm thu của UC-14).
 3. ⬜ **iPhone sau.** Safari chưa hiện thông báo vì chưa có app. Làm sau khi Android đạt.
 4. ⬜ F-004 chờ bạn viết "chấp nhận F-004" (quyết định 7).

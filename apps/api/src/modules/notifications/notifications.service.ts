@@ -11,6 +11,9 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 
+/** The list in the app shows this many of the newest notifications. The unread count still counts all of them. */
+const LIST_LIMIT = 50;
+
 @Injectable()
 export class NotificationsService {
   constructor(
@@ -46,21 +49,25 @@ export class NotificationsService {
 
   /** UC-14: lists notifications for the authenticated user, newest first. */
   async listForUser(userId: string): Promise<NotificationsListResponse> {
-    const rows = await this.prisma.notification.findMany({
-      where: { userId },
-      include: {
-        booking: {
-          include: {
-            court: {
-              include: { venue: true },
+    // Brief F-014, AC-24: every visible tab asks for this list every 15 seconds, so it holds the newest rows only.
+    const [rows, unreadCount] = await Promise.all([
+      this.prisma.notification.findMany({
+        where: { userId },
+        include: {
+          booking: {
+            include: {
+              court: {
+                include: { venue: true },
+              },
             },
           },
         },
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    });
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: LIST_LIMIT,
+      }),
+      this.prisma.notification.count({ where: { userId, readAt: null } }),
+    ]);
 
-    const unreadCount = rows.filter((r) => r.readAt === null).length;
     const items: NotificationItemView[] = rows.map((r) => {
       const venueName = r.booking.court.venue.name;
       const courtName = r.booking.court.name;

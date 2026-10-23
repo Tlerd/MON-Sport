@@ -332,4 +332,26 @@ describe('notifications in app (F-013)', () => {
     const listRes = await listNotifications('Bình').expect(200);
     expect((listRes.body as NotificationsListResponse).unreadCount).toBe(0);
   });
+
+  it('AC-24: the list holds the 50 newest notifications, and the unread count counts all of them', async () => {
+    const bookingId = await book('An', '20:00', '21:00', 'PENDING');
+    const day = new Date(vn('09:00')).getTime();
+    await db.notification.createMany({
+      data: Array.from({ length: 52 }, (_, i) => ({
+        userId: ids['Bình'],
+        type: 'BOOKING_REQUESTED' as const,
+        bookingId,
+        readAt: i === 0 ? new Date(vn('09:30')) : null,
+        createdAt: new Date(day + i * 60_000),
+      })),
+    });
+
+    const res = await listNotifications('Bình').expect(200);
+    const data = res.body as NotificationsListResponse;
+
+    expect(data.items).toHaveLength(50);
+    expect(data.unreadCount).toBe(51);
+    expect(data.items[0].createdAt).toBe(new Date(day + 51 * 60_000).toISOString());
+    expect(data.items[49].createdAt).toBe(new Date(day + 2 * 60_000).toISOString());
+  });
 });

@@ -4,10 +4,15 @@ import type {
   NotificationReadResponse,
   NotificationsListResponse,
 } from '@monsport/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api.ts';
 import { formatDay, formatTime } from '../../lib/format.ts';
 import { PushToggle } from './PushToggle.tsx';
+
+/** How often a visible page asks the server for new notifications. A Web Push or a return to the tab reloads at once. */
+const RELOAD_MS = 15_000;
+/** A reload that has run longer than this is treated as lost, so it cannot block the next one for good. */
+const STALE_MS = 2 * RELOAD_MS;
 
 /**
  * Brief F-013 (UC-14): in-app notification bell, dropdown drawer, and read actions.
@@ -18,27 +23,79 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => {
+  // `latest` numbers each request. A list that arrives after a newer request, or after a read action, is dropped, so a slow
+  // reload cannot bring back a badge that the user just cleared.
+  const latest = useRef(0);
+  const pending = useRef(0);
+  const startedAt = useRef(0);
+  const again = useRef(false);
+
+  const load = useCallback((keepOnError = false) => {
+    const number = ++latest.current;
+    pending.current++;
+    startedAt.current = Date.now();
     return api<NotificationsListResponse | NotificationItemView[]>('/api/notifications')
       .then((res) => {
+        if (number !== latest.current) return;
         const normalized: NotificationsListResponse = Array.isArray(res)
           ? { unreadCount: 0, items: res }
           : res;
         setData(normalized);
       })
-      .catch(() => setData(null));
+      .catch(() => {
+        if (!keepOnError && number === latest.current) setData(null);
+      })
+      .finally(() => {
+        pending.current--;
+        // A trigger came while this reload ran, so the list may be old again.
+        if (pending.current === 0 && again.current) {
+          again.current = false;
+          if (document.visibilityState === 'visible') void load(true);
+        }
+      });
   }, []);
 
   useEffect(() => {
     void load();
   }, [load, refresh]);
 
+  // AC-23: the other side acts, not this user, so the list follows the server. A failed background reload keeps the list.
+  useEffect(() => {
+    // `afterRunning` is true for a push: it proves that the server changed, so a reload that is already running may be too old.
+    const reload = (afterRunning = false) => {
+      if (document.visibilityState !== 'visible') return;
+      if (pending.current > 0 && Date.now() - startedAt.current < STALE_MS) {
+        if (afterRunning) again.current = true;
+        return;
+      }
+      void load(true);
+    };
+    const onWorkerMessage = (event: Event) => {
+      if ((event as MessageEvent).data?.type === 'push-received') reload(true);
+    };
+    const candidate = 'serviceWorker' in navigator ? navigator.serviceWorker : null;
+    const worker = typeof candidate?.addEventListener === 'function' ? candidate : null;
+    const timer = setInterval(() => reload(), RELOAD_MS);
+    const onReturn = () => reload();
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('focus', onReturn);
+    worker?.addEventListener('message', onWorkerMessage);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('focus', onReturn);
+      worker?.removeEventListener('message', onWorkerMessage);
+    };
+  }, [load]);
+
   async function markOneRead(item: NotificationItemView) {
     if (item.readAt || busy) return;
+    latest.current++;
     try {
       const res = await api<NotificationReadResponse>(`/api/notifications/${item.id}/read`, {
         method: 'POST',
       });
+      latest.current++; // A list that was asked for during the POST is older than this change.
       setData((prev) => {
         if (!prev) return prev;
         return {
@@ -53,9 +110,11 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
 
   async function markAllRead() {
     if (!data || data.unreadCount === 0 || busy) return;
+    latest.current++;
     setBusy(true);
     try {
       await api<NotificationReadAllResponse>('/api/notifications/read-all', { method: 'POST' });
+      latest.current++;
       const nowIso = new Date().toISOString();
       setData((prev) => {
         if (!prev) return prev;

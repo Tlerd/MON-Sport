@@ -91,6 +91,8 @@ Dữ liệu mẫu chung:
 | AC-20 | Web: An đã bật Web Push và đang đăng nhập | An bấm "Đăng xuất" | Web gọi `unsubscribe` và `DELETE /api/push/subscriptions` trước khi gọi `POST /api/auth/logout`. Lỗi của hai bước đầu không chặn việc đăng xuất |
 | AC-21 | Web: `GET /api/push/public-key` trả 404 | An mở ngăn thông báo | Không có nút bật và không có gợi ý nào về Web Push |
 | AC-22 | Web: quyền là `granted`, trình duyệt đã có một subscription (có thể đã đổi khóa). Lần thứ nhất, `localStorage` ghi `userId` của An. Lần thứ hai, `localStorage` ghi `userId` của Bình nhưng An đang đăng nhập (và ngược lại) | Lần thứ nhất: An mở app. Lần thứ ba: `localStorage` không có khóa. Lần thứ hai và thứ ba: người đăng nhập mở app | Lần thứ nhất: web gọi `POST /api/push/subscriptions` với subscription hiện tại một lần (upsert) và nút hiện "Tắt thông báo trên thiết bị này". Lần thứ hai và thứ ba: web không gọi `POST`, gọi `unsubscribe()` và nút hiện "Nhận thông báo trên thiết bị này" |
+| AC-23 | Web: An đang mở app và chuông thông báo hiện 0 chưa đọc. Bình gửi một yêu cầu đặt sân thuộc đơn vị của An, nên server có thêm một thông báo chưa đọc cho An | Lần thứ nhất: service worker nhận một push và báo cho cửa sổ đang mở bằng `postMessage({ type: 'push-received' })`. Lần thứ hai: tab trở lại trạng thái hiện (`visibilitychange`) hoặc cửa sổ nhận `focus`. Lần thứ ba: 15 giây trôi qua khi tab đang hiện. Lần thứ tư: một lần tải nền bị lỗi mạng. Lần thứ năm: tab đang ẩn, rồi hết 15 giây hoặc có `focus`. Lần thứ sáu: một lần tải nền chậm bắt đầu trước khi An bấm "Đánh dấu tất cả đã đọc" và trả lời sau khi POST xong | Lần thứ nhất đến lần thứ ba: web gọi `GET /api/notifications` và chuông hiện 1 chưa đọc mà An không bấm gì. Lần thứ tư: danh sách cũ vẫn hiện. Lần thứ năm: web không gọi `GET`. Lần thứ sáu: chuông vẫn hiện 0 chưa đọc. Khi `matchAll` lỗi, `showNotification` vẫn chạy. `visibilitychange` và `focus` cùng lúc chỉ gọi `GET` một lần. Một push đến khi một lần tải đang chạy thì web tải thêm một lần ngay khi lần đó xong. Một lần tải treo hơn 30 giây không chặn các lần sau |
+| AC-24 | Bình có 52 thông báo, trong đó 51 chưa đọc | Bình gọi `GET /api/notifications` | Danh sách có 50 thông báo mới nhất, mới nhất đứng đầu. `unreadCount` là 51, tính cả các dòng ngoài 50 dòng. Lý do: mỗi tab đang hiện gọi API này mỗi 15 giây |
 | AC-19 | Migration của F-014 đã chạy | Chèn một dòng `Notification` trên cơ sở dữ liệu thử, với một phiên `LISTEN` mở | Phiên nhận một sự kiện có payload là `id` của dòng đó và không có gì khác. Bảng `PushSubscription` có `endpoint` duy nhất |
 
 ## Contract
@@ -192,7 +194,7 @@ Mỗi bước cập nhật `PROGRESS.md` khi bước kế tiếp đổi. Bước
 
 ## Done when
 
-- Mọi AC từ AC-1 đến AC-22 có test với tên bắt đầu bằng nhãn tương ứng và chạy đạt.
+- Mọi AC từ AC-1 đến AC-24 có test với tên bắt đầu bằng nhãn tương ứng và chạy đạt.
 - Lệnh `pnpm check` chạy đạt không lỗi.
 - Reviewer hoàn thành không còn lỗi mức medium hoặc cao hơn. Bước 1 và bước 2 có thêm bình luận của `rule-review`.
 - Sau khi bước 3 merge và deploy, một thiết bị thật nhận được Web Push từ một yêu cầu đặt sân thử (tài khoản có tên bắt đầu bằng `test-`).

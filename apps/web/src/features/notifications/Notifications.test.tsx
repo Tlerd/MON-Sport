@@ -204,4 +204,222 @@ describe('Notifications', () => {
     expect(screen.queryByText(/thiết bị này/)).toBeNull();
     expect(screen.queryByText(/chưa hỗ trợ thông báo/)).toBeNull();
   });
+
+  describe('AC-23: the list follows the server without a click', () => {
+    const empty: NotificationsListResponse = { unreadCount: 0, items: [] };
+    const reply = (body: NotificationsListResponse) => ({ ok: true, status: 200, json: () => Promise.resolve(body) });
+    const setVisibility = (state: 'visible' | 'hidden') =>
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+
+    /** The first answer is the empty list. Every later answer holds one unread item, like a request from the other side. */
+    function stubServer() {
+      let calls = 0;
+      const fetchMock = vi.fn((url: string) => {
+        if (url === '/api/notifications') return Promise.resolve(reply(++calls === 1 ? empty : mockNotifs));
+        return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    }
+    const listCalls = (fetchMock: ReturnType<typeof stubServer>) => fetchMock.mock.calls.filter(([url]) => url === '/api/notifications').length;
+
+    /** Renders the bell after its first load, with no unread badge. */
+    async function renderLoaded() {
+      const fetchMock = stubServer();
+      render(<Notifications userId="u1" />);
+      await waitFor(() => expect(listCalls(fetchMock)).toBe(1));
+      await waitFor(() => expect(screen.getByText('🔔')).toBeTruthy());
+      expect(screen.queryByText('1')).toBeNull();
+      return fetchMock;
+    }
+
+    afterEach(() => setVisibility('visible'));
+
+    it('AC-23: reloads when the tab becomes visible again', async () => {
+      const fetchMock = await renderLoaded();
+
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+      expect(listCalls(fetchMock)).toBe(2);
+    });
+
+    it('AC-23: reloads when the window gets focus', async () => {
+      const fetchMock = await renderLoaded();
+
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
+
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+      expect(listCalls(fetchMock)).toBe(2);
+    });
+
+    it('AC-23: reloads on a timer while the tab is visible', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const fetchMock = await renderLoaded();
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(15_000);
+        });
+        await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+        expect(listCalls(fetchMock)).toBe(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('AC-23: reloads when the service worker reports a push', async () => {
+      const worker = new EventTarget();
+      vi.stubGlobal('navigator', { ...navigator, serviceWorker: worker });
+      const fetchMock = await renderLoaded();
+
+      await act(async () => {
+        worker.dispatchEvent(new MessageEvent('message', { data: { type: 'push-received' } }));
+      });
+
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+      expect(listCalls(fetchMock)).toBe(2);
+    });
+
+    it('AC-23: asks nothing while the tab is hidden', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const worker = new EventTarget();
+        vi.stubGlobal('navigator', { ...navigator, serviceWorker: worker });
+        const fetchMock = await renderLoaded();
+        setVisibility('hidden');
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(45_000);
+          document.dispatchEvent(new Event('visibilitychange'));
+          window.dispatchEvent(new Event('focus'));
+          worker.dispatchEvent(new MessageEvent('message', { data: { type: 'push-received' } }));
+        });
+
+        expect(listCalls(fetchMock)).toBe(1);
+        expect(screen.queryByText('1')).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('AC-23: a return to the tab that fires visibilitychange and focus together asks once', async () => {
+      const fetchMock = await renderLoaded();
+
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+        window.dispatchEvent(new Event('focus'));
+      });
+
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+      expect(listCalls(fetchMock)).toBe(2);
+    });
+
+    it('AC-23: keeps the list on screen when a background reload fails', async () => {
+      let calls = 0;
+      const fetchMock = vi.fn((url: string) => {
+        if (url !== '/api/notifications') return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+        return ++calls === 1 ? Promise.resolve(reply(mockNotifs)) : Promise.reject(new Error('offline'));
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      render(<Notifications userId="u1" />);
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      await waitFor(() => expect(calls).toBe(2));
+      expect(screen.getByText('1')).toBeTruthy();
+    });
+
+    it('AC-23: a push that comes while a reload is running makes one more reload when it ends', async () => {
+      const worker = new EventTarget();
+      vi.stubGlobal('navigator', { ...navigator, serviceWorker: worker });
+      let calls = 0;
+      let releaseSecond: () => void = () => undefined;
+      const fetchMock = vi.fn((url: string) => {
+        if (url !== '/api/notifications') return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+        if (++calls === 2) {
+          return new Promise((resolve) => {
+            releaseSecond = () => resolve(reply(empty));
+          });
+        }
+        return Promise.resolve(reply(calls === 1 ? empty : mockNotifs));
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      render(<Notifications userId="u1" />);
+      await waitFor(() => expect(calls).toBe(1));
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
+      await waitFor(() => expect(calls).toBe(2));
+
+      await act(async () => {
+        worker.dispatchEvent(new MessageEvent('message', { data: { type: 'push-received' } }));
+      });
+      expect(calls).toBe(2);
+      await act(async () => {
+        releaseSecond();
+      });
+
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+      expect(calls).toBe(3);
+    });
+
+    it('AC-23: a reload that never answers does not stop the next reloads', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        let calls = 0;
+        const fetchMock = vi.fn((url: string) => {
+          if (url !== '/api/notifications') return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+          return ++calls === 2 ? new Promise(() => undefined) : Promise.resolve(reply(calls === 1 ? empty : mockNotifs));
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        render(<Notifications userId="u1" />);
+        await waitFor(() => expect(calls).toBe(1));
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(60_000);
+        });
+
+        await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+        expect(calls).toBeGreaterThanOrEqual(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('AC-23: a slow reload that started before "mark all read" does not bring the badge back', async () => {
+      let calls = 0;
+      let releaseSlow: () => void = () => undefined;
+      const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+        if (url === '/api/notifications/read-all' && opts?.method === 'POST') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ count: 1 }) });
+        if (url !== '/api/notifications') return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+        if (++calls === 1) return Promise.resolve(reply(mockNotifs));
+        return new Promise((resolve) => {
+          releaseSlow = () => resolve(reply(mockNotifs));
+        });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      render(<Notifications userId="u1" />);
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await waitFor(() => expect(calls).toBe(2));
+
+      fireEvent.click(screen.getByRole('button', { name: /thông báo/i }));
+      fireEvent.click(await screen.findByText(/Đánh dấu tất cả đã đọc/));
+      await waitFor(() => expect(screen.queryByText('1')).toBeNull());
+      await act(async () => {
+        releaseSlow();
+      });
+
+      expect(screen.queryByText('1')).toBeNull();
+    });
+  });
 });
