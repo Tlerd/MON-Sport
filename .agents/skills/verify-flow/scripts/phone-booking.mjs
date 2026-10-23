@@ -26,16 +26,17 @@ export default async function phoneBooking(run) {
       await page.goto(`${run.base}/chu-san/lich`);
       if (venues.length > 1) {
         const switcher = page.getByLabel('Chọn đơn vị');
-        if (await switcher.isVisible().catch(() => false)) {
-          await switcher.selectOption(venue.id);
-        }
+        await switcher.waitFor();
+        await switcher.selectOption(venue.id);
       }
 
       for (let attempt = 1; attempt <= 5; attempt++) {
         const slot = randomSlot(venue);
         await setDate(page, slot.date);
-        await page.getByRole('button', { name: 'Booking khách gọi' }).click();
+        await page.locator('.slot-grid-court-label', { hasText: courtName }).first().waitFor();
         const dialog = page.getByRole('dialog', { name: 'Booking khách gọi' });
+        await page.getByRole('button', { name: 'Booking khách gọi' }).click();
+        await dialog.waitFor();
         await dialog.getByLabel('Sân').selectOption({ label: courtName });
         await dialog.getByLabel('Bắt đầu').selectOption(String(slot.start));
         await dialog.getByLabel('Thời lượng').selectOption(String(slot.duration));
