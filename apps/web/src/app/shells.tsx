@@ -14,7 +14,8 @@ import { Notifications } from '../features/notifications/Notifications.tsx';
 import { api } from '../lib/api.ts';
 import { useSession } from './session.tsx';
 
-const initial = (name: string) => name.trim().slice(0, 1).toUpperCase();
+/** Vietnamese names put the given name last: "Nguyễn Văn An" shows "A". */
+export const initial = (name: string) => [...(name.normalize('NFC').trim().split(/\s+/).at(-1) ?? '')][0] ?? '';
 
 export function MobileBanner() {
   return null;

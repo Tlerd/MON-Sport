@@ -91,6 +91,11 @@ Khung mới đổi chữ và vai trò của vài phần tử, nên các test sau
 | `apps/web/src/app/App.test.tsx` | nút chuông `name: 'Thông báo'` | `name: /Thông báo/` | Tên nút có thêm số chưa đọc (AC-8) |
 | `apps/web/src/app/App.test.tsx` (admin) | `findByText('Chào Admin')` | `findByRole('heading', { name: 'Chủ sân' })` | Thanh bên của admin thay lời chào. Màn admin mở ở tab "Chủ sân" |
 | `apps/web/src/features/notifications/Notifications.test.tsx` | `getByText('🔔')` | `getByRole('button', { name: /Thông báo/ })` | Chuông là icon Lucide, không còn emoji (AC-8) |
+| `apps/web/src/app/App.test.tsx` (form đăng nhập) | màn hiện ở `/` | bấm liên kết điều hướng `Đăng nhập` trước | App dùng router, nên test mở trang trước |
+| `apps/web/src/app/App.test.tsx` (đăng ký, AC-25) | màn hiện ở `/` | bấm liên kết điều hướng `Đăng nhập` trước | App dùng router, nên test mở trang trước |
+| `apps/web/src/app/App.test.tsx` (AC-16) | màn hiện ở `/` | bấm liên kết điều hướng `Phòng chờ` trước | App dùng router, nên test mở trang trước |
+| `apps/web/src/app/App.test.tsx` (AC-13) | màn hiện ở `/` | bấm liên kết điều hướng `Lịch của tôi`, `Trận đã vào` trước | App dùng router, nên test mở trang trước |
+| `apps/web/src/app/App.test.tsx` (chuông thông báo) | màn hiện ở `/` | bấm nút chuông điều hướng `Thông báo` trước | App dùng router, nên test mở trang trước |
 
 ## Assumptions
 

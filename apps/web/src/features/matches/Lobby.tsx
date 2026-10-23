@@ -37,8 +37,6 @@ function formatDayChip(ymd: string) {
   return `${dayOfWeek} ${parts[2]}/${parts[1]}`;
 }
 
-const formatK = (price: number) => `${Math.round(price / 1000)}k`;
-
 interface LobbyProps {
   refresh?: number;
   user?: SessionUser | null;
@@ -244,10 +242,15 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                     </span>
                     <span className="match-body body">
                       <div className="match-line-1">
-                        <span className="where">{`${formatTime(m.startAt)}–${formatTime(m.endAt)} · ${m.venueName} · ${m.courtName}`}</span>
+                        <span className="where">{`${m.venueName} · ${m.courtName}`}</span>
+                        <span>{` · ${formatTime(m.startAt)}–${formatTime(m.endAt)}`}</span>
                       </div>
                       <div className="match-line-2">
-                        <span className="match-slots">{`${m.joinedCount}/${m.capacity} · ${formatK(m.pricePerSlot)}/suất`}</span>
+                        <span>{`${SPORT_LABEL[m.sport]} · Ngày ${formatDay(m.startAt)}`}</span>
+                        <span>Host: {m.hostName}</span>
+                      </div>
+                      <div className="match-line-2">
+                        <span className="match-slots">{`${m.joinedCount}/${m.capacity} suất · ${formatVnd(m.pricePerSlot)}/suất`}</span>
                         <StatusBadge className="status" status={m.bookingStatus} label={BOOKING_BADGE[m.bookingStatus]} />
                         {(m.status === 'FULL' || m.joinedCount >= m.capacity) && (
                           <StatusBadge className="status" status="FULL" />
@@ -263,12 +266,6 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                           {isExpanded ? 'Đóng chi tiết' : 'Xem chi tiết'}
                         </button>
                       </div>
-                      <span className="visually-hidden">
-                        <span>{`${m.venueName} · ${m.courtName}`}</span>
-                        <span>{`${SPORT_LABEL[m.sport]} · Ngày ${formatDay(m.startAt)}`}</span>
-                        <span>{`${m.joinedCount}/${m.capacity} suất · ${formatVnd(m.pricePerSlot)}/suất`}</span>
-                        <span>Host: {m.hostName}</span>
-                      </span>
                     </span>
                   </li>
                 );

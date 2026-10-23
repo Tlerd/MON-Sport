@@ -1,5 +1,7 @@
 import { bookingPrice, type BookingView, minuteOfDayVN, type OwnerBookingView, type VenueView } from '@monsport/shared';
 import { type FormEvent, useEffect, useId, useMemo, useState } from 'react';
+import { EmptyState } from '../../components/EmptyState.tsx';
+import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { api, ApiError } from '../../lib/api.ts';
 import { formatDay, formatSlot, formatTime, formatVnd, hhmm } from '../../lib/format.ts';
 import { SlotBar } from './BookingForm.tsx';
@@ -157,10 +159,10 @@ function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingVie
     <section className="panel" aria-labelledby={heading}>
       <h2 id={heading}>Booking đã xác nhận</h2>
       {(error || failure) && <p className="error" role="alert">{error || failure}</p>}
-      {rows?.length === 0 && <p className="empty">Chưa có booking nào sắp tới.</p>}
+      {rows?.length === 0 && <EmptyState message="Chưa có booking nào sắp tới." />}
       <ul className="tickets" ref={list}>
         {rows?.map((r) => (
-          <li key={r.id} className="ticket" data-status={r.status}>
+          <li key={r.id} className="ticket card-web" data-status={r.status}>
             <span className="stub">
               <strong>{formatTime(r.startAt)}</strong>
               <span>đến {formatTime(r.endAt)}</span>
@@ -173,7 +175,13 @@ function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingVie
                 <span className="money">{formatVnd(r.priceTotal)}</span>
               </span>
               {r.status !== 'CONFIRMED' ? (
-                <span className="status" tabIndex={-1} data-focus={r.id}>{STATUS_LABEL[r.status]}</span>
+                <StatusBadge
+                  className="status"
+                  status={r.status}
+                  label={STATUS_LABEL[r.status]}
+                  tabIndex={-1}
+                  data-focus={r.id}
+                />
               ) : new Date(r.startAt) > new Date() && <CancelAsk id={r.id} label={formatSlot(r.startAt, r.endAt)} ask={ask} />}
             </span>
           </li>

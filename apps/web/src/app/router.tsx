@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { AdminPanel } from '../features/admin/AdminPanel.tsx';
-import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
 import { FinancialDashboard } from '../features/finance/FinancialDashboard.tsx';
 import { MyVenues } from '../features/venues/MyVenues.tsx';
-import { AuthPage, BookPage, LobbyPage, MyPage, SchedulePage } from './pages.tsx';
+import { AuthPage, BookPage, LobbyPage, MyPage, OwnerRequestsPage, SchedulePage } from './pages.tsx';
 import { useSession } from './session.tsx';
 import { AdminShell, OwnerShell, PlayerShell } from './shells.tsx';
 
@@ -101,7 +100,7 @@ export const routes: RouteObject[] = [
     children: [
       {
         path: '/chu-san/yeu-cau',
-        element: <OwnerRequests />,
+        element: <OwnerRequestsPage />,
       },
       {
         path: '/chu-san/lich',
@@ -139,5 +138,3 @@ export const routes: RouteObject[] = [
 export function createRouter() {
   return createBrowserRouter(routes);
 }
-
-export const router = createBrowserRouter(routes);

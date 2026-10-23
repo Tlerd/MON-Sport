@@ -5,6 +5,15 @@ import { BookPage } from './BookPage.tsx';
 import { SessionProvider } from './session.tsx';
 
 describe('BookPage (F-017)', () => {
+  // 05:30 on 2026-11-21 in Asia/Ho_Chi_Minh: every cell of the day is still ahead, whatever the real clock says.
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-20T22:30:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const venue = {
     id: '0199a1b2-0000-7000-8000-000000000001',
     name: 'Cầu lông A',
@@ -29,11 +38,6 @@ describe('BookPage (F-017)', () => {
     name: 'An',
     role: 'USER' as const,
   };
-
-  beforeEach(() => {
-    // 2026-11-21 10:00:00 in Asia/Ho_Chi_Minh is 2026-11-21 03:00:00 UTC
-    vi.setSystemTime(new Date('2026-11-21T03:00:00.000Z'));
-  });
 
   afterEach(() => {
     cleanup();
@@ -117,7 +121,8 @@ describe('BookPage (F-017)', () => {
 
     expect(await screen.findByRole('heading', { name: 'Cầu lông A' })).toBeTruthy();
     expect(screen.getByText('App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.')).toBeTruthy();
-    expect(screen.getByText('Chưa chọn')).toBeTruthy();
+    // Neither the court nor the time is picked yet.
+    expect(screen.getAllByText('Chưa chọn')).toHaveLength(2);
   });
 
   it('AC-5: after picking a free cell a link with href "tel:0912345678" and text "Gọi chủ sân"', async () => {
@@ -137,5 +142,77 @@ describe('BookPage (F-017)', () => {
 
     const callLink = await within(summarySection).findByRole('link', { name: 'Gọi chủ sân' });
     expect(callLink.getAttribute('href')).toBe('tel:0912345678');
+  });
+
+  it('a venue whose court is "Sân Đông", typing "san dong" shows that venue and does not preselect a court', async () => {
+    const venueDong = {
+      id: '0199a1b2-0000-7000-8000-000000000099',
+      name: 'Cầu lông Phương Nam',
+      address: '456 Lê Lợi',
+      phone: '0988888888',
+      opensAt: 360,
+      closesAt: 1380,
+      courts: [
+        {
+          id: 'court-dong',
+          venueId: '0199a1b2-0000-7000-8000-000000000099',
+          name: 'Sân Đông',
+          sport: 'BADMINTON' as const,
+          priceNormal: 60_000,
+          pricePeak: 80_000,
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/venues') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([venue, venueDong]) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Cầu lông A' })).toBeTruthy();
+    expect(screen.getByText('Cầu lông Phương Nam')).toBeTruthy();
+
+    const searchInput = screen.getByLabelText('Tìm theo tên sân');
+    fireEvent.change(searchInput, { target: { value: 'san dong' } });
+
+    const list = screen.getByRole('list', { name: 'Danh sách đơn vị' });
+    expect(within(list).getByText('Cầu lông Phương Nam')).toBeTruthy();
+    expect(within(list).queryByText('Cầu lông A')).toBeNull();
+
+    // Click the result: opens the venue and never preselects a court
+    fireEvent.click(within(list).getByText('Cầu lông Phương Nam'));
+    expect(await screen.findByRole('heading', { name: 'Cầu lông Phương Nam' })).toBeTruthy();
+    expect(screen.getAllByText('Chưa chọn')).toHaveLength(2); // Sân and Giờ are both "Chưa chọn"
+  });
+
+  it('BookPage duration is clamped to largest allowed option when start cell changes', async () => {
+    setupFetch({ authed: true });
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Cầu lông A' })).toBeTruthy();
+
+    // Pick 06:00
+    const cell0600 = await screen.findByLabelText('Sân 1 06:00 trống');
+    fireEvent.click(cell0600);
+
+    // Set duration to 180 ("3 giờ")
+    const durationSelect = screen.getByLabelText('Thời lượng') as HTMLSelectElement;
+    fireEvent.change(durationSelect, { target: { value: '180' } });
+    expect(durationSelect.value).toBe('180');
+
+    // Click "Tối" chip
+    const toiChip = screen.getByRole('button', { name: /^Tối/ });
+    fireEvent.click(toiChip);
+
+    // Pick 22:00 (venue closes at 23:00, only 60 mins fits)
+    const cell2200 = await screen.findByLabelText('Sân 1 22:00 trống');
+    fireEvent.click(cell2200);
+
+    // Duration is clamped to 60 (the largest allowed option at 22:00)
+    expect((screen.getByLabelText('Thời lượng') as HTMLSelectElement).value).toBe('60');
+    expect(screen.getByText('22:00–23:00')).toBeTruthy();
   });
 });

@@ -19,6 +19,7 @@ import { api, ApiError } from '../lib/api.ts';
 import { formatDay, formatSlot, formatTime, formatVnd } from '../lib/format.ts';
 import { useSession } from './session.tsx';
 import { DURATIONS, slotAt as at } from '../features/bookings/slot.ts';
+import { findVenues, normalizeName } from '../features/venues/search.ts';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
 
@@ -97,13 +98,7 @@ export function BookPage() {
   }, [routeVenueId]);
 
   const selectedVenue = venues.find((v) => v.id === selectedVenueId) ?? venues[0];
-  const selectedCourt = selectedVenue?.courts.find((c) => c.id === selectedCourtId) ?? selectedVenue?.courts[0];
-
-  useEffect(() => {
-    if (selectedVenue && !selectedCourtId && selectedVenue.courts.length > 0) {
-      setSelectedCourtId(selectedVenue.courts[0].id);
-    }
-  }, [selectedVenue?.id]);
+  const selectedCourt = selectedVenue?.courts.find((c) => c.id === selectedCourtId) ?? null;
 
   // Fetch availability for all courts in the selected venue on selectedDate
   useEffect(() => {
@@ -115,7 +110,7 @@ export function BookPage() {
         api<{ courtId: string; free: Array<{ startAt: string; endAt: string }> }>(
           `/api/courts/${court.id}/availability?date=${selectedDate}`,
         )
-          .then((res) => ({ courtId: court.id, free: res.free }))
+          .then((res) => ({ courtId: court.id, free: res?.free ?? [] }))
           .catch(() => ({ courtId: court.id, free: [] })),
       ),
     ).then((results) => {
@@ -155,10 +150,15 @@ export function BookPage() {
 
   const isOtherDate = !dateOptions.some((d) => d.ymd === selectedDate);
 
-  // Filtered venues for left pane
+  // Filtered venues for left pane using findVenues for court-name search
   const filteredVenues = useMemo(() => {
+    const isSearching = normalizeName(search) !== '';
+    const matchingVenueIds = isSearching
+      ? new Set(findVenues(venues, search).map((m) => m.venue.id))
+      : null;
+
     return venues.filter((v) => {
-      const matchSearch = !search || v.name.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = matchingVenueIds ? matchingVenueIds.has(v.id) : true;
       const matchSport =
         sportFilter === 'ALL' || v.courts.some((c) => c.sport === sportFilter);
       return matchSearch && matchSport;
@@ -279,7 +279,7 @@ export function BookPage() {
                     className={`venue-card ${active ? 'on active' : ''}`}
                     onClick={() => {
                       setSelectedVenueId(v.id);
-                      setSelectedCourtId(v.courts[0]?.id ?? '');
+                      setSelectedCourtId('');
                       setSelectedStart(null);
                     }}
                   >
@@ -364,6 +364,13 @@ export function BookPage() {
                   onPick={(cId, minute) => {
                     setSelectedCourtId(cId);
                     setSelectedStart(minute);
+                    if (selectedVenue) {
+                      const allowed = DURATIONS.filter((d) => minute + d <= selectedVenue.closesAt);
+                      const maxAllowed = allowed.length > 0 ? Math.max(...allowed) : 60;
+                      if (duration > maxAllowed) {
+                        setDuration(maxAllowed);
+                      }
+                    }
                   }}
                   opensAt={selectedVenue.opensAt}
                   closesAt={selectedVenue.closesAt}

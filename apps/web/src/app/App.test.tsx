@@ -59,6 +59,58 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' })).toBeTruthy();
   });
 
+  it('owner opens /chu-san/yeu-cau, a confirmed booking shows, click "Hủy", and fetch is called with POST /api/owner/bookings/<id>/cancel', async () => {
+    const bookingId = '0199a1b2-0000-7000-8000-000000000101';
+    const futureStart = new Date(Date.now() + 3600_000).toISOString();
+    const futureEnd = new Date(Date.now() + 7200_000).toISOString();
+    const confirmedBooking = {
+      id: bookingId,
+      courtId: 'court-1',
+      startAt: futureStart,
+      endAt: futureEnd,
+      status: 'CONFIRMED',
+      source: 'APP',
+      priceTotal: 120_000,
+      confirmDeadline: null,
+      confirmedAt: new Date().toISOString(),
+      cancelledAt: null,
+      createdAt: new Date().toISOString(),
+      customer: { name: 'Chú Tư', phone: '0987654321' },
+    };
+    const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'x', name: 'Bình', role: 'OWNER' }) });
+      }
+      if (url === '/api/owner/bookings?status=CONFIRMED') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([confirmedBooking]) });
+      }
+      if (url === `/api/owner/bookings/${bookingId}/cancel` && opts?.method === 'POST') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...confirmedBooking, status: 'CANCELLED' }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    window.history.pushState({}, '', '/chu-san/yeu-cau');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Booking đã xác nhận' })).toBeTruthy();
+    expect(await screen.findByText('Chú Tư')).toBeTruthy();
+
+    const cancelButton = screen.getByRole('button', { name: /^Hủy/ });
+    fireEvent.click(cancelButton);
+
+    const confirmButton = screen.getByRole('button', { name: /^Xác nhận hủy/ });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/owner/bookings/${bookingId}/cancel`,
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+  });
+
   // Brief F-008 (AC-14): a guest and a user see the free hours, an owner and an admin do not.
   // The notice shows once for each role: the guest sees it in the free hours, the user in the booking form.
   const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';

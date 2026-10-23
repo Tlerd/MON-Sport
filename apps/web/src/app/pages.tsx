@@ -2,31 +2,23 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { SessionUser } from '@monsport/shared';
 import { AuthPanel } from '../features/auth/AuthPanel.tsx';
-import { BookingForm } from '../features/bookings/BookingForm.tsx';
 import { MyBookings } from '../features/bookings/MyBookings.tsx';
+import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
 import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
 import { JoinedMatches } from '../features/matches/JoinedMatches.tsx';
 import { Lobby } from '../features/matches/Lobby.tsx';
-import { VenueBrowser } from '../features/venues/VenueBrowser.tsx';
 import { useSession } from './session.tsx';
 
-function CourtLines() {
+export { BookPage } from './BookPage.tsx';
+
+export function OwnerRequestsPage() {
   return (
-    <svg className="court-lines" viewBox="0 0 134 61" aria-hidden="true">
-      <rect x="0.5" y="0.5" width="133" height="60" fill="none" stroke="currentColor" strokeWidth="1" />
-      <line x1="67" y1="0.5" x2="67" y2="60.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="20" y1="0.5" x2="20" y2="60.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="114" y1="0.5" x2="114" y2="60.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="20" y1="30.5" x2="114" y2="30.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="0.5" y1="4.5" x2="133.5" y2="4.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="0.5" y1="56.5" x2="133.5" y2="56.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="7.5" y1="0.5" x2="7.5" y2="60.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="126.5" y1="0.5" x2="126.5" y2="60.5" stroke="currentColor" strokeWidth="1" />
-    </svg>
+    <div className="owner-requests-page stack">
+      <OwnerRequests />
+      <PhoneBookings />
+    </div>
   );
 }
-
-export { BookPage } from './BookPage.tsx';
 
 export function LobbyPage() {
   const { user, refreshKey, bumpRefresh } = useSession();

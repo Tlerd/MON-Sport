@@ -17,9 +17,8 @@ import { SlotGrid, hhmm, type SelectedSlot, type SlotCellInfo, type WindowId } f
 import { api, ApiError } from '../lib/api.ts';
 import { formatDay, formatTime, formatVnd } from '../lib/format.ts';
 import { useSession } from './session.tsx';
+import { initial } from './shells.tsx';
 import { DURATIONS, slotAt as at } from '../features/bookings/slot.ts';
-
-const initial = (name: string) => name.trim().slice(0, 1).toUpperCase();
 
 function formatDeadlineRemaining(createdAt: string, startAt: string) {
   const dl = confirmDeadline(new Date(createdAt), new Date(startAt));
