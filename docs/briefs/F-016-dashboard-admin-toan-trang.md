@@ -20,7 +20,7 @@ Source:
   - Mục "Assumptions": "Thứ tự ra mắt: UC-1, UC-10, UC-11 → UC-2 đến UC-6 → UC-7 đến UC-9 → UC-14 → UC-12, UC-13".
 - `docs/requirements/use-cases.md`:
   - UC-13: PRE-13 admin đã đăng nhập. POST-13 không đổi dữ liệu. Normal Flow: admin mở dashboard, hệ thống hiện các số liệu và biểu đồ.
-  - Assumptions của UC-13: "Người dùng hoạt động là người có ít nhất một lần đăng nhập trong tuần". Brief này đổi định nghĩa (Assumption 4).
+  - Assumptions của UC-13: người dùng hoạt động tính theo booking và trận trong tuần (Assumption 4).
 - `docs/requirements/business-rules.md`:
   - BR-8: Khi hạn xác nhận qua mà chủ sân chưa xác nhận, booking chuyển sang "Hết hạn".
   - BR-16: Booking hết hạn thì trận trên booking đó bị hủy.
@@ -60,7 +60,7 @@ Intake để mở các điểm sau. Brief chọn phương án an toàn hơn. Ng�
    - Vào trận (`MatchPlayer.joinedAt`).
    - Mở trận (`Match.createdAt`).
 
-   Đây khác `use-cases.md` (UC-13: có đăng nhập trong tuần). Hệ thống chưa ghi lần đăng nhập, và thêm cột cần đổi schema. Mục 10 của `PROGRESS.md` ghi quyết định mở. Brief này không sửa `use-cases.md`.
+   Người dùng chốt cách đếm này ngày 2026-10-23 ("làm theo cách hiện tại"). Hệ thống chưa ghi lần đăng nhập.
 5. **Số booking của đơn vị** đếm booking `CONFIRMED` có `startAt` trong tuần. **Số trận của đơn vị** đếm `Match` có `status` khác `CANCELLED`, có `startAt` của booking trong tuần, và booking đó không quá hạn (Assumption 7). Cả hai gom theo `Court.venueId`. Đơn vị không có số liệu vẫn hiện, với số 0.
 6. **Thời gian xác nhận trung bình** là trung bình của `confirmedAt - createdAt`. Đơn vị là phút, làm tròn số nguyên. Mẫu gồm booking `source` = `APP` có `confirmedAt` khác rỗng và `createdAt` trong tuần. Không có booking nào thì giá trị là `null`.
 7. **Quá hạn** là `status` = `EXPIRED`, hoặc `status` = `PENDING` mà `confirmDeadline` nhỏ hơn `now` của `Clock`. Hệ thống chỉ chuyển sang `EXPIRED` khi có người đọc hoặc ghi (`expireBookings`). Booking của chủ sân không mở app vẫn là `PENDING` trong dữ liệu. Dashboard tính quá hạn bằng công thức này và không ghi gì.

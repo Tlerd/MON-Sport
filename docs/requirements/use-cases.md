@@ -252,7 +252,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Frequency of Use | Khoảng 1 lần mỗi ngày |
 | Business Rules | BR-22 |
 | Other Information | — |
-| Assumptions | Người dùng hoạt động là người tạo ít nhất một booking `APP`, tham gia hoặc tạo ít nhất một trận trong tuần (brief F-016). Người dùng chốt cách đếm này ngày 2026-10-23 |
+| Assumptions | Người dùng hoạt động là người tạo ít nhất một booking `APP`, tham gia hoặc tạo ít nhất một trận trong tuần (brief F-016). Chỉ đếm người có `role` USER, mỗi người một lần. Người dùng chốt cách đếm này ngày 2026-10-23 |
 
 ## UC-14 Gửi thông báo
 
