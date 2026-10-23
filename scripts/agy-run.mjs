@@ -1,8 +1,8 @@
 // Runs Antigravity (`agy`) with model fallback: `node scripts/agy-run.mjs [--strong-only] <agy args>`.
+// Claude Code (Opus) plans, checks, and merges. agy codes on every model of MODELS, flash included.
 // It always runs a high variant at high effort. When a model is out of quota, the same run
 // starts again on the next model of MODELS. Any other result, pass or fail, ends the run.
 // `--strong-only` keeps a Reviewer run on the STRONG models: it fails rather than review on a weaker one.
-// `--coder` keeps a coding run off the flash models: it exits 4 rather than code on one.
 // AGY_MODELS (comma-separated) replaces the list.
 // It also obeys the weekly stop line of the Claude usage guard (94%, USAGE_STOP_PERCENT), so agy and
 // Claude stop together. `--check-usage` only checks that line: exit 0 to go on, exit 3 to stop.
@@ -19,7 +19,6 @@ export const MODELS = (process.env.AGY_MODELS || 'claude-opus-5-5-high,gemini-4-
   .map((model) => model.trim())
   .filter(Boolean);
 export const STRONG = MODELS.filter((model) => /opus|argon/.test(model));
-export const CODERS = MODELS.filter((model) => !/flash/.test(model));
 
 const QUOTA = /RESOURCE_EXHAUSTED|quota|\b429\b|rate.?limit|usage limit|too many requests|exhausted/i;
 const TAIL_LINES = 20;
@@ -49,7 +48,7 @@ export function buildArgs(args, model) {
   const kept = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--model' || args[i] === '--effort') i++;
-    else if (args[i] !== '--strong-only' && args[i] !== '--coder' && !/^--(model|effort)=/.test(args[i])) kept.push(args[i]);
+    else if (args[i] !== '--strong-only' && !/^--(model|effort)=/.test(args[i])) kept.push(args[i]);
   }
   return [...kept, '--model', model, '--effort', 'high'];
 }
@@ -61,7 +60,7 @@ export const quotaText = ({ stderr }) => String(stderr ?? '').trimEnd().split(/\
 export const hitQuota = ({ status, output }) => status !== 0 && QUOTA.test(output);
 
 export function runWithFallback(args, run) {
-  const models = args.includes('--strong-only') ? STRONG : args.includes('--coder') ? CODERS : MODELS;
+  const models = args.includes('--strong-only') ? STRONG : MODELS;
   if (!models.length) return { status: 1, output: 'agy-run: no strong model (opus or argon) in AGY_MODELS' };
   for (const model of models) {
     const result = run(buildArgs(args, model));
@@ -87,5 +86,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   });
   if (result.model) process.stderr.write(`agy-run: ran on ${result.model}\n`);
   else process.stderr.write(`${result.output}\n`);
-  process.exit(result.status);
+  // Exit 4 means only "every model is out of quota". An exit 4 of agy itself becomes 1.
+  process.exit(result.model && result.status === OUT_OF_QUOTA ? 1 : result.status);
 }
