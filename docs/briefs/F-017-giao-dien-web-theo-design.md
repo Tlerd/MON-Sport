@@ -61,7 +61,7 @@ One pull request for each row. Each pull request passes the check command on its
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
 | 1 | Token, icon và component nền | `apps/web/src/app/tokens.css`, `apps/web/src/components/`, `apps/web/src/main.tsx`, `apps/web/index.html`, `apps/web/package.json`, `pnpm-lock.yaml`, `scripts/design-tokens.mjs` | AC-1, AC-2 trong `apps/web/src/components/SlotGrid.test.tsx` |
-| 2 | Khung, router và các màn | `apps/web/src/app/`, `apps/web/src/features/`, `PROGRESS.md`, `docs/tien-do.md` | AC-3 đến AC-5 trong `apps/web/src/app/BookPage.test.tsx`, AC-6 và AC-7 trong `Lobby.test.tsx`, AC-8 trong `Notifications.test.tsx`, và mọi test cũ của `apps/web` |
+| 2 | Khung, router và các màn | `apps/web/src/app/`, `apps/web/src/features/`, `.agents/skills/verify-flow/`, `PROGRESS.md`, `docs/tien-do.md` | AC-3 đến AC-5 trong `apps/web/src/app/BookPage.test.tsx`, AC-6 và AC-7 trong `Lobby.test.tsx`, AC-8 trong `Notifications.test.tsx`, và mọi test cũ của `apps/web` |
 
 ## Edit boundaries
 
@@ -79,6 +79,9 @@ One pull request for each row. Each pull request passes the check command on its
 Không đổi tiền, khóa, schema. Bước 2 hiện dữ liệu cá nhân (tên người chơi), nên vòng review chạy thêm skill `rule-review`.
 
 ## Test được đổi bộ chọn
+
+CI chạy `verify-flow` trên mỗi PR (check `image`), nên bước 2 sửa các flow cho khung mới trong cùng PR. Flow vẫn kiểm cùng trạng thái booking.
+
 
 Khung mới đổi chữ và vai trò của vài phần tử, nên các test sau được đổi bộ chọn. Coder grep mọi `*.test.tsx` dưới `apps/web/src` cho mỗi nhãn bị đổi. Một bộ chọn khác cần đổi thì thêm một hàng ở đây trong cùng PR, và Reviewer kiểm hàng đó. Mỗi test vẫn kiểm cùng một chức năng.
 
