@@ -7,6 +7,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { acquire, lockPath } from './check-lock.mjs';
 import { hookSkips } from './hook-skip.mjs';
 
 const MAX_LINES = 60;
@@ -29,6 +30,11 @@ if (hook) {
   const treeIsClean = run('git status --porcelain').output.trim() === '';
   if (hookSkips(input, treeIsClean)) process.exit(0);
 }
+
+const release = await acquire(lockPath(root), {
+  onWait: (pid) => console.error(`Waiting for another pnpm check in this checkout (pid ${pid})`),
+});
+process.on('exit', release);
 
 // Locally the API tests need the Postgres of `pnpm db:start`. A reboot stops it, so start it here.
 // CI and a set DATABASE_URL bring their own database.
@@ -89,8 +95,10 @@ for (const [name, command] of steps) {
 
 if (failures.length === 0) {
   if (!hook) console.log(`check ok: ${steps.map(([name]) => name).join(', ')}`);
+  release();
   process.exit(0);
 }
 
 console.error(failures.join('\n\n'));
+release();
 process.exit(hook ? 2 : 1);
