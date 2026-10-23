@@ -7,6 +7,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { acquire, lockPath } from './check-lock.mjs';
 import { hookSkips } from './hook-skip.mjs';
 
 const MAX_LINES = 60;
@@ -29,6 +30,21 @@ if (hook) {
   const treeIsClean = run('git status --porcelain').output.trim() === '';
   if (hookSkips(input, treeIsClean)) process.exit(0);
 }
+
+// The Stop hook has a 300 s timeout: a hook run waits 180 s at most, so the check still has time, and it blocks (exit 2) on a timeout.
+// A lock is stale after 30 min, longer than any normal check, so a live slow run is never taken over.
+let release;
+try {
+  release = await acquire(lockPath(root), {
+    timeoutMs: hook ? 180_000 : 25 * 60 * 1000,
+    onWait: (pid) => console.error(`Waiting for another pnpm check in this checkout (pid ${pid})`),
+  });
+} catch (error) {
+  console.error(`check: ${error.message}. Run pnpm check again when that run ends.`);
+  process.exit(hook ? 2 : 1);
+}
+process.on('exit', release);
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => process.exit(130));
 
 // Locally the API tests need the Postgres of `pnpm db:start`. A reboot stops it, so start it here.
 // CI and a set DATABASE_URL bring their own database.
@@ -89,8 +105,10 @@ for (const [name, command] of steps) {
 
 if (failures.length === 0) {
   if (!hook) console.log(`check ok: ${steps.map(([name]) => name).join(', ')}`);
+  release();
   process.exit(0);
 }
 
 console.error(failures.join('\n\n'));
+release();
 process.exit(hook ? 2 : 1);
