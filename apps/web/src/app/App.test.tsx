@@ -294,7 +294,10 @@ describe('App', () => {
     const { calls, subscription } = withPush();
     try {
       render(<App />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Đăng xuất' }));
+      const logoutButton = await screen.findByRole('button', { name: 'Đăng xuất' });
+      // resyncPush runs once after the page load; wait for it, or a slow run can read the stored user after the logout cleared it.
+      await waitFor(() => expect(calls).toContain('POST push'));
+      fireEvent.click(logoutButton);
 
       expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
       expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
@@ -311,7 +314,10 @@ describe('App', () => {
     const { calls } = withPush({ unsubscribeFails: true, deleteStatus: 500 });
     try {
       render(<App />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Đăng xuất' }));
+      const logoutButton = await screen.findByRole('button', { name: 'Đăng xuất' });
+      // resyncPush runs once after the page load; wait for it, or a slow run can read the stored user after the logout cleared it.
+      await waitFor(() => expect(calls).toContain('POST push'));
+      fireEvent.click(logoutButton);
 
       expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
       expect(calls).toContain('logout');
