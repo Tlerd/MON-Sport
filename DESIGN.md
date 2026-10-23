@@ -432,6 +432,8 @@ A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too
 - Cells stretch to fill the width (`minmax(28px, 1fr)`). An hour label sits above every second cell.
 - For today, cells before the current time are disabled.
 - The grid never makes the page scroll sideways. Every flex or grid parent of the grid has `min-width: 0`.
+- Below 1280px, a window chip shows only its name and hours. The count moves to the chip `title` and `aria-label`, so the three chips stay on one line.
+- Mobile app: each court keeps one horizontal row of the whole day. The window chips sit above the rows and scroll every row to the start of the window; they do not filter. On open, the rows start at the first window shown (the rule above), not at the opening hour.
 
 ### Words
 
