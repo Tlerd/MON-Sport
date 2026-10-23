@@ -1,4 +1,4 @@
-import { hhmm } from '../../lib/format.ts';
+import { hhmm } from '@monsport/client';
 
 export const DURATIONS = [60, 90, 120, 150, 180];
 

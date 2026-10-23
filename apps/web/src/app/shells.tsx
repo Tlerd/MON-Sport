@@ -11,7 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Notifications } from '../features/notifications/Notifications.tsx';
-import { api } from '../lib/api.ts';
+import { api } from '@monsport/client';
 import { useSession } from './session.tsx';
 
 /** Vietnamese names put the given name last: "Nguyễn Văn An" shows "A". */

@@ -1,7 +1,6 @@
 import type { BookingView, OwnerBookingView, PaidAtVenueResponse } from '@monsport/shared';
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '../../lib/api.ts';
-import { formatDay, formatTime, formatVnd } from '../../lib/format.ts';
+import { api, ApiError, formatDay, formatTime, formatVnd } from '@monsport/client';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { Customer } from './customer.tsx';

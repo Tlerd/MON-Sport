@@ -10,8 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { api, ApiError } from '../../lib/api.ts';
-import { formatVnd } from '../../lib/format.ts';
+import { api, ApiError, formatVnd } from '@monsport/client';
 
 const todayVN = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());

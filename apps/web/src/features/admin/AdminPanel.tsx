@@ -1,6 +1,6 @@
 import type { AccountView } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
-import { api, ApiError } from '../../lib/api.ts';
+import { api, ApiError } from '@monsport/client';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { AccountLock } from './AccountLock.tsx';
 import { AdminStats } from './AdminStats.tsx';

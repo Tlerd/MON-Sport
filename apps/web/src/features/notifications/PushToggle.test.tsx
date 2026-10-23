@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { resyncPush, urlBase64ToUint8Array } from '../../lib/push.ts';
+import { resyncPush, urlBase64ToUint8Array } from '@monsport/client';
 import { PushToggle } from './PushToggle.tsx';
 
 const AN = '0199a1b2-0000-7000-8000-000000000001';

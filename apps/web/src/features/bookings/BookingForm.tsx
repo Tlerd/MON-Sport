@@ -1,7 +1,6 @@
 import { bookingPrice, type BookingView, type VenueView } from '@monsport/shared';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiError } from '../../lib/api.ts';
-import { formatSlot, formatTime, formatVnd, hhmm } from '../../lib/format.ts';
+import { api, ApiError, formatSlot, formatTime, formatVnd, hhmm } from '@monsport/client';
 import { DURATIONS, slotAt as at } from './slot.ts';
 import { STATUS_LABEL } from './status.ts';
 

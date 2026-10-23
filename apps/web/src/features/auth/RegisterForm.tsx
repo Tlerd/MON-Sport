@@ -1,6 +1,6 @@
 import { PRIVACY_NOTICE, type SessionUser } from '@monsport/shared';
 import { type FormEvent, useState } from 'react';
-import { api, ApiError } from '../../lib/api.ts';
+import { api, ApiError } from '@monsport/client';
 
 /** UC-1, flow 1.0: sign up with a name, a phone number, and a password. Consent is required (BR-29). */
 export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void }) {

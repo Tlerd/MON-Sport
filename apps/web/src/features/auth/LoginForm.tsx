@@ -1,6 +1,6 @@
 import type { SessionUser } from '@monsport/shared';
 import { type FormEvent, useState } from 'react';
-import { api, ApiError } from '../../lib/api.ts';
+import { api, ApiError } from '@monsport/client';
 
 /** UC-1, flow 1.1: sign in with a phone number and a password. */
 export function LoginForm({ onLogin }: { onLogin: (user: SessionUser) => void }) {

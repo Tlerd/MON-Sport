@@ -2,8 +2,7 @@ import { bookingPrice, type BookingView, minuteOfDayVN, type OwnerBookingView, t
 import { type FormEvent, useEffect, useId, useMemo, useState } from 'react';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
-import { api, ApiError } from '../../lib/api.ts';
-import { formatDay, formatSlot, formatTime, formatVnd, hhmm } from '../../lib/format.ts';
+import { api, ApiError, formatDay, formatSlot, formatTime, formatVnd, hhmm } from '@monsport/client';
 import { SlotBar } from './BookingForm.tsx';
 import { CancelAsk, useCancelFlow } from './cancel.tsx';
 import { Customer } from './customer.tsx';

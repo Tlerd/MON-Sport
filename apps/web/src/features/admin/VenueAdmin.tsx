@@ -2,8 +2,7 @@ import type { AccountView, AdminVenueView, CourtView, Sport } from '@monsport/sh
 import { type FormEvent, useEffect, useState } from 'react';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
-import { api, ApiError } from '../../lib/api.ts';
-import { HALF_HOURS, hhmm } from '../../lib/format.ts';
+import { api, ApiError, HALF_HOURS, hhmm } from '@monsport/client';
 
 const message = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 

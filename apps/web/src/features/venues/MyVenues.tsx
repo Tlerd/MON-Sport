@@ -1,9 +1,8 @@
 import type { CourtView, VenueView } from '@monsport/shared';
 import { useEffect, useRef, useState } from 'react';
-import { api, ApiError } from '../../lib/api.ts';
+import { api, ApiError, hhmm } from '@monsport/client';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
-import { hhmm } from '../../lib/format.ts';
 import { HoursForm, PriceForm } from './OwnerEdits.tsx';
 
 /** UC-10 and BR-23: an owner sees only their own venues, with the courts and prices. UC-11: the owner edits them. */

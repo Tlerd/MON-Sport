@@ -1,7 +1,6 @@
 import { PRICE_MAX } from '@monsport/shared';
 import { type FormEvent, type ReactNode, useState } from 'react';
-import { ApiError } from '../../lib/api.ts';
-import { HALF_HOURS, hhmm } from '../../lib/format.ts';
+import { ApiError, HALF_HOURS, hhmm } from '@monsport/client';
 
 // Brief F-005 (UC-11): the forms an owner opens on a venue card. Each closes after a save; the card shows the response.
 

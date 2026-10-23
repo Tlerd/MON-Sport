@@ -6,8 +6,7 @@ import type {
 } from '@monsport/shared';
 import { Bell } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../../lib/api.ts';
-import { formatDay, formatTime } from '../../lib/format.ts';
+import { api, formatDay, formatTime } from '@monsport/client';
 import { PushToggle } from './PushToggle.tsx';
 
 /** How often a visible page asks the server for new notifications. A Web Push or a return to the tab reloads at once. */

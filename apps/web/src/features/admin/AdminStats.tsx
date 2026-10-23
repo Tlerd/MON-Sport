@@ -1,6 +1,6 @@
 import { addDaysYmd, AdminStatsView } from '@monsport/shared';
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '../../lib/api.ts';
+import { api, ApiError } from '@monsport/client';
 
 const NO_DATA = 'Chưa có dữ liệu';
 

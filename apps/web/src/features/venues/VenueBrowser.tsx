@@ -1,8 +1,7 @@
 import { type Availability, startOfDayVN, type VenueView } from '@monsport/shared';
 import { Phone } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
-import { api } from '../../lib/api.ts';
-import { hhmm } from '../../lib/format.ts';
+import { api, hhmm } from '@monsport/client';
 import { findVenues, normalizeName } from './search.ts';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
