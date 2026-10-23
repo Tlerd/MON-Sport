@@ -5,7 +5,7 @@ lang: vi
 
 # F-017: Giao diện web theo DESIGN.md
 
-Status: draft
+Status: accepted
 Source:
 
 - `DESIGN.md` trên `main` (PR #98): token, component, `SlotGrid`, quy tắc 390px.
@@ -37,7 +37,7 @@ Each criterion has one test. The test name starts with the label, for example `A
 |---|---|---|---|
 | AC-1 | Đơn vị mở 06:00–23:00 | Người dùng mở `SlotGrid` của ngày 2026-11-21, khác hôm nay | Lưới hiện 3 nút buổi: Sáng 06–12, Chiều 12–17, Tối 17–23. Lưới chỉ hiện ô của một buổi. Test: `apps/web/src/components/SlotGrid.test.tsx` |
 | AC-2 | `now` = `2026-11-20T03:33:00Z` (10:33 Asia/Ho_Chi_Minh, BR-27), đơn vị mở 06:00–23:00 | Người dùng mở `SlotGrid` của ngày 2026-11-20 | Buổi Sáng được chọn. Ô 06:00 đến 10:30 bị khóa (đã qua). Ô 11:00 trống và bấm được. Test chạy đúng với `TZ=UTC`. Test: `apps/web/src/components/SlotGrid.test.tsx` |
-| AC-3 | Đơn vị mở 06:00–23:00, sân 1 trống cả ngày | Người dùng chọn ô 16:30 của sân 1 ở buổi Chiều, chọn thời lượng 60 phút, rồi bấm nút buổi Tối | Phần tóm tắt ghi "16:30–17:30". Ở buổi Tối, ô 17:00 của sân 1 có trạng thái đã chọn. Test: `apps/web/src/app/BookPage.test.tsx` (new) |
+| AC-3 | Đơn vị mở 06:00–23:00, sân 1 trống cả ngày | Người dùng chọn ô 16:30 của sân 1 ở buổi Chiều, chọn thời lượng "1 giờ" (giá trị `60`), rồi bấm nút buổi Tối | Phần tóm tắt ghi "16:30–17:30". Ở buổi Tối, ô 17:00 của sân 1 có trạng thái đã chọn. Test: `apps/web/src/app/BookPage.test.tsx` (new) |
 | AC-4 | Đơn vị có số 0912345678, chưa có ô nào được chọn | Người dùng mở màn Đặt sân của đơn vị đó | Màn hiện đủ câu "App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt." Test: `apps/web/src/app/BookPage.test.tsx` |
 | AC-5 | Như AC-4 | Người dùng chọn một ô trống | Cạnh nút gửi yêu cầu có liên kết `tel:0912345678` với chữ "Gọi chủ sân". Test: `apps/web/src/app/BookPage.test.tsx` |
 | AC-6 | Phòng chờ có trận giá 50.000 đ mỗi suất, booking chưa xác nhận, 4/4 suất | Người dùng mở Phòng chờ | Thẻ trận hiện giá "50.000" kèm "/suất", nhãn "Chưa xác nhận", và nhãn "Đầy" bên cạnh, không thay nhãn. Test: `apps/web/src/features/matches/Lobby.test.tsx` |
@@ -80,7 +80,7 @@ Không đổi tiền, khóa, schema. Bước 2 hiện dữ liệu cá nhân (tê
 
 ## Test được đổi bộ chọn
 
-Khung mới đổi chữ và vai trò của vài phần tử, nên các test sau được đổi bộ chọn. Mỗi test vẫn kiểm cùng một chức năng.
+Khung mới đổi chữ và vai trò của vài phần tử, nên các test sau được đổi bộ chọn. Coder grep mọi `*.test.tsx` dưới `apps/web/src` cho mỗi nhãn bị đổi. Một bộ chọn khác cần đổi thì thêm một hàng ở đây trong cùng PR, và Reviewer kiểm hàng đó. Mỗi test vẫn kiểm cùng một chức năng.
 
 | Test | Bộ chọn cũ | Bộ chọn mới | Lý do |
 |---|---|---|---|
@@ -88,6 +88,7 @@ Khung mới đổi chữ và vai trò của vài phần tử, nên các test sau
 | `apps/web/src/app/App.test.tsx` | nút `'Doanh thu'` | liên kết `/Doanh thu/` | Tab thành mục điều hướng có đường dẫn |
 | `apps/web/src/features/matches/Lobby.test.tsx` | `getByLabelText(/^Môn thể thao/)`, `/^Ngày chơi/` | bấm chip môn và chip ngày | Ô chọn thành hàng chip |
 | `apps/web/src/features/notifications/Notifications.test.tsx` | tên nút `'Thông báo'` | `/Thông báo/` | Tên nút có thêm số chưa đọc (AC-8) |
+| `apps/web/src/app/App.test.tsx` | nút chuông `name: 'Thông báo'` | `name: /Thông báo/` | Tên nút có thêm số chưa đọc (AC-8) |
 
 ## Assumptions
 
