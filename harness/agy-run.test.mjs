@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MODELS, STRONG, buildArgs, hitQuota, quotaText, runWithFallback, weeklyStop } from '../scripts/agy-run.mjs';
+import { CODERS, MODELS, OUT_OF_QUOTA, STRONG, buildArgs, hitQuota, quotaText, runWithFallback, weeklyStop } from '../scripts/agy-run.mjs';
 
 describe('agy-run: an agy model that runs out of quota hands over to the next one', () => {
   it('every model in the list is a high variant', () => {
@@ -51,12 +51,26 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
     });
     expect(tried).toEqual(STRONG);
     expect(STRONG).not.toContain('gemini-3.8-flash-high');
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(OUT_OF_QUOTA);
   });
 
-  it('fails with a clear message when every model is out of quota', () => {
+  it('a coder run uses no flash model, and exits 4 when the coders are out of quota', () => {
+    const tried = [];
+    const result = runWithFallback(['--coder', '-p', 'code'], (args) => {
+      expect(args).not.toContain('--coder');
+      tried.push(args[args.indexOf('--model') + 1]);
+      return { status: 1, output: 'quota exceeded' };
+    });
+    expect(tried).toEqual(CODERS);
+    expect(CODERS.length).toBeGreaterThan(0);
+    for (const model of CODERS) expect(model).not.toMatch(/flash/);
+    expect(result.status).toBe(OUT_OF_QUOTA);
+  });
+
+  it('exits 4 with a clear message when every model is out of quota, so Claude Code codes on Sonnet or Haiku', () => {
     const result = runWithFallback(['-p', 'task'], () => ({ status: 1, output: 'quota exceeded' }));
-    expect(result.status).toBe(1);
+    expect(OUT_OF_QUOTA).toBe(4);
+    expect(result.status).toBe(OUT_OF_QUOTA);
     expect(result.output).toMatch(/every model is out of quota/);
   });
 
