@@ -13,3 +13,5 @@ AGENTS.md defines the roles. This file maps them to Antigravity models.
   `node scripts/agy-run.mjs --strong-only --mode plan -p "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Read only: do not edit, commit, or push. Review <brief file or pull request #n> in this repository against docs/requirements/intake-monsport-v1.md and its brief. List findings as: severity (high, medium, low) | file:line | problem | fix. Start the summary with a count by severity. End with 'No blocking findings' when none is medium or higher."`
 - Plan mode keeps the planner and the reviewer read only. Never give them `--dangerously-skip-permissions`.
 - To wait for CI or a scheduled check, use the `schedule` tool, not a sleep loop.
+- Claude Code is the Planner and the Reviewer, and it sends each coding step here through `node scripts/agy-run.mjs`. Exit 4 means every agy model is out of quota, and Claude Code then codes the step on Sonnet or Haiku.
+- Keep the task list of the run, and mark each item done. At the end of each turn, read the list again, and do each open item that nothing blocks. Time matters: do not spend time that can be avoided.

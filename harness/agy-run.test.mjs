@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MODELS, STRONG, buildArgs, hitQuota, quotaText, runWithFallback, weeklyStop } from '../scripts/agy-run.mjs';
+import { MODELS, OUT_OF_QUOTA, STRONG, buildArgs, hitQuota, quotaText, runWithFallback, weeklyStop } from '../scripts/agy-run.mjs';
 
 describe('agy-run: an agy model that runs out of quota hands over to the next one', () => {
   it('every model in the list is a high variant', () => {
@@ -51,12 +51,13 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
     });
     expect(tried).toEqual(STRONG);
     expect(STRONG).not.toContain('gemini-3.8-flash-high');
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(OUT_OF_QUOTA);
   });
 
-  it('fails with a clear message when every model is out of quota', () => {
+  it('exits 4 with a clear message when every model is out of quota, so Claude Code codes on Sonnet or Haiku', () => {
     const result = runWithFallback(['-p', 'task'], () => ({ status: 1, output: 'quota exceeded' }));
-    expect(result.status).toBe(1);
+    expect(OUT_OF_QUOTA).toBe(4);
+    expect(result.status).toBe(OUT_OF_QUOTA);
     expect(result.output).toMatch(/every model is out of quota/);
   });
 

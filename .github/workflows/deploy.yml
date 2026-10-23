@@ -49,6 +49,7 @@ jobs:
         if: steps.latest.outputs.deploy == 'true'
         run: echo "revision=$(gcloud run services describe monsport --region asia-southeast1 --format='value(status.traffic[0].revisionName)')" >> "$GITHUB_OUTPUT"
       # The service keeps its Cloud SQL link, secrets, and memory from the first deploy.
+      # Concurrency is set here, so a deploy never goes back to the default of 80 (docs/deploy-gcp.md).
       - id: deploy
         if: steps.latest.outputs.deploy == 'true'
         uses: google-github-actions/deploy-cloudrun@v3
@@ -56,6 +57,7 @@ jobs:
           service: monsport
           region: asia-southeast1
           source: .
+          flags: --concurrency=60
       # A past rollback pins the traffic to one revision. Send it to the new revision before the check.
       - name: The new revision takes the traffic
         if: steps.latest.outputs.deploy == 'true'
