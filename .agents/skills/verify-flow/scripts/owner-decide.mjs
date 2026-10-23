@@ -22,7 +22,7 @@ export default async function ownerDecide(run) {
       const found = mine.find((b) => b.id === booking.id);
       assert(found?.status === status, `GET /api/bookings/mine has ${booking.id} as ${found?.status}, not ${status}`);
     }
-    await player.page.reload();
+    await player.page.goto(`${run.base}/lich-cua-toi`);
     await (await rowIn(player.page, 'Booking của tôi', confirmMe)).getByText('Đã xác nhận').waitFor();
     await (await rowIn(player.page, 'Booking của tôi', rejectMe)).getByText('Bị từ chối').waitFor();
     return 'API and "Booking của tôi" agree';
@@ -32,7 +32,7 @@ export default async function ownerDecide(run) {
 /** Clicks the button on the owner's ticket of `booking`. The answer must name that booking id, so the right row was clicked. */
 async function decide(run, page, player, booking, button, action, status, label) {
   await run.step(FLOW, `owner ${action}s ${booking.slotText}`, page, async () => {
-    await page.reload();
+    await page.goto(`${run.base}/chu-san/yeu-cau`);
     const row = await rowIn(page, 'Yêu cầu đặt sân', booking, player.phone);
     const answer = await clickFor(page, row.getByRole('button', { name: button }), 'POST', `/${action}`);
     assert(answer.status === 200, `POST ${action} answered ${answer.status}: ${answer.body.message ?? ''}`);

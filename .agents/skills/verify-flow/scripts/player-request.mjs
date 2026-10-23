@@ -1,6 +1,6 @@
 // Flow player-request (UC-3, brief F-002): a player sends a booking request on the booking form.
 
-import { assert, clickFor, hhmm, randomSlot, showDay, showTime, showVnd, vnInstant } from './lib.mjs';
+import { assert, clickFor, hhmm, randomSlot, selectWindow, setDate, showDay, showTime, showVnd, vnInstant } from './lib.mjs';
 
 const FLOW = 'player-request';
 
@@ -23,23 +23,37 @@ export async function requestBooking(run, flow, label = 'send a booking request'
 
   return run.step(flow, label, page, async () => {
     await page.goto(run.base);
-    const form = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Đặt sân' }) });
-    // A select's accessible name ends with its chosen option, so the labels match by prefix.
-    await form.locator('option', { hasText: venueName }).first().waitFor({ state: 'attached' });
-    await form.getByLabel(/^Đơn vị/).selectOption({ label: venueName });
-    await form.getByLabel(/^Sân/).selectOption({ label: courtName });
+    await page.locator('.venue-card', { hasText: venueName }).click();
+    await page.getByRole('heading', { name: venueName }).waitFor();
 
     const mine = await (await page.request.get(`${run.base}/api/bookings/mine`)).json();
     const used = new Set(mine.map((b) => new Date(b.startAt).getTime()));
     for (let attempt = 1; attempt <= 5; attempt++) {
       const slot = randomSlot(venue, used);
       used.add(vnInstant(slot.date, slot.start).getTime());
-      await form.getByLabel(/^Ngày/).fill(slot.date);
-      await form.getByLabel(/^Bắt đầu/).selectOption(String(slot.start));
-      await form.getByLabel(/^Thời lượng/).selectOption(String(slot.duration));
-      const estimate = (await form.locator('.total strong').innerText()).trim();
 
-      const { status, body } = await clickFor(page, form.getByRole('button', { name: 'Gửi yêu cầu' }), 'POST', '/api/bookings');
+      await Promise.all([
+        page.waitForResponse(
+          (r) => r.request().method() === 'GET' && r.url().includes(`/api/courts/${court.id}/availability`) && r.url().includes(slot.date),
+          { timeout: 5000 },
+        ).catch(() => undefined),
+        setDate(page, slot.date),
+      ]);
+
+      await selectWindow(page, slot.start);
+
+      const cell = page.locator(`.slot-cell[data-court-id="${court.id}"][data-minute="${slot.start}"]:not(:disabled)`);
+      if (!(await cell.isVisible({ timeout: 2000 }).catch(() => false))) {
+        continue;
+      }
+      await cell.click();
+
+      await page.getByLabel('Thời lượng').waitFor();
+      await page.getByLabel('Thời lượng').selectOption(String(slot.duration));
+      await page.locator('.total strong').filter({ hasNotText: '—' }).waitFor();
+      const estimate = (await page.locator('.total strong').innerText()).trim();
+
+      const { status, body } = await clickFor(page, page.getByRole('button', { name: 'Gửi yêu cầu' }), 'POST', '/api/bookings');
       if (status === 409) continue; // BR-1: an earlier run holds this slot.
       assert(status === 201, `POST /api/bookings answered ${status}: ${body.message ?? ''}`);
       assert(body.status === 'PENDING', `the new booking is ${body.status}, not PENDING`);
@@ -50,11 +64,12 @@ export async function requestBooking(run, flow, label = 'send a booking request'
       assert(body.priceTotal === price, `the API priced ${showVnd(body.priceTotal)}, BR-4 and BR-5 give ${showVnd(price)}`);
       assert(estimate === showVnd(price), `the form showed ${estimate}, BR-4 and BR-5 give ${showVnd(price)}`);
 
-      const ticket = form.locator('.ticket.result[data-status="PENDING"]');
+      const ticket = page.locator('.ticket.result[data-status="PENDING"]');
       await ticket.getByText('Chờ xác nhận').waitFor();
       const slotText = `${showTime(body.startAt)}–${showTime(body.endAt)} ngày ${showDay(body.startAt)}`;
       assert((await ticket.innerText()).includes(slotText), `the ticket does not show ${slotText}`);
 
+      await page.getByRole('link', { name: 'Lịch của tôi' }).click();
       const row = await rowIn(page, 'Booking của tôi', body);
       await row.getByText('Chờ xác nhận').waitFor();
       body.slotText = slotText;

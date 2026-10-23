@@ -203,16 +203,43 @@ export async function clickFor(page, locator, method, pathPart) {
 
 async function login(run, page, account, role) {
   await page.goto(run.base);
-  await page.getByLabel('Số điện thoại').fill(account.phone);
+  // The login form sits on the home page, or behind the "Đăng nhập" link of the top nav (F-017).
+  const phone = page.getByLabel('Số điện thoại');
+  if (!(await phone.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    await page.getByRole('link', { name: 'Đăng nhập' }).first().click();
+  }
+  await phone.fill(account.phone);
   await page.getByLabel('Mật khẩu').fill(account.password);
   const { status, body } = await clickFor(page, page.getByRole('button', { name: 'Đăng nhập' }), 'POST', '/api/auth/login');
   assert(status !== 429, 'BR-30 blocked the login: wait 15 minutes. See Gotchas in SKILL.md');
   assert(status === 200, `POST /api/auth/login answered ${status}: ${body.message ?? ''}`);
   const want = role === 'owner' ? 'OWNER' : 'USER';
   assert(body.role === want, `the account has role ${body.role}, the flow needs ${want}`);
-  await page.getByRole('heading', { name: `Chào ${body.name}` }).waitFor();
+  await page.locator('.who .name', { hasText: body.name }).waitFor();
   account.name = body.name;
   return `role ${body.role}`;
+}
+
+/** Selects a date by updating the date input inside .date-chips and triggering React change events. */
+export async function setDate(page, ymd) {
+  const input = page.locator('.date-chips input[type="date"]');
+  await input.waitFor({ state: 'attached' });
+  await input.evaluate((el, val) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    if (setter) setter.call(el, val);
+    else el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, ymd);
+}
+
+/** Switches the SlotGrid window (Sáng / Chiều / Tối) to contain the given minute. */
+export async function selectWindow(page, minute) {
+  const windowPrefix = minute < 12 * 60 ? /^Sáng/ : minute < 17 * 60 ? /^Chiều/ : /^Tối/;
+  const chip = page.locator('.slot-windows').getByRole('button', { name: windowPrefix });
+  if (await chip.isVisible().catch(() => false)) {
+    await chip.click();
+  }
 }
 
 // Date and time as the app shows them (apps/web/src/lib/format.ts).
