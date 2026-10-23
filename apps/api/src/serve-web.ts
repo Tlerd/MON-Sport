@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { resolve } from 'node:path';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
 
@@ -9,9 +9,10 @@ import type { NextFunction, Request, Response } from 'express';
  */
 export function serveWeb(app: NestExpressApplication, dir: string): void {
   app.useStaticAssets(dir);
-  const index = join(dir, 'index.html');
+  const index = resolve(dir, 'index.html');
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const page = (req.method === 'GET' || req.method === 'HEAD') && !req.path.startsWith('/api/') && req.path !== '/api';
+    const p = req.path.toLowerCase();
+    const page = (req.method === 'GET' || req.method === 'HEAD') && !p.startsWith('/api/') && p !== '/api';
     if (page && !req.path.includes('.') && req.accepts(['html', 'json']) === 'html') res.sendFile(index);
     else next();
   });

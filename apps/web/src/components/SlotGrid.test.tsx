@@ -201,5 +201,26 @@ describe('SlotGrid', () => {
       expect(grid).toBeTruthy();
       expect(scrollBox!.contains(grid)).toBe(true);
     });
+
+    it('with opensAt 390, the "07:00" label sits above the 07:00 cell column', () => {
+      const { container } = render(<SlotGrid courts={courts} opensAt={390} closesAt={480} />);
+      const headers = container.querySelectorAll('.slot-grid-h');
+      // The leading 06:30 column gets an empty header cell.
+      expect(headers[0].textContent).toBe('');
+      // "07:00" header cell is the second header cell, spanning 2 columns (07:00 and 07:30).
+      expect(headers[1].textContent).toBe('07:00');
+      expect((headers[1] as HTMLElement).style.gridColumn).toBe('span 2');
+    });
+
+    it('gives an hour label a span equal to its columns when the window ends on :30', () => {
+      const { container } = render(<SlotGrid courts={courts} opensAt={360} closesAt={450} />);
+      const headers = container.querySelectorAll('.slot-grid-h');
+      // 06:00 has 06:00 and 06:30 -> span 2
+      expect(headers[0].textContent).toBe('06:00');
+      expect((headers[0] as HTMLElement).style.gridColumn).toBe('span 2');
+      // 07:00 only has 07:00 before 450 (07:30) -> span 1
+      expect(headers[1].textContent).toBe('07:00');
+      expect((headers[1] as HTMLElement).style.gridColumn).toBe('span 1');
+    });
   });
 });

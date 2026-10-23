@@ -57,4 +57,20 @@ describe('serveWeb: the container serves the built web app', () => {
   it('a missing file that is not a page stays a 404', async () => {
     await request(app.getHttpServer()).get('/missing.js').set('Accept', '*/*').expect(404);
   });
+
+  it('GET /API/ping with Accept text/html does not return index.html', async () => {
+    const res = await request(app.getHttpServer()).get('/API/ping').set('Accept', 'text/html');
+    expect(res.text).not.toContain('id="root"');
+  });
+
+  it('HEAD /chu-san/yeu-cau with Accept text/html is 200 with an html content-type', async () => {
+    const res = await request(app.getHttpServer()).head('/chu-san/yeu-cau').set('Accept', 'text/html').expect(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+  });
+
+  it('the Cache-Control of the page has no long max-age', async () => {
+    const res = await request(app.getHttpServer()).get('/chu-san/yeu-cau').set('Accept', 'text/html').expect(200);
+    const cacheControl = res.headers['cache-control'] ?? '';
+    expect(cacheControl).not.toMatch(/max-age=[1-9]\d{4,}/);
+  });
 });
