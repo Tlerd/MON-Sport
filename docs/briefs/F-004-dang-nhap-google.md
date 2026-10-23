@@ -52,28 +52,31 @@ Mỗi cookie ký bằng một khóa riêng: `HMAC-SHA256(SESSION_SECRET, "<tên 
 
 | # | Tình huống | Server làm gì |
 |---|---|---|
-| R1 | `mode` = `login`, và có `User` với `googleSub` = `sub` | Đăng nhập tài khoản đó, thay phiên đang có. Tài khoản bị khóa hoặc đã xóa nhận `google_error=locked` (BR-28) |
-| R2 | `mode` = `login`, và không có `User` với `sub` đó | Lưu `sub`, `email` và `name` trong cookie `google_pending` (ký, 30 phút, cùng cờ như `google_flow`). Màn hình hiện form "Hoàn tất đăng ký": tên, số điện thoại, ô đồng ý (BR-29) |
-| R3 | Form "Hoàn tất đăng ký" gửi một số chưa có tài khoản và một mã OTP đúng của số đó (xem "Xác minh số điện thoại") | Tạo `User` vai trò `USER`, có `googleSub`, `email`, `consentAt`, `phoneVerifiedAt`, không có mật khẩu. Xóa cookie `google_pending`. Rồi đăng nhập. Mã sai hoặc hết hạn trả 400, không tạo tài khoản |
+| R1 | `mode` = `login`, và có `User` với `googleSub` = `sub` | Tài khoản bị khóa hoặc đã xóa nhận `google_error=locked` (BR-28). Khi `phoneVerifiedAt` khác null: đăng nhập tài khoản đó, thay phiên đang có. Khi `phoneVerifiedAt` = null (tài khoản có mật khẩu đã liên kết Google ở R5): không tạo phiên. Server đặt cookie `google_verify` (ký, 10 phút, chứa `userId` và `sub`) và chuyển về `/?google=verify`. Người dùng xin mã gửi tới số của tài khoản (`purpose` `google_verify`), rồi nhập mã. Mã đúng đặt `phoneVerifiedAt` và tạo phiên |
+| R2 | `mode` = `login`, và không có `User` với `sub` đó | Lưu `sub`, `email` và `name` trong cookie `google_pending` (ký, 30 phút, cùng cờ như `google_flow`). Màn hình hiện form "Hoàn tất đăng ký": tên, số điện thoại, ô đồng ý (BR-29) đặt trước nút "Gửi mã", ô mã |
+| R3 | Form "Hoàn tất đăng ký" gửi một số chưa có tài khoản và một mã OTP đúng của số đó (xem "Xác minh số điện thoại") | Trong một transaction: xóa mã (O6), rồi tạo `User` vai trò `USER`, có `googleSub`, `email`, `consentAt`, `phoneVerifiedAt`, không có mật khẩu. Lỗi unique rollback cả hai, nên mã vẫn dùng được. Xóa cookie `google_pending`. Rồi đăng nhập. Mã sai hoặc hết hạn trả 400, không tạo tài khoản |
 | R4 | Form "Hoàn tất đăng ký" gửi một số đã có tài khoản | 409 "Số này đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết Google". Server kiểm điều này trước khi gửi OTP, nên không tốn tin SMS. Không liên kết tự động: số điện thoại có thể đã đổi chủ |
-| R5 | `mode` = `link` | Người dùng đã nhập lại đúng mật khẩu ở `link-start`. Phiên hiện tại phải là `userId` trong cookie, nếu không thì `google_error=session`. Server gắn `sub` bằng `updateMany` với điều kiện `googleSub` = null. `sub` đã thuộc tài khoản khác, hoặc tài khoản đã có `googleSub`, nhận `google_error=taken` |
+| R5 | `mode` = `link` | Người dùng đã nhập lại đúng mật khẩu ở `link-start`. Phiên hiện tại phải là `userId` trong cookie, nếu không thì `google_error=session`. Server gắn `sub` bằng `updateMany` với điều kiện `googleSub` = null. `sub` đã thuộc tài khoản khác, hoặc tài khoản đã có `googleSub`, nhận `google_error=taken`. Liên kết không đổi `phoneVerifiedAt`, nên lần đăng nhập Google đầu tiên đi qua bước xác minh của R1 |
 | R6 | Người dùng bấm "Gỡ liên kết Google" | Cho phép khi tài khoản có mật khẩu. Tài khoản chỉ có Google nhận 400 "Hãy đặt mật khẩu trước khi gỡ Google" |
 | R7 | Email của Google trùng email của một tài khoản khác | Không làm gì. Server không dùng email để nhận diện, vì Google nói email có thể đổi và không duy nhất. Chỉ `sub` nhận diện tài khoản |
-| R8 | Người dùng xóa tài khoản (BR-26) | Server đặt `googleSub` và `email` về null, cùng lúc với việc thay tên và số điện thoại. Người đó đăng ký lại được bằng Google. R8 là AC bắt buộc của brief xóa tài khoản |
+| R8 | Người dùng xóa tài khoản (BR-26) | Server đặt `googleSub`, `email` và `phoneVerifiedAt` về null, và xóa các dòng `PhoneOtp` của số đó, cùng lúc với việc thay tên và số điện thoại. Người đó đăng ký lại được bằng Google. R8 là AC bắt buộc của brief xóa tài khoản |
 
 ## Xác minh số điện thoại
 
-Server gửi mã OTP tới số mà người dùng nhập ở form "Hoàn tất đăng ký". Dịch vụ OTP nằm ở `apps/api/src/modules/otp/`, để brief F-018 dùng lại.
+Server gửi mã OTP tới số mà người dùng nhập ở form "Hoàn tất đăng ký" (`purpose` `google_signup`), hoặc tới số của tài khoản ở R1 (`purpose` `google_verify`). Dịch vụ OTP nằm ở `apps/api/src/modules/otp/`, để brief F-018 dùng lại. Mọi kiểm tra và ghi của O3, O4 và O6 là một câu SQL có điều kiện, không đọc rồi ghi.
 
 | # | Quy tắc |
 |---|---|
 | O1 | Mã có 6 chữ số, sinh bằng `crypto.randomInt`. Mã sống 5 phút |
 | O2 | Server chỉ lưu `HMAC-SHA256(khóa riêng "otp" từ SESSION_SECRET, phone + ":" + mã)`, không lưu mã. Server không ghi mã vào log |
-| O3 | Mỗi số có nhiều nhất 1 mã còn hiệu lực cho mỗi `purpose`. Gửi lại thay mã cũ. Gửi lại chỉ được sau 60 giây |
-| O4 | Mỗi mã cho nhập sai 5 lần. Lần sai thứ 5 hủy mã. Người dùng phải xin mã mới |
-| O5 | Giới hạn gửi trong bảng `AuthThrottle`: 5 tin mỗi số và 10 tin mỗi IP trong 1 giờ. Quá giới hạn trả 429, như BR-30 |
-| O6 | Mã đúng chỉ dùng một lần. Server xóa mã bằng `deleteMany` có điều kiện `codeHash`, nên hai request cùng mã chỉ một request thành công |
-| O7 | Mã gắn với `purpose` (`google_signup`). Mã của mục đích này không dùng cho mục đích khác |
+| O3 | Mỗi số có nhiều nhất 1 mã còn hiệu lực cho mỗi `purpose`. Gửi lại thay mã cũ, và chỉ được sau 60 giây. Câu SQL: `INSERT ... ON CONFLICT ("phoneKey", purpose) DO UPDATE ... WHERE "PhoneOtp"."sentAt" <= now - 60s RETURNING`. Server chỉ gọi `OtpSender.send` khi câu đó trả một dòng. Không có dòng trả về thì trả 429 với `retryAfter` |
+| O4 | Mỗi mã cho nhập sai 5 lần. Câu SQL: `UPDATE "PhoneOtp" SET attempts = attempts + 1 WHERE "phoneKey" = $1 AND purpose = $2 AND attempts < 5 AND "expiresAt" > now RETURNING "codeHash"`, rồi so mã. Không có dòng trả về thì mã đã hết hạn hoặc đã bị hủy. Lần sai thứ 5 xóa mã. Người dùng phải xin mã mới |
+| O5 | Giới hạn trong bảng `AuthThrottle`, thêm vào `LIMITS` của `throttle.service.ts`. Thứ tự ở mỗi request `/otp`: (1) đếm `otp-ip` (10 mỗi giờ) và `otp-sub` (5 mỗi giờ, theo `sub` của cookie) trước mọi kiểm tra khác, kể cả kiểm tra số đã có tài khoản; (2) kiểm 60 giây (O3); (3) đếm `otp-phone` (5 mỗi giờ) chỉ khi server thật sự gửi tin. Quá giới hạn trả 429 với `retryAfter` tính bằng giây, như BR-30 |
+| O5b | Mỗi ngày (theo `Asia/Ho_Chi_Minh`) server gửi nhiều nhất `OTP_DAILY_CAP` tin, mặc định 200. Quá mức trả 503 "Không gửi được mã. Thử lại sau" và ghi log cảnh báo `otp daily cap reached`, không có số điện thoại trong log |
+| O6 | Mã đúng chỉ dùng một lần. Server xóa mã bằng `deleteMany` có điều kiện `codeHash`, trong cùng transaction với việc tạo hoặc cập nhật `User`. Hai request cùng mã chỉ một request thành công. Request kia nhận 400 "Mã đã hết hạn. Hãy xin mã mới" |
+| O7 | Mã gắn với `purpose` (`google_signup` hoặc `google_verify`). Mã của mục đích này không dùng cho mục đích khác |
+| O9 | `POST /api/auth/google/otp` với `purpose` `google_signup` cần `consent` = `true`, vì server gửi số điện thoại cho nhà cung cấp tin nhắn (BR-29). Thiếu thì 400, không gửi |
+| O10 | Server dọn mã hết hạn như `AuthThrottle`: khi ghi một mã mới, server xóa các dòng có `expiresAt` cũ hơn 1 ngày. Không cần job riêng |
 | O8 | Nhà cung cấp tin nhắn lỗi trả 503 "Không gửi được mã. Thử lại sau". Server không giữ mã của lần đó |
 
 Server gửi mã qua interface `OtpSender` có một hàm `send(phone, code, channel)`. `channel` là `sms` ở brief này, và `zalo` ở brief F-018.
@@ -86,9 +89,9 @@ Server gửi mã qua interface `OtpSender` có một hàm `send(phone, code, cha
 
 Server chỉ lưu `email` khi `email_verified` = `true`. `email` chỉ để hiển thị. Lỗi unique trên `googleSub` hoặc `phone` thành 409 hoặc `google_error=taken`, không thành 500. Server dùng lại `isUniqueViolation` của `accounts.service.ts`, vì Prisma 7 với driver adapter có thể trả `23505` thay cho `P2002`.
 
-## Acceptance criteria (nháp)
+## Acceptance criteria
 
-Coder viết lại các AC này với giá trị thật khi brief chuyển sang `accepted`. Test giả lập Google bằng một discovery document và một khóa ký JWT tạo trong test.
+Test giả lập Google bằng một discovery document và một khóa ký JWT tạo trong test. Sau khi Reviewer duyệt, đổi một AC là đổi brief và cần review mới.
 
 | Label | Given | When | Then |
 |---|---|---|---|
@@ -99,7 +102,7 @@ Coder viết lại các AC này với giá trị thật khi brief chuyển sang 
 | AC-5 | An đã đăng nhập | An gửi `link-start` với sai mật khẩu | 401. Không có chuyển hướng tới Google |
 | AC-6 | An bắt đầu liên kết, rồi đăng nhập tài khoản Chi ở tab khác | Google gọi lại callback với `mode` = `link` | 302 về `/?google_error=session`. Không tài khoản nào có `sub` mới |
 | AC-7 | `sub` "g-222" thuộc An | Chi liên kết Google với `sub` "g-222" | 302 về `/?google_error=taken` |
-| AC-8 | Hai request "Hoàn tất đăng ký" cùng `sub` gửi cùng lúc | Server xử lý cả hai | Đúng 1 request nhận 201. Request kia nhận 409 |
+| AC-8 | Hai cookie `google_pending` cùng `sub` "g-111". Hai số `0901112233` và `0901112244`, mỗi số có mã đúng của mình | Hai request "Hoàn tất đăng ký" gửi cùng lúc | Đúng 1 request nhận 201. Request kia nhận 409. Mã của request thua vẫn dùng được |
 | AC-9 | `state` của callback khác `state` trong cookie | Google gọi lại callback | 302 về `/?google_error=state`. Không có phiên mới |
 | AC-10 | `id_token` có `aud` khác `GOOGLE_CLIENT_ID`, hoặc `nonce` sai, hoặc đã hết hạn | Server kiểm `id_token` | 302 về `/?google_error=token`. Không có phiên mới |
 | AC-11 | Google trả `error=access_denied` | Google gọi lại callback | 302 về `/?google_error=access_denied` |
@@ -115,20 +118,28 @@ Coder viết lại các AC này với giá trị thật khi brief chuyển sang 
 | AC-21 | Một giá trị `google_pending` hoặc `google_flow` hợp lệ | Ai đó đặt giá trị đó vào cookie `session` và gọi `GET /api/auth/me` | 401 |
 | AC-22 | An có `googleSub` "g-222" | An liên kết Google với `sub` "g-333" | 302 về `/?google_error=taken`. `googleSub` của An vẫn là "g-222" |
 | AC-23 | Hai request liên kết cùng `sub` "g-444" từ hai tài khoản gửi cùng lúc | Server xử lý cả hai | Đúng một tài khoản có `sub` đó. Request kia nhận `google_error=taken` |
-| AC-24 | Hai lần "Hoàn tất đăng ký" khác `sub`, cùng số `0901112233`, gửi cùng lúc | Server xử lý cả hai | Đúng 1 request nhận 201. Request kia nhận 409 |
+| AC-24 | Hai cookie `google_pending` với `sub` "g-111" và "g-555". Số `0901112233` có một mã đúng | Hai request "Hoàn tất đăng ký" với số đó và mã đó gửi cùng lúc | Đúng 1 request nhận 201. Request kia nhận 400 "Mã đã hết hạn. Hãy xin mã mới" |
 | AC-25 | Lan có cookie `google_pending` | Lan xin mã cho `0901112233` | 200. `OtpSender.send` nhận `0901112233`, một mã 6 chữ số và `sms`. Bảng `PhoneOtp` có `codeHash`, không có mã |
 | AC-26 | Lan có mã đúng `123456` | Lan gửi "Hoàn tất đăng ký" với `654321` | 400 "Mã không đúng". Không có tài khoản mới. `attempts` = 1 |
 | AC-27 | Lan đã nhập sai 4 lần | Lan nhập sai lần thứ 5, rồi nhập mã đúng | Lần 5 trả 400 và hủy mã. Lần nhập mã đúng sau đó trả 400 "Mã đã hết hạn. Hãy xin mã mới" |
 | AC-28 | Mã được tạo lúc 10:00:00 | Lan gửi mã đúng lúc 10:05:01 | 400 "Mã đã hết hạn. Hãy xin mã mới" |
 | AC-29 | Lan xin mã lúc 10:00:00 | Lan xin lại lúc 10:00:30, rồi lúc 10:01:01 | Lần 10:00:30 trả 429. Lần 10:01:01 trả 200, và mã cũ không còn dùng được |
 | AC-30 | Số `0901112233` đã nhận 5 mã trong giờ này | Ai đó xin mã thứ 6 cho số đó | 429. `OtpSender.send` không được gọi |
-| AC-31 | Hai request "Hoàn tất đăng ký" cùng `sub`, cùng mã đúng, gửi cùng lúc | Server xử lý cả hai | Đúng 1 request nhận 201 |
+| AC-31 | Hai request "Hoàn tất đăng ký" cùng `sub` "g-111", cùng số, cùng mã đúng, gửi cùng lúc | Server xử lý cả hai | Đúng 1 request nhận 201. Request kia nhận 400 "Mã đã hết hạn. Hãy xin mã mới" |
 | AC-32 | Số `0901234567` đã có tài khoản của An | Người có cookie `google_pending` xin mã cho số đó | 409. `OtpSender.send` không được gọi |
 | AC-33 | `OtpSender.send` ném lỗi | Lan xin mã | 503 "Không gửi được mã. Thử lại sau". `PhoneOtp` không có mã mới cho số đó |
 | AC-34 | `NODE_ENV` = `production` và `OTP_PROVIDER` = `dev` | API khởi động | API dừng với lỗi cấu hình |
 | AC-35 | Lan không có cookie `google_pending` | Lan xin mã | 400. `OtpSender.send` không được gọi |
+| AC-36 | Số `0901112233` có mã đúng `123456` | 20 request "Hoàn tất đăng ký" với 20 mã sai khác nhau gửi cùng lúc, rồi một request với `123456` | `attempts` không vượt 5. Request với `123456` nhận 400 "Mã đã hết hạn. Hãy xin mã mới" |
+| AC-37 | Lan có cookie `google_pending` | 2 request xin mã cho `0901112233` gửi cùng lúc | `OtpSender.send` được gọi đúng 1 lần. Request kia nhận 429 |
+| AC-38 | IP `203.0.113.7` đã gửi 10 request `/otp` trong giờ này, với 10 cookie khác `sub` | Request thứ 11 từ IP đó | 429 với `retryAfter`. `OtpSender.send` không được gọi |
+| AC-39 | Cookie có `sub` "g-111" đã gửi 5 request `/otp` trong giờ này, cho 5 số khác nhau | Request thứ 6 với cookie đó, từ IP khác | 429. `OtpSender.send` không được gọi |
+| AC-40 | IP `203.0.113.8` đã gửi 9 request `/otp`, mỗi request cho một số đã có tài khoản và nhận 409 | Request thứ 10 và 11 từ IP đó | Request thứ 10 nhận 409. Request thứ 11 nhận 429: lần 409 cũng được đếm |
+| AC-41 | Lan có cookie `google_pending` | Lan xin mã với `consent` = `false` | 400. `OtpSender.send` không được gọi |
+| AC-42 | An có mật khẩu, `phoneVerifiedAt` = null, đã liên kết `sub` "g-222" | Google trả `sub` "g-222". An xin mã (`google_verify`) rồi nhập mã đúng | Callback trả 302 về `/?google=verify` và không có phiên. `OtpSender.send` nhận `0901234567`. Sau mã đúng: 200, có phiên, `phoneVerifiedAt` khác null. Lần đăng nhập Google sau không hỏi mã |
+| AC-43 | Server đã gửi 200 tin hôm nay | Lan xin mã | 503. `OtpSender.send` không được gọi. Log có `otp daily cap reached` và không có số điện thoại |
 
-## Contract (nháp)
+## Contract
 
 | Endpoint | Change | Request | Response and errors |
 |---|---|---|---|
@@ -137,19 +148,20 @@ Coder viết lại các AC này với giá trị thật khi brief chuyển sang 
 | `POST /api/auth/google/link-start` | new | `password`, cookie `session` | 200 `{ url }` tới Google · 401 |
 | `GET /api/auth/google/callback` | new | `code`, `state` hoặc `error` | 302 về `/` (R1, R5), `/?google=complete` (R2), hoặc `/?google_error=<mã>` |
 | `GET /api/auth/google/pending` | new | cookie `google_pending` | 200 `{ name, email }` · 404 |
-| `POST /api/auth/google/otp` | new | `phone`, cookie `google_pending` | 200 `{ resendAfter: 60 }` · 400 · 409 · 429 · 503 |
-| `POST /api/auth/google/complete` | new | `name`, `phone`, `code`, `consent` | 201 `{ id, name, role }` và cookie `session` · 400 · 409 |
+| `POST /api/auth/google/otp` | new | `purpose` (`google_signup` hoặc `google_verify`). Với `google_signup`: `phone`, `consent`, cookie `google_pending`. Với `google_verify`: cookie `google_verify`, server lấy số của tài khoản | 200 `{ resendAfter: 60 }` · 400 (thiếu cookie, số sai dạng, `consent` = false) · 409 (số đã có tài khoản) · 429 `{ retryAfter }` · 503 |
+| `POST /api/auth/google/complete` | new | `name`, `phone`, `code`, `consent`, cookie `google_pending` | 201 `{ id, name, role }` và cookie `session` · 400 (thiếu hoặc hỏng cookie, `consent` = false, mã sai, mã hết hạn) · 409 |
+| `POST /api/auth/google/verify` | new | `code`, cookie `google_verify` | 200 `{ id, name, role }` và cookie `session` · 400 (thiếu hoặc hỏng cookie, mã sai, mã hết hạn) |
 | `POST /api/auth/google/unlink` | new | cookie `session` | 200 · 400 |
 
-## Data (nháp)
+## Data
 
 | Table | Change | Migration step |
 |---|---|---|
 | `User` | mới: `googleSub` varchar(255), unique, null được. `email` varchar(254), null được | expand |
 | `User` | `passwordHash` thành null được, cho tài khoản chỉ có Google. Đăng nhập bằng mật khẩu với `passwordHash` = null trả 401 như sai mật khẩu | expand |
 | `User` | mới: `phoneVerifiedAt` timestamptz, null được. Tài khoản cũ giữ null | expand |
-| `PhoneOtp` | mới: `phone` varchar(15), `purpose` varchar(30), `codeHash` char(64), `attempts` int, `sentAt`, `expiresAt` timestamptz. Khóa chính (`phone`, `purpose`). Job dọn mã hết hạn mỗi giờ | expand |
-| `DevOtpOutbox` | mới, chỉ dùng khi `OTP_PROVIDER` = `dev`: `phone`, `code`, `createdAt` | expand |
+| `PhoneOtp` | mới: `phoneKey` varchar(64) (= `keyedDigest(phone)` như `AuthThrottle`, không lưu số), `purpose` varchar(30), `codeHash` char(64), `attempts` int, `sentAt`, `expiresAt` timestamptz. Khóa chính (`phoneKey`, `purpose`). Index trên `expiresAt` cho O10 | expand |
+| `DevOtpOutbox` | mới, chỉ dùng khi `OTP_PROVIDER` = `dev`: `phone` varchar(10), `code` char(6), `createdAt`. Bảng trống trên production (AC-34) | expand |
 
 Bản ghi quyết định: một ADR mới, vì thêm nhà cung cấp danh tính và cho mật khẩu null là quyết định khó đảo ngược. Intake, mục Data, phải thêm email và Google `sub` vào dữ liệu tài khoản.
 
@@ -164,6 +176,7 @@ Không file nào trong repo chứa giá trị của các biến này. `apps/api/
 | `GOOGLE_REDIRECT_URI` | biến môi trường | Cloud Run, `apps/api/.env` | `https://monsport-774323404592.asia-southeast1.run.app/api/auth/google/callback` trên cloud. `http://localhost:5173/api/auth/google/callback` khi chạy máy |
 | `SESSION_SECRET` | secret, đã có | Secret Manager `monsport-session-secret` | Ký thêm cookie `google_flow` và `google_pending`, và băm mã OTP (O2) |
 | `OTP_PROVIDER` | biến môi trường | Cloud Run, `apps/api/.env` | `esms` trên cloud, `dev` khi chạy máy |
+| `OTP_DAILY_CAP` | biến môi trường | Cloud Run | Số tin tối đa mỗi ngày (O5b). Mặc định 200 |
 | `ESMS_API_KEY`, `ESMS_SECRET_KEY` | secret | Secret Manager `monsport-esms-api-key`, `monsport-esms-secret-key` | Từ tài khoản của nhà cung cấp tin nhắn |
 | `ESMS_BRANDNAME` | biến môi trường | Cloud Run | Brandname đã đăng ký với nhà mạng |
 
@@ -196,8 +209,8 @@ Làm trong project Google Cloud đang chạy MONSPORT. Các bước 1 tới 7 n�
 
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
-| 1 | ADR, intake và tài liệu yêu cầu, hợp đồng và schema | `docs/adr/`, `docs/requirements/` (intake mục Data, data dictionary, business rules cho R1 tới R8), `packages/shared/src/` (gồm thông báo bảo vệ dữ liệu cá nhân), `apps/api/prisma/` | Migration trên Postgres thật |
-| 2 | Server: dịch vụ OTP (O1 tới O8, `OtpSender`, adapter `dev` và `esms`), luồng OIDC, quy tắc R1 tới R7, khóa ký riêng cho mỗi cookie (gồm `session.ts`), kiểm cấu hình lúc khởi động | `apps/api/src/modules/otp/`, `apps/api/src/modules/auth/`, `apps/api/src/app.module.ts`, `apps/api/src/main.ts`, `apps/api/.env.example`, `apps/api/package.json`, `pnpm-lock.yaml`, `docs/deploy-gcp.md` | AC-1 tới AC-35, với Google và `OtpSender` giả lập |
+| 1 | ADR, intake và tài liệu yêu cầu, hợp đồng và schema | `docs/adr/`, `docs/requirements/` (data dictionary, business rules cho R1 tới R8 và O3 tới O9, intake: dòng Zalo trỏ tới brief F-018), `packages/shared/src/` (gồm thông báo bảo vệ dữ liệu cá nhân), `apps/api/prisma/` | Migration trên Postgres thật |
+| 2 | Server: dịch vụ OTP (O1 tới O8, `OtpSender`, adapter `dev` và `esms`), luồng OIDC, quy tắc R1 tới R7, khóa ký riêng cho mỗi cookie (gồm `session.ts`), kiểm cấu hình lúc khởi động | `apps/api/src/modules/otp/`, `apps/api/src/modules/auth/` (gồm `throttle.service.ts`), `apps/api/src/app.module.ts`, `apps/api/src/main.ts`, `apps/api/.env.example`, `apps/api/package.json`, `pnpm-lock.yaml`, `docs/deploy-gcp.md` | AC-1 tới AC-43, với Google và `OtpSender` giả lập. PR này chạy `rule-review` |
 | 3 | Màn hình: nút Google, form "Hoàn tất đăng ký" có ô số điện thoại, nút "Gửi mã", ô mã và đếm ngược 60 giây, liên kết và gỡ liên kết, câu báo cho mỗi `google_error` | `apps/web/src/features/auth/`, `apps/web/src/app/`, `.agents/skills/verify-flow/` | AC-1, AC-19, AC-26 trên màn hình |
 | 4 | Bật trên live, sau các mục "Việc bạn làm" | Cloud Run (biến và secret), `docs/deploy-gcp.md`, `PROGRESS.md` | Bạn đăng ký bằng Google trên điện thoại thật và nhận SMS |
 
@@ -214,8 +227,11 @@ Làm trong project Google Cloud đang chạy MONSPORT. Các bước 1 tới 7 n�
 | `run.app` không phải tên miền của bạn | Branding, Authorized domains | Google có thể không cho publish khi chưa xác minh tên miền. Khi đó cần một tên miền riêng trỏ tới Cloud Run |
 | Schema: `passwordHash` null được | PR 1 | Đăng nhập mật khẩu kiểm null trước argon2. AC-15. Review bằng phiên mới |
 | Dữ liệu cá nhân: lưu thêm email và `sub` | `User.email`, `User.googleSub` | Chỉ lưu email khi `email_verified`. Xóa cả hai khi xóa tài khoản (R8). Thông báo bảo vệ dữ liệu cá nhân thêm email, Google, và việc gửi số điện thoại cho nhà cung cấp tin nhắn |
-| Đoán mã OTP | O4, O5 | 5 lần sai mỗi mã, 5 mã mỗi số mỗi giờ: tối đa 25 lần đoán trong 10^6 mã mỗi giờ. AC-27, AC-30 |
-| Tốn tiền SMS do bị spam gửi mã | O3, O5, R4 | Chỉ người có cookie `google_pending` hợp lệ xin được mã (AC-35). Giới hạn theo số và theo IP. Số đã có tài khoản không nhận tin (AC-32) |
+| Đoán mã OTP | O4, O5 | 5 lần sai mỗi mã, 5 mã mỗi số mỗi giờ: tối đa 25 lần đoán trong 10^6 mã mỗi giờ. Đếm lần sai bằng một câu SQL có điều kiện, nên request song song không vượt giới hạn. AC-27, AC-30, AC-36 |
+| Dò xem một số đã có tài khoản chưa, qua 409 ở `/otp` | O5 | `otp-ip` và `otp-sub` đếm cả lần 409 (AC-40). Mức dò bằng `/register` (20 mỗi IP mỗi giờ) |
+| Khóa số của người khác bằng cách xin mã liên tục | O5 | `otp-phone` chỉ đếm tin đã gửi, và mỗi 60 giây chỉ gửi một tin, nên kẻ xấu chỉ chặn được người khác trong 60 giây |
+| Tốn tiền SMS do bị spam gửi mã | O3, O5, O5b, R4 | Chỉ người có cookie `google_pending` hợp lệ xin được mã (AC-35). Giới hạn theo IP, theo `sub` và theo số. Trần mỗi ngày (AC-43). Số đã có tài khoản không nhận tin (AC-32) |
+| Gửi số điện thoại cho bên thứ ba trước khi người dùng đồng ý | O9 | `/otp` cần `consent` = `true` (AC-41) |
 | Lộ mã qua log | O2, adapter `dev` | Chỉ lưu bản băm. Adapter `dev` ghi vào bảng, không ra console, và không chạy ở production (AC-34) |
 
 ## Assumptions
@@ -224,8 +240,8 @@ Làm trong project Google Cloud đang chạy MONSPORT. Các bước 1 tới 7 n�
 - Tài khoản tạo bằng Google luôn có vai trò `USER`.
 - Tài khoản đã có trước F-004 giữ `phoneVerifiedAt` = null, và vẫn dùng được như cũ. Bạn chỉ yêu cầu xác minh cho tài khoản Google.
 - Tài khoản Google đã xác minh số lúc đăng ký. Lần đăng nhập sau (R1) không hỏi OTP nữa.
-- Liên kết Google vào tài khoản có mật khẩu (R5) không hỏi OTP, vì người dùng đã nhập lại mật khẩu.
-- Số phút, số lần sai và giới hạn gửi ở O1 tới O5 là giá trị agent chọn. Bạn đổi được.
+- Liên kết Google vào tài khoản có mật khẩu (R5) chỉ hỏi mật khẩu. Lần đăng nhập Google đầu tiên của tài khoản đó hỏi OTP (R1), vì bạn yêu cầu đăng nhập bằng Gmail phải xác minh số.
+- Số phút, số lần sai, giới hạn gửi và trần mỗi ngày ở O1 tới O5b là giá trị agent chọn. Bạn đổi được.
 - Tài khoản chỉ có Google không gỡ liên kết được, cho tới khi có luồng đặt mật khẩu.
 - Thư viện: `openid-client` (dependency mới), vì nó làm discovery, PKCE và kiểm `id_token`. Coder đọc tài liệu qua Context7 trước khi code.
 - Cookie `google_flow` dùng `SameSite=Lax`, vì Google gọi lại bằng một lần chuyển hướng GET từ site khác.
