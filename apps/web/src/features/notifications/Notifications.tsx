@@ -34,7 +34,11 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
     const number = ++latest.current;
     pending.current++;
     startedAt.current = Date.now();
-    return api<NotificationsListResponse | NotificationItemView[]>('/api/notifications')
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), STALE_MS);
+    return api<NotificationsListResponse | NotificationItemView[]>('/api/notifications', {
+      signal: controller.signal,
+    })
       .then((res) => {
         if (number !== latest.current) return;
         const normalized: NotificationsListResponse = Array.isArray(res)
@@ -46,6 +50,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
         if (!keepOnError && number === latest.current) setData(null);
       })
       .finally(() => {
+        clearTimeout(timer);
         pending.current--;
         // A trigger came while this reload ran, so the list may be old again.
         if (pending.current === 0 && again.current) {
@@ -96,6 +101,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
         method: 'POST',
       });
       latest.current++; // A list that was asked for during the POST is older than this change.
+      if (pending.current > 0) again.current = true;
       setData((prev) => {
         if (!prev) return prev;
         return {
@@ -115,6 +121,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
     try {
       await api<NotificationReadAllResponse>('/api/notifications/read-all', { method: 'POST' });
       latest.current++;
+      if (pending.current > 0) again.current = true;
       const nowIso = new Date().toISOString();
       setData((prev) => {
         if (!prev) return prev;

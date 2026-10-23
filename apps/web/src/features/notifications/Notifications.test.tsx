@@ -421,5 +421,108 @@ describe('Notifications', () => {
 
       expect(screen.queryByText('1')).toBeNull();
     });
+
+    it('AC-23: one GET hangs, then a push message arrives while a later GET runs, and one more GET follows', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const worker = new EventTarget();
+        vi.stubGlobal('navigator', { ...navigator, serviceWorker: worker });
+        let calls = 0;
+        let releaseThird: () => void = () => undefined;
+        const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+          if (url !== '/api/notifications') return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+          calls++;
+          if (calls === 1) return Promise.resolve(reply(empty));
+          if (calls === 2) {
+            return new Promise((_, reject) => {
+              opts?.signal?.addEventListener('abort', () => {
+                reject(new DOMException('The operation was aborted.', 'AbortError'));
+              });
+            });
+          }
+          if (calls === 3) {
+            return new Promise((resolve) => {
+              releaseThird = () => resolve(reply(empty));
+            });
+          }
+          return Promise.resolve(reply(mockNotifs));
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<Notifications userId="u1" />);
+        await waitFor(() => expect(calls).toBe(1));
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(45_000);
+        });
+        await waitFor(() => expect(calls).toBe(3));
+
+        await act(async () => {
+          worker.dispatchEvent(new MessageEvent('message', { data: { type: 'push-received' } }));
+        });
+        expect(calls).toBe(3);
+
+        await act(async () => {
+          releaseThird();
+        });
+
+        await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+        expect(calls).toBe(4);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('AC-23: a focus reload starts while the read-all POST is pending and answers with unread items after the POST, and one more GET follows, and the badge shows the result of that last GET, not the stale one', async () => {
+      let getCalls = 0;
+      let releasePost: () => void = () => undefined;
+      let releaseFocusGet: () => void = () => undefined;
+
+      const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+        if (url === '/api/notifications/read-all' && opts?.method === 'POST') {
+          return new Promise((resolve) => {
+            releasePost = () => resolve({ ok: true, status: 200, json: () => Promise.resolve({ count: 1 }) });
+          });
+        }
+        if (url !== '/api/notifications') {
+          return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+        }
+        getCalls++;
+        if (getCalls === 1) {
+          return Promise.resolve(reply(mockNotifs));
+        }
+        if (getCalls === 2) {
+          return new Promise((resolve) => {
+            releaseFocusGet = () => resolve(reply(mockNotifs));
+          });
+        }
+        return Promise.resolve(reply(empty));
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      render(<Notifications userId="u1" />);
+      await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+      expect(getCalls).toBe(1);
+
+      fireEvent.click(screen.getByRole('button', { name: /thông báo/i }));
+      const readAllBtn = await screen.findByRole('button', { name: 'Đánh dấu tất cả đã đọc' });
+      fireEvent.click(readAllBtn);
+
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
+      await waitFor(() => expect(getCalls).toBe(2));
+
+      await act(async () => {
+        releasePost();
+      });
+
+      await act(async () => {
+        releaseFocusGet();
+      });
+
+      await waitFor(() => expect(getCalls).toBe(3));
+      await waitFor(() => expect(screen.queryByText('1')).toBeNull());
+    });
   });
 });
