@@ -445,4 +445,21 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
     expect((await screen.findByRole('alert')).textContent).toBe('Bạn đã hủy đăng nhập bằng Google.');
   });
+
+  it('F-004 review: a signed-in USER on /?google_error=taken sees the message and no Đăng nhập heading', async () => {
+    const message = 'Tài khoản Google này đã được liên kết với một tài khoản khác.';
+    as({ id: 'x', name: 'An', role: 'USER' });
+    window.history.pushState({}, '', '/?google_error=taken');
+    render(<App />);
+
+    const alert = (await screen.findByText(message)).closest('[role="alert"]') as HTMLElement;
+    expect(alert).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Đặt sân' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Đăng nhập' })).toBeNull();
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(screen.getByText(message)).toBeTruthy();
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Đóng' }));
+    expect(screen.queryByText(message)).toBeNull();
+  });
 });

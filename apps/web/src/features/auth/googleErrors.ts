@@ -13,3 +13,17 @@ export function resolveGoogleError(code: string | null | undefined): string | nu
   if (!code) return null;
   return GOOGLE_ERROR_MESSAGES[code] ?? GOOGLE_ERROR_MESSAGES.unknown;
 }
+
+export const GOOGLE_SESSION_EXPIRED = 'Phiên đăng nhập Google đã hết hạn. Hãy thử lại.';
+
+// Messages of the API when the short Google cookie (pending sign-up or verify) is missing.
+const MISSING_GOOGLE_COOKIE_MESSAGES = new Set([
+  'Thiếu thông tin đăng ký Google',
+  'Thiếu thông tin xác minh Google',
+]);
+
+export function isGoogleSessionMissing(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const { status, message } = err as { status?: unknown; message?: unknown };
+  return status === 400 && typeof message === 'string' && MISSING_GOOGLE_COOKIE_MESSAGES.has(message);
+}

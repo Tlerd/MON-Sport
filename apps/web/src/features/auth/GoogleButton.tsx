@@ -4,7 +4,7 @@ export function GoogleButton() {
       <div className="divider">
         <span>hoặc</span>
       </div>
-      <a href="/api/auth/google/start" role="button" className="button secondary google-btn">
+      <a href="/api/auth/google/start" className="button secondary google-btn">
         Tiếp tục với Google
       </a>
     </div>

@@ -1,6 +1,8 @@
 import { PRIVACY_NOTICE, type GooglePendingView, type SessionUser } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
-import { api } from '@monsport/client';
+import { api, ApiError } from '@monsport/client';
+import { isGoogleSessionMissing } from './googleErrors.ts';
+import { GoogleSessionExpired } from './GoogleSessionExpired.tsx';
 
 async function sendOtpApi(payload: { purpose: string; phone?: string; consent?: boolean }) {
   const res = await fetch('/api/auth/google/otp', {
@@ -51,6 +53,7 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
   const [sendingOtp, setSendingOtp] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -60,7 +63,9 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
         setPending(data);
         if (data?.name) setName(data.name);
       })
-      .catch(() => undefined);
+      .catch((err) => {
+        if (active && err instanceof ApiError && err.status === 404) setExpired(true);
+      });
     return () => {
       active = false;
     };
@@ -82,6 +87,10 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
       setCodeSent(true);
       setCountdown(res?.resendAfter ?? 60);
     } catch (err: any) {
+      if (isGoogleSessionMissing(err)) {
+        setExpired(true);
+        return;
+      }
       setError(err?.message ?? 'Không gửi được mã. Thử lại sau');
       if (typeof err?.retryAfter === 'number') {
         setCountdown(err.retryAfter);
@@ -89,6 +98,13 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
     } finally {
       setSendingOtp(false);
     }
+  }
+
+  function handleChangePhone() {
+    setCodeSent(false);
+    setCode('');
+    setCountdown(0);
+    setError('');
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -103,10 +119,25 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
       const user = await completeApi({ name, phone, code, consent });
       onLogin(user);
     } catch (err: any) {
+      if (isGoogleSessionMissing(err)) {
+        setExpired(true);
+        return;
+      }
       setError(err?.message ?? 'Không thể hoàn tất đăng ký');
       setBusy(false);
     }
   }
+
+  if (expired) {
+    return (
+      <>
+        <h2 tabIndex={-1}>Hoàn tất đăng ký</h2>
+        <GoogleSessionExpired />
+      </>
+    );
+  }
+
+  const sendLabel = codeSent ? 'Gửi lại mã' : 'Gửi mã';
 
   return (
     <>
@@ -142,9 +173,15 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
               autoComplete="tel-national"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              readOnly={codeSent}
               required
             />
           </label>
+          {codeSent && (
+            <button type="button" className="link" onClick={handleChangePhone}>
+              Đổi số
+            </button>
+          )}
           <p className="hint">10 chữ số, bắt đầu bằng 0.</p>
         </div>
 
@@ -175,11 +212,7 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
             onClick={handleSendOtp}
             disabled={!consent || !phone || sendingOtp || countdown > 0}
           >
-            {codeSent
-              ? countdown > 0
-                ? `Gửi lại mã (${countdown}s)`
-                : 'Gửi lại mã'
-              : 'Gửi mã'}
+            {countdown > 0 ? `${sendLabel} (${countdown}s)` : sendLabel}
           </button>
         </div>
 

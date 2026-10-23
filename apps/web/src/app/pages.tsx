@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import type { SessionUser } from '@monsport/shared';
 import { AuthPanel } from '../features/auth/AuthPanel.tsx';
@@ -17,8 +17,17 @@ export function BookPage() {
   const [searchParams] = useSearchParams();
   const google = searchParams.get('google');
   const googleError = searchParams.get('google_error');
-  const { setUser } = useSession();
+  const { user, setUser } = useSession();
   const navigate = useNavigate();
+  // A signed-in user comes back here from the link flow with ?google_error=<code>.
+  const signedInGoogleError = user && googleError ? resolveGoogleError(googleError) : null;
+  const [googleNotice, setGoogleNotice] = useState<string | null>(signedInGoogleError);
+
+  useEffect(() => {
+    if (!signedInGoogleError) return;
+    setGoogleNotice(signedInGoogleError);
+    navigate('/', { replace: true });
+  }, [signedInGoogleError, navigate]);
 
   const handleLogin = (u: SessionUser) => {
     setUser(u);
@@ -45,7 +54,7 @@ export function BookPage() {
     );
   }
 
-  if (googleError) {
+  if (googleError && !user) {
     return (
       <div className="auth-page">
         <AuthPanel
@@ -56,7 +65,20 @@ export function BookPage() {
     );
   }
 
-  return <InnerBookPage />;
+  const notice = googleNotice ?? signedInGoogleError;
+  return (
+    <>
+      {notice && (
+        <div className="notice" role="alert">
+          <span>{notice}</span>{' '}
+          <button type="button" className="link" onClick={() => setGoogleNotice(null)}>
+            Đóng
+          </button>
+        </div>
+      )}
+      <InnerBookPage />
+    </>
+  );
 }
 
 export function OwnerRequestsPage() {

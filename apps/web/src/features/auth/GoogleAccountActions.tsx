@@ -9,6 +9,7 @@ export function GoogleAccountActions() {
   const [showForm, setShowForm] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
   if (!google) return null;
@@ -16,6 +17,7 @@ export function GoogleAccountActions() {
   async function handleLinkSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setStatus('');
     setBusy(true);
     try {
       const res = await api<GoogleLinkStartResponse>('/api/auth/google/link-start', {
@@ -33,10 +35,12 @@ export function GoogleAccountActions() {
 
   async function handleUnlink() {
     setError('');
+    setStatus('');
     setBusy(true);
     try {
       await api('/api/auth/google/unlink', { method: 'POST' });
       setShowForm(false);
+      setStatus('Đã gỡ liên kết Google');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không gỡ liên kết được');
     } finally {
@@ -53,6 +57,7 @@ export function GoogleAccountActions() {
             className="link"
             onClick={() => {
               setError('');
+              setStatus('');
               setShowForm(true);
             }}
           >
@@ -93,6 +98,11 @@ export function GoogleAccountActions() {
       {error && (
         <p className="error" role="alert">
           {error}
+        </p>
+      )}
+      {status && (
+        <p className="hint" role="status">
+          {status}
         </p>
       )}
     </div>

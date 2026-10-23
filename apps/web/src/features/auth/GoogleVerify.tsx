@@ -1,5 +1,7 @@
 import type { SessionUser } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
+import { isGoogleSessionMissing } from './googleErrors.ts';
+import { GoogleSessionExpired } from './GoogleSessionExpired.tsx';
 
 async function sendVerifyOtpApi() {
   const res = await fetch('/api/auth/google/otp', {
@@ -53,6 +55,7 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
   const [sendingOtp, setSendingOtp] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -70,6 +73,10 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
       setCodeSent(true);
       setCountdown(res?.resendAfter ?? 60);
     } catch (err: any) {
+      if (isGoogleSessionMissing(err)) {
+        setExpired(true);
+        return;
+      }
       setError(err?.status === 403 ? 'Tài khoản đã bị khóa' : (err?.message ?? 'Không gửi được mã'));
       if (typeof err?.retryAfter === 'number') {
         setCountdown(err.retryAfter);
@@ -91,10 +98,25 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
       const user = await verifyOtpApi(code);
       onLogin(user);
     } catch (err: any) {
+      if (isGoogleSessionMissing(err)) {
+        setExpired(true);
+        return;
+      }
       setError(err?.status === 403 ? 'Tài khoản đã bị khóa' : (err?.message ?? 'Xác minh không thành công'));
       setBusy(false);
     }
   }
+
+  if (expired) {
+    return (
+      <>
+        <h2 tabIndex={-1}>Xác minh số điện thoại</h2>
+        <GoogleSessionExpired />
+      </>
+    );
+  }
+
+  const sendLabel = codeSent ? 'Gửi lại mã' : 'Gửi mã';
 
   return (
     <>
@@ -107,11 +129,7 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
             onClick={handleSendOtp}
             disabled={sendingOtp || countdown > 0}
           >
-            {codeSent
-              ? countdown > 0
-                ? `Gửi lại mã (${countdown}s)`
-                : 'Gửi lại mã'
-              : 'Gửi mã'}
+            {countdown > 0 ? `${sendLabel} (${countdown}s)` : sendLabel}
           </button>
         </div>
 

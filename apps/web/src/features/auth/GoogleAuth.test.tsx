@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GoogleComplete } from './GoogleComplete.tsx';
 import { GoogleVerify } from './GoogleVerify.tsx';
@@ -106,26 +106,28 @@ describe('Google Auth Web Screens (F-004)', () => {
   });
 
   it('AC-19: no Google button when providers.google is false', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ google: false }),
-      }),
-    );
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ google: false }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const providersCalled = () =>
+      expect(fetchMock.mock.calls.some(([url]) => url === '/api/auth/providers')).toBe(true);
 
     const onLogin = vi.fn();
-    const { rerender } = render(<LoginForm onLogin={onLogin} />);
+    render(<LoginForm onLogin={onLogin} />);
+    // Wait until the providers fetch ran and its promise settled, so the assert is not vacuous.
+    await waitFor(providersCalled);
+    await act(async () => {});
+    expect(screen.queryByText('Tiếp tục với Google')).toBeNull();
 
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Tiếp tục với Google' })).toBeNull();
-    });
-
-    rerender(<RegisterForm onLogin={onLogin} />);
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Tiếp tục với Google' })).toBeNull();
-    });
+    cleanup();
+    fetchMock.mockClear();
+    render(<RegisterForm onLogin={onLogin} />);
+    await waitFor(providersCalled);
+    await act(async () => {});
+    expect(screen.queryByText('Tiếp tục với Google')).toBeNull();
   });
 
   it('shows Google button when providers.google is true', async () => {
@@ -141,7 +143,7 @@ describe('Google Auth Web Screens (F-004)', () => {
     const onLogin = vi.fn();
     render(<LoginForm onLogin={onLogin} />);
 
-    const googleBtn = await screen.findByRole('button', { name: 'Tiếp tục với Google' });
+    const googleBtn = await screen.findByRole('link', { name: 'Tiếp tục với Google' });
     expect(googleBtn).toBeTruthy();
     expect(googleBtn.getAttribute('href')).toBe('/api/auth/google/start');
   });
@@ -327,5 +329,137 @@ describe('Google Auth Web Screens (F-004)', () => {
       expect(call).toBeDefined();
       expect(call?.body).toEqual({ password: 'password123' });
     });
+  });
+
+  const EXPIRED = 'Phiên đăng nhập Google đã hết hạn. Hãy thử lại.';
+  const expectExpired = async () => {
+    expect(await screen.findByText(EXPIRED)).toBeTruthy();
+    const link = screen.getByRole('link', { name: 'Tiếp tục với Google' });
+    expect(link.getAttribute('href')).toBe('/api/auth/google/start');
+    expect(screen.queryByRole('button', { name: /Gửi mã|Hoàn tất|Xác minh/ })).toBeNull();
+  };
+
+  it('F-004 review: complete screen shows the expired message when pending returns 404', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Không tìm thấy' }) }),
+      ),
+    );
+    render(<GoogleComplete onLogin={vi.fn()} />);
+    await expectExpired();
+  });
+
+  it('F-004 review: complete screen shows the expired message when otp returns 400 for a missing cookie', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/auth/google/pending') {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ name: 'Lan' }) });
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ message: 'Thiếu thông tin đăng ký Google' }),
+        });
+      }),
+    );
+    render(<GoogleComplete onLogin={vi.fn()} />);
+    type(/^Số điện thoại/, '0901112233');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi mã' }));
+    await expectExpired();
+  });
+
+  it('F-004 review: verify screen shows the expired message when otp returns 400 for a missing cookie', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ message: 'Thiếu thông tin xác minh Google' }),
+        }),
+      ),
+    );
+    render(<GoogleVerify onLogin={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi mã' }));
+    await expectExpired();
+  });
+
+  it('F-004 review: a 429 with retryAfter before the first code shows "Gửi mã (Ns)" on both screens', async () => {
+    const tooMany = () =>
+      Promise.resolve({
+        ok: false,
+        status: 429,
+        json: () => Promise.resolve({ message: 'Bạn gửi mã quá nhiều lần', retryAfter: 30 }),
+      });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/auth/google/pending') {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ name: 'Lan' }) });
+        }
+        return tooMany();
+      }),
+    );
+
+    render(<GoogleVerify onLogin={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi mã' }));
+    const verifyBtn = await screen.findByRole('button', { name: 'Gửi mã (30s)' });
+    expect((verifyBtn as HTMLButtonElement).disabled).toBe(true);
+
+    cleanup();
+    render(<GoogleComplete onLogin={vi.fn()} />);
+    type(/^Số điện thoại/, '0901112233');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi mã' }));
+    const completeBtn = await screen.findByRole('button', { name: 'Gửi mã (30s)' });
+    expect((completeBtn as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('F-004 review: the phone is read-only after a code was sent, and "Đổi số" resets the code step', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/auth/google/pending') {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ name: 'Lan' }) });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ resendAfter: 60 }) });
+      }),
+    );
+    render(<GoogleComplete onLogin={vi.fn()} />);
+    const phoneInput = screen.getByLabelText(/^Số điện thoại/) as HTMLInputElement;
+    type(/^Số điện thoại/, '0901112233');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi mã' }));
+
+    fireEvent.change(await screen.findByLabelText('Mã OTP'), { target: { value: '123456' } });
+    expect(phoneInput.readOnly).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đổi số' }));
+    expect(phoneInput.readOnly).toBe(false);
+    expect(screen.queryByLabelText('Mã OTP')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đổi số' })).toBeNull();
+    expect((screen.getByRole('button', { name: 'Gửi mã' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('F-004 review: a successful unlink shows "Đã gỡ liên kết Google"', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/auth/providers') {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ google: true }) });
+        }
+        if (url === '/api/auth/google/unlink') {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+        }
+        return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+      }),
+    );
+    render(<GoogleAccountActions />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Gỡ liên kết Google' }));
+    expect((await screen.findByRole('status')).textContent).toBe('Đã gỡ liên kết Google');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
