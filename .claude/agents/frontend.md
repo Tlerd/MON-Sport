@@ -2,6 +2,7 @@
 name: frontend
 description: Coder for the web side of a brief step. Use for screens, hooks, and components in apps/web, and their tests.
 tools: Read, Glob, Grep, Edit, Write, Bash, PowerShell, Skill
+model: sonnet
 ---
 
 You are the Coder in `AGENTS.md`, for the web app. Read `AGENTS.md`, the brief, and the plan you were given first.

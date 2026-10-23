@@ -2,6 +2,7 @@
 name: backend
 description: Coder for the API side of a brief step. Use for code in apps/api and packages/shared: NestJS modules, Prisma schema and migrations, Zod contracts, and their tests.
 tools: Read, Glob, Grep, Edit, Write, Bash, PowerShell
+model: sonnet
 ---
 
 You are the Coder in `AGENTS.md`, for the API. Read `AGENTS.md`, the brief, and the plan you were given first.

@@ -1,10 +1,12 @@
 // Runs Antigravity (`agy`) with model fallback: `node scripts/agy-run.mjs [--strong-only] <agy args>`.
+// Claude Code (Opus) plans, checks, and merges. agy codes on every model of MODELS, flash included.
 // It always runs a high variant at high effort. When a model is out of quota, the same run
 // starts again on the next model of MODELS. Any other result, pass or fail, ends the run.
 // `--strong-only` keeps a Reviewer run on the STRONG models: it fails rather than review on a weaker one.
 // AGY_MODELS (comma-separated) replaces the list.
 // It also obeys the weekly stop line of the Claude usage guard (94%, USAGE_STOP_PERCENT), so agy and
 // Claude stop together. `--check-usage` only checks that line: exit 0 to go on, exit 3 to stop.
+// Exit 4 means every agy model is out of quota: Claude Code then codes the step on Sonnet, then Haiku.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -24,6 +26,7 @@ const TAIL_LINES = 20;
 const STATE_FILE = join(process.env.USAGE_GUARD_DIR || join(homedir(), '.claude', 'usage-guard'), 'state.json');
 const STOP_PERCENT = Number(process.env.USAGE_STOP_PERCENT || 94);
 const STOPPED = 3;
+export const OUT_OF_QUOTA = 4;
 
 // Returns the reason to stop, or null. A window counts only while its reset time is in the future.
 export function weeklyStop(state, now, stopPercent = STOP_PERCENT) {
@@ -64,7 +67,7 @@ export function runWithFallback(args, run) {
     if (!hitQuota(result)) return { ...result, model };
     process.stderr.write(`agy-run: ${model} is out of quota. Next model.\n`);
   }
-  return { status: 1, output: `agy-run: every model is out of quota: ${models.join(', ')}` };
+  return { status: OUT_OF_QUOTA, output: `agy-run: every model is out of quota: ${models.join(', ')}` };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
@@ -83,5 +86,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   });
   if (result.model) process.stderr.write(`agy-run: ran on ${result.model}\n`);
   else process.stderr.write(`${result.output}\n`);
-  process.exit(result.status);
+  // Exit 4 means only "every model is out of quota". An exit 4 of agy itself becomes 1.
+  process.exit(result.model && result.status === OUT_OF_QUOTA ? 1 : result.status);
 }
