@@ -1,7 +1,7 @@
 # 0006: Tách app mobile thành PWA riêng trong `apps/mobile`
 
-Status: Proposed
-Date: 2026-10-23
+Status: Accepted
+Date: 2026-10-23. Người dùng duyệt cùng ngày: "ADR 0006 theo đề xuất".
 
 ## Context
 
@@ -30,7 +30,7 @@ Người dùng yêu cầu làm phần mobile trong một folder riêng, với gi
 
 ## Decision
 
-Đề xuất chọn phương án 2.
+Chọn phương án 2.
 
 - `apps/mobile` là một ứng dụng React + Vite riêng. App dùng Zod contract trong `packages/shared`, và gọi cùng API `/api`.
 - Code dùng chung giữa web và mobile chuyển vào một package mới, `packages/client`. Package này gồm client API, Web Push và các hàm định dạng giá và giờ. `apps/mobile` không import từ `apps/web`, và `apps/web` không import từ `apps/mobile`. Quy tắc này nằm trong `.dependency-cruiser.cjs`.
@@ -48,4 +48,4 @@ Người dùng yêu cầu làm phần mobile trong một folder riêng, với gi
 
 ## Open
 
-- Người dùng duyệt ADR này. Sau khi duyệt, đổi Status thành Accepted và sửa intake.
+- Không còn. Intake đã đổi ngày 23/10/2026.

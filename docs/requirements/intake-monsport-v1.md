@@ -7,6 +7,7 @@ lang: vi
 
 Status: accepted
 Date: 2026-10-16. Bạn duyệt bản này và các giả định cùng ngày.
+Changed: 2026-10-23. Bạn duyệt ADR 0006 (app mobile là PWA) và F-004 (đăng nhập Google, xác minh số điện thoại bằng OTP, đăng nhập Zalo).
 Source: phỏng vấn bằng skill `ba-intake`, 4 vòng hỏi và 1 vòng đề xuất, ngày 16/10/2026. Tài liệu cũ (`docs/spec/dac-ta-ky-thuat.md`, `docs/briefs/F-001-tao-tran-kem-dat-san.md`) chỉ dùng để gợi ý câu hỏi.
 
 ## Kết quả
@@ -109,14 +110,13 @@ Thông báo đi qua Web Push. Trên iPhone, người dùng phải "Thêm vào M�
 | Đặt cố định hằng tuần | Cắt B3: giảm khoảng 3 ngày. Chủ sân nhập tay từng buổi |
 | Trình độ người chơi | Bạn nói chưa cần ở thời điểm này |
 | Tài khoản nhân viên của chủ sân | Thêm sau nếu cần |
-| App Android và iOS | Làm web trước |
-| Đăng nhập bằng OTP hoặc Zalo | Bản sau |
+| App native Android và iOS (qua store) | App mobile là PWA trong `apps/mobile` (ADR 0006). App native vẫn ngoài phạm vi |
 
 ## Inputs and outputs
 
 | Vào | Ra | Dạng |
 |---|---|---|
-| Thao tác của người dùng, chủ sân và admin | Các màn hình | Web, dùng tốt ở màn rộng 390px |
+| Thao tác của người dùng, chủ sân và admin | Các màn hình | Web cho màn lớn, và vẫn dùng được ở màn rộng 390px. App mobile (PWA trong `apps/mobile`, ADR 0006) cho điện thoại |
 | Request | JSON | REST API, tiền tố `/api` |
 | Thay đổi ở phòng chờ và ở danh sách yêu cầu | Sự kiện tức thì | Server-Sent Events |
 | Sự kiện ở UC-14 | Thông báo | Web Push |
@@ -215,7 +215,7 @@ Hai booking ở trạng thái "chờ xác nhận" hoặc "đã xác nhận" trê
 | Thời gian chạy | 99,5% mỗi tháng |
 | Bảo mật | HTTPS. Mật khẩu băm bằng argon2 |
 | Sao lưu | Mỗi ngày |
-| Thiết bị | Web trên điện thoại, màn rộng 390px trở lên |
+| Thiết bị | Web trên máy tính và máy tính bảng. App mobile (PWA) trên điện thoại, màn rộng 390px trở lên |
 
 ## Constraints
 
@@ -262,6 +262,10 @@ Mỗi ví dụ dùng sân "Sân 1" của đơn vị "Cầu lông A", ngày 20/11
 - Thứ tự ra mắt: UC-1, UC-10, UC-11 → UC-2 đến UC-6 → UC-7 đến UC-9 → UC-14 → UC-12, UC-13.
 - Booking chủ sân nhập cho khách gọi điện lưu tên khách và số điện thoại, cả hai không bắt buộc.
 - Trận chuyển sang "Đã đá xong" một cách tự động khi qua giờ kết thúc.
+- Người dùng đăng nhập hoặc đăng ký bằng Google. Tài khoản Google phải xác minh số điện thoại bằng mã OTP gửi qua SMS trước khi dùng app (brief F-004).
+- Người dùng đăng nhập hoặc đăng ký bằng Zalo. Số điện thoại của tài khoản Zalo được xác minh qua Zalo (brief F-004).
+- Đăng ký bằng số điện thoại và mật khẩu giữ như hiện tại, không cần OTP.
+- Admin đếm người dùng hoạt động theo hoạt động trong tuần (booking, vào trận, tạo trận), không theo lần đăng nhập (brief F-016).
 
 ## Open items
 
