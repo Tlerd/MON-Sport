@@ -29,7 +29,7 @@ export function parseOptions(argv) {
   }
   if (!['local', 'live'].includes(opts.target)) throw new Error('--target is local or live');
   if (!['web', 'mobile'].includes(opts.app)) throw new Error('--app is web or mobile');
-  opts.baseUrl ||= opts.target === 'local' ? 'http://localhost:5173' : liveUrl();
+  opts.baseUrl ||= opts.target === 'local' ? (opts.app === 'mobile' ? 'http://localhost:5180' : 'http://localhost:5173') : liveUrl();
   opts.baseUrl = opts.baseUrl.replace(/\/$/, '');
   return opts;
 }

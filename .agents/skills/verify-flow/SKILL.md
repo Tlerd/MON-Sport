@@ -30,7 +30,7 @@ To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each stat
 
 ## Targets and accounts
 
-- `local` (default): `http://localhost:5173`. The seed accounts of `apps/api/prisma/seed.ts`: player An `0901234567`, owner Bình `0912345678`, venue "Cầu lông A", court "Sân 1".
+- `local` (default): `http://localhost:5173` for web and `http://localhost:5180` for mobile. The seed accounts of `apps/api/prisma/seed.ts`: player An `0901234567`, owner Bình `0912345678`, venue "Cầu lông A", court "Sân 1".
 - `live`: the "Live at" URL in `PROGRESS.md`. Live passwords are secrets, so the run takes every account from the shell: `VERIFY_OWNER_PHONE`, `VERIFY_OWNER_PASSWORD`, `VERIFY_PLAYER_PHONE`, `VERIFY_PLAYER_PASSWORD`. The player is one reused account named `test-verify`, signed up once in the app. Write these values only in the shell or a password manager.
 - `owner-decide` and `phone-booking` on live also need `VERIFY_VENUE` and `VERIFY_COURT` set to a test court of that owner, because they leave or may leave a CONFIRMED booking there. Without them, these flows end with SKIP.
 - Live screenshots mask the names and phones of customers and of the signed-in user, because the evidence goes to a public pull request. The report writes an account phone as `<role phone>`.

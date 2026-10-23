@@ -83,7 +83,7 @@ describe('serveMobile: the container serves the mobile app under /app/', () => {
   let webDir: string;
   let mobileDir: string;
   const testPhone = '0901234567';
-  const testPassword = 'test-password-123';
+  const testPassword = 'test-password';
 
   beforeAll(async () => {
     webDir = mkdtempSync(join(tmpdir(), 'monsport-web-'));
@@ -102,10 +102,9 @@ describe('serveMobile: the container serves the mobile app under /app/', () => {
     await app.init();
 
     const db = app.get(PrismaService);
-    await db.user.upsert({
-      where: { phone: testPhone },
-      update: { passwordHash: await hash(testPassword) },
-      create: { name: 'An', phone: testPhone, role: 'USER', passwordHash: await hash(testPassword) },
+    await db.$executeRawUnsafe('TRUNCATE "Booking", "Court", "Venue", "User", "AuthThrottle" CASCADE');
+    await db.user.create({
+      data: { name: 'An', phone: testPhone, role: 'USER', passwordHash: await hash(testPassword) },
     });
   });
 

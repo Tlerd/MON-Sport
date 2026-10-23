@@ -175,23 +175,28 @@ describe('bars: BarsProvider, useBars, ContextBar, and ActionBar', () => {
     act(() => {
       release1 = captured.lock();
     });
+    expect(captured.tabHidden).toBe(true);
     // First lock taken
     act(() => {
       release2 = captured.lock();
     });
+    expect(captured.tabHidden).toBe(true);
     // Release first lock - second still holds
     act(() => {
       release1!();
     });
+    expect(captured.tabHidden).toBe(true);
     // Release second lock
     act(() => {
       release2!();
     });
+    expect(captured.tabHidden).toBe(false);
 
     // Releasing again has no effect
     act(() => {
       release2!();
     });
+    expect(captured.tabHidden).toBe(false);
 
     // Closed sheet does not acquire locks
     rerender(
@@ -202,5 +207,31 @@ describe('bars: BarsProvider, useBars, ContextBar, and ActionBar', () => {
         </Sheet>
       </BarsProvider>,
     );
+  });
+
+  it('renders <Sheet open>, unmounts it, and expects tabHidden === false', () => {
+    let captured: any;
+    function Consumer() {
+      captured = useBars();
+      return null;
+    }
+    const { rerender } = render(
+      <BarsProvider>
+        <Consumer />
+        <Sheet open onClose={() => {}} title="Test">
+          <p>Open</p>
+        </Sheet>
+      </BarsProvider>,
+    );
+
+    expect(captured.tabHidden).toBe(true);
+
+    rerender(
+      <BarsProvider>
+        <Consumer />
+      </BarsProvider>,
+    );
+
+    expect(captured.tabHidden).toBe(false);
   });
 });
