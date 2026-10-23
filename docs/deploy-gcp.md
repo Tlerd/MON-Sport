@@ -127,6 +127,24 @@ gcloud run services update monsport --region asia-southeast1 --no-cpu-throttling
 
 Cloud Run tính tiền theo thời gian instance sống, không chỉ lúc có yêu cầu. Để quay lại cách tính cũ, chạy lệnh trên với `--cpu-throttling`.
 
+## 7c. Bật đăng nhập Google và OTP (F-004)
+
+Đăng nhập Google và xác minh số qua OTP dùng các secret và biến môi trường sau.
+
+Secret Manager lưu ba secret:
+- `monsport-google-client-secret`: ánh xạ vào biến môi trường `GOOGLE_CLIENT_SECRET`.
+- `monsport-esms-api-key`: ánh xạ vào biến môi trường `ESMS_API_KEY`.
+- `monsport-esms-secret-key`: ánh xạ vào biến môi trường `ESMS_SECRET_KEY`.
+
+Cloud Run cấu hình các biến môi trường:
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_REDIRECT_URI`
+- `OTP_PROVIDER` (`esms` trên Cloud Run, `dev` khi chạy máy)
+- `OTP_DAILY_CAP` (mặc định 200)
+- `ESMS_BRANDNAME`
+
+Lưu ý: mỗi loại cookie dùng một khóa ký riêng. Các cookie phiên cũ không còn hợp lệ: users log in again after this deploy.
+
 ## 8. Thêm dữ liệu mẫu (tùy chọn)
 
 App chưa có màn hình đăng ký (UC-1) và quản lý đơn vị (UC-10). Để thử app, nạp dữ liệu mẫu: 6 tài khoản và 3 đơn vị.
