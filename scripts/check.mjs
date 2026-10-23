@@ -31,10 +31,19 @@ if (hook) {
   if (hookSkips(input, treeIsClean)) process.exit(0);
 }
 
-const release = await acquire(lockPath(root), {
-  onWait: (pid) => console.error(`Waiting for another pnpm check in this checkout (pid ${pid})`),
-});
+// The Stop hook has a 300 s timeout, so a hook run gives up the wait first and still blocks (exit 2).
+let release;
+try {
+  release = await acquire(lockPath(root), {
+    timeoutMs: hook ? 240_000 : 20 * 60 * 1000,
+    onWait: (pid) => console.error(`Waiting for another pnpm check in this checkout (pid ${pid})`),
+  });
+} catch (error) {
+  console.error(`check: ${error.message}. Run pnpm check again when that run ends.`);
+  process.exit(hook ? 2 : 1);
+}
 process.on('exit', release);
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => process.exit(130));
 
 // Locally the API tests need the Postgres of `pnpm db:start`. A reboot stops it, so start it here.
 // CI and a set DATABASE_URL bring their own database.

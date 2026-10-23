@@ -29,7 +29,7 @@ export async function acquire(
     now = Date.now,
     waitMs = 2000,
     timeoutMs = 20 * 60 * 1000,
-    staleMs = 30 * 60 * 1000,
+    staleMs = 10 * 60 * 1000,
     onWait,
   } = {},
 ) {
