@@ -1,4 +1,5 @@
 import { type Availability, startOfDayVN, type VenueView } from '@monsport/shared';
+import { Phone } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { api } from '../../lib/api.ts';
 import { hhmm } from '../../lib/format.ts';
@@ -127,7 +128,9 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
           {free.map((range) => (
             <li key={range.startAt}>
               <strong>{hhmm(minute(range.startAt))}–{hhmm(minute(range.endAt))}</strong>
-              <a className="call" href={`tel:${venue.phone}`}>Gọi chủ sân {venue.phone}</a>
+              <a className="call" href={`tel:${venue.phone}`}>
+                <Phone size={14} aria-hidden="true" /> Gọi chủ sân {venue.phone}
+              </a>
             </li>
           ))}
         </ul>

@@ -2,6 +2,8 @@ import type { MatchStatus, MatchView } from '@monsport/shared';
 import { useEffect, useId, useState } from 'react';
 import { api } from '../../lib/api.ts';
 import { formatDay, formatTime } from '../../lib/format.ts';
+import { EmptyState } from '../../components/EmptyState.tsx';
+import { StatusBadge } from '../../components/StatusBadge.tsx';
 
 const STATUS_LABEL: Record<MatchStatus, string> = {
   OPEN: 'Trận đang mở',
@@ -41,12 +43,12 @@ export function JoinedMatches({ refresh = 0 }: { refresh?: number }) {
       <h2 id={heading}>Trận đã vào</h2>
       {error && <p className="error" role="alert">{error}</p>}
       <div role="status" className="live">
-        {matches?.length === 0 && !error && <p className="empty">Bạn chưa vào trận nào</p>}
+        {matches?.length === 0 && !error && <EmptyState message="Bạn chưa vào trận nào" />}
       </div>
       {matches && matches.length > 0 && (
         <ul className="tickets joined-matches-list">
           {matches.map((m) => (
-            <li key={m.id} className="ticket" data-status={m.status}>
+            <li key={m.id} className="ticket card-web" data-status={m.status}>
               <span className="stub">
                 <strong>{formatTime(m.startAt)}</strong>
                 <span>đến {formatTime(m.endAt)}</span>
@@ -55,7 +57,7 @@ export function JoinedMatches({ refresh = 0 }: { refresh?: number }) {
                 <span className="where">{`${m.venueName} · ${m.courtName}`}</span>
                 <span>{`Ngày ${formatDay(m.startAt)} · ${formatTime(m.startAt)}–${formatTime(m.endAt)}`}</span>
                 <span>{`${m.joinedCount}/${m.capacity} suất`}</span>
-                <span className="status">{STATUS_LABEL[m.status]}</span>
+                <StatusBadge className="status" status={m.status} label={STATUS_LABEL[m.status]} />
               </span>
             </li>
           ))}

@@ -41,9 +41,11 @@ describe('Lobby (F-011 and F-012)', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it('AC-16: renders matches with venue, court, time, sport, slots, price, host, and booking status badge, and filters by sport and date', async () => {
+    vi.setSystemTime(new Date('2026-11-20T08:00:00+07:00'));
     const fetch = vi.fn((url: string) => {
       const body = url === '/api/matches' ? [m2, m1] : url === '/api/matches?sport=BADMINTON&date=2026-11-20' ? [m1] : [];
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
@@ -66,16 +68,29 @@ describe('Lobby (F-011 and F-012)', () => {
     expect(within(items[1]).getByText('Host: An')).toBeTruthy();
     expect(within(items[1]).getByText('Chưa xác nhận')).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText(/^Môn thể thao/), { target: { value: 'BADMINTON' } });
-    fireEvent.change(screen.getByLabelText(/^Ngày chơi/), { target: { value: '2026-11-20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cầu lông' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
 
     await vi.waitFor(() =>
       expect(fetch).toHaveBeenCalledWith('/api/matches?sport=BADMINTON&date=2026-11-20', expect.anything()),
     );
     await vi.waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
 
-    fireEvent.change(screen.getByLabelText(/^Ngày chơi/), { target: { value: '2026-11-21' } });
+    fireEvent.click(screen.getByRole('button', { name: 'T7 21/11' }));
     expect((await screen.findByRole('status')).textContent).toContain('Chưa có trận nào đang mở');
+  });
+
+  it('clicking "Bóng đá" requests the lobby with the football filter', async () => {
+    const fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([m2]) }));
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby />);
+    const footballChip = await screen.findByRole('button', { name: 'Bóng đá' });
+    fireEvent.click(footballChip);
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith('/api/matches?sport=FOOTBALL', expect.anything());
+    });
   });
 
   it('AC-11: match detail view, join/leave cycle, 409 alert, host tel links without leave button, and guest login prompt', async () => {
@@ -213,7 +228,7 @@ describe('Lobby (F-011 and F-012)', () => {
     vi.stubGlobal('fetch', fetch);
 
     const { unmount } = render(<Lobby />);
-    fireEvent.change(await screen.findByLabelText(/^Môn thể thao/), { target: { value: 'BADMINTON' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Cầu lông' }));
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches?sport=BADMINTON', expect.anything()));
     fetch.mockClear();
@@ -227,5 +242,80 @@ describe('Lobby (F-011 and F-012)', () => {
 
     unmount();
     expect(closeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders filter chip row above the columns across full width and outside the list pane', async () => {
+    const fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) }));
+    vi.stubGlobal('fetch', fetch);
+
+    const { container } = render(<Lobby />);
+    const filterRow = container.querySelector('.filter-chips-row');
+    const lobbySplit = container.querySelector('.lobby-split');
+    const listPane = container.querySelector('.lobby-list-pane');
+
+    expect(filterRow).toBeTruthy();
+    expect(lobbySplit).toBeTruthy();
+    expect(listPane).toBeTruthy();
+
+    expect(Boolean(filterRow!.compareDocumentPosition(lobbySplit!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    expect(listPane!.contains(filterRow)).toBe(false);
+  });
+
+  it('places lobby-detail-pane after lobby-list-pane in the DOM order for mobile column stacking', async () => {
+    const fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([m1]) }));
+    vi.stubGlobal('fetch', fetch);
+
+    const { container } = render(<Lobby />);
+    const lobbySplit = container.querySelector('.lobby-split');
+    const listPane = container.querySelector('.lobby-list-pane');
+    const detailPane = container.querySelector('.lobby-detail-pane');
+
+    expect(lobbySplit).toBeTruthy();
+    expect(listPane).toBeTruthy();
+    expect(detailPane).toBeTruthy();
+    expect(lobbySplit!.children[0]).toBe(listPane);
+    expect(lobbySplit!.children[1]).toBe(detailPane);
+  });
+
+  it('AC-6: price "50.000" with "/suất", label "Chưa xác nhận", and "Đầy" next to it for 4/4', async () => {
+    const fullMatch = {
+      ...m1,
+      id: '0199a1b2-0000-7000-8000-000000000399',
+      capacity: 4,
+      joinedCount: 4,
+      status: 'FULL' as const,
+      bookingStatus: 'PENDING' as const,
+      pricePerSlot: 50_000,
+    };
+    const fetch = vi.fn((url: string) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([fullMatch]) });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby />);
+    const card = await screen.findByRole('listitem');
+    expect(within(card).getByText(/50\.000.*\/suất/)).toBeTruthy();
+    expect(within(card).getByText('Chưa xác nhận')).toBeTruthy();
+    expect(within(card).getByText('Đầy')).toBeTruthy();
+  });
+
+  it('AC-7: filter chip row is before the list and before the detail pane in DOM order: use compareDocumentPosition', async () => {
+    const fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([m1]) }));
+    vi.stubGlobal('fetch', fetch);
+
+    const { container } = render(<Lobby />);
+    const filterRow = container.querySelector('.filter-chips-row');
+    const listPane = container.querySelector('.lobby-list-pane');
+    const detailPane = container.querySelector('.lobby-detail-pane');
+
+    expect(filterRow).toBeTruthy();
+    expect(listPane).toBeTruthy();
+    expect(detailPane).toBeTruthy();
+
+    expect(Boolean(filterRow!.compareDocumentPosition(listPane!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    expect(Boolean(filterRow!.compareDocumentPosition(detailPane!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   });
 });

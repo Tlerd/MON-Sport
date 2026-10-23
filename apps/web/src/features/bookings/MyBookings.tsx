@@ -2,6 +2,8 @@ import { CALL_OWNER_MESSAGE, type MatchStatus, type MatchView, type MyBookingVie
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '../../lib/api.ts';
 import { formatDay, formatSlot, formatTime, formatVnd } from '../../lib/format.ts';
+import { EmptyState } from '../../components/EmptyState.tsx';
+import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { CancelAsk, useCancelFlow } from './cancel.tsx';
 import { STATUS_LABEL } from './status.ts';
 
@@ -121,7 +123,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
       <h2>Booking của tôi</h2>
       {alertText && <p className="error" role="alert">{alertText}</p>}
       {rows.length === 0 ? (
-        <p className="empty">Bạn chưa có booking nào. Chọn đơn vị ở trên để đặt sân.</p>
+        <EmptyState message="Bạn chưa có booking nào. Chọn đơn vị ở trên để đặt sân." />
       ) : (
         <ul className="tickets" ref={list}>
           {rows.map((b) => {
@@ -131,7 +133,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
             const canOpenMatch = !b.match && (b.status === 'PENDING' || b.status === 'CONFIRMED') && startAt.getTime() > now.getTime();
             const label = `${b.venueName} · ${b.courtName}, ${formatSlot(b.startAt, b.endAt)}`;
             return (
-              <li key={b.id} className="ticket" data-status={b.status}>
+              <li key={b.id} className="ticket card-web" data-status={b.status}>
                 <span className="stub">
                   <strong>{formatTime(b.startAt)}</strong>
                   <span>đến {formatTime(b.endAt)}</span>
@@ -140,7 +142,12 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
                   <span className="where">{`${b.venueName} · ${b.courtName}`}</span>
                   <span>Ngày {formatDay(b.startAt)}</span>
                   <span className="money">{formatVnd(b.priceTotal)}</span>
-                  <span className="status" {...(decision !== 'ALLOW' && { tabIndex: -1, 'data-focus': b.id })}>{STATUS_LABEL[b.status]}</span>
+                  <StatusBadge
+                    className="status"
+                    status={b.status}
+                    label={STATUS_LABEL[b.status]}
+                    {...(decision !== 'ALLOW' && { tabIndex: -1, 'data-focus': b.id })}
+                  />
                   {b.match && (
                     <span className="match-summary">
                       {`${MATCH_STATUS_LABEL[b.match.status]} · ${b.match.joinedCount}/${b.match.capacity} suất · ${formatVnd(b.match.pricePerSlot)}/suất`}

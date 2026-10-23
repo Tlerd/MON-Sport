@@ -1,5 +1,17 @@
-import type { MatchDetailView, MatchView, SessionUser, Sport } from '@monsport/shared';
-import { useEffect, useId, useState } from 'react';
+import {
+  addDaysYmd,
+  vnDateString,
+  type MatchDetailView,
+  type MatchView,
+  type SessionUser,
+  type Sport,
+} from '@monsport/shared';
+import { CalendarDays } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Chip } from '../../components/Chip.tsx';
+import { EmptyState } from '../../components/EmptyState.tsx';
+import { SportIcon } from '../../components/icons.tsx';
+import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { api } from '../../lib/api.ts';
 import { formatDay, formatTime, formatVnd } from '../../lib/format.ts';
 
@@ -15,6 +27,15 @@ const BOOKING_BADGE: Record<MatchView['bookingStatus'], string> = {
   EXPIRED: 'Hết hạn',
   CANCELLED: 'Đã hủy',
 };
+
+function formatDayChip(ymd: string) {
+  // Noon UTC falls on the same calendar day in every time zone, so the weekday never depends on the machine (BR-27).
+  const d = new Date(`${ymd}T12:00:00Z`);
+  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  const dayOfWeek = days[d.getUTCDay()];
+  const parts = ymd.split('-');
+  return `${dayOfWeek} ${parts[2]}/${parts[1]}`;
+}
 
 interface LobbyProps {
   refresh?: number;
@@ -39,6 +60,20 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
   const [detailError, setDetailError] = useState<string>('');
   const [actionError, setActionError] = useState<string>('');
   const [loadingAction, setLoadingAction] = useState(false);
+
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const todayStr = useMemo(() => vnDateString(new Date()), []);
+  const dateOptions = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const ymd = addDaysYmd(todayStr, i);
+      return {
+        ymd,
+        label: i === 0 ? 'Hôm nay' : formatDayChip(ymd),
+      };
+    });
+  }, [todayStr]);
+
+  const isOtherDate = date !== '' && !dateOptions.some((d) => d.ymd === date);
 
   // AC-12: listen to SSE /api/matches/stream and reload when a match event arrives.
   useEffect(() => {
@@ -129,114 +164,184 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     }
   }
 
+  const selectedMatch = matches?.find((m) => m.id === expandedId) ?? null;
+  const remaining = selectedMatch ? selectedMatch.capacity - selectedMatch.joinedCount : 0;
+
   return (
-    <section className="panel" aria-labelledby={heading}>
+    <section className="panel lobby-panel" aria-labelledby={heading}>
       <h2 id={heading}>Phòng chờ</h2>
-      <div className="row two">
-        <label>
-          Môn thể thao
-          <select value={sport} onChange={(e) => setSport(e.target.value)}>
-            <option value="">Tất cả môn</option>
-            <option value="BADMINTON">Cầu lông</option>
-            <option value="FOOTBALL">Bóng đá</option>
-          </select>
-        </label>
-        <label>
-          Ngày chơi
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </label>
+      <div className="filter-chips-row">
+        <div role="group" aria-label="Môn thể thao" className="chips sport-chips">
+          <Chip selected={sport === ''} onClick={() => setSport('')}>
+            Tất cả
+          </Chip>
+          <Chip
+            selected={sport === 'BADMINTON'}
+            icon={<SportIcon sport="BADMINTON" size={16} />}
+            onClick={() => setSport('BADMINTON')}
+          >
+            Cầu lông
+          </Chip>
+          <Chip
+            selected={sport === 'FOOTBALL'}
+            icon={<SportIcon sport="FOOTBALL" size={16} />}
+            onClick={() => setSport('FOOTBALL')}
+          >
+            Bóng đá
+          </Chip>
+        </div>
+
+        <div role="group" aria-label="Ngày chơi" className="chips date-chips">
+          <Chip selected={date === ''} onClick={() => setDate('')}>
+            Tất cả ngày
+          </Chip>
+          {dateOptions.map((opt) => (
+            <Chip
+              key={opt.ymd}
+              selected={date === opt.ymd}
+              onClick={() => setDate(opt.ymd)}
+            >
+              {opt.label}
+            </Chip>
+          ))}
+          <label className={`chip ${isOtherDate ? 'on selected' : ''}`}>
+            <CalendarDays size={14} aria-hidden="true" />
+            <span>Ngày khác</span>
+            <input
+              ref={dateInputRef}
+              type="date"
+              aria-label="Ngày khác"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+            />
+          </label>
+        </div>
       </div>
-      {error && <p className="error" role="alert">{error}</p>}
-      <div role="status" className="live">
-        {matches?.length === 0 && !error && <p className="empty">Chưa có trận nào đang mở</p>}
-      </div>
-      {matches && matches.length > 0 && (
-        <ul className="tickets lobby-list">
-          {matches.map((m) => {
-            const isExpanded = expandedId === m.id;
-            const remaining = m.capacity - m.joinedCount;
-            return (
-              <li key={m.id} className="ticket match-ticket" data-status={m.bookingStatus}>
-                <span className="stub">
-                  <strong>{formatTime(m.startAt)}</strong>
-                  <span>đến {formatTime(m.endAt)}</span>
-                </span>
-                <span className="body">
-                  <span className="where">{`${m.venueName} · ${m.courtName}`}</span>
-                  <span>{`${SPORT_LABEL[m.sport]} · Ngày ${formatDay(m.startAt)}`}</span>
-                  <span>{`${m.joinedCount}/${m.capacity} suất · ${formatVnd(m.pricePerSlot)}/suất`}</span>
-                  <span>Host: {m.hostName}</span>
-                  <span className="status">{BOOKING_BADGE[m.bookingStatus]}</span>
-                  <button
-                    type="button"
-                    className="link detail-toggle"
+      <div className="lobby-split">
+        <div className="lobby-list-pane">
+          {error && <p className="error" role="alert">{error}</p>}
+          <div role="status" className="live">
+            {matches?.length === 0 && !error && (
+              <EmptyState message="Chưa có trận nào đang mở" />
+            )}
+          </div>
+          {matches && matches.length > 0 && (
+            <ul className="tickets lobby-list">
+              {matches.map((m) => {
+                const isExpanded = expandedId === m.id;
+                return (
+                  <li
+                    key={m.id}
+                    className={`ticket match-ticket card-web ${isExpanded ? 'active' : ''}`}
+                    data-status={m.bookingStatus}
                     onClick={() => toggleDetail(m)}
                   >
-                    {isExpanded ? 'Đóng chi tiết' : 'Xem chi tiết'}
-                  </button>
-
-                  {isExpanded && (
-                    <div className="match-detail">
-                      <div className="detail-meta">
-                        <span>Còn {remaining} suất trống</span>
-                        <span>{formatVnd(m.pricePerSlot)}/suất</span>
+                    <span className="match-icon">
+                      <SportIcon sport={m.sport} size={20} />
+                    </span>
+                    <span className="match-body body">
+                      <div className="match-line-1">
+                        <span className="where">{`${m.venueName} · ${m.courtName}`}</span>
+                        <span>{` · ${formatTime(m.startAt)}–${formatTime(m.endAt)}`}</span>
                       </div>
+                      <div className="match-line-2">
+                        <span>{`${SPORT_LABEL[m.sport]} · Ngày ${formatDay(m.startAt)}`}</span>
+                        <span>Host: {m.hostName}</span>
+                      </div>
+                      <div className="match-line-2">
+                        <span className="match-slots">{`${m.joinedCount}/${m.capacity} suất · ${formatVnd(m.pricePerSlot)}/suất`}</span>
+                        <StatusBadge className="status" status={m.bookingStatus} label={BOOKING_BADGE[m.bookingStatus]} />
+                        {(m.status === 'FULL' || m.joinedCount >= m.capacity) && (
+                          <StatusBadge className="status" status="FULL" />
+                        )}
+                        <button
+                          type="button"
+                          className="link detail-toggle"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleDetail(m);
+                          }}
+                        >
+                          {isExpanded ? 'Đóng chi tiết' : 'Xem chi tiết'}
+                        </button>
+                      </div>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
 
-                      {!user && (
-                        <p className="hint">Đăng nhập để vào trận</p>
-                      )}
+        <div className="lobby-detail-pane">
+          {selectedMatch ? (
+            <div className="match-detail card-web">
+              <h3>{`${selectedMatch.venueName} · ${selectedMatch.courtName}`}</h3>
+              <p className="detail-meta-row">
+                <span>{`${SPORT_LABEL[selectedMatch.sport]} · Ngày ${formatDay(selectedMatch.startAt)}`}</span>
+                <span>{`${formatTime(selectedMatch.startAt)}–${formatTime(selectedMatch.endAt)}`}</span>
+              </p>
+              <div className="detail-meta">
+                <span>Còn {remaining} suất trống</span>
+                <span>{formatVnd(selectedMatch.pricePerSlot)}/suất</span>
+              </div>
 
-                      {user && detail && detail.id === m.id && (
-                        <>
-                          <div className="players-section">
-                            <strong>Người tham gia:</strong>
-                            <ul className="players-list">
-                              {detail.players.map((p) => (
-                                <li key={p.userId}>
-                                  {detail.viewerRole === 'HOST' && p.phone ? (
-                                    <a href={`tel:${p.phone}`}>{p.name} ({p.phone})</a>
-                                  ) : (
-                                    <span>{p.name}</span>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+              {!user && (
+                <p className="hint">Đăng nhập để vào trận</p>
+              )}
 
-                          <div className="actions match-actions">
-                            {detail.viewerRole === 'PLAYER' && (
-                              <button
-                                type="button"
-                                className="secondary"
-                                disabled={loadingAction}
-                                onClick={() => handleLeave(m.id)}
-                              >
-                                Rời trận
-                              </button>
-                            )}
-                            {detail.viewerRole === 'NONE' && (
-                              <button
-                                type="button"
-                                disabled={loadingAction}
-                                onClick={() => handleJoin(m.id)}
-                              >
-                                Vào trận
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
+              {user && detail && detail.id === selectedMatch.id && (
+                <>
+                  <div className="players-section">
+                    <strong>Người tham gia:</strong>
+                    <ul className="players-list">
+                      {detail.players.map((p) => (
+                        <li key={p.userId}>
+                          {detail.viewerRole === 'HOST' && p.phone ? (
+                            <a href={`tel:${p.phone}`}>{p.name} ({p.phone})</a>
+                          ) : (
+                            <span>{p.name}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-                      {detailError && <p className="error" role="alert">{detailError}</p>}
-                      {actionError && <p className="error" role="alert">{actionError}</p>}
-                    </div>
-                  )}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  <div className="actions match-actions">
+                    {detail.viewerRole === 'PLAYER' && (
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={loadingAction}
+                        onClick={() => handleLeave(selectedMatch.id)}
+                      >
+                        Rời trận
+                      </button>
+                    )}
+                    {detail.viewerRole === 'NONE' && (
+                      <button
+                        type="button"
+                        disabled={loadingAction}
+                        onClick={() => handleJoin(selectedMatch.id)}
+                      >
+                        Vào trận
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {detailError && <p className="error" role="alert">{detailError}</p>}
+              {actionError && <p className="error" role="alert">{actionError}</p>}
+            </div>
+          ) : (
+            <div className="card-web empty-detail-card">
+              <EmptyState message="Chọn một trận bên danh sách để xem người tham gia và vào trận." />
+            </div>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

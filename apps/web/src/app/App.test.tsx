@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.tsx';
 
 vi.mock('recharts', async (importOriginal) => {
@@ -15,6 +15,10 @@ vi.mock('recharts', async (importOriginal) => {
 });
 
 describe('App', () => {
+  beforeEach(() => {
+    window.history.pushState({}, '', '/');
+  });
+
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -23,6 +27,7 @@ describe('App', () => {
   it('shows the login form when nobody is signed in', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, json: () => Promise.resolve({ message: 'Bạn cần đăng nhập' }) }));
     render(<App />);
+    fireEvent.click(await screen.findByRole('link', { name: 'Đăng nhập' }));
     expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
   });
 
@@ -33,6 +38,7 @@ describe('App', () => {
       return Promise.resolve({ ok: (status as number) < 400, status, json: () => Promise.resolve(body) });
     }));
     render(<App />);
+    fireEvent.click(await screen.findByRole('link', { name: 'Đăng nhập' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Tạo tài khoản' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Lan' } });
     fireEvent.change(screen.getByLabelText('Số điện thoại'), { target: { value: '0901112233' } });
@@ -51,6 +57,58 @@ describe('App', () => {
     ));
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' })).toBeTruthy();
+  });
+
+  it('owner opens /chu-san/yeu-cau, a confirmed booking shows, click "Hủy", and fetch is called with POST /api/owner/bookings/<id>/cancel', async () => {
+    const bookingId = '0199a1b2-0000-7000-8000-000000000101';
+    const futureStart = new Date(Date.now() + 3600_000).toISOString();
+    const futureEnd = new Date(Date.now() + 7200_000).toISOString();
+    const confirmedBooking = {
+      id: bookingId,
+      courtId: 'court-1',
+      startAt: futureStart,
+      endAt: futureEnd,
+      status: 'CONFIRMED',
+      source: 'APP',
+      priceTotal: 120_000,
+      confirmDeadline: null,
+      confirmedAt: new Date().toISOString(),
+      cancelledAt: null,
+      createdAt: new Date().toISOString(),
+      customer: { name: 'Chú Tư', phone: '0987654321' },
+    };
+    const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'x', name: 'Bình', role: 'OWNER' }) });
+      }
+      if (url === '/api/owner/bookings?status=CONFIRMED') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([confirmedBooking]) });
+      }
+      if (url === `/api/owner/bookings/${bookingId}/cancel` && opts?.method === 'POST') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...confirmedBooking, status: 'CANCELLED' }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    window.history.pushState({}, '', '/chu-san/yeu-cau');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Booking đã xác nhận' })).toBeTruthy();
+    expect(await screen.findByText('Chú Tư')).toBeTruthy();
+
+    const cancelButton = screen.getByRole('button', { name: /^Hủy/ });
+    fireEvent.click(cancelButton);
+
+    const confirmButton = screen.getByRole('button', { name: /^Xác nhận hủy/ });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/owner/bookings/${bookingId}/cancel`,
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
   });
 
   // Brief F-008 (AC-14): a guest and a user see the free hours, an owner and an admin do not.
@@ -89,7 +147,7 @@ describe('App', () => {
     as({ id: 'x', name: 'Bình', role });
     render(<App />);
     if (heading) await screen.findByRole('heading', { name: heading });
-    else await screen.findByText('Chào Bình');
+    else await screen.findByRole('heading', { name: 'Chủ sân' });
     expect(screen.queryByRole('heading', { name: 'Giờ trống' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Phòng chờ' })).toBeNull();
   });
@@ -97,22 +155,28 @@ describe('App', () => {
   it('AC-16: both a guest and a USER see "Phòng chờ"', async () => {
     as(null);
     render(<App />);
+    fireEvent.click(await screen.findByRole('link', { name: 'Phòng chờ' }));
     expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
     cleanup();
 
     as({ id: 'x', name: 'An', role: 'USER' });
     render(<App />);
+    fireEvent.click(await screen.findByRole('link', { name: 'Phòng chờ' }));
     expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
   });
 
   it('AC-13: a USER sees "Trận đã vào", while guests, owners, and admins do not', async () => {
     as({ id: 'x', name: 'An', role: 'USER' });
     render(<App />);
+    fireEvent.click(await screen.findByRole('link', { name: 'Lịch của tôi' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Trận đã vào' }));
     expect(await screen.findByRole('heading', { name: 'Trận đã vào' })).toBeTruthy();
     cleanup();
 
+    window.history.pushState({}, '', '/');
     as(null);
     render(<App />);
+    fireEvent.click(await screen.findByRole('link', { name: 'Phòng chờ' }));
     expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Trận đã vào' })).toBeNull();
     cleanup();
@@ -125,7 +189,7 @@ describe('App', () => {
 
     as({ id: 'x', name: 'Admin', role: 'ADMIN' });
     render(<App />);
-    await screen.findByText('Chào Admin');
+    await screen.findByRole('heading', { name: 'Chủ sân' });
     expect(screen.queryByRole('heading', { name: 'Trận đã vào' })).toBeNull();
   });
 
@@ -159,7 +223,8 @@ describe('App', () => {
     }));
 
     render(<App />);
-    const bell = await screen.findByRole('button', { name: 'Thông báo' });
+    await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' });
+    const bell = await within(screen.getByRole('banner')).findByRole('button', { name: /Thông báo/ });
     expect(await within(screen.getByRole('banner')).findByText('1')).toBeTruthy();
 
     fireEvent.click(bell);
@@ -181,7 +246,7 @@ describe('App', () => {
     }));
 
     render(<App />);
-    const bell = await screen.findByRole('button', { name: 'Thông báo' });
+    const bell = await screen.findByRole('button', { name: /Thông báo/ });
     fireEvent.click(bell);
     expect(await screen.findByRole('heading', { name: 'Thông báo' })).toBeTruthy();
     expect(screen.getByText('Chưa có thông báo nào')).toBeTruthy();
@@ -305,10 +370,33 @@ describe('App', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' })).toBeTruthy();
 
-    const financeTab = screen.getByRole('button', { name: 'Doanh thu' });
+    const financeTab = await screen.findByRole('link', { name: /Doanh thu/ });
     fireEvent.click(financeTab);
 
     expect(await screen.findByRole('heading', { name: 'Báo cáo tài chính' })).toBeTruthy();
     expect(await screen.findByText('960.000đ')).toBeTruthy();
+  });
+
+  it('renders topnav with brand, nav items, and account area, and routes /san/:id to the venue in BookPage', async () => {
+    const venue = { id: '0199a1b2-0000-7000-8000-000000000002', name: 'Sân Cầu Lông B', address: '456 Lê Lợi', phone: '0907654321', opensAt: 360, closesAt: 1380, courts: [] };
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'u1', name: 'Minh', role: 'USER' }) });
+      if (url === '/api/notifications') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ unreadCount: 0, items: [] }) });
+      if (url === '/api/venues') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([venue]) });
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/san/0199a1b2-0000-7000-8000-000000000002');
+    render(<App />);
+
+    const banner = screen.getByRole('banner');
+    expect(await within(banner).findByText('Minh')).toBeTruthy();
+    expect(within(banner).getByText('MONSPORT')).toBeTruthy();
+    expect(within(banner).getByRole('link', { name: /Đặt sân/ })).toBeTruthy();
+    expect(within(banner).getByRole('link', { name: /Phòng chờ/ })).toBeTruthy();
+    expect(within(banner).getByRole('link', { name: /Lịch của tôi/ })).toBeTruthy();
+    expect(within(banner).getByText('Minh')).toBeTruthy();
+
+    expect(await screen.findByRole('heading', { name: 'Sân Cầu Lông B' })).toBeTruthy();
   });
 });

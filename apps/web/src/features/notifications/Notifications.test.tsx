@@ -73,7 +73,7 @@ describe('Notifications', () => {
     render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
 
     // Shows bell with badge "1"
-    const bell = await screen.findByRole('button', { name: 'Thông báo' });
+    const bell = await screen.findByRole('button', { name: /Thông báo/ });
     expect(screen.getByText('1')).toBeTruthy();
 
     // Click bell opens drawer
@@ -124,7 +124,7 @@ describe('Notifications', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
-    const bell = await screen.findByRole('button', { name: 'Thông báo' });
+    const bell = await screen.findByRole('button', { name: /Thông báo/ });
     fireEvent.click(bell);
 
     const readAllBtn = await screen.findByRole('button', { name: 'Đánh dấu tất cả đã đọc' });
@@ -136,7 +136,8 @@ describe('Notifications', () => {
         expect.objectContaining({ method: 'POST' }),
       );
     });
-    expect(screen.queryByText('1')).toBeNull();
+    // The badge goes when the POST answers, one render after the call.
+    await waitFor(() => expect(screen.queryByText('1')).toBeNull());
   });
 
   it('AC-11: shows "Chưa có thông báo nào" when notifications list is empty', async () => {
@@ -155,7 +156,7 @@ describe('Notifications', () => {
     );
 
     render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
-    const bell = await screen.findByRole('button', { name: 'Thông báo' });
+    const bell = await screen.findByRole('button', { name: /Thông báo/ });
     expect(screen.queryByText('0')).toBeNull();
 
     fireEvent.click(bell);
@@ -178,7 +179,7 @@ describe('Notifications', () => {
     try {
       render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
       expect(screen.queryByRole('button', { name: 'Nhận thông báo trên thiết bị này' })).toBeNull();
-      fireEvent.click(await screen.findByRole('button', { name: 'Thông báo' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Thông báo/ }));
 
       expect(await screen.findByRole('button', { name: 'Nhận thông báo trên thiết bị này' })).toBeTruthy();
     } finally {
@@ -196,7 +197,7 @@ describe('Notifications', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Thông báo' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Thông báo/ }));
     await screen.findByText('Chưa có thông báo nào');
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/push/public-key', expect.anything()));
     await act(async () => {});
@@ -228,7 +229,7 @@ describe('Notifications', () => {
       const fetchMock = stubServer();
       render(<Notifications userId="u1" />);
       await waitFor(() => expect(listCalls(fetchMock)).toBe(1));
-      await waitFor(() => expect(screen.getByText('🔔')).toBeTruthy());
+      await waitFor(() => expect(screen.getByRole('button', { name: /Thông báo/ })).toBeTruthy());
       expect(screen.queryByText('1')).toBeNull();
       return fetchMock;
     }
@@ -549,5 +550,32 @@ describe('Notifications', () => {
       await waitFor(() => expect(getCalls).toBe(3));
       await waitFor(() => expect(screen.queryByText('1')).toBeNull());
     });
+  });
+
+  it('AC-8: 3 unread: an svg inside the button, no "🔔" text, button name "Thông báo, 3 chưa đọc", badge "3"', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url === '/api/notifications') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              unreadCount: 3,
+              items: mockNotifs.items,
+            }),
+        });
+      }
+      return Promise.reject(new Error(`Unexpected fetch ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
+    const bell = await screen.findByRole('button', { name: 'Thông báo, 3 chưa đọc' });
+    expect(bell.querySelector('svg')).toBeTruthy();
+    expect(bell.textContent).not.toContain('\u{1F514}');
+    expect(bell.textContent).not.toContain('🔔');
+    expect(screen.getByText('3')).toBeTruthy();
+    expect(bell.className).toContain('icon-button');
+    expect(screen.getByText('3').className).toContain('count-badge');
   });
 });

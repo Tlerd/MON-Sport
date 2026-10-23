@@ -2,6 +2,8 @@ import type { BookingView, OwnerBookingView, PaidAtVenueResponse } from '@monspo
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 import { formatDay, formatTime, formatVnd } from '../../lib/format.ts';
+import { EmptyState } from '../../components/EmptyState.tsx';
+import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { Customer } from './customer.tsx';
 import { STATUS_LABEL } from './status.ts';
 
@@ -52,10 +54,12 @@ export function OwnerRequests() {
       <h2>Yêu cầu đặt sân</h2>
       {rows && rows.length > 0 && <p className="count">{waiting > 0 ? `${waiting} yêu cầu đang chờ bạn xác nhận.` : 'Không còn yêu cầu nào đang chờ.'}</p>}
       {error && <p className="error" role="alert">{error}</p>}
-      {rows?.length === 0 && <p className="empty">Chưa có yêu cầu nào đang chờ. Tải lại trang để xem yêu cầu mới.</p>}
+      {rows?.length === 0 && (
+        <EmptyState message="Chưa có yêu cầu nào đang chờ. Tải lại trang để xem yêu cầu mới." />
+      )}
       <ul className="tickets">
         {rows?.map((r) => (
-          <li key={r.id} className="ticket" data-status={r.status}>
+          <li key={r.id} className="ticket card-web" data-status={r.status}>
             <span className="stub">
               <strong>{formatTime(r.startAt)}</strong>
               <span>đến {formatTime(r.endAt)}</span>
@@ -73,7 +77,7 @@ export function OwnerRequests() {
                 </span>
               ) : (
                 <span className="status-wrap">
-                  <span className="status">{STATUS_LABEL[r.status]}</span>
+                  <StatusBadge className="status" status={r.status} label={STATUS_LABEL[r.status]} />
                   {r.status === 'CONFIRMED' && (
                     <span className="payment-action">
                       <span className={`paid-tag ${r.paidAtVenue ? 'paid' : 'unpaid'}`}>

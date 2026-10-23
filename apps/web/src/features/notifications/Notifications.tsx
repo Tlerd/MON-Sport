@@ -4,6 +4,7 @@ import type {
   NotificationReadResponse,
   NotificationsListResponse,
 } from '@monsport/shared';
+import { Bell } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api.ts';
 import { formatDay, formatTime } from '../../lib/format.ts';
@@ -139,19 +140,22 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
     }
   }
 
+  const unreadCount = data?.unreadCount ?? 0;
+  const label = unreadCount > 0 ? `Thông báo, ${unreadCount} chưa đọc` : 'Thông báo';
+
   return (
     <div className="notif-box">
       <button
         type="button"
-        className="notif-bell"
-        aria-label="Thông báo"
+        className="icon-button notif-bell"
+        aria-label={label}
         aria-expanded={open}
-        title="Thông báo"
+        title={label}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span aria-hidden="true">🔔</span>
-        {data && data.unreadCount > 0 ? (
-          <span className="notif-badge">{data.unreadCount}</span>
+        <Bell size={20} strokeWidth={1.75} aria-hidden="true" />
+        {unreadCount > 0 ? (
+          <span className="count-badge notif-badge">{unreadCount}</span>
         ) : null}
       </button>
 

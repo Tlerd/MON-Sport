@@ -23,7 +23,7 @@ The run is done when the last line says `PASSED` and each flow you picked has PA
 |---|---|---|
 | Login, booking form, price, "Booking của tôi" (UC-3, F-002) | `player-request` | [flows/player-request.md](flows/player-request.md) |
 | "Yêu cầu đặt sân", confirm, reject, the player sees the new state (UC-4, F-002) | `owner-decide` | [flows/owner-decide.md](flows/owner-decide.md) |
-| Phone booking, "Booking đã xác nhận" (UC-5, F-007) | `phone-booking` | [flows/phone-booking.md](flows/phone-booking.md) |
+| Phone booking, schedule grid (UC-5, F-007) | `phone-booking` | [flows/phone-booking.md](flows/phone-booking.md) |
 
 To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each state change, register it in `FLOWS` in `scripts/run.mjs`, and add a row and a flow file here.
 
