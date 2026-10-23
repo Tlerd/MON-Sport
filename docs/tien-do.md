@@ -10,16 +10,16 @@ Cập nhật: 23/10/2026. Nguồn: `docs/requirements/intake-monsport-v1.md` (UC
 
 ## Kết quả
 
-**13 trên 14 use case xong (93%).**
-UC-14 (thông báo đẩy) chưa đạt. Bản sửa đã lên live ngày 23/10/2026, và cần bạn test lại trên điện thoại Android.
+**12 trên 14 use case xong (86%).**
+UC-1 xong một phần: còn đăng nhập Google và Zalo. UC-14 (thông báo đẩy) chưa đạt. Bản sửa đã lên live ngày 23/10/2026, và cần bạn test lại trên điện thoại Android.
 
-Ký hiệu: ✅ xong. 🔴 đã code nhưng test thật chưa đạt. ⬜ chưa làm.
+Ký hiệu: ✅ xong. 🟡 xong một phần. 🔴 đã code nhưng test thật chưa đạt. ⬜ chưa làm.
 
 ## Theo use case
 
 | UC | Việc | Brief | Trạng thái |
 |---|---|---|---|
-| UC-1 | Đăng ký và đăng nhập | F-002, F-003, F-006, F-004 | ✅ số điện thoại và mật khẩu. 🟡 Google: code xong, chờ bật trên live |
+| UC-1 | Đăng ký và đăng nhập | F-002, F-003, F-006, F-004, F-018 | 🟡 số điện thoại và mật khẩu xong. Google: code xong, chờ bật trên live. Zalo: chưa làm |
 | UC-2 | Chọn sân, xem giờ trống, tìm theo tên sân | F-002, F-008, F-010 | ✅ |
 | UC-3 | Gửi yêu cầu đặt sân | F-002 | ✅ |
 | UC-4 | Chủ sân xác nhận hoặc từ chối | F-002 | ✅ |
@@ -75,7 +75,7 @@ Ký hiệu: ✅ xong. 🔴 đã code nhưng test thật chưa đạt. ⬜ chưa 
 27 pull request đã merge (#94 đến #126). Mỗi lần merge tự deploy lên live. Bản cuối có `/api/health` trả `ok`.
 
 1. **Thông báo đến cùng lúc (UC-14).** Danh sách thông báo tải lại khi có push, khi mở lại tab và theo chu kỳ (#94, #101).
-2. **Giao diện web mới (F-017).** Màn hình web theo `DESIGN.md`, dùng được ở 390px, 1024px và 1280px (#102, #104, #105, #107, #108).
+2. **Giao diện web mới (F-017).** Màn hình web theo `DESIGN.md`, dùng được ở 390px, 1024px và 1440px (#102, #104, #105, #107, #108).
 3. **Quyết định của bạn được ghi lại.** ADR 0006 (app mobile) được chấp nhận. F-004 được chấp nhận, có thêm OTP số điện thoại. Quyết định 10 giữ cách đếm người dùng hoạt động hiện tại (#112, #113, #124).
 4. **App mobile (F-019).** Khung app mobile chạy tại `/app/` trên live. Thanh trên và thanh tab ẩn khi cuộn xuống và hiện lại khi cuộn lên (#114, #117, #119, #120).
 5. **Đăng nhập Google (F-004, bước 1 đến 3).**
@@ -85,9 +85,9 @@ Ký hiệu: ✅ xong. 🔴 đã code nhưng test thật chưa đạt. ⬜ chưa 
    - Google còn tắt trên live, vì chưa có client ID và nhà cung cấp SMS.
 6. **Công cụ và test.**
    - Kiểm tra phạm vi file của pull request chạy bằng code (#95, #122).
-   - Sửa 3 test chạy lúc pass lúc fail (#123, #125).
+   - Sửa 3 test chạy lúc pass lúc fail: web AC-20, API AC-24 (#123) và mobile AC-14 (#125).
    - verify-flow đợi lịch sân trước khi nhập booking khách gọi (#111).
-   - verify-flow trên máy local pass 12 trên 12 bước.
+   - verify-flow trên máy local pass 12 trên 12 bước (comment trên #126).
 
 Cần biết: sau bản deploy của #121, người dùng trên live phải đăng nhập lại một lần.
 
@@ -102,7 +102,10 @@ Việc chờ bạn:
    4. Gửi Google client ID.
 2. ⬜ **Test Web Push trên điện thoại Android** (ví dụ nghiệm thu của UC-14). iPhone làm sau khi Android đạt.
 3. ⬜ **Chạy verify-flow trên live** với các biến `VERIFY_*`.
-4. ⬜ **Trả lời:** có thêm cột `lastLoginAt` để đếm theo lần đăng nhập không. Mục 5 và 6 của intake. Các quyết định mở 1 đến 6, 8, 9 và tỉ lệ hết hạn trong `PROGRESS.md`.
+4. ⬜ **Trả lời mục 6 của intake:** đăng ký bằng số điện thoại và mật khẩu có cần OTP không.
+5. ⬜ **Trả lời mục 5 của intake:** ví dụ nghiệm thu cho Google và Zalo, nhà cung cấp SMS và chi phí.
+6. ⬜ **Các quyết định mở** 1 đến 6, 8, 9 và tỉ lệ hết hạn (quyết định 10) trong `PROGRESS.md`.
+7. ⬜ **Đề xuất, không bắt buộc:** thêm cột `lastLoginAt` để đếm người dùng theo lần đăng nhập. Agent chỉ làm khi bạn đồng ý.
 
 Việc agent làm tiếp:
 
