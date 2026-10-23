@@ -1,4 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
+import { minuteOfDayVN, vnDateString } from '@monsport/shared';
 import { Chip } from './Chip.tsx';
 
 export type SlotCellStatus = 'free' | 'taken' | 'mine' | 'pending' | 'confirmed';
@@ -59,17 +60,11 @@ export function windowsFor(opensAt: number, closesAt: number): TimeWindow[] {
   );
 }
 
-/** The date (YYYY-MM-DD) and the minute of the day in Asia/Ho_Chi_Minh. */
-export function vnClock(now: Date): { date: string; minute: number } {
-  const local = new Date(now.getTime() + 7 * 3600_000);
-  return { date: local.toISOString().slice(0, 10), minute: local.getUTCHours() * 60 + local.getUTCMinutes() };
-}
-
 /** Today: the window that holds the current time. Another day: Tối. Else the first window. */
 export function firstWindow(windows: TimeWindow[], date: string | undefined, now: Date): WindowId | undefined {
-  const clock = vnClock(now);
-  if (date === clock.date) {
-    const current = windows.find((w) => clock.minute < w.to);
+  if (date === vnDateString(now)) {
+    const minute = minuteOfDayVN(now);
+    const current = windows.find((w) => minute < w.to);
     if (current) return current.id;
   }
   return (windows.find((w) => w.id === 'toi') ?? windows[0])?.id;
@@ -104,8 +99,8 @@ export function SlotGrid({
   const key = `${date ?? ''}|${opensAt}|${closesAt}`;
   const active =
     windows.find((w) => w.id === (windowId ?? (chosen?.key === key ? chosen.id : firstWindow(windows, date, now)))) ?? windows[0];
-  const clock = vnClock(now);
-  const pastBefore = date === clock.date ? clock.minute : -1;
+  const today = vnDateString(now);
+  const pastBefore = date === today ? minuteOfDayVN(now) : -1;
 
   const from = active?.from ?? opensAt;
   const to = active?.to ?? opensAt;
@@ -250,13 +245,15 @@ export function SlotGrid({
         >
         {/* Header row */}
         <div className="slot-grid-corner" />
-        {cols.map((minute, i) => {
+        {cols.length > 0 && cols[0] % 60 !== 0 && <div key="h-leading" className="slot-grid-h" />}
+        {cols.map((minute) => {
           if (minute % 60 === 0) {
+            const span = cols.includes(minute + 30) ? 2 : 1;
             return (
               <div
                 key={`h-${minute}`}
                 className="slot-grid-h tnum"
-                style={{ gridColumn: 'span 2', fontSize: '11px', color: 'var(--color-ink-muted)' }}
+                style={{ gridColumn: `span ${span}`, fontSize: '11px', color: 'var(--color-ink-muted)' }}
               >
                 {hhmm(minute)}
               </div>

@@ -128,6 +128,7 @@ describe('Notifications', () => {
     fireEvent.click(bell);
 
     const readAllBtn = await screen.findByRole('button', { name: 'Đánh dấu tất cả đã đọc' });
+    expect(await screen.findByText('1')).toBeTruthy();
     fireEvent.click(readAllBtn);
 
     await waitFor(() => {

@@ -18,7 +18,7 @@ import { StatusBadge } from '../components/StatusBadge.tsx';
 import { api, ApiError } from '../lib/api.ts';
 import { formatDay, formatSlot, formatTime, formatVnd } from '../lib/format.ts';
 import { useSession } from './session.tsx';
-import { DURATIONS, slotAt as at } from '../features/bookings/slot.ts';
+import { DURATIONS, fitsAnyDuration, slotAt as at } from '../features/bookings/slot.ts';
 import { findVenues, normalizeName } from '../features/venues/search.ts';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
@@ -121,8 +121,9 @@ export function BookPage() {
         for (let m = selectedVenue.opensAt; m < selectedVenue.closesAt; m += 30) {
           const slotStart = new Date(at(selectedDate, m)).toISOString();
           const slotEnd = new Date(at(selectedDate, m + 30)).toISOString();
-          const fitsAnyDuration = DURATIONS.some((d) => m + d <= selectedVenue.closesAt);
-          const isFree = fitsAnyDuration && res.free.some((r) => slotStart >= r.startAt && slotEnd <= r.endAt);
+          const isFree =
+            fitsAnyDuration(m, selectedVenue.closesAt) &&
+            res.free.some((r) => slotStart >= r.startAt && slotEnd <= r.endAt);
           courtCells.push({
             startMinute: m,
             status: isFree ? 'free' : 'taken',
@@ -145,7 +146,7 @@ export function BookPage() {
       const courtCells = cells[court.id];
       if (courtCells) {
         result[court.id] = courtCells.map((c) => {
-          if (!DURATIONS.some((d) => c.startMinute + d <= selectedVenue.closesAt)) {
+          if (!fitsAnyDuration(c.startMinute, selectedVenue.closesAt)) {
             return { ...c, status: 'taken' as const };
           }
           return c;
@@ -153,10 +154,9 @@ export function BookPage() {
       } else {
         result[court.id] = [];
         for (let m = selectedVenue.opensAt; m < selectedVenue.closesAt; m += 30) {
-          const fits = DURATIONS.some((d) => m + d <= selectedVenue.closesAt);
           result[court.id].push({
             startMinute: m,
-            status: fits ? 'free' : 'taken',
+            status: fitsAnyDuration(m, selectedVenue.closesAt) ? 'free' : 'taken',
           });
         }
       }
@@ -389,7 +389,7 @@ export function BookPage() {
                       : null
                   }
                   onPick={(cId, minute) => {
-                    if (selectedVenue && !DURATIONS.some((d) => minute + d <= selectedVenue.closesAt)) {
+                    if (selectedVenue && !fitsAnyDuration(minute, selectedVenue.closesAt)) {
                       return;
                     }
                     setSelectedCourtId(cId);

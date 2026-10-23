@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { slotAt } from './slot.ts';
+import { fitsAnyDuration, slotAt } from './slot.ts';
 
 describe('slotAt', () => {
   it('builds the instant of a minute of the day in Asia/Ho_Chi_Minh', () => {
@@ -9,5 +9,18 @@ describe('slotAt', () => {
   it('turns 24:00 into 00:00 of the next day, so a venue that closes at 24:00 takes its last hour', () => {
     expect(slotAt('2026-11-20', 1440)).toBe('2026-11-21T00:00:00+07:00');
     expect(slotAt('2026-12-31', 1440)).toBe('2027-01-01T00:00:00+07:00');
+  });
+});
+
+describe('fitsAnyDuration', () => {
+  it('returns true when at least one duration fits before closesAt', () => {
+    expect(fitsAnyDuration(360, 480)).toBe(true);
+    expect(fitsAnyDuration(1320, 1380)).toBe(true);
+  });
+
+  it('returns false when no duration fits before closesAt', () => {
+    expect(fitsAnyDuration(1350, 1380)).toBe(false);
+    expect(fitsAnyDuration(1380, 1380)).toBe(false);
+    expect(fitsAnyDuration(1400, 1380)).toBe(false);
   });
 });
