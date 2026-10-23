@@ -33,7 +33,7 @@ Mỗi AC có một test. Tên test bắt đầu bằng nhãn, ví dụ `AC-1`. T
 useHideOnScroll({ locked }: { locked: boolean }): { topHidden: boolean; tabHidden: boolean }
 ```
 
-`locked` = `true` khi một sheet, menu hoặc bàn phím đang mở. Hook đo quãng cuộn từ lần đổi hướng gần nhất, không đo từng event. Cuối trang là `scrollY + innerHeight >= scrollHeight - 1`. `ContextBar` đọc `topHidden`. `ActionBar` đọc `tabHidden`.
+`locked` = `true` khi một sheet, menu hoặc bàn phím đang mở. Hook đo quãng cuộn từ lần đổi hướng gần nhất, không đo từng event. Cuối trang là `scrollY + innerHeight >= scrollHeight - 1`. Khi `locked` đổi từ `true` sang `false`, hook đặt điểm mốc đo quãng cuộn về `scrollY` hiện tại. `ContextBar` đọc `topHidden`. `ActionBar` đọc `tabHidden`.
 
 | Label | Given | When | Then |
 |---|---|---|---|
@@ -45,6 +45,7 @@ useHideOnScroll({ locked }: { locked: boolean }): { topHidden: boolean; tabHidde
 | AC-6 | Hai thanh ẩn ở `scrollY` = 56 | Cuộn lên tới 50 (6px, dưới ngưỡng 8px) | `topHidden` = `false`, `tabHidden` = `false`, vì 50 < 52 |
 | AC-7 | Hai thanh ẩn ở `scrollY` = 1100, trang dài 2000px, khung cao 812px | Cuộn xuống tới cuối trang (`scrollY` = 1187.5) | `tabHidden` = `false`. `topHidden` = `true` |
 | AC-8 | Hai thanh ẩn ở `scrollY` = 300, rồi `locked` = `true` | Cuộn lên tới 100 | `topHidden` = `true` (đứng yên). `tabHidden` = `true`. `ActionBar` vẫn hiện. Sau đó `locked` = `false`: hai thanh giữ trạng thái tới lần cuộn tiếp theo quá 8px |
+| AC-8b | Hai thanh hiện ở `scrollY` = 300 | Đặt `locked` = `true`, không cuộn | `tabHidden` = `true`. `topHidden` = `false` |
 | AC-9 | `prefers-reduced-motion: reduce`, `scrollY` = 0 | Cuộn xuống tới 200 | `topHidden` = `false`, `tabHidden` = `false` |
 | AC-10 | Màn có `ContextBar` và `ActionBar`, `scrollY` = 300 | Cuộn xuống tới 400 | `ContextBar` có class `at-top` (dính `top: 0`). `ActionBar` có class `at-bottom` (sát vùng an toàn dưới). Cuộn lên 9px thì hai class mất |
 | AC-11 | Khách chưa đăng nhập | Mở `/app/` | Thanh tab có 5 tab theo thứ tự: Đặt sân, Phòng chờ, Lịch của tôi, Thông báo, Tôi |
