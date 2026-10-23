@@ -276,8 +276,6 @@ MONSPORT has two products. They share one system but not one layout.
 
 Both products use the same tokens, icons, words, and API contract (`packages/shared`). Do not make one responsive layout that serves both.
 
-**Status of the mobile app.** The intake puts Android and iOS apps out of scope, and ADR 0006 is still Proposed. Every rule about the mobile app in this file (the "Mobile app shell" section, the scroll table, `apps/mobile`, the 360–430px rows) is valid only after ADR 0006 is Accepted and the intake changes. Until then, the web is the only product, and it must work at 390px (see "Responsive Behavior").
-
 The character is a lit court at night: a calm white and gray surface, and one court-green accent that marks what you can do next. Information is short. A row is one fact; a chip is an icon and one word.
 
 Principles:
@@ -320,8 +318,6 @@ Text contrast is 4.5:1 or more. Dark mode is not in scope for the first version.
 Use the `spacing` scale only. The gap between cards is `{spacing.sm}` on mobile and `{spacing.base}` on web. The inner padding of a card is `{spacing.base}` on mobile and 20px on web.
 
 ### Mobile app shell
-
-Valid only after ADR 0006 is Accepted and the intake changes.
 
 ```
 ┌──────────────────────────────┐
@@ -474,8 +470,8 @@ A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too
 | Width | Product | Key changes |
 |---|---|---|
 | < 360px | Mobile app | Not designed. Must not overflow horizontally |
-| 360–430px | Mobile app | Valid only after ADR 0006 is Accepted. The target. Tab bar, hide on scroll, sheets |
-| < 768px (down to 390px) | Web | **390px layout rule.** One column. The top nav becomes a bar with a menu button, and the sidebar becomes a drawer. The right pane (summary) becomes a fixed `ActionBar` at the bottom, with "Gọi chủ sân" and "Gửi yêu cầu". Lists and details open as separate screens. Slot rows scroll sideways, the page never does. Touch targets are 44px or more. No banner. After ADR 0006 is Accepted, a link to `/app/` may be added |
+| 360–430px | Mobile app | The target. Tab bar, hide on scroll, sheets |
+| < 768px (down to 390px) | Web | **390px layout rule.** One column. The top nav becomes a bar with a menu button, and the sidebar becomes a drawer. The right pane (summary) becomes a fixed `ActionBar` at the bottom, with "Gọi chủ sân" and "Gửi yêu cầu". Lists and details open as separate screens. Slot rows scroll sideways, the page never does. Touch targets are 44px or more. No banner. A link to `/app/` may be added |
 | 768–1023px | Web | Sidebar becomes a 72px icon rail. Three panes become two: the summary moves under the grid |
 | 1024–1439px | Web | The target layouts |
 | ≥ 1440px | Web | Same layouts. Player content stays at 1280px; owner and admin use the full width |
@@ -495,7 +491,7 @@ A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too
 5. A screen is done when:
    - it follows the layout of its product and the scroll table;
    - it has no raw hex value, no emoji icon, and no all-caps label;
-   - it was checked at 390px, 1024px and 1440px for the web (and at 390px for the mobile app, once ADR 0006 is Accepted);
+   - it was checked at 390px, 1024px and 1440px for the web (and at 390px for the mobile app);
    - keyboard focus is visible and contrast is 4.5:1 or more;
    - `prefers-reduced-motion` is respected;
    - `verify-flow` passes for its flows, with screenshots in the pull request.
