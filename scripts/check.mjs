@@ -31,11 +31,12 @@ if (hook) {
   if (hookSkips(input, treeIsClean)) process.exit(0);
 }
 
-// The Stop hook has a 300 s timeout, so a hook run gives up the wait first and still blocks (exit 2).
+// The Stop hook has a 300 s timeout: a hook run waits 180 s at most, so the check still has time, and it blocks (exit 2) on a timeout.
+// A lock is stale after 30 min, longer than any normal check, so a live slow run is never taken over.
 let release;
 try {
   release = await acquire(lockPath(root), {
-    timeoutMs: hook ? 240_000 : 20 * 60 * 1000,
+    timeoutMs: hook ? 180_000 : 25 * 60 * 1000,
     onWait: (pid) => console.error(`Waiting for another pnpm check in this checkout (pid ${pid})`),
   });
 } catch (error) {
