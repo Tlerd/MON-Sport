@@ -43,6 +43,22 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-30 | Hệ thống giới hạn số lần thử: 10 lần đăng nhập mỗi số điện thoại và 30 lần đăng nhập mỗi IP trong 15 phút, 20 lần đăng ký mỗi IP trong 1 giờ. Đăng nhập đúng xóa bộ đếm của số đó | constraint | dynamic | Giả định cho mục Quality "Bảo mật" của intake, brief F-006 |
 | BR-31 | Mật khẩu mới không được nằm trong danh sách mật khẩu phổ biến, chứa số điện thoại của tài khoản, hoặc chỉ có một ký tự lặp lại | constraint | static | Giả định cho mục Quality "Bảo mật" của intake, brief F-006 |
 | BR-32 | Khi admin mở khóa tài khoản, các phiên tạo trước lúc mở khóa không còn hiệu lực | constraint | static | Giả định cho mục Phân quyền của intake (khóa tài khoản), brief F-006 |
+| BR-33 | Đăng nhập Google (`mode` = `login`): khi `googleSub` khớp tài khoản, tài khoản bị khóa hoặc xóa bị từ chối. Nếu `phoneVerifiedAt` khác null thì đăng nhập. Nếu `phoneVerifiedAt` bằng null thì phải xác minh OTP gửi tới số của tài khoản trước khi tạo phiên | action enabler | dynamic | Brief F-004, R1 |
+| BR-34 | Hoàn tất đăng ký Google tạo tài khoản vai trò `USER` với `googleSub`, `email`, `consentAt`, `phoneVerifiedAt`, không có mật khẩu, sau khi xác minh đúng mã OTP của số điện thoại chưa có tài khoản | action enabler | static | Brief F-004, R3 |
+| BR-35 | Hoàn tất đăng ký Google từ chối số điện thoại đã có tài khoản (409) và không gửi OTP tới số đó. Hệ thống không tự liên kết vào tài khoản cũ | constraint | static | Brief F-004, R4 |
+| BR-36 | Bắt đầu liên kết Google (`mode` = `link`) yêu cầu nhập lại đúng mật khẩu. Một tài khoản Google chỉ liên kết một tài khoản MONSPORT và ngược lại. Liên kết không đổi `phoneVerifiedAt`. Khi `phoneVerifiedAt` = null, lần đăng nhập Google tiếp theo phải xác minh OTP (BR-33) | constraint | dynamic | Brief F-004, R5 |
+| BR-37 | Hệ thống không dùng email để nhận diện tài khoản và không tự liên kết tài khoản theo email. Chỉ `googleSub` nhận diện tài khoản Google | constraint | static | Brief F-004, R7 |
+| BR-38 | Khi người dùng xóa tài khoản (BR-26), hệ thống đặt `googleSub`, `email` và `phoneVerifiedAt` về null, và xóa các dòng `PhoneOtp` của số đó | action enabler | static | Brief F-004, R8 |
+| BR-39 | Mỗi số điện thoại có nhiều nhất một mã OTP còn hiệu lực cho mỗi `purpose`. Gửi lại mã thay thế mã cũ và chỉ được thực hiện sau ít nhất 60 giây | constraint | dynamic | Brief F-004, O3 |
+| BR-40 | Mỗi mã OTP cho phép nhập sai tối đa 5 lần trong thời hạn hiệu lực 5 phút. Lần nhập sai thứ 5 hủy mã và yêu cầu xin mã mới | constraint | dynamic | Brief F-004, O4 |
+| BR-41 | Giới hạn tần suất xin mã OTP: tối đa 10 lần mỗi IP mỗi giờ, 5 lần mỗi Google sub mỗi giờ, và 5 lần mỗi số điện thoại mỗi giờ. Quá giới hạn trả về 429 | constraint | dynamic | Brief F-004, O5 |
+| BR-42 | Hệ thống giới hạn tổng số tin OTP gửi đi tối đa `OTP_DAILY_CAP` tin (mặc định 200) mỗi ngày theo múi giờ `Asia/Ho_Chi_Minh`. Quá mức trả về 503 | constraint | dynamic | Brief F-004, O5b |
+| BR-43 | Mỗi mã OTP hợp lệ chỉ được dùng một lần. Server xóa mã bằng điều kiện `codeHash` trong cùng transaction tạo hoặc cập nhật tài khoản | constraint | static | Brief F-004, O6 |
+| BR-44 | Yêu cầu xin mã OTP với mục đích `google_signup` bắt buộc có `consent` = `true` trước khi gửi số điện thoại cho bên thứ ba | constraint | static | Brief F-004, O9 |
+| BR-45 | Với mục đích `google_verify`, hệ thống kiểm tra tài khoản chưa bị khóa, chưa bị xóa và còn `googleSub` khớp cookie `google_verify` trước khi gửi OTP và trước khi cập nhật `phoneVerifiedAt`. Kiểm tra không đạt trả về 403 'Tài khoản đã bị khóa' | constraint | static | Brief F-004, O11 |
+| BR-46 | Gỡ liên kết Google chỉ được phép khi tài khoản có mật khẩu. Tài khoản chỉ có Google nhận 400 "Hãy đặt mật khẩu trước khi gỡ Google" | constraint | static | Brief F-004, R6 |
+| BR-47 | Mỗi mã OTP gắn với một mục đích (`purpose`). Mã của mục đích này không được dùng cho mục đích khác | constraint | static | Brief F-004, O7 |
+| BR-48 | Khi nhà cung cấp tin nhắn lỗi, hệ thống trả về 503 "Không gửi được mã. Thử lại sau". Server xóa mã mới theo `codeHash`, và trừ 1 ở hai bộ đếm `otp-phone` và `otp-day` đã tăng, không xuống dưới 0 | action enabler | dynamic | Brief F-004, O8 |
 
 ## Assumptions
 

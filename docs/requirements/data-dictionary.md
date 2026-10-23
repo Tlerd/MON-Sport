@@ -38,6 +38,11 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | Court.sport | Môn chơi của sân | Sport | — | — |
 | Court.venueId | Đơn vị chứa sân | id của Venue | 36 | — |
 | createdAt | Lúc tạo bản ghi | timestamptz(3) | — | Do hệ thống ghi |
+| DevOtpOutbox | Hòm thư lưu mã OTP khi chạy môi trường dev (brief F-004) | id + phone + code + createdAt | — | Chỉ dùng khi `OTP_PROVIDER` = `dev`. Bảng trống trên production (AC-34) |
+| DevOtpOutbox.code | Mã OTP | char(6) | 6 | 6 chữ số |
+| DevOtpOutbox.createdAt | Lúc tạo mã | timestamptz(3) | — | Do hệ thống ghi |
+| DevOtpOutbox.id | Khóa của bản ghi | uuid | 36 | Do hệ thống sinh |
+| DevOtpOutbox.phone | Số điện thoại nhận mã | phone | 10 | — |
 | id | Khóa của một bản ghi | uuid | 36 | Do hệ thống sinh |
 | Match | Một trận trong phòng chờ | id + bookingId + hostId + sport + capacity + pricePerSlot + status + joinedCount + createdAt | — | — |
 | Match.bookingId | Booking của trận | id của Booking | 36 | Duy nhất (BR-13) |
@@ -65,6 +70,13 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | Notification.userId | Người nhận | id của User | 36 | — |
 | NotificationType | Loại thông báo | enum | — | `BOOKING_REQUESTED` · `BOOKING_CONFIRMED` · `BOOKING_REJECTED` · `MATCH_CANCELLED` |
 | phone | Số điện thoại Việt Nam | text | 10 | 10 chữ số, bắt đầu bằng `0` |
+| PhoneOtp | Một mã OTP đang chờ xác minh số điện thoại (brief F-004) | phoneKey + purpose + codeHash + attempts + sentAt + expiresAt | — | Khóa chính (`phoneKey`, `purpose`). Index trên `expiresAt` cho O10 |
+| PhoneOtp.attempts | Số lần nhập sai | integer | — | 0–5 |
+| PhoneOtp.codeHash | Bản băm HMAC-SHA256 của số điện thoại và mã | char(64) | 64 | Không lưu mã dạng đọc được (O2) |
+| PhoneOtp.expiresAt | Lúc mã hết hạn | timestamptz(3) | — | 5 phút sau `sentAt` |
+| PhoneOtp.phoneKey | keyedDigest(phone) như AuthThrottle, không lưu số | varchar(64) | 64 | — |
+| PhoneOtp.purpose | Mục đích tạo mã | varchar(30) | ≤ 30 | `google_signup` · `google_verify` |
+| PhoneOtp.sentAt | Lúc gửi mã | timestamptz(3) | — | — |
 | PushSubscription | Một thiết bị nhận Web Push | id + userId + endpoint + p256dh + auth + createdAt | — | — |
 | PushSubscription.auth | Khóa xác thực Web Push | text | ≤ 100 | — |
 | PushSubscription.endpoint | Địa chỉ push của trình duyệt | text | ≤ 2048 | Duy nhất |
@@ -73,13 +85,16 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | Role | Vai trò tài khoản | enum | — | `ADMIN` · `OWNER` (chủ sân) · `USER` (người dùng) |
 | Sport | Môn chơi | enum | — | `FOOTBALL` bóng đá · `BADMINTON` cầu lông |
 | timestamptz(3) | Thời điểm | timestamp with time zone, mili giây | — | Lưu UTC. Hiển thị theo `Asia/Ho_Chi_Minh` (BR-27) |
-| User | Một tài khoản | id + name + phone + passwordHash + role + (lockedAt) + (deletedAt) + (consentAt) + (sessionsValidFrom) + createdAt | — | — |
+| User | Một tài khoản | id + name + phone + (passwordHash) + role + (googleSub) + (email) + (phoneVerifiedAt) + (lockedAt) + (deletedAt) + (consentAt) + (sessionsValidFrom) + createdAt | — | — |
 | User.consentAt | Lúc người dùng đồng ý với thông báo bảo vệ dữ liệu cá nhân khi đăng ký | timestamptz(3) | — | Có khi người dùng tự đăng ký. Null với tài khoản do admin hoặc seed tạo (brief F-003) |
 | User.deletedAt | Lúc người dùng xóa tài khoản | timestamptz(3) | — | Khi có, `name` và `phone` đã được thay (BR-26) |
+| User.email | Email lấy từ Google khi `email_verified` = true | varchar(254) | ≤ 254 | Null được. Chỉ dùng để hiển thị (brief F-004) |
+| User.googleSub | Mã định danh người dùng từ Google (sub) | varchar(255) | ≤ 255 | Duy nhất, null được. Nhận diện tài khoản Google (brief F-004) |
 | User.lockedAt | Lúc admin khóa tài khoản | timestamptz(3) | — | Khi có, tài khoản không đăng nhập được (BR-28) |
 | User.name | Tên hiển thị | text | 1–100 ký tự | — |
-| User.passwordHash | Bản băm argon2 của mật khẩu | text | ≤ 200 | Không bao giờ trả về qua API |
+| User.passwordHash | Bản băm argon2 của mật khẩu | text | ≤ 200 | Không bao giờ trả về qua API. Null được cho tài khoản chỉ có Google (brief F-004) |
 | User.phone | Số điện thoại đăng nhập | phone | 10 | Duy nhất (BR-24) |
+| User.phoneVerifiedAt | Lúc số điện thoại được xác minh bằng OTP | timestamptz(3) | — | Null được. Tài khoản cũ giữ null (brief F-004) |
 | User.role | Vai trò | Role | — | Mặc định `USER` |
 | User.sessionsValidFrom | Phiên tạo trước thời điểm này không còn hiệu lực | timestamptz(3) | — | Admin mở khóa tài khoản thì đặt bằng lúc mở khóa (BR-32). Null là không giới hạn (brief F-006) |
 | Venue | Một đơn vị | id + ownerId + name + address + phone + opensAt + closesAt | — | — |

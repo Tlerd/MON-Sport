@@ -1,4 +1,5 @@
 // Names follow docs/requirements/data-dictionary.md. Brief F-002 adds User, Venue, Court, and Booking. Brief F-003 adds User.consentAt.
+// Brief F-004 adds User.googleSub, User.email, User.phoneVerifiedAt, nullable passwordHash, PhoneOtp, and DevOtpOutbox.
 // Brief F-006 adds User.sessionsValidFrom and AuthThrottle. Brief F-011 adds Match and MatchPlayer. Brief F-013 adds Notification.
 // Brief F-014 adds PushSubscription and Notification.pushedAt.
 
@@ -58,23 +59,26 @@ enum MatchPlayerStatus {
 }
 
 model User {
-  id           String    @id @default(uuid(7)) @db.Uuid
-  name         String    @db.VarChar(100)
-  phone        String    @unique @db.VarChar(10)
-  passwordHash String    @db.VarChar(200)
-  role         Role      @default(USER)
-  lockedAt     DateTime? @db.Timestamptz(3)
-  deletedAt    DateTime? @db.Timestamptz(3)
+  id              String    @id @default(uuid(7)) @db.Uuid
+  name            String    @db.VarChar(100)
+  phone           String    @unique @db.VarChar(10)
+  passwordHash    String?   @db.VarChar(200)
+  role            Role      @default(USER)
+  googleSub       String?   @unique @db.VarChar(255)
+  email           String?   @db.VarChar(254)
+  phoneVerifiedAt DateTime? @db.Timestamptz(3)
+  lockedAt        DateTime? @db.Timestamptz(3)
+  deletedAt       DateTime? @db.Timestamptz(3)
   /// When the user agreed to the privacy notice at sign-up. Null for accounts that an admin or the seed created.
-  consentAt    DateTime? @db.Timestamptz(3)
+  consentAt       DateTime? @db.Timestamptz(3)
   /// The session guard refuses a cookie issued before this time. The admin unlock sets it. Null: no limit.
   sessionsValidFrom DateTime? @db.Timestamptz(3)
-  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
-  venues       Venue[]
-  bookings     Booking[]
-  matches      Match[]
-  matchPlayers MatchPlayer[]
-  notifications Notification[]
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  venues          Venue[]
+  bookings        Booking[]
+  matches         Match[]
+  matchPlayers    MatchPlayer[]
+  notifications   Notification[]
   pushSubscriptions PushSubscription[]
 }
 
@@ -205,4 +209,26 @@ model PushSubscription {
 
   @@index([userId, createdAt])
 }
+
+/// Brief F-004: Phone verification OTP codes (O2). Only HMAC-SHA256 digests are stored.
+model PhoneOtp {
+  phoneKey  String   @db.VarChar(64)
+  purpose   String   @db.VarChar(30)
+  codeHash  String   @db.Char(64)
+  attempts  Int      @default(0)
+  sentAt    DateTime @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@id([phoneKey, purpose])
+  @@index([expiresAt])
+}
+
+/// Brief F-004: Dev-only outbox for OTP codes when OTP_PROVIDER is "dev". Empty in production.
+model DevOtpOutbox {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  phone     String   @db.VarChar(10)
+  code      String   @db.Char(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}
+
 

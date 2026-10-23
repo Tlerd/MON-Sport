@@ -298,3 +298,89 @@ describe('migration f015_financial_index', () => {
     expect(res.rows[0].indexname).toBe('Booking_courtId_startAt_idx');
   });
 });
+
+describe('migration f004_google_otp', () => {
+  it('makes User.passwordHash nullable and adds googleSub, email, phoneVerifiedAt', async () => {
+    const { rows } = await db.query(
+      `SELECT column_name, character_maximum_length, data_type, datetime_precision, is_nullable
+       FROM information_schema.columns WHERE table_name = 'User' AND column_name IN ('passwordHash', 'googleSub', 'email', 'phoneVerifiedAt')
+       ORDER BY column_name`,
+    );
+    expect(rows).toEqual([
+      { column_name: 'email', character_maximum_length: 254, data_type: 'character varying', datetime_precision: null, is_nullable: 'YES' },
+      { column_name: 'googleSub', character_maximum_length: 255, data_type: 'character varying', datetime_precision: null, is_nullable: 'YES' },
+      { column_name: 'passwordHash', character_maximum_length: 200, data_type: 'character varying', datetime_precision: null, is_nullable: 'YES' },
+      { column_name: 'phoneVerifiedAt', character_maximum_length: null, data_type: 'timestamp with time zone', datetime_precision: 3, is_nullable: 'YES' },
+    ]);
+  });
+
+  it('creates unique index on User.googleSub', async () => {
+    const res = await db.query(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'User' AND indexname = 'User_googleSub_key'`,
+    );
+    expect(res.rows.length).toBe(1);
+  });
+
+  it('accepts a User row with null passwordHash and unique googleSub, and rejects duplicate googleSub with 23505', async () => {
+    const id1 = randomUUID();
+    const id2 = randomUUID();
+    const sub = `sub-test-${randomUUID()}`;
+    const phone1 = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+    const phone2 = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+    try {
+      const first = await sqlState(
+        db.query(
+          `INSERT INTO "User" (id, name, phone, "passwordHash", "googleSub") VALUES ($1, 'Google User', $2, NULL, $3)`,
+          [id1, phone1, sub],
+        ),
+      );
+      expect(first).toBe('ok');
+
+      const second = await sqlState(
+        db.query(
+          `INSERT INTO "User" (id, name, phone, "passwordHash", "googleSub") VALUES ($1, 'Google User 2', $2, NULL, $3)`,
+          [id2, phone2, sub],
+        ),
+      );
+      expect(second).toBe('23505');
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id IN ($1, $2) OR phone IN ($3, $4)', [id1, id2, phone1, phone2]);
+    }
+  });
+
+  it('creates PhoneOtp table with primary key on (phoneKey, purpose) and index on expiresAt', async () => {
+    const { rows } = await db.query(
+      `SELECT column_name, character_maximum_length, data_type, datetime_precision, is_nullable
+       FROM information_schema.columns WHERE table_name = 'PhoneOtp'
+       ORDER BY column_name`,
+    );
+    expect(rows).toEqual([
+      { column_name: 'attempts', character_maximum_length: null, data_type: 'integer', datetime_precision: null, is_nullable: 'NO' },
+      { column_name: 'codeHash', character_maximum_length: 64, data_type: 'character', datetime_precision: null, is_nullable: 'NO' },
+      { column_name: 'expiresAt', character_maximum_length: null, data_type: 'timestamp with time zone', datetime_precision: 3, is_nullable: 'NO' },
+      { column_name: 'phoneKey', character_maximum_length: 64, data_type: 'character varying', datetime_precision: null, is_nullable: 'NO' },
+      { column_name: 'purpose', character_maximum_length: 30, data_type: 'character varying', datetime_precision: null, is_nullable: 'NO' },
+      { column_name: 'sentAt', character_maximum_length: null, data_type: 'timestamp with time zone', datetime_precision: 3, is_nullable: 'NO' },
+    ]);
+
+    const idx = await db.query(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'PhoneOtp' AND indexname = 'PhoneOtp_expiresAt_idx'`,
+    );
+    expect(idx.rows.length).toBe(1);
+  });
+
+  it('creates DevOtpOutbox table with expected columns', async () => {
+    const { rows } = await db.query(
+      `SELECT column_name, character_maximum_length, data_type, datetime_precision, is_nullable
+       FROM information_schema.columns WHERE table_name = 'DevOtpOutbox'
+       ORDER BY column_name`,
+    );
+    expect(rows).toEqual([
+      { column_name: 'code', character_maximum_length: 6, data_type: 'character', datetime_precision: null, is_nullable: 'NO' },
+      { column_name: 'createdAt', character_maximum_length: null, data_type: 'timestamp with time zone', datetime_precision: 3, is_nullable: 'NO' },
+      { column_name: 'id', character_maximum_length: null, data_type: 'uuid', datetime_precision: null, is_nullable: 'NO' },
+      { column_name: 'phone', character_maximum_length: 10, data_type: 'character varying', datetime_precision: null, is_nullable: 'NO' },
+    ]);
+  });
+});
+
