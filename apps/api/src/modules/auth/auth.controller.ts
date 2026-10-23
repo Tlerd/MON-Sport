@@ -515,8 +515,15 @@ export class AuthController {
       throw new BadRequestException(errorMessage(input.error));
     }
 
+    // R4 before the code check. Each 409 counts on otp-ip and otp-sub, as on /google/otp (AC-40),
+    // so this answer is no faster way to learn whether a phone has an account.
     const existing = await this.prisma.user.findUnique({ where: { phone: input.data.phone } });
     if (existing) {
+      const retryAfter = await this.throttle.consumeOtpRequest(req.ip, pending.sub);
+      if (retryAfter !== null) {
+        res.setHeader('Retry-After', String(retryAfter));
+        throw new OtpThrottleException(retryAfter);
+      }
       throw new ConflictException('Số này đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết Google');
     }
 

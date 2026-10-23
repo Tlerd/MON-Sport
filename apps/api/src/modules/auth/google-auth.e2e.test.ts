@@ -1152,12 +1152,14 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
       name: 'Lan 5',
       exp: now.getTime() + 60 * 60_000,
     });
-    await http()
+    const res6 = await http()
       .post('/api/auth/google/otp')
       .set('X-Forwarded-For', '198.51.100.6')
       .set('Cookie', `google_pending=${pending6}`)
       .send({ purpose: 'google_signup', phone: '0901112233', consent: true })
       .expect(429);
+    expect(Number(res6.headers['retry-after'])).toBeGreaterThan(0);
+    expect(res6.body.retryAfter).toBeGreaterThan(0);
 
     expect(fakeOtpSender.send).toHaveBeenCalledTimes(5);
   });
@@ -1388,6 +1390,29 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
     expect(typeof res.body.retryAfter).toBe('number');
     expect(res.body.retryAfter).toBeGreaterThan(0);
     expect(fakeOtpSender.send).toHaveBeenCalledTimes(5);
+  });
+
+  it('a 409 from /google/complete counts on otp-ip, so the 11th one from one IP gets 429', async () => {
+    const ip = '203.0.113.9';
+    await db.user.create({ data: { name: 'An', phone: '0901234567' } });
+    const send = (i: number) =>
+      http()
+        .post('/api/auth/google/complete')
+        .set('X-Forwarded-For', ip)
+        .set(
+          'Cookie',
+          `google_pending=${issueSignedJson(GOOGLE_PENDING_COOKIE, {
+            typ: 'google_pending',
+            sub: `g-complete-${i}`,
+            email: 't@example.com',
+            name: 'T',
+            exp: now.getTime() + 60 * 60_000,
+          })}`,
+        )
+        .send({ name: 'T', phone: '0901234567', code: '000000', consent: true });
+    for (let i = 1; i <= 10; i++) await send(i).expect(409);
+    const res = await send(11).expect(429);
+    expect(res.body.retryAfter).toBeGreaterThan(0);
   });
 
   it('AC-40: IP 203.0.113.8 đã gửi 9 request /otp, mỗi request cho một số đã có tài khoản và nhận 409', async () => {
