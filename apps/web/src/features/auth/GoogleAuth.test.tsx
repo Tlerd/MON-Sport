@@ -331,7 +331,7 @@ describe('Google Auth Web Screens (F-004)', () => {
     });
   });
 
-  const EXPIRED = 'Phiên đăng nhập Google đã hết hạn. Hãy thử lại.';
+  const EXPIRED = 'Phiên Google đã hết hạn, hãy thử lại.';
   const expectExpired = async () => {
     expect(await screen.findByText(EXPIRED)).toBeTruthy();
     const link = screen.getByRole('link', { name: 'Tiếp tục với Google' });
@@ -368,6 +368,32 @@ describe('Google Auth Web Screens (F-004)', () => {
     type(/^Số điện thoại/, '0901112233');
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Gửi mã' }));
+    await expectExpired();
+  });
+
+  it('F-004 review: complete screen shows the expired message when complete returns 400 for a missing cookie', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/auth/google/pending') {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ name: 'Lan' }) });
+        }
+        if (url === '/api/auth/google/otp') {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ resendAfter: 60 }) });
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ message: 'Thiếu hoặc hỏng thông tin đăng ký Google' }),
+        });
+      }),
+    );
+    render(<GoogleComplete onLogin={vi.fn()} />);
+    type(/^Số điện thoại/, '0901112233');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi mã' }));
+    fireEvent.change(await screen.findByLabelText(/^Mã OTP/), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất' }));
     await expectExpired();
   });
 
