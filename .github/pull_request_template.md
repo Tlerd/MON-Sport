@@ -5,7 +5,12 @@ Refs #
 
 ## Brief and step
 
-<!-- For example: docs/briefs/F-002-<slug>.md, step 1 of 3 (schema). -->
+<!-- Write the brief and the step on one line, for example: docs/briefs/F-002-<slug>.md, step 1 of 3. The check pr-gates reads the Paths cell of that step from the base branch. List the brief file itself under "Allowed paths" when this pull request edits it. -->
+
+## Allowed paths
+
+<!-- One backticked path per line: a file, a prefix that ends in "/", or a prefix that ends in "*". For a brief step, copy its Paths cell. The check pr-gates fails a pull request that changes any other path. -->
+-
 
 ## Changes
 
@@ -13,7 +18,7 @@ Refs #
 
 ## Acceptance criteria
 
-<!-- One line for each AC that this pull request covers, with its test name. -->
+<!-- One line for each AC that this pull request covers, with its test name. The check pr-gates needs a test named "AC-n: ..." in a changed test file for each line. Delete the line when the pull request covers no AC. -->
 - [ ] AC-1:
 
 ## How tested
@@ -31,6 +36,5 @@ Refs #
 ## Checks
 
 - [ ] `pnpm check` passes.
-- [ ] Each changed path is in the brief's list of paths.
 - [ ] `PROGRESS.md` is rewritten, when the next step or an open decision changed.
 - [ ] Money, concurrency, or schema change: a fresh session reviewed it. Link:

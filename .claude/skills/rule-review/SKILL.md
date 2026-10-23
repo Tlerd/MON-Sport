@@ -1,6 +1,6 @@
 ---
 name: rule-review
-description: Rule-by-rule review of a pull request diff against the business rules BR-1 to BR-32 and the AGENTS.md rules (the "Never" list, path scope, lock order). A dynamic workflow runs one verifier agent per relevant rule, then one skeptic agent per flag, and returns a comment for `gh pr comment`. Use for a rule review, to check business rules, for a BR check, or in the Reviewer round of a pull request that touches money, concurrency, the schema, or personal data.
+description: Rule-by-rule review of a pull request diff against the business rules BR-1 to BR-32 and the AG-* rules of `rubric.md` (the "Never" list of AGENTS.md, path scope, lock order). A dynamic workflow runs one verifier agent per relevant rule, then one skeptic agent per flag, and returns a comment for `gh pr comment`. Use for a rule review, to check business rules, for a BR check, or in the Reviewer round of a pull request that touches money, concurrency, the schema, or personal data.
 ---
 
 # Rule review
@@ -16,7 +16,7 @@ Use it in the Reviewer round (`AGENTS.md`, Workflow step 5) for a pull request t
 - the schema: `apps/api/prisma/`, migrations;
 - personal data: phone numbers, names, consent, sessions.
 
-Do not run it on every pull request. It starts one agent per rule and one per flag, so it costs several times a single Reviewer session. On PR #40 (556 diff lines, 21 rules) it ran 23 agents, used about 2 million subagent tokens, and took 3 minutes. A screen-only or docs-only pull request does not need it. It adds to the fresh Reviewer session. It does not replace it.
+Do not run it on every pull request. It starts one agent per rule and one per flag, so it costs several times a single Reviewer session. A diff of about 550 lines with 21 rules ran 23 agents, used about 2 million subagent tokens, and took 3 minutes. A screen-only or docs-only pull request does not need it. It adds to the fresh Reviewer session. It does not replace it.
 
 ## Steps
 

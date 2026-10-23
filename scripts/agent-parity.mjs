@@ -15,7 +15,7 @@ const TIMEOUT_MS = 10 * 60 * 1000;
 const EXPECT = {
   check: [/pnpm check/],
   branch: [/feat\/12-1-booking-schema/],
-  merge: [/gh pr merge 50 --merge --delete-branch/],
+  merge: [/node scripts\/merge\.mjs 50/],
   next_step: [/PROGRESS\.md/],
   open_field: [/decide|choose|pick/i, /Assumptions/],
   rule_review: [/money/i, /concurren/i, /schema/i, /personal/i],
