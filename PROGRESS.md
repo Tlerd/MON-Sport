@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-23 (F-017 web UI).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-23 (F-017 live).
 
 ## Current state
 
@@ -37,4 +37,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-Waiting for the user: (1) the UC-14 example on an Android phone over HTTPS on the live URL: the owner phone gets a push within 30 seconds (PRs #94 and #101 are live). (2) Accept or reject ADR 0006 (mobile app as a PWA in `apps/mobile`, experiment on `exp/ui-d-mobile`). After it is Accepted and the intake changes, write the brief for the mobile app. Agent work left: two low findings of PR #104 in `apps/web/src/components/SlotGrid.tsx` (header labels when a window starts on :30; use `minuteOfDayVN` and `vnDateString` of `packages/shared`). Then plan the iPhone app, and wait for the open decisions, 7 and 10 first.
+No agent work is left in the intake launch order (F-017 is live, PRs #104 to #109; the container serves the web routes since #108). Waiting for the user: (1) the UC-14 example on an Android phone over HTTPS on the live URL: the owner phone gets a push within 30 seconds (PRs #94 and #101 are live). (2) verify-flow on live (`--target live`, the `VERIFY_*` accounts are secrets in the user's shell). (3) Accept or reject ADR 0006 (mobile app as a PWA in `apps/mobile`, experiment on `exp/ui-d-mobile`); after it is Accepted and the intake changes, write the brief for the mobile app. (4) Open decisions 7 and 10 first, then the others. Then plan the iPhone app.
