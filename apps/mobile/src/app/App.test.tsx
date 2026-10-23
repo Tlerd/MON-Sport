@@ -175,6 +175,7 @@ describe('App Shell', () => {
 
     expect(screen.queryByRole('heading', { name: 'Đăng nhập' })).toBeNull();
     expect(clientModule.api).toHaveBeenCalledWith('/api/auth/me');
-    expect(clientModule.api).toHaveBeenCalledWith('/api/owner/bookings?status=PENDING');
+    // The owner tab fetches its list after the tabs render, so a slow run sees the call later.
+    await waitFor(() => expect(clientModule.api).toHaveBeenCalledWith('/api/owner/bookings?status=PENDING'));
   });
 });
