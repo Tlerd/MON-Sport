@@ -224,11 +224,12 @@ svg.i.sm { width: 16px; height: 16px; }
             <div class="meta" style="margin-top:10px"><span class="badge ok"><svg class="i sm"><use href="#i-coin"/></svg>80k/giờ</span><span class="badge wait"><svg class="i sm"><use href="#i-clock"/></svg>120k từ 17:00</span></div>
           </div>
 
+          <div class="meta" style="padding:8px 16px;background:var(--c-surface)"><svg class="i sm"><use href="#i-clock"/></svg>App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.</div>
           <div style="background:var(--c-surface);margin-bottom:8px" data-courts></div>
 
           <div class="section-title">Trận đang mở ở đây <a href="#">Xem tất cả</a></div>
           <article class="post">
-            <div class="post-head"><span class="avatar">C</span><div class="grow"><b>Chi</b><span class="meta">Sân 2 · 19:00–21:00</span></div><span class="badge ok"><svg class="i sm"><use href="#i-users"/></svg>Mở</span></div>
+            <div class="post-head"><span class="avatar">C</span><div class="grow"><b>Chi</b><span class="meta">Sân 2 · 19:00–21:00</span></div><span class="badge ok"><svg class="i sm"><use href="#i-users"/></svg>Mở</span><span class="badge ok"><svg class="i sm"><use href="#i-check"/></svg>Đã xác nhận</span></div>
             <div class="post-body"><div class="seats"><span class="seat">C</span><span class="seat">H</span><span class="seat free">.</span><span class="seat free">.</span><span class="meta">2/4 · 40k/suất</span></div></div>
             <div class="post-actions"><button>Chi tiết</button><button class="go"><svg class="i sm"><use href="#i-users"/></svg>Vào trận</button></div>
           </article>
@@ -236,6 +237,7 @@ svg.i.sm { width: 16px; height: 16px; }
         </div>
         <div class="actionbar" hidden data-action>
           <div class="sum"><b data-sum-title>Sân 1 · 20:00–21:00</b><span data-sum-price class="tnum">120.000đ · giờ cao điểm</span></div>
+          <button class="btn" style="background:var(--c-surface);color:var(--c-court);border:1px solid var(--c-court)"><svg class="i sm"><use href="#i-phone"/></svg>Gọi chủ sân</button>
           <button class="btn">Gửi yêu cầu</button>
         </div>
         <nav class="tabbar" aria-label="Điều hướng">
@@ -306,6 +308,7 @@ svg.i.sm { width: 16px; height: 16px; }
           <div class="v-head row">
             <div class="grow"><h2>Cầu lông A</h2><div class="meta"><svg class="i sm"><use href="#i-pin"/></svg>12 Lê Lợi, Q.1 · Mở 06:00–23:00 · <svg class="i sm"><use href="#i-phone"/></svg>0912 345 678</div></div>
           </div>
+          <div class="meta" style="padding:0 16px 8px"><svg class="i sm"><use href="#i-clock"/></svg>App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.</div>
           <div class="chips">
             <button class="chip">Hôm nay</button><button class="chip on">T7 24/10</button><button class="chip">CN 25/10</button><button class="chip">T2 26/10</button><button class="chip">T3 27/10</button><button class="chip"><svg class="i sm"><use href="#i-cal"/></svg>Ngày khác</button>
           </div>
@@ -319,6 +322,7 @@ svg.i.sm { width: 16px; height: 16px; }
             <div class="total"><span class="meta">Tạm tính</span><b class="tnum" data-d-price>120.000đ</b></div>
           </div>
           <button class="btn" style="width:100%;padding:14px">Gửi yêu cầu</button>
+          <button class="btn" style="width:100%;padding:14px;margin-top:8px;background:var(--c-surface);color:var(--c-court);border:1px solid var(--c-court)"><svg class="i sm"><use href="#i-phone"/></svg>Gọi chủ sân</button>
           <div class="hint"><svg class="i sm"><use href="#i-clock"/></svg>Chủ sân xác nhận trước 22:00 hôm nay. Bạn trả tiền tại sân.</div>
         </aside>
       </div>
@@ -403,7 +407,7 @@ const MATCHES = [
   ['A', 'An', 'badminton', 'Cầu lông A · Sân 1', '20:00–21:00', 3, 4, '50k', 'wait', 'Chưa xác nhận'],
   ['H', 'Hùng', 'football', 'Bóng đá A · Sân 1', '19:00–20:30', 7, 10, '45k', 'ok', 'Đã xác nhận'],
   ['C', 'Chi', 'badminton', 'Cầu lông A · Sân 2', '19:00–21:00', 2, 4, '40k', 'ok', 'Đã xác nhận'],
-  ['M', 'Minh', 'badminton', 'Cầu lông B · Sân 1', '18:00–19:00', 4, 4, '35k', 'off', 'Đầy'],
+  ['M', 'Minh', 'badminton', 'Cầu lông B · Sân 1', '18:00–19:00', 4, 4, '35k', 'ok', 'Đã xác nhận'],
   ['T', 'Tú', 'football', 'Bóng đá A · Sân 1', '21:00–22:00', 4, 10, '50k', 'wait', 'Chưa xác nhận'],
 ];
 document.querySelector('[data-feed]').innerHTML = MATCHES.map(([ini, host, sport, place, time, n, cap, p, st, stLabel]) => `
@@ -415,7 +419,7 @@ document.querySelector('[data-feed]').innerHTML = MATCHES.map(([ini, host, sport
         <svg class="i"><use href="#i-pin"/></svg><span>${place}</span>
         <svg class="i"><use href="#i-coin"/></svg><span>${p}/suất · trả host tại sân</span>
       </div>
-      <div class="seats">${Array.from({ length: Math.min(cap, 6) }, (_, i) => `<span class="seat${i >= n ? ' free' : ''}">${i < n ? 'ABCDHMNT'[i] : '.'}</span>`).join('')}<span class="meta tnum">${n}/${cap}</span><span class="grow"></span><span class="badge ${st}">${stLabel}</span></div>
+      <div class="seats">${Array.from({ length: Math.min(cap, 6) }, (_, i) => `<span class="seat${i >= n ? ' free' : ''}">${i < n ? 'ABCDHMNT'[i] : '.'}</span>`).join('')}<span class="meta tnum">${n}/${cap}</span><span class="grow"></span>${n >= cap ? '<span class="badge off">Đầy</span>' : ''}<span class="badge ${st}">${stLabel}</span></div>
     </div>
     <div class="post-actions"><button>Chi tiết</button><button class="go" ${n >= cap ? 'disabled style="color:#A3ACA7"' : ''}><svg class="i sm"><use href="#i-users"/></svg>${n >= cap ? 'Trận đã đủ người' : 'Vào trận'}</button></div>
   </article>`).join('') + '<div style="height:80px"></div>';

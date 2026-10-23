@@ -39,6 +39,7 @@ Người dùng yêu cầu làm phần mobile trong một folder riêng, với gi
 
 ## Consequences
 
+- Cho đến khi ADR này được duyệt và intake đổi, web vẫn phải dùng tốt ở màn rộng 390px, đúng intake. Mọi tài liệu thiết kế về app mobile chỉ có hiệu lực sau khi duyệt.
 - Intake phải đổi mục "App Android và iOS" trong "Out of scope". Ghi rõ: app mobile là PWA trong `apps/mobile`, còn app native vẫn ngoài phạm vi.
 - Mỗi brief có giao diện phải ghi rõ màn hình nằm ở web, ở mobile, hay ở cả hai. Mỗi brief cũng phải liệt kê đường dẫn của cả hai app.
 - Deploy cần build thêm `apps/mobile`, rồi phục vụ thư mục build đó ở `/app/`.

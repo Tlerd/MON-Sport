@@ -1,6 +1,6 @@
 # apps/mobile
 
-The phone app of MONSPORT: a PWA served at `/app/`, separate from `apps/web`. Status: planned, no code yet.
+The phone app of MONSPORT: a PWA served at `/app/`, separate from `apps/web`. Status: planned, no code yet. Valid only after ADR 0006 is Accepted and the intake changes: the intake puts Android and iOS apps out of scope today, and the web must work at 390px.
 
 - Decision: `docs/adr/0006-app-mobile-pwa.md` (Proposed).
 - Plan and build order: `docs/design/ke-hoach-app-mobile.md`.

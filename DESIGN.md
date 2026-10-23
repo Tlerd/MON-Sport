@@ -271,10 +271,12 @@ MONSPORT has two products. They share one system but not one layout.
 
 | Product | Folder | Device | Who uses it |
 |---|---|---|---|
-| Web | `apps/web` | Desktop and laptop, 1024px and wider. Usable down to 768px | Owners at the counter, the admin, players who plan on a large screen |
+| Web | `apps/web` | Desktop and laptop, 1024px and wider. Must also work well at 390px wide (intake: "Web, dùng tốt ở màn rộng 390px") | Owners at the counter, the admin, players who plan on a large screen |
 | Mobile app | `apps/mobile` | Phone, 360px to 430px, installed as a PWA | Players first, owners on the move |
 
 Both products use the same tokens, icons, words, and API contract (`packages/shared`). Do not make one responsive layout that serves both.
+
+**Status of the mobile app.** The intake puts Android and iOS apps out of scope, and ADR 0006 is still Proposed. Every rule about the mobile app in this file (the "Mobile app shell" section, the scroll table, `apps/mobile`, the 360–430px rows) is valid only after ADR 0006 is Accepted and the intake changes. Until then, the web is the only product, and it must work at 390px (see "Responsive Behavior").
 
 The character is a lit court at night: a calm white and gray surface, and one court-green accent that marks what you can do next. Information is short. A row is one fact; a chip is an icon and one word.
 
@@ -300,6 +302,7 @@ Principles:
 | Đã xác nhận, trận Mở | `badge-ok` | check, users |
 | Bị từ chối, errors | `badge-no` | x |
 | Hết hạn, Đã hủy, trận Đầy | `badge-off` | minus, lock |
+| Trận Đã đá xong, trận Đã hủy | `badge-off` | check-circle, minus |
 
 Text contrast is 4.5:1 or more. Dark mode is not in scope for the first version.
 
@@ -317,6 +320,8 @@ Text contrast is 4.5:1 or more. Dark mode is not in scope for the first version.
 Use the `spacing` scale only. The gap between cards is `{spacing.sm}` on mobile and `{spacing.base}` on web. The inner padding of a card is `{spacing.base}` on mobile and 20px on web.
 
 ### Mobile app shell
+
+Valid only after ADR 0006 is Accepted and the intake changes.
 
 ```
 ┌──────────────────────────────┐
@@ -352,7 +357,7 @@ Tabs by role:
 
 | Role | Tabs (left to right) |
 |---|---|
-| Player and guest | Đặt sân · Phòng chờ · Lịch của tôi · Thông báo · Tôi |
+| Người dùng (kể cả chưa đăng nhập) | Đặt sân · Phòng chờ · Lịch của tôi · Thông báo · Tôi |
 | Owner | Yêu cầu (count) · Lịch sân · Doanh thu · Thông báo · Tôi |
 | Admin | Not on the mobile app. Show "Dùng web để quản trị" and a link |
 
@@ -364,7 +369,7 @@ Tabs by role:
 
 | Role | Navigation | Content |
 |---|---|---|
-| Player and guest | `topnav-web` with 3 links: Đặt sân, Phòng chờ, Lịch của tôi. Bell and account menu on the right | 1280px wide at most, centered |
+| Người dùng (kể cả chưa đăng nhập) | `topnav-web` with 3 links: Đặt sân, Phòng chờ, Lịch của tôi. Bell and account menu on the right | 1280px wide at most, centered |
 | Owner | `sidebar-web`: Yêu cầu (count), Lịch sân, Doanh thu, Đơn vị và giá. Venue switcher at the bottom | Full width; the schedule grid needs it |
 | Admin | `sidebar-web`: Tổng quan, Chủ sân, Đơn vị và sân | Tables with a right panel for create and edit |
 
@@ -409,11 +414,11 @@ Build each component once per product, in `src/components/`, before a feature ne
 |---|---|---|
 | `Chip` | `chip`, `chip-selected` | Icon plus short word. Toggles on tap |
 | `StatusBadge` | `badge-wait`, `badge-ok`, `badge-no`, `badge-off` | Status icon plus word |
-| `SlotGrid` | `slot`, `slot-taken`, `slot-selected`, `peak-marker` | Courts by 30-minute cells. Free cells are buttons. A taken cell is struck through and is not focusable. Peak cells carry `peak-marker` on their top edge. Arrow keys move between cells. On mobile, each court is one horizontal row. On web, see "Time windows" below |
-| `ActionBar` | `actionbar-mobile`, `button-primary`, `price-total` | The fixed primary action of a flow, with the price on the left |
+| `SlotGrid` | `slot`, `slot-taken`, `slot-selected`, `peak-marker` | Courts by 30-minute cells. Free cells are buttons. A taken cell is struck through and is not focusable. Peak cells carry `peak-marker` on their top edge. Arrow keys move between cells. Each free hour offers "Gọi chủ sân" (UC-2): the selected free cell shows it in the `ActionBar` (mobile) or the summary pane (web), next to "Gửi yêu cầu". On mobile, each court is one horizontal row. On web, see "Time windows" below |
+| `ActionBar` | `actionbar-mobile`, `button-primary`, `price-total` | The fixed primary action of a flow, with the price on the left. For a selected free slot it also holds a secondary "Gọi chủ sân" action that dials the owner (UC-2) |
 | `Sheet` (mobile) | `sheet-mobile` | Bottom sheet with a grabber, a title, and one primary button. Focus trap. Closes on swipe down and on Escape |
 | `Panel` (web) | `card-web` | Right panel. Focus trap. Closes on Escape |
-| `Card` | `card-mobile`, `card-web` | 3 lines at most; the rest goes to the detail screen |
+| `Card` | `card-mobile`, `card-web` | 3 lines at most; the rest goes to the detail screen. A match card always shows the price per suất and the label "Đã xác nhận" or "Chưa xác nhận" (UC-7). When the match is full, it shows "Đầy" next to that label, not in its place |
 | `EmptyState` | `text-muted`, `button-primary` | One sentence and one button: "Chưa có booking. Đặt sân" |
 | `TabBar` (mobile) | `tabbar-mobile`, `tab-active`, `count-badge` | Tabs of the role. Hides with `useHideOnScroll` |
 | `TopBar` (mobile) | `topbar-mobile`, `icon-button` | Logo or back arrow on the left, at most 3 icon buttons on the right |
@@ -426,7 +431,8 @@ Every interactive component shows `focus-ring` on keyboard focus.
 
 A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too long to read, and it pushes the page sideways. So `SlotGrid` never shows the whole day at once.
 
-- Split the day into three windows, cut to the opening hours of the venue: **Sáng** (opening to 12:00), **Chiều** (12:00 to 17:00), **Tối** (17:00 to closing). A window holds 12 cells at most.
+- Split the day into three windows, cut to the opening hours of the venue: **Sáng** (opening to 12:00), **Chiều** (12:00 to 17:00), **Tối** (17:00 to closing). The number of cells in a window follows the opening hours of the đơn vị: at most 12 cells for Sáng, 10 for Chiều, and 12 for Tối, and fewer when the venue opens later or closes earlier. A window that has no open hour is hidden.
+- A selection may continue across a window edge. For example, 16:30–17:30 crosses Chiều and Tối. The selection stays when the user switches window. The summary shows the whole range.
 - Show the windows as chips above the grid, with short hours: "Tối 17–23". In pick mode, each chip adds its number of free hours: "Tối 17–23 · 4 giờ trống". In manage mode, it adds the number of pending requests: "Tối 17–23 · 2 chờ".
 - The first window shown: for today, the window that holds the current time. For another day, Tối, because peak hours are booked most.
 - Cells stretch to fill the width (`minmax(28px, 1fr)`). An hour label sits above every second cell.
@@ -440,7 +446,8 @@ A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too
 - A row holds one fact per line.
 - Price: "120k" in lists and chips, "120.000đ" in the summary and on the receipt.
 - Time: "20:00–21:00". Date: "T7 24/10" in chips, "Thứ Bảy, 24/10/2026" in headers.
-- A notice is one sentence. Move a longer explanation into a help sheet behind an info icon.
+- A notice is one sentence. Move a longer explanation into a help sheet behind an info icon. Texts that the intake requires are exempt and appear in full.
+- The Đặt sân screen and the Đơn vị screen (web and mobile) show the UC-2 notice in full: "App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt."
 - An empty state says what to do next.
 
 ## Do's and Don'ts
@@ -467,8 +474,8 @@ A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too
 | Width | Product | Key changes |
 |---|---|---|
 | < 360px | Mobile app | Not designed. Must not overflow horizontally |
-| 360–430px | Mobile app | The target. Tab bar, hide on scroll, sheets |
-| < 768px | Web | Shows one banner: "Dùng app MONSPORT trên điện thoại", with a link to `/app/`. Stays usable, but no layout is designed for it |
+| 360–430px | Mobile app | Valid only after ADR 0006 is Accepted. The target. Tab bar, hide on scroll, sheets |
+| < 768px (down to 390px) | Web | **390px layout rule.** One column. The top nav becomes a bar with a menu button, and the sidebar becomes a drawer. The right pane (summary) becomes a fixed `ActionBar` at the bottom, with "Gọi chủ sân" and "Gửi yêu cầu". Lists and details open as separate screens. Slot rows scroll sideways, the page never does. Touch targets are 44px or more. No banner. After ADR 0006 is Accepted, a link to `/app/` may be added |
 | 768–1023px | Web | Sidebar becomes a 72px icon rail. Three panes become two: the summary moves under the grid |
 | 1024–1439px | Web | The target layouts |
 | ≥ 1440px | Web | Same layouts. Player content stays at 1280px; owner and admin use the full width |
@@ -488,7 +495,7 @@ A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too
 5. A screen is done when:
    - it follows the layout of its product and the scroll table;
    - it has no raw hex value, no emoji icon, and no all-caps label;
-   - it was checked at 390px for the mobile app, and at 1024px and 1440px for the web;
+   - it was checked at 390px, 1024px and 1440px for the web (and at 390px for the mobile app, once ADR 0006 is Accepted);
    - keyboard focus is visible and contrast is 4.5:1 or more;
    - `prefers-reduced-motion` is respected;
    - `verify-flow` passes for its flows, with screenshots in the pull request.

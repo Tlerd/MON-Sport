@@ -1,5 +1,7 @@
 # Kế hoạch app mobile (`apps/mobile`)
 
+**Kế hoạch này chỉ có hiệu lực sau khi ADR 0006 được duyệt (Accepted) và intake đổi.** Intake hiện đưa app Android và iOS ra ngoài phạm vi, và yêu cầu web dùng tốt ở 390px (xem [ke-hoach-web.md](ke-hoach-web.md)).
+
 App mobile là một PWA riêng cho điện thoại, rộng từ 360px đến 430px. Quyết định nằm ở [ADR 0006](../adr/0006-app-mobile-pwa.md), đang chờ duyệt. Mọi màn theo [DESIGN.md](../../DESIGN.md). Mockup tương tác nằm ở [mockup.html](mockup.html): cuộn trong khung điện thoại để xem các thanh ẩn và hiện.
 
 ## Cách dùng giống app Facebook
@@ -9,13 +11,13 @@ App mobile là một PWA riêng cho điện thoại, rộng từ 360px đến 43
 - **Thanh ngữ cảnh ở lại.** Ví dụ: chip ngày. Khi thanh trên ẩn, thanh ngữ cảnh dính lên mép trên màn hình.
 - **Thanh hành động không ẩn.** Ví dụ: "Sân 1 · 20:00–21:00 · 240k · Gửi yêu cầu". Thanh này ở lại khi người dùng đã chọn giờ.
 - **Form mở dạng sheet từ dưới lên.** Form không nằm giữa trang dài.
-- **Phòng chờ là một feed.** Mỗi trận là một thẻ như bài đăng. Thẻ có host, icon môn, giờ, sân, số suất và nút "Vào trận".
+- **Phòng chờ là một feed.** Mỗi trận là một thẻ như bài đăng. Thẻ có host, icon môn, giờ, sân, số suất, giá mỗi suất, nhãn "Đã xác nhận" hoặc "Chưa xác nhận" (UC-7) và nút "Vào trận". Trận đầy thì hiện thêm "Đầy" bên cạnh nhãn.
 
 ## Tab theo vai trò
 
 | Vai trò | Tab |
 |---|---|
-| Khách, người chơi | Đặt sân · Phòng chờ · Lịch của tôi · Thông báo · Tôi |
+| Người dùng (kể cả chưa đăng nhập) | Đặt sân · Phòng chờ · Lịch của tôi · Thông báo · Tôi |
 | Chủ sân | Yêu cầu (số đếm) · Lịch sân · Doanh thu · Thông báo · Tôi |
 | Admin | Không có trên app. App báo "Dùng web để quản trị" |
 
@@ -23,8 +25,8 @@ App mobile là một PWA riêng cho điện thoại, rộng từ 360px đến 43
 
 | Màn | Nội dung |
 |---|---|
-| Đặt sân | Chip môn có icon (Tất cả, Cầu lông, Bóng đá). Danh sách đơn vị gần, mỗi đơn vị 1 thẻ 3 dòng: tên, icon môn và số sân, khoảng giá và giờ mở |
-| Đơn vị | Chip ngày dính trên cùng. Mỗi sân có một hàng ô giờ cuộn ngang. Bấm ô thì thanh hành động hiện. Nút "Gọi chủ sân" nằm trong menu ⋯ |
+| Đặt sân | Chip môn có icon (Tất cả, Cầu lông, Bóng đá). Danh sách đơn vị, mỗi đơn vị 1 thẻ 3 dòng: tên, icon môn và số sân, khoảng giá và giờ mở. Hiện thông báo UC-2 đầy đủ: "App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt." |
+| Đơn vị | Chip ngày dính trên cùng. Mỗi sân có một hàng ô giờ cuộn ngang. Bấm ô thì thanh hành động hiện. Khi chọn giờ trống, thanh hành động có nút "Gọi chủ sân" cạnh "Gửi yêu cầu" (UC-2). Nút này cũng nằm trong menu ⋯. Màn này hiện thông báo UC-2 đầy đủ: "App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt." |
 | Gửi yêu cầu | Sheet xác nhận gồm sân, giờ, giá và hạn chủ sân xác nhận. Bấm "Gửi yêu cầu" thì app hiện "Đã gửi yêu cầu" |
 | Phòng chờ | Feed trận, lọc môn bằng chip icon, chọn ngày bằng chip. Cập nhật tức thì qua SSE |
 | Lịch của tôi | Tab nhỏ: Sắp tới · Trận đã vào · Lịch sử. Thẻ có trạng thái dạng badge |
