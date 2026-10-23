@@ -20,6 +20,7 @@ export default async function phoneBooking(run) {
   assert(court, `"${venueName}" has no court "${courtName}". Set VERIFY_COURT`);
 
   let booking;
+  let cancelledByUi = false;
   try {
     booking = await run.step(FLOW, 'owner enters a phone booking', page, async () => {
       await page.goto(`${run.base}/chu-san/lich`);
@@ -57,15 +58,25 @@ export default async function phoneBooking(run) {
         assert(shown === showVnd(price), `the form showed ${shown}, BR-4 and BR-5 give ${showVnd(price)}`);
         body.slotText = `${showTime(body.startAt)}–${showTime(body.endAt)} ngày ${showDay(body.startAt)}`;
         body.slot = slot;
+        await page.getByText(`Đã lưu booking ${body.slotText}.`).waitFor();
         return { ...body, toString: () => `booking ${body.id}, ${body.slotText}, ${showVnd(price)}, CONFIRMED PHONE` };
       }
       throw new Error('5 random slots were taken (409). Set VERIFY_COURT to another court');
     });
 
     await run.step(FLOW, 'it shows in confirmed bookings for the owner', page, async () => {
-      await page.reload();
-      const list = await (await page.request.get(`${run.base}/api/owner/bookings?status=CONFIRMED`)).json();
-      const found = list.find((b) => b.id === booking.id);
+      await page.goto(`${run.base}/chu-san/yeu-cau`);
+      const list = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Booking đã xác nhận' }) });
+      const rows = list.locator('li.ticket', { hasText: customer });
+      await rows.first().waitFor();
+      assert((await rows.count()) === 1, `"Booking đã xác nhận" has ${await rows.count()} tickets for ${customer}, the check needs 1`);
+      const text = await rows.innerText();
+      for (const part of [`Ngày ${showDay(booking.startAt)}`, showTime(booking.startAt), 'Qua điện thoại', showVnd(booking.priceTotal)]) {
+        assert(text.includes(part), `the ticket does not show "${part}"`);
+      }
+
+      const apiList = await (await page.request.get(`${run.base}/api/owner/bookings?status=CONFIRMED`)).json();
+      const found = apiList.find((b) => b.id === booking.id);
       assert(found, `GET /api/owner/bookings?status=CONFIRMED has no booking ${booking.id}`);
       assert(found.customer?.name === customer, `customer name is "${found.customer?.name}", expected "${customer}"`);
       assert(found.source === 'PHONE', `source is ${found.source}, expected PHONE`);
@@ -84,15 +95,29 @@ export default async function phoneBooking(run) {
       assert(body.message === 'Khung giờ này vừa có người đặt', `the 409 says "${body.message}"`);
       return '409 Khung giờ này vừa có người đặt';
     });
+
+    await run.step(FLOW, 'owner cancels the phone booking', page, async () => {
+      if (!page.url().includes('/chu-san/yeu-cau')) {
+        await page.goto(`${run.base}/chu-san/yeu-cau`);
+      }
+      const list = page.locator('section.panel', { has: page.getByRole('heading', { name: 'Booking đã xác nhận' }) });
+      const row = list.locator('li.ticket', { hasText: customer });
+      await row.getByRole('button', { name: `Hủy booking ${booking.slotText}`, exact: true }).click();
+      const { status, body } = await clickFor(
+        page,
+        row.getByRole('button', { name: `Xác nhận hủy booking ${booking.slotText}`, exact: true }),
+        'POST',
+        `/api/owner/bookings/${booking.id}/cancel`,
+      );
+      assert(status === 200, `POST /api/owner/bookings/${booking.id}/cancel answered ${status}: ${body.message ?? ''}`);
+      assert(body.id === booking.id && body.status === 'CANCELLED', `the booking is ${body.status}, not CANCELLED`);
+      await row.getByText('Đã hủy').waitFor();
+      cancelledByUi = true;
+      return `booking ${booking.id} CANCELLED`;
+    });
   } finally {
-    if (booking?.id) {
-      await run.step(FLOW, 'owner cancels the phone booking', page, async () => {
-        const res = await page.request.post(`${run.base}/api/owner/bookings/${booking.id}/cancel`);
-        const body = await res.json().catch(() => ({}));
-        assert(res.status() === 200, `POST /api/owner/bookings/${booking.id}/cancel answered ${res.status()}: ${body.message ?? ''}`);
-        assert(body.id === booking.id && body.status === 'CANCELLED', `the booking is ${body.status}, not CANCELLED`);
-        return `booking ${booking.id} CANCELLED`;
-      });
+    if (booking?.id && !cancelledByUi) {
+      await page.request.post(`${run.base}/api/owner/bookings/${booking.id}/cancel`).catch(() => {});
     }
   }
 }

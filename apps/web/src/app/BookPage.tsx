@@ -121,7 +121,8 @@ export function BookPage() {
         for (let m = selectedVenue.opensAt; m < selectedVenue.closesAt; m += 30) {
           const slotStart = new Date(at(selectedDate, m)).toISOString();
           const slotEnd = new Date(at(selectedDate, m + 30)).toISOString();
-          const isFree = res.free.some((r) => slotStart >= r.startAt && slotEnd <= r.endAt);
+          const fitsAnyDuration = DURATIONS.some((d) => m + d <= selectedVenue.closesAt);
+          const isFree = fitsAnyDuration && res.free.some((r) => slotStart >= r.startAt && slotEnd <= r.endAt);
           courtCells.push({
             startMinute: m,
             status: isFree ? 'free' : 'taken',
@@ -136,6 +137,32 @@ export function BookPage() {
       active = false;
     };
   }, [selectedVenue?.id, selectedDate]);
+
+  const gridCells = useMemo(() => {
+    if (!selectedVenue) return cells;
+    const result: Record<string, SlotCellInfo[]> = {};
+    for (const court of selectedVenue.courts) {
+      const courtCells = cells[court.id];
+      if (courtCells) {
+        result[court.id] = courtCells.map((c) => {
+          if (!DURATIONS.some((d) => c.startMinute + d <= selectedVenue.closesAt)) {
+            return { ...c, status: 'taken' as const };
+          }
+          return c;
+        });
+      } else {
+        result[court.id] = [];
+        for (let m = selectedVenue.opensAt; m < selectedVenue.closesAt; m += 30) {
+          const fits = DURATIONS.some((d) => m + d <= selectedVenue.closesAt);
+          result[court.id].push({
+            startMinute: m,
+            status: fits ? 'free' : 'taken',
+          });
+        }
+      }
+    }
+    return result;
+  }, [cells, selectedVenue]);
 
   // Date list: today + next 6 days
   const dateOptions = useMemo(() => {
@@ -351,7 +378,7 @@ export function BookPage() {
                 <SlotGrid
                   courts={selectedVenue.courts}
                   date={selectedDate}
-                  cells={cells}
+                  cells={gridCells}
                   mode="pick"
                   selected={
                     selectedCourtId && selectedStart !== null
@@ -362,6 +389,9 @@ export function BookPage() {
                       : null
                   }
                   onPick={(cId, minute) => {
+                    if (selectedVenue && !DURATIONS.some((d) => minute + d <= selectedVenue.closesAt)) {
+                      return;
+                    }
                     setSelectedCourtId(cId);
                     setSelectedStart(minute);
                     if (selectedVenue) {

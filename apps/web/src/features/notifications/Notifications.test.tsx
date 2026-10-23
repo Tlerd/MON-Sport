@@ -136,7 +136,8 @@ describe('Notifications', () => {
         expect.objectContaining({ method: 'POST' }),
       );
     });
-    expect(screen.queryByText('1')).toBeNull();
+    // The badge goes when the POST answers, one render after the call.
+    await waitFor(() => expect(screen.queryByText('1')).toBeNull());
   });
 
   it('AC-11: shows "Chưa có thông báo nào" when notifications list is empty', async () => {

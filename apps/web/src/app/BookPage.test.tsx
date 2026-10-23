@@ -215,4 +215,17 @@ describe('BookPage (F-017)', () => {
     expect((screen.getByLabelText('Thời lượng') as HTMLSelectElement).value).toBe('60');
     expect(screen.getByText('22:00–23:00')).toBeTruthy();
   });
+
+  it('the 22:30 cell of Sân 1 is disabled', async () => {
+    setupFetch({ authed: true });
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Cầu lông A' })).toBeTruthy();
+
+    const toiChip = await screen.findByRole('button', { name: /^Tối/ });
+    fireEvent.click(toiChip);
+
+    const cell2230 = (await screen.findByLabelText(/Sân 1 22:30/)) as HTMLButtonElement;
+    expect(cell2230.disabled).toBe(true);
+  });
 });

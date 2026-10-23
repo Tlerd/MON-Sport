@@ -55,6 +55,7 @@ export function SchedulePage() {
   const [panelBusy, setPanelBusy] = useState(false);
 
   const [error, setError] = useState('');
+  const [saved, setSaved] = useState('');
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Load venues
@@ -201,6 +202,7 @@ export function SchedulePage() {
     }
 
     // Free cell -> Open Phone Booking Panel
+    setSaved('');
     setPanelCourtId(courtId);
     setPanelStart(minute);
     setPanelDuration(60);
@@ -218,7 +220,7 @@ export function SchedulePage() {
     setPanelBusy(true);
 
     try {
-      await api<OwnerBookingView>('/api/owner/bookings', {
+      const booking = await api<OwnerBookingView>('/api/owner/bookings', {
         method: 'POST',
         json: {
           courtId: panelCourtId,
@@ -228,6 +230,7 @@ export function SchedulePage() {
           ...(panelPhone.trim() && { customerPhone: panelPhone.trim() }),
         },
       });
+      setSaved(`Đã lưu booking ${formatTime(booking.startAt)}–${formatTime(booking.endAt)} ngày ${formatDay(booking.startAt)}.`);
       setPanelOpen(false);
       bumpRefresh();
       loadBookings();
@@ -307,6 +310,7 @@ export function SchedulePage() {
               className="btn btn-primary btn-phone-booking"
               onClick={() => {
                 if (selectedVenue && selectedVenue.courts.length > 0) {
+                  setSaved('');
                   setPanelCourtId(selectedVenue.courts[0].id);
                   setPanelStart(selectedVenue.opensAt);
                   setPanelDuration(60);
@@ -318,6 +322,7 @@ export function SchedulePage() {
             </button>
           </div>
 
+          {saved && <p role="status" className="live saved">{saved}</p>}
           {error && <p className="error" role="alert">{error}</p>}
 
           {selectedVenue && (

@@ -28,6 +28,8 @@ export async function requestBooking(run, flow, label = 'send a booking request'
 
     const mine = await (await page.request.get(`${run.base}/api/bookings/mine`)).json();
     const used = new Set(mine.map((b) => new Date(b.startAt).getTime()));
+    let conflicts = 0;
+    const notVisible = [];
     for (let attempt = 1; attempt <= 5; attempt++) {
       const slot = randomSlot(venue, used);
       used.add(vnInstant(slot.date, slot.start).getTime());
@@ -44,6 +46,7 @@ export async function requestBooking(run, flow, label = 'send a booking request'
 
       const cell = page.locator(`.slot-cell[data-court-id="${court.id}"][data-minute="${slot.start}"]:not(:disabled)`);
       if (!(await cell.isVisible({ timeout: 2000 }).catch(() => false))) {
+        notVisible.push(`${slot.date} minute ${slot.start} (${hhmm(slot.start)})`);
         continue;
       }
       await cell.click();
@@ -54,7 +57,10 @@ export async function requestBooking(run, flow, label = 'send a booking request'
       const estimate = (await page.locator('.total strong').innerText()).trim();
 
       const { status, body } = await clickFor(page, page.getByRole('button', { name: 'Gửi yêu cầu' }), 'POST', '/api/bookings');
-      if (status === 409) continue; // BR-1: an earlier run holds this slot.
+      if (status === 409) {
+        conflicts++;
+        continue; // BR-1: an earlier run holds this slot.
+      }
       assert(status === 201, `POST /api/bookings answered ${status}: ${body.message ?? ''}`);
       assert(body.status === 'PENDING', `the new booking is ${body.status}, not PENDING`);
       const startAt = vnInstant(slot.date, slot.start).getTime();
@@ -75,7 +81,10 @@ export async function requestBooking(run, flow, label = 'send a booking request'
       body.slotText = slotText;
       return { ...body, toString: () => `booking ${body.id}, ${slotText}, ${showVnd(body.priceTotal)}, PENDING` };
     }
-    throw new Error('5 random slots were taken (409). The court is full of old test bookings: set VERIFY_COURT');
+    if (notVisible.length > 0) {
+      throw new Error(`Slot cell was not visible: ${notVisible.join(', ')}`);
+    }
+    throw new Error(`${conflicts} random slots were taken (409). The court is full of old test bookings: set VERIFY_COURT`);
   });
 }
 
