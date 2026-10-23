@@ -33,18 +33,18 @@ Mỗi AC có một test. Tên test bắt đầu bằng nhãn, ví dụ `AC-1`. T
 useHideOnScroll({ locked }: { locked: boolean }): { topHidden: boolean; tabHidden: boolean }
 ```
 
-`locked` = `true` khi một sheet, menu hoặc bàn phím đang mở. Hook đo quãng cuộn từ lần đổi hướng gần nhất, không đo từng event. `ContextBar` đọc `topHidden`. `ActionBar` đọc `tabHidden`.
+`locked` = `true` khi một sheet, menu hoặc bàn phím đang mở. Hook đo quãng cuộn từ lần đổi hướng gần nhất, không đo từng event. Cuối trang là `scrollY + innerHeight >= scrollHeight - 1`. `ContextBar` đọc `topHidden`. `ActionBar` đọc `tabHidden`.
 
 | Label | Given | When | Then |
 |---|---|---|---|
 | AC-1 | `packages/client` có `api.ts`, `format.ts`, `push.ts` chuyển từ `apps/web/src/lib/` | Test import `formatVnd` từ `@monsport/client` | `formatVnd(240000)` = `240.000đ`. `apps/web/src/lib/` không còn ba file đó. Mọi test của `apps/web` vẫn qua |
-| AC-2 | Fixture `harness/fixtures/bad/apps/mobile/src/x.ts` import `apps/web/src/y.ts`, và `harness/fixtures/bad/packages/client/src/x.ts` import `apps/mobile/src/y.ts` | `harness/boundaries.test.mjs` chạy `depcruise` | Rule có sẵn `app-imports-app` báo file thứ nhất. Rule có sẵn `package-imports-app` báo file thứ hai. Câu "Fix:" của `app-imports-app` nêu `packages/client` |
+| AC-2 | Fixture `harness/fixtures/bad/apps/mobile/src/x.ts` import `apps/web/src/y.ts`, và `harness/fixtures/bad/packages/client/src/x.ts` import `apps/mobile/src/y.ts` | `harness/boundaries.test.mjs` chạy `depcruise` | Fixture có cả hai file đích. Test kiểm `violation.from` của từng file mới, không chỉ tên rule. Rule có sẵn `app-imports-app` báo file thứ nhất. Rule có sẵn `package-imports-app` báo file thứ hai. Câu "Fix:" của `app-imports-app` nêu `packages/client` |
 | AC-3 | `scrollY` = 300, hai thanh hiện | Cuộn xuống 309 trong một event | `topHidden` = `true`, `tabHidden` = `true` |
 | AC-4 | `scrollY` = 300, hai thanh hiện | 9 event, mỗi event xuống 1px, tới 309 | `topHidden` = `true`, `tabHidden` = `true` |
 | AC-5 | Hai thanh ẩn ở `scrollY` = 600 | Cuộn lên tới 591 | `topHidden` = `false`, `tabHidden` = `false` |
 | AC-6 | Hai thanh ẩn ở `scrollY` = 56 | Cuộn lên tới 50 (6px, dưới ngưỡng 8px) | `topHidden` = `false`, `tabHidden` = `false`, vì 50 < 52 |
-| AC-7 | Hai thanh ẩn ở `scrollY` = 1100, trang dài 2000px, khung cao 812px | Cuộn xuống tới cuối trang (`scrollY` = 1188) | `tabHidden` = `false`. `topHidden` = `true` |
-| AC-8 | `scrollY` = 0, `locked` = `true` | Cuộn xuống tới 200 | `topHidden` = `false` (đứng yên). `tabHidden` = `true`. `ActionBar` vẫn hiện |
+| AC-7 | Hai thanh ẩn ở `scrollY` = 1100, trang dài 2000px, khung cao 812px | Cuộn xuống tới cuối trang (`scrollY` = 1187.5) | `tabHidden` = `false`. `topHidden` = `true` |
+| AC-8 | Hai thanh ẩn ở `scrollY` = 300, rồi `locked` = `true` | Cuộn lên tới 100 | `topHidden` = `true` (đứng yên). `tabHidden` = `true`. `ActionBar` vẫn hiện. Sau đó `locked` = `false`: hai thanh giữ trạng thái tới lần cuộn tiếp theo quá 8px |
 | AC-9 | `prefers-reduced-motion: reduce`, `scrollY` = 0 | Cuộn xuống tới 200 | `topHidden` = `false`, `tabHidden` = `false` |
 | AC-10 | Màn có `ContextBar` và `ActionBar`, `scrollY` = 300 | Cuộn xuống tới 400 | `ContextBar` có class `at-top` (dính `top: 0`). `ActionBar` có class `at-bottom` (sát vùng an toàn dưới). Cuộn lên 9px thì hai class mất |
 | AC-11 | Khách chưa đăng nhập | Mở `/app/` | Thanh tab có 5 tab theo thứ tự: Đặt sân, Phòng chờ, Lịch của tôi, Thông báo, Tôi |
@@ -93,8 +93,8 @@ Mỗi dòng là một PR. Mỗi PR qua `pnpm check`. Coder chỉ được chép 
 |---|---|---|
 | Service worker và manifest của web có scope `/`, nên bao cả `/app/` | PR 1, PR 2 | `sw.js` của web không có fetch handler, nên không chặn `GET /app/`. Manifest của app có `id` và `scope` riêng (AC-18). `push.ts` của `packages/client` hiện ghi cứng `register('/sw.js')`. Trước khi app dùng push, brief Thông báo thêm tham số `swUrl` và `scope` |
 | Đổi import làm hỏng web | PR 1 | Mọi test của `apps/web` qua. `verify-flow --target local` qua trước khi mở PR |
-| Đường dẫn `/app/` trùng route của web | PR 3 | Web không có route bắt đầu bằng `/app`. AC-14 kiểm cả hai |
-| Cookie phiên | AC-12 | Cùng origin, cùng cookie `session`. Không đổi `SameSite` |
+| Đường dẫn `/app/` trùng route của web | PR 3 | Web không có route bắt đầu bằng `/app`. AC-17 kiểm cả hai |
+| Cookie phiên | AC-14, AC-17 | Cùng origin, cùng cookie `session`. Không đổi `SameSite` |
 
 Brief này không chạm tiền, đồng thời, schema hay dữ liệu cá nhân mới. Một Reviewer mỗi PR là đủ.
 
