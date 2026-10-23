@@ -40,7 +40,8 @@ describe('AuthPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
 
     await vi.waitFor(() => expect(onLogin).toHaveBeenCalledWith(lan));
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: 'Lan', phone: '0901112233', password: 'matkhau123', consent: true });
+    const registerCall = fetch.mock.calls.find((call) => call[0] === '/api/auth/register')!;
+    expect(JSON.parse(registerCall[1].body)).toEqual({ name: 'Lan', phone: '0901112233', password: 'matkhau123', consent: true });
     expect(fetch).toHaveBeenCalledWith('/api/auth/register', expect.objectContaining({ method: 'POST' }));
   });
 

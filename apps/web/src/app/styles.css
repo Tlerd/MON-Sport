@@ -200,6 +200,25 @@ h2[tabindex='-1']:focus { outline: none; }
 .consent { display: flex; gap: 0.625rem; align-items: flex-start; font-size: 0.9375rem; color: var(--ink); }
 .consent input { width: 1.375rem; min-height: 1.375rem; height: 1.375rem; margin: 0.0625rem 0 0; flex: none; accent-color: var(--court); }
 
+/* F-004: Google authentication, OTP, and account linking */
+.oauth-providers { margin-top: 1rem; display: grid; gap: 0.75rem; text-align: center; }
+.oauth-providers .divider { display: flex; align-items: center; color: var(--muted); font-size: 0.875rem; }
+.oauth-providers .divider::before, .oauth-providers .divider::after { content: ''; flex: 1; border-bottom: 1px dashed var(--rule); }
+.oauth-providers .divider span { padding: 0 0.5rem; }
+a.google-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 2.75rem;
+  padding: 0 1rem; border-radius: 8px; border: 1.5px solid var(--rule); background: var(--line);
+  color: var(--court-deep); font-weight: 700; text-decoration: none; cursor: pointer;
+}
+a.google-btn:hover { background: var(--court-soft); }
+.google-user-info { padding: 0.75rem 0.875rem; border-radius: 8px; background: var(--court-soft); border-left: 4px solid var(--court); margin-bottom: 0.75rem; }
+.google-account-actions { display: inline-flex; flex-direction: column; gap: 0.25rem; font-size: 0.875rem; }
+.google-account-buttons { display: inline-flex; gap: 0.5rem; align-items: center; }
+.google-link-form { display: inline-flex; gap: 0.375rem; align-items: center; }
+.google-link-form label { display: inline-flex; gap: 0.25rem; align-items: center; font-size: 0.8125rem; margin: 0; }
+.google-link-form input { padding: 0.25rem 0.5rem; font-size: 0.875rem; width: 7rem; height: 1.875rem; min-height: 1.875rem; }
+.google-link-form button { padding: 0.25rem 0.5rem; font-size: 0.8125rem; height: 1.875rem; min-height: 1.875rem; }
+
 /* A venue card, and its courts as rows with the normal and peak price per hour */
 .venues { display: grid; gap: 0.75rem; }
 .venue { display: grid; gap: 0.5rem; padding: 0.875rem; border: 1.5px solid var(--rule); border-radius: 8px; background: var(--line); }

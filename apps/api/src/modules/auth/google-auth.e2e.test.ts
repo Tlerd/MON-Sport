@@ -1817,4 +1817,87 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
     const dayThrottle = await db.authThrottle.findUnique({ where: { key: dayKey } });
     expect(dayThrottle?.count ?? 0).toBe(0);
   });
+
+  it('11 honest /google/complete requests from one IP all get 400 and leave no otp-ip AuthThrottle row for that IP', async () => {
+    const ip = '203.0.113.88';
+    const pending = issueSignedJson(GOOGLE_PENDING_COOKIE, {
+      typ: 'google_pending',
+      sub: 'g-honest-test',
+      email: 'honest@example.com',
+      name: 'Honest',
+      exp: now.getTime() + 60 * 60_000,
+    });
+
+    for (let i = 1; i <= 11; i++) {
+      const res = await http()
+        .post('/api/auth/google/complete')
+        .set('X-Forwarded-For', ip)
+        .set('Cookie', `google_pending=${pending}`)
+        .send({
+          name: 'Honest User',
+          phone: '0901999888',
+          code: '999999',
+          consent: true,
+        });
+      expect(res.status).toBe(400);
+    }
+
+    const { keyedDigest } = await import('./session.js');
+    const ipKey = `otp-ip:${keyedDigest(ip)}`;
+    const throttleRow = await db.authThrottle.findUnique({ where: { key: ipKey } });
+    expect(throttleRow).toBeNull();
+  });
+
+  it('after otp-ip window ends, a blocked caller gets 409 again, not 429', async () => {
+    const ip = '203.0.113.99';
+    await db.user.create({ data: { name: 'An', phone: '0901234567' } });
+
+    for (let i = 1; i <= 10; i++) {
+      const p = issueSignedJson(GOOGLE_PENDING_COOKIE, {
+        typ: 'google_pending',
+        sub: `g-blocked-${i}`,
+        email: 't@example.com',
+        name: 'T',
+        exp: now.getTime() + 120 * 60_000,
+      });
+      await http()
+        .post('/api/auth/google/complete')
+        .set('X-Forwarded-For', ip)
+        .set('Cookie', `google_pending=${p}`)
+        .send({ name: 'T', phone: '0901234567', code: '000000', consent: true })
+        .expect(409);
+    }
+
+    // 11th request gets 429
+    const p11 = issueSignedJson(GOOGLE_PENDING_COOKIE, {
+      typ: 'google_pending',
+      sub: 'g-blocked-11',
+      email: 't@example.com',
+      name: 'T',
+      exp: now.getTime() + 120 * 60_000,
+    });
+    await http()
+      .post('/api/auth/google/complete')
+      .set('X-Forwarded-For', ip)
+      .set('Cookie', `google_pending=${p11}`)
+      .send({ name: 'T', phone: '0901234567', code: '000000', consent: true })
+      .expect(429);
+
+    // After the otp-ip window ends (move the clock 61 minutes)
+    now = new Date(now.getTime() + 61 * 60_000);
+
+    const pAfter = issueSignedJson(GOOGLE_PENDING_COOKIE, {
+      typ: 'google_pending',
+      sub: 'g-blocked-after',
+      email: 't@example.com',
+      name: 'T',
+      exp: now.getTime() + 60 * 60_000,
+    });
+    await http()
+      .post('/api/auth/google/complete')
+      .set('X-Forwarded-For', ip)
+      .set('Cookie', `google_pending=${pAfter}`)
+      .send({ name: 'T', phone: '0901234567', code: '000000', consent: true })
+      .expect(409);
+  });
 });

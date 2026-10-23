@@ -4,7 +4,13 @@ import { LoginForm } from './LoginForm.tsx';
 import { RegisterForm } from './RegisterForm.tsx';
 
 /** UC-1: one panel for both flows. Login (1.1) comes first, because most visits are return visits. */
-export function AuthPanel({ onLogin }: { onLogin: (user: SessionUser) => void }) {
+export function AuthPanel({
+  onLogin,
+  initialError,
+}: {
+  onLogin: (user: SessionUser) => void;
+  initialError?: string;
+}) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const panel = useRef<HTMLElement>(null);
   const shown = useRef(mode);
@@ -18,7 +24,11 @@ export function AuthPanel({ onLogin }: { onLogin: (user: SessionUser) => void })
 
   return (
     <section className="panel" ref={panel}>
-      {mode === 'login' ? <LoginForm onLogin={onLogin} /> : <RegisterForm onLogin={onLogin} />}
+      {mode === 'login' ? (
+        <LoginForm onLogin={onLogin} initialError={initialError} />
+      ) : (
+        <RegisterForm onLogin={onLogin} />
+      )}
       <p className="switch">
         {mode === 'login' ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}
         <button type="button" className="link" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
