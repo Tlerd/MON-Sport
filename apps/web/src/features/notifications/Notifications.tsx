@@ -47,6 +47,8 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
         setData(normalized);
       })
       .catch(() => {
+        // A reload that hung and was aborted keeps the list it replaces.
+        if (controller.signal.aborted) return;
         if (!keepOnError && number === latest.current) setData(null);
       })
       .finally(() => {

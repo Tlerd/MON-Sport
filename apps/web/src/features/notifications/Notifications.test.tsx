@@ -393,6 +393,31 @@ describe('Notifications', () => {
       }
     });
 
+    it('AC-23: a refresh reload that hangs and is aborted keeps the old badge', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        let calls = 0;
+        const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+          if (url !== '/api/notifications') return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+          if (++calls === 1) return Promise.resolve(reply(mockNotifs));
+          return new Promise((_, reject) => opts?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))));
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        const { rerender } = render(<Notifications userId="u1" />);
+        await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
+
+        rerender(<Notifications userId="u1" refresh={1} />);
+        await waitFor(() => expect(calls).toBe(2));
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(30_001);
+        });
+
+        expect(screen.getByText('1')).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('AC-23: a slow reload that started before "mark all read" does not bring the badge back', async () => {
       let calls = 0;
       let releaseSlow: () => void = () => undefined;
