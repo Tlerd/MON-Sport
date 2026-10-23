@@ -409,7 +409,7 @@ Build each component once per product, in `src/components/`, before a feature ne
 |---|---|---|
 | `Chip` | `chip`, `chip-selected` | Icon plus short word. Toggles on tap |
 | `StatusBadge` | `badge-wait`, `badge-ok`, `badge-no`, `badge-off` | Status icon plus word |
-| `SlotGrid` | `slot`, `slot-taken`, `slot-selected`, `peak-marker` | Courts by 30-minute cells. Free cells are buttons. A taken cell is struck through and is not focusable. Peak cells carry `peak-marker` on their top edge. Arrow keys move between cells. On mobile, each court is one horizontal row |
+| `SlotGrid` | `slot`, `slot-taken`, `slot-selected`, `peak-marker` | Courts by 30-minute cells. Free cells are buttons. A taken cell is struck through and is not focusable. Peak cells carry `peak-marker` on their top edge. Arrow keys move between cells. On mobile, each court is one horizontal row. On web, see "Time windows" below |
 | `ActionBar` | `actionbar-mobile`, `button-primary`, `price-total` | The fixed primary action of a flow, with the price on the left |
 | `Sheet` (mobile) | `sheet-mobile` | Bottom sheet with a grabber, a title, and one primary button. Focus trap. Closes on swipe down and on Escape |
 | `Panel` (web) | `card-web` | Right panel. Focus trap. Closes on Escape |
@@ -421,6 +421,17 @@ Build each component once per product, in `src/components/`, before a feature ne
 | `Sidebar` (web) | `sidebar-web`, `sidebar-item-active`, `count-badge` | Owner and admin navigation. 72px icon rail from 768px to 1023px |
 
 Every interactive component shows `focus-ring` on keyboard focus.
+
+### Time windows
+
+A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too long to read, and it pushes the page sideways. So `SlotGrid` never shows the whole day at once.
+
+- Split the day into three windows, cut to the opening hours of the venue: **Sáng** (opening to 12:00), **Chiều** (12:00 to 17:00), **Tối** (17:00 to closing). A window holds 12 cells at most.
+- Show the windows as chips above the grid, with short hours: "Tối 17–23". In pick mode, each chip adds its number of free hours: "Tối 17–23 · 4 giờ trống". In manage mode, it adds the number of pending requests: "Tối 17–23 · 2 chờ".
+- The first window shown: for today, the window that holds the current time. For another day, Tối, because peak hours are booked most.
+- Cells stretch to fill the width (`minmax(28px, 1fr)`). An hour label sits above every second cell.
+- For today, cells before the current time are disabled.
+- The grid never makes the page scroll sideways. Every flex or grid parent of the grid has `min-width: 0`.
 
 ### Words
 
