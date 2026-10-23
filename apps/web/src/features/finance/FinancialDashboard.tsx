@@ -132,7 +132,7 @@ export function FinancialDashboard() {
           {data && (
             <>
               <div className="metric-grid">
-                <div className="metric-card">
+                <div className="metric-card card-web">
                   <span className="metric-label">Doanh thu</span>
                   <strong className="metric-value">{formatVnd(data.revenue)}</strong>
                   <span className="metric-sub">
@@ -140,13 +140,13 @@ export function FinancialDashboard() {
                   </span>
                 </div>
 
-                <div className="metric-card">
+                <div className="metric-card card-web">
                   <span className="metric-label">Giờ đã đặt</span>
                   <strong className="metric-value">{data.bookedHours} giờ</strong>
                   <span className="metric-sub">Tổng mở: {data.openingHours} giờ sân</span>
                 </div>
 
-                <div className="metric-card">
+                <div className="metric-card card-web">
                   <span className="metric-label">Tỉ lệ lấp đầy</span>
                   <strong className="metric-value">
                     {(data.occupancyRate * 100).toFixed(1)}%
@@ -156,7 +156,7 @@ export function FinancialDashboard() {
                   </span>
                 </div>
 
-                <div className="metric-card">
+                <div className="metric-card card-web">
                   <span className="metric-label">Giờ cao điểm / thường</span>
                   <strong className="metric-value">
                     {data.peakHours}h / {data.normalHours}h
@@ -164,7 +164,7 @@ export function FinancialDashboard() {
                   <span className="metric-sub">Cao điểm: 17:00–22:00</span>
                 </div>
 
-                <div className="metric-card">
+                <div className="metric-card card-web">
                   <span className="metric-label">Tỉ lệ hủy & từ chối</span>
                   <strong className="metric-value">
                     Hủy {(data.cancellationRate * 100).toFixed(1)}% / Từ chối{' '}
@@ -175,7 +175,7 @@ export function FinancialDashboard() {
                   </span>
                 </div>
 
-                <div className="metric-card">
+                <div className="metric-card card-web">
                   <span className="metric-label">Khách quay lại</span>
                   <strong className="metric-value">
                     {data.returningCustomers}/{data.totalCustomers} khách
@@ -184,7 +184,7 @@ export function FinancialDashboard() {
                 </div>
               </div>
 
-              <div className="chart-wrapper">
+              <div className="chart-wrapper card-web">
                 <h3>Biểu đồ theo {PERIOD_LABELS[period].toLowerCase()}</h3>
                 <div
                   className="chart-container"
@@ -200,13 +200,13 @@ export function FinancialDashboard() {
                       <YAxis
                         yAxisId="revenue"
                         orientation="left"
-                        stroke="#2563eb"
+                        stroke="var(--color-primary)"
                         tickFormatter={(v) => `${v / 1000}k`}
                       />
                       <YAxis
                         yAxisId="hours"
                         orientation="right"
-                        stroke="#16a34a"
+                        stroke="var(--color-peak)"
                         tickFormatter={(v) => `${v}h`}
                       />
                       <Tooltip
@@ -220,8 +220,8 @@ export function FinancialDashboard() {
                           value === 'revenue' ? 'Doanh thu (VND)' : 'Số giờ đặt'
                         }
                       />
-                      <Bar yAxisId="revenue" dataKey="revenue" name="revenue" fill="#2563eb" />
-                      <Bar yAxisId="hours" dataKey="bookedHours" name="bookedHours" fill="#16a34a" />
+                      <Bar yAxisId="revenue" dataKey="revenue" name="revenue" fill="var(--color-primary)" />
+                      <Bar yAxisId="hours" dataKey="bookedHours" name="bookedHours" fill="var(--color-peak)" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

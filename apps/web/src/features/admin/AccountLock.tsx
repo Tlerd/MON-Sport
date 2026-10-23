@@ -55,7 +55,7 @@ export function AccountLock({ onChanged }: { onChanged: (account: AccountView) =
       </p>
       <ul className="accounts">
         {found?.map((a) => (
-          <li key={a.id}>
+          <li key={a.id} className="card-web">
             <span className="customer">{a.name}</span>
             <span className="phone">{a.phone}</span>
             <span>{ROLE[a.role]}</span>

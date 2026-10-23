@@ -2,6 +2,7 @@ import type { CourtView, VenueView } from '@monsport/shared';
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
+import { EmptyState } from '../../components/EmptyState.tsx';
 import { hhmm } from '../../lib/format.ts';
 import { HoursForm, PriceForm } from './OwnerEdits.tsx';
 
@@ -21,7 +22,9 @@ export function MyVenues() {
       <h2>Đơn vị của tôi</h2>
       {error && <p className="error" role="alert">{error}</p>}
       {venues === null && !error && <p className="empty">Đang tải…</p>}
-      {venues?.length === 0 && <p className="empty">Bạn chưa có đơn vị nào. Admin gắn đơn vị cho tài khoản của bạn.</p>}
+      {venues?.length === 0 && (
+        <EmptyState message="Bạn chưa có đơn vị nào. Admin gắn đơn vị cho tài khoản của bạn." />
+      )}
       <div className="venues">
         {venues?.map((v) => <VenueCard key={v.id} venue={v} onSaved={put} />)}
       </div>
@@ -51,7 +54,7 @@ function VenueCard({ venue: v, onSaved }: { venue: VenueView; onSaved: (v: Venue
   const court = v.courts.find((c) => c.id === editing);
 
   return (
-    <article className="venue" aria-labelledby={`venue-${v.id}`}>
+    <article className="venue card-web" aria-labelledby={`venue-${v.id}`}>
       <h3 id={`venue-${v.id}`}>{v.name}</h3>
       <p className="venue-meta">
         <span>{`${hhmm(v.opensAt)}–${hhmm(v.closesAt)}`}</span>

@@ -1,6 +1,7 @@
 import type { AccountView, AdminVenueView, CourtView, Sport } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
+import { EmptyState } from '../../components/EmptyState.tsx';
 import { api, ApiError } from '../../lib/api.ts';
 import { HALF_HOURS, hhmm } from '../../lib/format.ts';
 
@@ -37,10 +38,10 @@ export function VenueAdmin({ owners }: { owners: AccountView[] }) {
     <section className="panel">
       <h2>Đơn vị</h2>
       {error && <p className="error" role="alert">{error}</p>}
-      {venues.length === 0 && !error && <p className="empty">Chưa có đơn vị nào.</p>}
+      {venues.length === 0 && !error && <EmptyState message="Chưa có đơn vị nào." />}
       <div className="venues">
         {venues.map((v) => (
-          <article key={v.id} className="venue" aria-labelledby={`admin-venue-${v.id}`}>
+          <article key={v.id} className="venue card-web" aria-labelledby={`admin-venue-${v.id}`}>
             <h3 id={`admin-venue-${v.id}`}>{v.name}</h3>
             <p className="venue-meta">
               <span>{`${hhmm(v.opensAt)}–${hhmm(v.closesAt)}`}</span>

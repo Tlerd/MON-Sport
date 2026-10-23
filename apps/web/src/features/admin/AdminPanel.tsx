@@ -1,6 +1,7 @@
 import type { AccountView } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api.ts';
+import { EmptyState } from '../../components/EmptyState.tsx';
 import { AccountLock } from './AccountLock.tsx';
 import { AdminStats } from './AdminStats.tsx';
 import { VenueAdmin } from './VenueAdmin.tsx';
@@ -41,10 +42,12 @@ function AccountsTab() {
       <section className="panel">
         <h2>Chủ sân</h2>
         {error && <p className="error" role="alert">{error}</p>}
-        {owners.length === 0 && !error && <p className="empty">Chưa có chủ sân. Tạo chủ sân trước, rồi tạo đơn vị cho họ.</p>}
+        {owners.length === 0 && !error && (
+          <EmptyState message="Chưa có chủ sân. Tạo chủ sân trước, rồi tạo đơn vị cho họ." />
+        )}
         <ul className="accounts">
           {owners.map((o) => (
-            <li key={o.id}>
+            <li key={o.id} className="card-web">
               <span className="customer">{o.name}</span>
               <span className="phone">{o.phone}</span>
               {o.lockedAt && <span className="status locked">Đã khóa</span>}

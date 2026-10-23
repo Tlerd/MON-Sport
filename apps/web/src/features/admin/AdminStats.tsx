@@ -16,7 +16,7 @@ const percent = (rate: number) => `${(Math.round(rate * 1000) / 10).toLocaleStri
 
 function Metric({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
-    <div className="metric-card">
+    <div className="metric-card card-web">
       <span className="metric-label">{label}</span>
       <strong className="metric-value">{value}</strong>
       {hint && <span className="metric-sub">{hint}</span>}
