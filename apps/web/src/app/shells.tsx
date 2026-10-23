@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Notifications } from '../features/notifications/Notifications.tsx';
+import { GoogleAccountActions } from '../features/auth/GoogleAccountActions.tsx';
 import { api } from '@monsport/client';
 import { useSession } from './session.tsx';
 
@@ -65,6 +66,7 @@ export function PlayerShell() {
                 {initial(user.name)}
               </span>
               <span className="name">{user.name}</span>
+              {user.role === 'USER' && <GoogleAccountActions />}
               <button
                 type="button"
                 className="link"

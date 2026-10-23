@@ -1,15 +1,63 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import type { SessionUser } from '@monsport/shared';
 import { AuthPanel } from '../features/auth/AuthPanel.tsx';
+import { GoogleComplete } from '../features/auth/GoogleComplete.tsx';
+import { GoogleVerify } from '../features/auth/GoogleVerify.tsx';
+import { resolveGoogleError } from '../features/auth/googleErrors.ts';
 import { MyBookings } from '../features/bookings/MyBookings.tsx';
 import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
 import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
 import { JoinedMatches } from '../features/matches/JoinedMatches.tsx';
 import { Lobby } from '../features/matches/Lobby.tsx';
+import { BookPage as InnerBookPage } from './BookPage.tsx';
 import { useSession } from './session.tsx';
 
-export { BookPage } from './BookPage.tsx';
+export function BookPage() {
+  const [searchParams] = useSearchParams();
+  const google = searchParams.get('google');
+  const googleError = searchParams.get('google_error');
+  const { setUser } = useSession();
+  const navigate = useNavigate();
+
+  const handleLogin = (u: SessionUser) => {
+    setUser(u);
+    navigate('/', { replace: true });
+  };
+
+  if (google === 'complete') {
+    return (
+      <div className="auth-page">
+        <section className="panel">
+          <GoogleComplete onLogin={handleLogin} />
+        </section>
+      </div>
+    );
+  }
+
+  if (google === 'verify') {
+    return (
+      <div className="auth-page">
+        <section className="panel">
+          <GoogleVerify onLogin={handleLogin} />
+        </section>
+      </div>
+    );
+  }
+
+  if (googleError) {
+    return (
+      <div className="auth-page">
+        <AuthPanel
+          onLogin={handleLogin}
+          initialError={resolveGoogleError(googleError) ?? undefined}
+        />
+      </div>
+    );
+  }
+
+  return <InnerBookPage />;
+}
 
 export function OwnerRequestsPage() {
   return (
@@ -66,6 +114,9 @@ export function MyPage() {
 }
 
 export function AuthPage() {
+  const [searchParams] = useSearchParams();
+  const google = searchParams.get('google');
+  const googleError = searchParams.get('google_error');
   const { setUser } = useSession();
   const navigate = useNavigate();
 
@@ -80,9 +131,32 @@ export function AuthPage() {
     navigate(dest, { replace: true });
   };
 
+  if (google === 'complete') {
+    return (
+      <div className="auth-page">
+        <section className="panel">
+          <GoogleComplete onLogin={handleLogin} />
+        </section>
+      </div>
+    );
+  }
+
+  if (google === 'verify') {
+    return (
+      <div className="auth-page">
+        <section className="panel">
+          <GoogleVerify onLogin={handleLogin} />
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="auth-page">
-      <AuthPanel onLogin={handleLogin} />
+      <AuthPanel
+        onLogin={handleLogin}
+        initialError={googleError ? (resolveGoogleError(googleError) ?? undefined) : undefined}
+      />
     </div>
   );
 }

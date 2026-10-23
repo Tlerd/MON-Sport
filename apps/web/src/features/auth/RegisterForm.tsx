@@ -1,9 +1,12 @@
 import { PRIVACY_NOTICE, type SessionUser } from '@monsport/shared';
 import { type FormEvent, useState } from 'react';
 import { api, ApiError } from '@monsport/client';
+import { GoogleButton } from './GoogleButton.tsx';
+import { useAuthProviders } from './useAuthProviders.ts';
 
 /** UC-1, flow 1.0: sign up with a name, a phone number, and a password. Consent is required (BR-29). */
 export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void }) {
+  const { google } = useAuthProviders();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -59,6 +62,7 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
           {!consent && <p id="consent-hint" className="hint">Tick ô đồng ý để tạo tài khoản.</p>}
         </div>
       </form>
+      {google && <GoogleButton />}
     </>
   );
 }

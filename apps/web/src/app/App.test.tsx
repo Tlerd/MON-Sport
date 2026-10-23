@@ -405,4 +405,44 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sân Cầu Lông B' })).toBeTruthy();
   });
+
+  it('renders "Hoàn tất đăng ký" screen when ?google=complete', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ message: 'Bạn cần đăng nhập' }) });
+      if (url === '/api/auth/google/pending') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ name: 'Lan', email: 'lan@example.com' }) });
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/?google=complete');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Hoàn tất đăng ký' })).toBeTruthy();
+    expect(await screen.findByText('lan@example.com')).toBeTruthy();
+  });
+
+  it('renders "Xác minh số điện thoại" screen when ?google=verify', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ message: 'Bạn cần đăng nhập' }) });
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/?google=verify');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Xác minh số điện thoại' })).toBeTruthy();
+    expect(screen.getByText(/số điện thoại của tài khoản/)).toBeTruthy();
+  });
+
+  it('renders login screen with clear Vietnamese message when ?google_error=access_denied', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ message: 'Bạn cần đăng nhập' }) });
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/?google_error=access_denied');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
+    expect((await screen.findByRole('alert')).textContent).toBe('Bạn đã hủy đăng nhập bằng Google.');
+  });
 });
