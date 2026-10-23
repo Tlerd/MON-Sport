@@ -2,8 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     { "name": "api", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev:api"], "port": 3000 },
-    { "name": "web", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev:web"], "port": 5173 },
-    { "name": "web-uiC", "runtimeExecutable": "pnpm", "runtimeArgs": ["-C", "D:/MON-Sport-uiC/apps/web", "exec", "vite", "--port", "5175", "--strictPort"], "port": 5175 },
-    { "name": "mobile-uiD", "runtimeExecutable": "pnpm", "runtimeArgs": ["-C", "D:/MON-Sport-uiD/apps/mobile", "exec", "vite", "--port", "5176", "--strictPort"], "port": 5176 }
+    { "name": "web", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev:web"], "port": 5173 }
   ]
 }
