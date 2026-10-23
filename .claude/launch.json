@@ -1,35 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "api",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "dev:api"
-      ],
-      "port": 3000
-    },
-    {
-      "name": "web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "dev:web"
-      ],
-      "port": 5173
-    },
-    {
-      "name": "web-f17b",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "-C",
-        "D:/MON-Sport-f17b/apps/web",
-        "exec",
-        "vite",
-        "--port",
-        "5180",
-        "--strictPort"
-      ],
-      "port": 5180
-    }
+    { "name": "api", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev:api"], "port": 3000 },
+    { "name": "web", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev:web"], "port": 5173 }
   ]
 }
