@@ -63,7 +63,7 @@ One pull request for each row. Each pull request passes the check command on its
 | 1 | Token, icon và component nền | `apps/web/src/app/tokens.css`, `apps/web/src/components/`, `apps/web/src/main.tsx`, `apps/web/index.html`, `apps/web/package.json`, `pnpm-lock.yaml`, `scripts/design-tokens.mjs` | AC-1, AC-2 trong `apps/web/src/components/SlotGrid.test.tsx` |
 | 2 | Khung, router và các màn | `apps/web/src/app/`, `apps/web/src/features/`, `.agents/skills/verify-flow/`, `PROGRESS.md`, `docs/tien-do.md` | AC-3 đến AC-5 trong `apps/web/src/app/BookPage.test.tsx`, AC-6 và AC-7 trong `Lobby.test.tsx`, AC-8 trong `Notifications.test.tsx`, mọi test cũ của `apps/web`, và `verify-flow` pass trong check `image` |
 
-CI chạy `verify-flow` trên mỗi PR (check `image`). Vì vậy bước 2 sửa các flow trong `.agents/skills/verify-flow/` cho khung mới trong cùng PR: đăng nhập ở `/dang-nhap`, và chờ tiêu đề của khung mới thay cho "Chào <tên>". Flow vẫn kiểm cùng trạng thái booking: PENDING, CONFIRMED, REJECTED, CANCELLED, và 409 khi giờ đã có người.
+CI chạy `verify-flow` trên mỗi PR (check `image`). Vì vậy bước 2 sửa các flow trong `.agents/skills/verify-flow/` cho khung mới trong cùng PR: đăng nhập ở `/dang-nhap`, và chờ tên người dùng trong vùng tài khoản của khung mới (`.who .name`) thay cho tiêu đề "Chào <tên>". Hai file đổi chỗ này: `.agents/skills/verify-flow/scripts/lib.mjs` (hàm `login`) và `.agents/skills/verify-flow/flows/player-request.md`. Flow vẫn kiểm cùng trạng thái booking: PENDING, CONFIRMED, REJECTED, CANCELLED, và 409 khi giờ đã có người.
 
 ## Edit boundaries
 
@@ -87,6 +87,7 @@ Khung mới đổi chữ và vai trò của vài phần tử, nên các test sau
 | Test | Bộ chọn cũ | Bộ chọn mới | Lý do |
 |---|---|---|---|
 | `apps/web/src/app/App.test.tsx` | `findByText('Chào Bình')` | `findByRole('heading', { name: 'Chủ sân' })` | Thanh bên của chủ sân thay lời chào |
+| `apps/web/src/app/App.test.tsx` (admin) | `findByText('Chào Admin')` | `findByRole('heading', { name: 'Chủ sân' })` | Thanh bên của admin thay lời chào. Màn admin mở ở tab "Chủ sân" |
 | `apps/web/src/app/App.test.tsx` | nút `'Doanh thu'` | liên kết `/Doanh thu/` | Tab thành mục điều hướng có đường dẫn |
 | `apps/web/src/features/matches/Lobby.test.tsx` | `getByLabelText(/^Môn thể thao/)`, `/^Ngày chơi/` | bấm chip môn và chip ngày | Ô chọn thành hàng chip |
 | `apps/web/src/features/notifications/Notifications.test.tsx` | tên nút `'Thông báo'` | `/Thông báo/` | Tên nút có thêm số chưa đọc (AC-8) |
