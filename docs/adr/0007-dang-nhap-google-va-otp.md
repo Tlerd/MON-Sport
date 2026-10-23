@@ -48,7 +48,7 @@ Chọn phương án 3.
 - Cột `User.passwordHash` chuyển thành nullable.
 - Tạo thêm hai bảng mới: `PhoneOtp` và `DevOtpOutbox`.
 - Hệ thống thêm biến môi trường và secret cho OAuth Google và dịch vụ OTP.
-- Khi người dùng xóa tài khoản (BR-26, R8), server xóa trắng `googleSub`, `email` và `PhoneOtp`.
+- Khi người dùng xóa tài khoản (BR-26, R8), server xóa trắng `googleSub`, `email`, `phoneVerifiedAt` và `PhoneOtp`.
 
 ## Open
 

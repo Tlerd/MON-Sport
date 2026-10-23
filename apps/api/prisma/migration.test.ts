@@ -321,6 +321,33 @@ describe('migration f004_google_otp', () => {
     expect(res.rows.length).toBe(1);
   });
 
+  it('accepts a User row with null passwordHash and unique googleSub, and rejects duplicate googleSub with 23505', async () => {
+    const id1 = randomUUID();
+    const id2 = randomUUID();
+    const sub = `sub-test-${randomUUID()}`;
+    const phone1 = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+    const phone2 = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+    try {
+      const first = await sqlState(
+        db.query(
+          `INSERT INTO "User" (id, name, phone, "passwordHash", "googleSub") VALUES ($1, 'Google User', $2, NULL, $3)`,
+          [id1, phone1, sub],
+        ),
+      );
+      expect(first).toBe('ok');
+
+      const second = await sqlState(
+        db.query(
+          `INSERT INTO "User" (id, name, phone, "passwordHash", "googleSub") VALUES ($1, 'Google User 2', $2, NULL, $3)`,
+          [id2, phone2, sub],
+        ),
+      );
+      expect(second).toBe('23505');
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id IN ($1, $2) OR phone IN ($3, $4)', [id1, id2, phone1, phone2]);
+    }
+  });
+
   it('creates PhoneOtp table with primary key on (phoneKey, purpose) and index on expiresAt', async () => {
     const { rows } = await db.query(
       `SELECT column_name, character_maximum_length, data_type, datetime_precision, is_nullable
