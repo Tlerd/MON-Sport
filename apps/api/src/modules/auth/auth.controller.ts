@@ -516,7 +516,12 @@ export class AuthController {
     }
 
     // R4 before the code check. Each 409 counts on otp-ip and otp-sub, as on /google/otp (AC-40),
-    // so this answer is no faster way to learn whether a phone has an account.
+    // and a caller at the limit gets 429 for every phone, so the answer tells nothing about the account.
+    const blocked = await this.throttle.otpRequestBlocked(req.ip, pending.sub);
+    if (blocked !== null) {
+      res.setHeader('Retry-After', String(blocked));
+      throw new OtpThrottleException(blocked);
+    }
     const existing = await this.prisma.user.findUnique({ where: { phone: input.data.phone } });
     if (existing) {
       const retryAfter = await this.throttle.consumeOtpRequest(req.ip, pending.sub);

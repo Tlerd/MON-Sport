@@ -83,6 +83,21 @@ export class ThrottleService {
   }
 
   /**
+   * Reads otp-ip and otp-sub without counting. Returns the seconds to wait when either is at its limit, else null.
+   * /google/complete calls it on every request, so a blocked caller gets 429 for every phone (no existence oracle).
+   */
+  async otpRequestBlocked(ip: string | undefined, sub: string): Promise<number | null> {
+    const now = this.clock.now();
+    for (const [counter, value] of [['otp-ip', ipBucket(ip)], ['otp-sub', sub]] as const) {
+      const { max, windowMs } = LIMITS[counter];
+      const row = await this.prisma.authThrottle.findUnique({ where: { key: this.key(counter, value) } });
+      if (row && row.windowStart.getTime() + windowMs > now.getTime() && row.count >= max)
+        return Math.max(1, Math.ceil((row.windowStart.getTime() + windowMs - now.getTime()) / 1000));
+    }
+    return null;
+  }
+
+  /**
    * Brief F-004, O5: Inside a transaction, counts otp-phone then the daily counter otp-day:<yyyy-mm-dd>.
    * Daily max comes from OTP_DAILY_CAP (default 200). Returns which keys were counted.
    */

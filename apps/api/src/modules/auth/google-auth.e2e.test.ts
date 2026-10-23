@@ -1413,6 +1413,33 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
     for (let i = 1; i <= 10; i++) await send(i).expect(409);
     const res = await send(11).expect(429);
     expect(res.body.retryAfter).toBeGreaterThan(0);
+
+    // At the limit, a phone with no account gets 429 too, so 429 tells nothing.
+    const pendingFor = (sub: string) =>
+      issueSignedJson(GOOGLE_PENDING_COOKIE, { typ: 'google_pending', sub, email: 't@example.com', name: 'T', exp: now.getTime() + 60 * 60_000 });
+    const noAccount = { name: 'T', phone: '0909999999', code: '000000', consent: true };
+    await http().post('/api/auth/google/complete').set('X-Forwarded-For', ip).set('Cookie', `google_pending=${pendingFor('g-complete-12')}`).send(noAccount).expect(429);
+    // From another IP the honest path is not counted: it reaches the code check.
+    await http().post('/api/auth/google/complete').set('X-Forwarded-For', '203.0.113.10').set('Cookie', `google_pending=${pendingFor('g-complete-13')}`).send(noAccount).expect(400);
+  });
+
+  it('a 409 from /google/complete counts on otp-sub, so the 6th one with one sub gets 429', async () => {
+    await db.user.create({ data: { name: 'An', phone: '0901234567' } });
+    const cookie = `google_pending=${issueSignedJson(GOOGLE_PENDING_COOKIE, {
+      typ: 'google_pending',
+      sub: 'g-complete-sub',
+      email: 't@example.com',
+      name: 'T',
+      exp: now.getTime() + 60 * 60_000,
+    })}`;
+    const send = (i: number) =>
+      http()
+        .post('/api/auth/google/complete')
+        .set('X-Forwarded-For', `198.51.100.${20 + i}`)
+        .set('Cookie', cookie)
+        .send({ name: 'T', phone: '0901234567', code: '000000', consent: true });
+    for (let i = 1; i <= 5; i++) await send(i).expect(409);
+    await send(6).expect(429);
   });
 
   it('AC-40: IP 203.0.113.8 đã gửi 9 request /otp, mỗi request cho một số đã có tài khoản và nhận 409', async () => {
