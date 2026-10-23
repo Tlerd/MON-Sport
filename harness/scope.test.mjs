@@ -92,3 +92,8 @@ test('a description without a list allows nothing', () => {
   expect(allowedPaths('## Changes\n- x', () => '')).toEqual([]);
   expect(outOfScope(['a.ts'], [])).toEqual(['a.ts']);
 });
+
+test('a root file with no dot, such as Dockerfile, is an allowed path, and a lowercase word is not', () => {
+  const body = ['## Allowed paths', '- `Dockerfile`', '- `max`', '- `apps/api/src/main.ts`'].join('\n');
+  expect(allowedPaths(body)).toEqual(['Dockerfile', 'apps/api/src/main.ts']);
+});
