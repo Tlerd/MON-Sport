@@ -2,6 +2,7 @@
 // and stay quiet on allowed imports. The fixtures mirror the repo layout.
 
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from 'vitest';
 
@@ -40,12 +41,11 @@ test('allowed imports pass', () => {
 
 test('AC-2 mobile, web and client imports break app-imports-app and package-imports-app', () => {
   const list = violations('bad');
-  const mobile = list.find((v) => v.from === 'apps/mobile/src/x.ts');
-  const client = list.find((v) => v.from === 'packages/client/src/x.ts');
+  const rulesOf = (from) => list.filter((v) => v.from === from).map((v) => v.rule.name);
 
-  expect(mobile).toBeDefined();
-  expect(mobile.rule.name).toBe('app-imports-app');
+  expect(rulesOf('apps/mobile/src/x.ts')).toContain('app-imports-app');
+  expect(rulesOf('packages/client/src/x.ts')).toContain('package-imports-app');
 
-  expect(client).toBeDefined();
-  expect(client.rule.name).toBe('package-imports-app');
+  const rule = createRequire(import.meta.url)('../.dependency-cruiser.cjs').forbidden.find((r) => r.name === 'app-imports-app');
+  expect(rule.comment).toMatch(/Fix:.*packages\/client/);
 });
