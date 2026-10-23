@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import * as client from 'openid-client';
 import { AccountsService } from './accounts.service.js';
 import { AuthController } from './auth.controller.js';
 import {
@@ -33,11 +32,7 @@ import { ThrottleService } from './throttle.service.js';
     },
     {
       provide: GOOGLE_OIDC_CONFIGURATION,
-      useFactory: async (config: GoogleConfig): Promise<client.Configuration | null> => {
-        if (!config.enabled) return null;
-        return await client.discovery(new URL('https://accounts.google.com'), config.clientId, config.clientSecret);
-      },
-      inject: [GOOGLE_CONFIG],
+      useValue: null,
     },
   ],
   exports: [SessionGuard, AccountsService, ThrottleService, GOOGLE_CONFIG, GOOGLE_OIDC_CONFIGURATION],

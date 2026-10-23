@@ -14,6 +14,7 @@ import {
   Post,
   Req,
   Res,
+  ServiceUnavailableException,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
@@ -76,6 +77,9 @@ function errorRedirect(code: string): string {
 
 @Controller('auth')
 export class AuthController {
+  private cachedOidcConfig: client.Configuration | null = null;
+  private oidcConfigPromise: Promise<client.Configuration> | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
@@ -86,6 +90,28 @@ export class AuthController {
     @Inject(GOOGLE_CONFIG) private readonly googleConfig: GoogleConfig,
     @Optional() @Inject(GOOGLE_OIDC_CONFIGURATION) private readonly oidcConfig: client.Configuration | null,
   ) {}
+
+  private async getOidcConfig(): Promise<client.Configuration> {
+    if (this.oidcConfig) return this.oidcConfig;
+    if (this.cachedOidcConfig) return this.cachedOidcConfig;
+    if (!this.oidcConfigPromise) {
+      this.oidcConfigPromise = client
+        .discovery(
+          new URL('https://accounts.google.com'),
+          this.googleConfig.clientId,
+          this.googleConfig.clientSecret,
+        )
+        .then((config) => {
+          this.cachedOidcConfig = config;
+          return config;
+        })
+        .catch((err) => {
+          this.oidcConfigPromise = null;
+          throw err;
+        });
+    }
+    return this.oidcConfigPromise;
+  }
 
   /** UC-1, flow 1.0: a guest signs up as a USER and is signed in (brief F-003). */
   @Post('register')
@@ -138,7 +164,13 @@ export class AuthController {
 
   @Get('google/start')
   async googleStart(@Res() res: Response): Promise<void> {
-    if (!this.googleConfig.enabled || !this.oidcConfig) throw new NotFoundException();
+    if (!this.googleConfig.enabled) throw new NotFoundException();
+    let oidcConfig: client.Configuration;
+    try {
+      oidcConfig = await this.getOidcConfig();
+    } catch {
+      return res.redirect(302, '/?google_error=config');
+    }
     const state = client.randomState();
     const nonce = client.randomNonce();
     const codeVerifier = client.randomPKCECodeVerifier();
@@ -157,7 +189,7 @@ export class AuthController {
       issueSignedJson(GOOGLE_FLOW_COOKIE, flowPayload),
       googleCookieOptions(GOOGLE_FLOW_MS),
     );
-    const url = client.buildAuthorizationUrl(this.oidcConfig, {
+    const url = client.buildAuthorizationUrl(oidcConfig, {
       redirect_uri: this.googleConfig.redirectUri,
       scope: 'openid email profile',
       code_challenge: codeChallenge,
@@ -176,7 +208,13 @@ export class AuthController {
     @Req() req: AuthedRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<GoogleLinkStartResponse> {
-    if (!this.googleConfig.enabled || !this.oidcConfig) throw new NotFoundException();
+    if (!this.googleConfig.enabled) throw new NotFoundException();
+    let oidcConfig: client.Configuration;
+    try {
+      oidcConfig = await this.getOidcConfig();
+    } catch {
+      throw new ServiceUnavailableException();
+    }
     const user = await this.prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user || user.deletedAt) throw new UnauthorizedException();
     if (user.lockedAt) throw new ForbiddenException('Tài khoản đã bị khóa');
@@ -210,7 +248,7 @@ export class AuthController {
       issueSignedJson(GOOGLE_FLOW_COOKIE, flowPayload),
       googleCookieOptions(GOOGLE_FLOW_MS),
     );
-    const url = client.buildAuthorizationUrl(this.oidcConfig, {
+    const url = client.buildAuthorizationUrl(oidcConfig, {
       redirect_uri: this.googleConfig.redirectUri,
       scope: 'openid email profile',
       code_challenge: codeChallenge,
@@ -223,7 +261,7 @@ export class AuthController {
 
   @Get('google/callback')
   async googleCallback(@Req() req: Request, @Res() res: Response): Promise<void> {
-    if (!this.googleConfig.enabled || !this.oidcConfig) throw new NotFoundException();
+    if (!this.googleConfig.enabled) throw new NotFoundException();
     const now = this.clock.now();
 
     res.clearCookie(GOOGLE_FLOW_COOKIE, { path: GOOGLE_COOKIE_PATH });
@@ -245,10 +283,17 @@ export class AuthController {
       return res.redirect(302, '/?google_error=token');
     }
 
+    let oidcConfig: client.Configuration;
+    try {
+      oidcConfig = await this.getOidcConfig();
+    } catch {
+      return res.redirect(302, '/?google_error=config');
+    }
+
     let tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers;
     try {
       const currentUrl = new URL(req.originalUrl || req.url, this.googleConfig.redirectUri);
-      tokens = await client.authorizationCodeGrant(this.oidcConfig, currentUrl, {
+      tokens = await client.authorizationCodeGrant(oidcConfig, currentUrl, {
         pkceCodeVerifier: flow.codeVerifier,
         expectedState: flow.state,
         expectedNonce: flow.nonce,
@@ -266,76 +311,80 @@ export class AuthController {
     const email = claims?.email_verified && typeof claims.email === 'string' ? claims.email : null;
     const name = typeof claims?.name === 'string' ? claims.name : '';
 
-    if (flow.mode === 'login') {
-      const user = await this.prisma.user.findUnique({ where: { googleSub: sub } });
-      if (user) {
-        if (user.lockedAt || user.deletedAt) {
-          return res.redirect(302, '/?google_error=locked');
-        }
-        if (user.phoneVerifiedAt !== null) {
-          this.startSession(res, user.id);
-          return res.redirect(302, '/');
+    try {
+      if (flow.mode === 'login') {
+        const user = await this.prisma.user.findUnique({ where: { googleSub: sub } });
+        if (user) {
+          if (user.lockedAt || user.deletedAt) {
+            return res.redirect(302, '/?google_error=locked');
+          }
+          if (user.phoneVerifiedAt !== null) {
+            this.startSession(res, user.id);
+            return res.redirect(302, '/');
+          } else {
+            const verifyPayload: GoogleVerifyPayload = {
+              typ: 'google_verify',
+              userId: user.id,
+              sub,
+              exp: now.getTime() + GOOGLE_VERIFY_MS,
+            };
+            res.cookie(
+              GOOGLE_VERIFY_COOKIE,
+              issueSignedJson(GOOGLE_VERIFY_COOKIE, verifyPayload),
+              googleCookieOptions(GOOGLE_VERIFY_MS),
+            );
+            return res.redirect(302, '/?google=verify');
+          }
         } else {
-          const verifyPayload: GoogleVerifyPayload = {
-            typ: 'google_verify',
-            userId: user.id,
+          const pendingPayload: GooglePendingPayload = {
+            typ: 'google_pending',
             sub,
-            exp: now.getTime() + GOOGLE_VERIFY_MS,
+            email,
+            name,
+            exp: now.getTime() + GOOGLE_PENDING_MS,
           };
           res.cookie(
-            GOOGLE_VERIFY_COOKIE,
-            issueSignedJson(GOOGLE_VERIFY_COOKIE, verifyPayload),
-            googleCookieOptions(GOOGLE_VERIFY_MS),
+            GOOGLE_PENDING_COOKIE,
+            issueSignedJson(GOOGLE_PENDING_COOKIE, pendingPayload),
+            googleCookieOptions(GOOGLE_PENDING_MS),
           );
-          return res.redirect(302, '/?google=verify');
+          return res.redirect(302, '/?google=complete');
         }
       } else {
-        const pendingPayload: GooglePendingPayload = {
-          typ: 'google_pending',
-          sub,
-          email,
-          name,
-          exp: now.getTime() + GOOGLE_PENDING_MS,
-        };
-        res.cookie(
-          GOOGLE_PENDING_COOKIE,
-          issueSignedJson(GOOGLE_PENDING_COOKIE, pendingPayload),
-          googleCookieOptions(GOOGLE_PENDING_MS),
-        );
-        return res.redirect(302, '/?google=complete');
-      }
-    } else {
-      // mode === 'link'
-      const session = readSession(cookieValue(req.headers.cookie, SESSION_COOKIE), now);
-      if (!session || !flow.userId || session.userId !== flow.userId) {
-        return res.redirect(302, '/?google_error=session');
-      }
-      const user = await this.prisma.user.findUnique({ where: { id: flow.userId } });
-      if (!user || user.deletedAt || user.lockedAt) {
-        return res.redirect(302, '/?google_error=locked');
-      }
-      if (user.googleSub !== null) {
-        return res.redirect(302, '/?google_error=taken');
-      }
-      const existing = await this.prisma.user.findUnique({ where: { googleSub: sub } });
-      if (existing && existing.id !== flow.userId) {
-        return res.redirect(302, '/?google_error=taken');
-      }
-      try {
-        const updated = await this.prisma.user.updateMany({
-          where: { id: flow.userId, googleSub: null },
-          data: { googleSub: sub },
-        });
-        if (updated.count === 0) {
+        // mode === 'link'
+        const session = readSession(cookieValue(req.headers.cookie, SESSION_COOKIE), now);
+        if (!session || !flow.userId || session.userId !== flow.userId) {
+          return res.redirect(302, '/?google_error=session');
+        }
+        const user = await this.prisma.user.findUnique({ where: { id: flow.userId } });
+        if (!user || user.deletedAt || user.lockedAt) {
+          return res.redirect(302, '/?google_error=locked');
+        }
+        if (user.googleSub !== null) {
           return res.redirect(302, '/?google_error=taken');
         }
-      } catch (err) {
-        if (isUniqueViolation(err)) {
+        const existing = await this.prisma.user.findUnique({ where: { googleSub: sub } });
+        if (existing && existing.id !== flow.userId) {
           return res.redirect(302, '/?google_error=taken');
         }
-        return res.redirect(302, '/?google_error=unknown');
+        try {
+          const updated = await this.prisma.user.updateMany({
+            where: { id: flow.userId, googleSub: null },
+            data: { googleSub: sub },
+          });
+          if (updated.count === 0) {
+            return res.redirect(302, '/?google_error=taken');
+          }
+        } catch (err) {
+          if (isUniqueViolation(err)) {
+            return res.redirect(302, '/?google_error=taken');
+          }
+          return res.redirect(302, '/?google_error=unknown');
+        }
+        return res.redirect(302, '/');
       }
-      return res.redirect(302, '/');
+    } catch {
+      return res.redirect(302, '/?google_error=unknown');
     }
   }
 
@@ -380,7 +429,10 @@ export class AuthController {
 
       // (1) consumeOtpRequest(ip, sub) FIRST (O5 order)
       const retryAfter = await this.throttle.consumeOtpRequest(req.ip, pending.sub);
-      refuseWhenThrottled(res, retryAfter);
+      if (retryAfter !== null) {
+        res.setHeader('Retry-After', String(retryAfter));
+        throw new OtpThrottleException(retryAfter);
+      }
 
       // (2) 409 existence check
       const existing = await this.prisma.user.findUnique({ where: { phone: input.data.phone } });
@@ -410,7 +462,10 @@ export class AuthController {
 
       // (1) consumeOtpRequest(ip, sub) FIRST
       const retryAfter = await this.throttle.consumeOtpRequest(req.ip, verify.sub);
-      refuseWhenThrottled(res, retryAfter);
+      if (retryAfter !== null) {
+        res.setHeader('Retry-After', String(retryAfter));
+        throw new OtpThrottleException(retryAfter);
+      }
 
       // (2) O11 check: account must exist, match sub, not locked, not deleted
       const user = await this.prisma.user.findFirst({
@@ -458,6 +513,11 @@ export class AuthController {
     const input = GoogleCompleteRequest.safeParse(body);
     if (!input.success) {
       throw new BadRequestException(errorMessage(input.error));
+    }
+
+    const existing = await this.prisma.user.findUnique({ where: { phone: input.data.phone } });
+    if (existing) {
+      throw new ConflictException('Số này đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết Google');
     }
 
     const codeHash = await this.otpService.verifyCode(input.data.phone, 'google_signup', input.data.code);

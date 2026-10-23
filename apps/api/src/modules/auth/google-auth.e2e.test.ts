@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { hash } from '@node-rs/argon2';
 import { vnDateString } from '@monsport/shared';
@@ -288,24 +288,46 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
       },
     });
 
-    const pendingCookie = issueSignedJson(GOOGLE_PENDING_COOKIE, {
-      typ: 'google_pending',
+    const startRes = await http().get('/api/auth/google/start').expect(302);
+    const flowCookie = getCookie(startRes, GOOGLE_FLOW_COOKIE);
+    expect(flowCookie).toBeDefined();
+
+    const locationUrl = new URL(startRes.headers.location);
+    const state = locationUrl.searchParams.get('state');
+    const nonce = locationUrl.searchParams.get('nonce');
+
+    nextIdTokenPayload = {
       sub: 'g-other',
       email: 'other@example.com',
       name: 'Other',
-      exp: now.getTime() + 30 * 60_000,
-    });
+      email_verified: true,
+      nonce: nonce!,
+    };
 
-    await otpService.issue('0901234567', 'google_signup');
-    const [, code] = vi.mocked(fakeOtpSender.send).mock.calls[0];
+    const cbRes = await http()
+      .get(`/api/auth/google/callback?code=c-ac3&state=${state}`)
+      .set('Cookie', `google_flow=${flowCookie}`)
+      .expect(302);
 
-    const res = await http()
-      .post('/api/auth/google/complete')
+    expect(cbRes.headers.location).toBe('/?google=complete');
+    const pendingCookie = getCookie(cbRes, GOOGLE_PENDING_COOKIE);
+    expect(pendingCookie).toBeDefined();
+
+    const otpRes = await http()
+      .post('/api/auth/google/otp')
       .set('Cookie', `google_pending=${pendingCookie}`)
-      .send({ name: 'Other', phone: '0901234567', code, consent: true })
+      .send({ purpose: 'google_signup', phone: '0901234567', consent: true })
       .expect(409);
 
-    expect(res.body.message).toBe('Số điện thoại này đã có tài khoản');
+    expect(otpRes.body.message).toBe('Số này đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết Google');
+
+    const compRes = await http()
+      .post('/api/auth/google/complete')
+      .set('Cookie', `google_pending=${pendingCookie}`)
+      .send({ name: 'Other', phone: '0901234567', code: '123456', consent: true })
+      .expect(409);
+
+    expect(compRes.body.message).toBe('Số này đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết Google');
 
     const freshAn = await db.user.findUniqueOrThrow({ where: { id: an.id } });
     expect(freshAn.googleSub).toBeNull();
@@ -487,24 +509,60 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
   });
 
   it('AC-10: id_token có aud khác GOOGLE_CLIENT_ID, hoặc nonce sai, hoặc đã hết hạn', async () => {
-    const flowCookie = issueSignedJson(GOOGLE_FLOW_COOKIE, {
+    // 1. Wrong aud
+    const flowCookieAud = issueSignedJson(GOOGLE_FLOW_COOKIE, {
       typ: 'google_flow',
-      state: 'state-10',
-      nonce: 'nonce-10',
-      codeVerifier: 'verifier-10',
+      state: 'state-10-aud',
+      nonce: 'nonce-10-aud',
+      codeVerifier: 'verifier-10-aud',
       mode: 'login',
       exp: now.getTime() + 10 * 60_000,
     });
-
-    nextIdTokenPayload = { sub: 'g-10', aud: 'wrong-audience', nonce: 'nonce-10' };
-
-    const res = await http()
-      .get('/api/auth/google/callback?code=c1&state=state-10')
-      .set('Cookie', `google_flow=${flowCookie}`)
+    nextIdTokenPayload = { sub: 'g-10-aud', aud: 'wrong-audience', nonce: 'nonce-10-aud' };
+    const resAud = await http()
+      .get('/api/auth/google/callback?code=c1&state=state-10-aud')
+      .set('Cookie', `google_flow=${flowCookieAud}`)
       .expect(302);
+    expect(resAud.headers.location).toBe('/?google_error=token');
+    expect(getCookie(resAud, SESSION_COOKIE)).toBeUndefined();
 
-    expect(res.headers.location).toBe('/?google_error=token');
-    expect(getCookie(res, SESSION_COOKIE)).toBeUndefined();
+    // 2. Wrong nonce
+    const flowCookieNonce = issueSignedJson(GOOGLE_FLOW_COOKIE, {
+      typ: 'google_flow',
+      state: 'state-10-nonce',
+      nonce: 'nonce-expected',
+      codeVerifier: 'verifier-10-nonce',
+      mode: 'login',
+      exp: now.getTime() + 10 * 60_000,
+    });
+    nextIdTokenPayload = { sub: 'g-10-nonce', nonce: 'wrong-nonce' };
+    const resNonce = await http()
+      .get('/api/auth/google/callback?code=c2&state=state-10-nonce')
+      .set('Cookie', `google_flow=${flowCookieNonce}`)
+      .expect(302);
+    expect(resNonce.headers.location).toBe('/?google_error=token');
+    expect(getCookie(resNonce, SESSION_COOKIE)).toBeUndefined();
+
+    // 3. Expired exp
+    const flowCookieExp = issueSignedJson(GOOGLE_FLOW_COOKIE, {
+      typ: 'google_flow',
+      state: 'state-10-exp',
+      nonce: 'nonce-10-exp',
+      codeVerifier: 'verifier-10-exp',
+      mode: 'login',
+      exp: now.getTime() + 10 * 60_000,
+    });
+    nextIdTokenPayload = {
+      sub: 'g-10-exp',
+      nonce: 'nonce-10-exp',
+      exp: Math.floor((now.getTime() - 60_000) / 1000),
+    };
+    const resExp = await http()
+      .get('/api/auth/google/callback?code=c3&state=state-10-exp')
+      .set('Cookie', `google_flow=${flowCookieExp}`)
+      .expect(302);
+    expect(resExp.headers.location).toBe('/?google_error=token');
+    expect(getCookie(resExp, SESSION_COOKIE)).toBeUndefined();
   });
 
   it('AC-11: Google trả error=access_denied', async () => {
@@ -711,6 +769,53 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
     await dHttp().post('/api/auth/google/unlink').expect(404);
 
     await disabledApp.close();
+  });
+
+  it('discovery failure redirects /google/start to /?google_error=config and returns 503 for link-start', async () => {
+    const origFetch = global.fetch;
+    global.fetch = vi.fn().mockRejectedValue(new Error('Discovery unreachable'));
+    try {
+      const discModule = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(Clock)
+        .useValue(clock)
+        .overrideProvider(OTP_SENDER)
+        .useValue(fakeOtpSender)
+        .overrideProvider(GOOGLE_CONFIG)
+        .useValue({
+          enabled: true,
+          clientId: CLIENT_ID,
+          clientSecret: CLIENT_SECRET,
+          redirectUri: REDIRECT_URI,
+        })
+        .compile();
+
+      const discApp = setupApp(discModule.createNestApplication());
+      await discApp.init();
+
+      const dHttp = () => request(discApp.getHttpServer());
+
+      const startRes = await dHttp().get('/api/auth/google/start').expect(302);
+      expect(startRes.headers.location).toBe('/?google_error=config');
+
+      const user = await db.user.create({
+        data: {
+          name: 'DiscUser',
+          phone: '0909998877',
+          passwordHash: await hash('password123'),
+        },
+      });
+      const sessionCookie = issueSession(user.id, now);
+
+      await dHttp()
+        .post('/api/auth/google/link-start')
+        .set('Cookie', `session=${sessionCookie}`)
+        .send({ password: 'password123' })
+        .expect(503);
+
+      await discApp.close();
+    } finally {
+      global.fetch = origFetch;
+    }
   });
 
   it('AC-20: Có một trong ba biến GOOGLE_*, thiếu GOOGLE_CLIENT_SECRET hoặc GOOGLE_REDIRECT_URI', () => {
@@ -1021,18 +1126,18 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
   });
 
   it('AC-30: Số 0901112233 đã nhận 5 mã trong giờ này', async () => {
-    const pending = issueSignedJson(GOOGLE_PENDING_COOKIE, {
-      typ: 'google_pending',
-      sub: 'g-111',
-      email: 'lan@example.com',
-      name: 'Lan',
-      exp: now.getTime() + 60 * 60_000,
-    });
-
     for (let i = 0; i < 5; i++) {
       now = new Date(at('10:00:00').getTime() + i * 65_000);
+      const pending = issueSignedJson(GOOGLE_PENDING_COOKIE, {
+        typ: 'google_pending',
+        sub: `g-sub-${i}`,
+        email: `lan${i}@example.com`,
+        name: `Lan ${i}`,
+        exp: now.getTime() + 60 * 60_000,
+      });
       await http()
         .post('/api/auth/google/otp')
+        .set('X-Forwarded-For', `198.51.100.${i + 1}`)
         .set('Cookie', `google_pending=${pending}`)
         .send({ purpose: 'google_signup', phone: '0901112233', consent: true })
         .expect(200);
@@ -1040,9 +1145,17 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
     expect(fakeOtpSender.send).toHaveBeenCalledTimes(5);
 
     now = new Date(at('10:00:00').getTime() + 5 * 65_000);
+    const pending6 = issueSignedJson(GOOGLE_PENDING_COOKIE, {
+      typ: 'google_pending',
+      sub: 'g-sub-5',
+      email: 'lan5@example.com',
+      name: 'Lan 5',
+      exp: now.getTime() + 60 * 60_000,
+    });
     await http()
       .post('/api/auth/google/otp')
-      .set('Cookie', `google_pending=${pending}`)
+      .set('X-Forwarded-For', '198.51.100.6')
+      .set('Cookie', `google_pending=${pending6}`)
       .send({ purpose: 'google_signup', phone: '0901112233', consent: true })
       .expect(429);
 
@@ -1240,6 +1353,8 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
       .expect(429);
 
     expect(res.headers['retry-after']).toBeDefined();
+    expect(typeof res.body.retryAfter).toBe('number');
+    expect(res.body.retryAfter).toBeGreaterThan(0);
     expect(fakeOtpSender.send).toHaveBeenCalledTimes(10);
   });
 
@@ -1262,13 +1377,16 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
     }
     expect(fakeOtpSender.send).toHaveBeenCalledTimes(5);
 
-    await http()
+    const res = await http()
       .post('/api/auth/google/otp')
       .set('X-Forwarded-For', '203.0.113.99')
       .set('Cookie', `google_pending=${pending}`)
       .send({ purpose: 'google_signup', phone: '0901110006', consent: true })
       .expect(429);
 
+    expect(res.headers['retry-after']).toBeDefined();
+    expect(typeof res.body.retryAfter).toBe('number');
+    expect(res.body.retryAfter).toBeGreaterThan(0);
     expect(fakeOtpSender.send).toHaveBeenCalledTimes(5);
   });
 
@@ -1428,6 +1546,7 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
   });
 
   it('AC-43: Server đã gửi 200 tin hôm nay', async () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn');
     const dayKey = `otp-day:${vnDateString(now)}`;
     await db.authThrottle.create({
       data: {
@@ -1453,6 +1572,12 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
 
     expect(res.body.message).toBe('Không gửi được mã. Thử lại sau');
     expect(fakeOtpSender.send).not.toHaveBeenCalled();
+
+    expect(warnSpy).toHaveBeenCalledWith('otp daily cap reached');
+    for (const call of warnSpy.mock.calls) {
+      const text = call.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' ');
+      expect(text).not.toContain('0901112233');
+    }
   });
 
   it('AC-44: Số 0901112233 đã nhận 4 mã trong giờ này, gửi từ cookie và IP khác của Lan. Mã thứ 5 gửi lúc 10:00', async () => {

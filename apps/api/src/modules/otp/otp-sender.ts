@@ -33,6 +33,7 @@ export class EsmsOtpSender implements OtpSender {
     const res = await fetch('https://rest.esms.vn/MainService.svc/json/SendMultipleMessage_V4_post_json', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(10_000),
       body: JSON.stringify({
         ApiKey: apiKey,
         SecretKey: secretKey,

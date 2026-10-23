@@ -166,7 +166,7 @@ export class OtpService {
     if (!match) {
       if (attempts >= 5) {
         await this.prisma.phoneOtp.deleteMany({
-          where: { phoneKey, purpose },
+          where: { phoneKey, purpose, codeHash },
         });
       }
       throw new HttpException('Mã không đúng', HttpStatus.BAD_REQUEST);
