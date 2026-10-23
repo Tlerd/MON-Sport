@@ -947,6 +947,18 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
     await otpService.issue('0901112233', 'google_signup');
     const [, code] = vi.mocked(fakeOtpSender.send).mock.calls[0];
 
+    // Both requests pass the phone lookup before either creates the user, or a fast first
+    // request makes the second one a 409 and the race on the code never runs.
+    const verifyCode = otpService.verifyCode.bind(otpService);
+    let arrived = 0;
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => (release = resolve));
+    const spy = vi.spyOn(otpService, 'verifyCode').mockImplementation(async (...args) => {
+      if (++arrived === 2) release();
+      await barrier;
+      return verifyCode(...args);
+    });
+
     const [r1, r2] = await Promise.all([
       http()
         .post('/api/auth/google/complete')
@@ -957,7 +969,9 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
         .set('Cookie', `google_pending=${p2}`)
         .send({ name: 'Lan 2', phone: '0901112233', code, consent: true }),
     ]);
+    spy.mockRestore();
 
+    expect(arrived).toBe(2);
     const statuses = [r1.status, r2.status].sort();
     expect(statuses).toEqual([201, 400]);
 
