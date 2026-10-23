@@ -265,7 +265,7 @@ Mỗi ví dụ dùng sân "Sân 1" của đơn vị "Cầu lông A", ngày 20/11
 - Booking chủ sân nhập cho khách gọi điện lưu tên khách và số điện thoại, cả hai không bắt buộc.
 - Trận chuyển sang "Đã đá xong" một cách tự động khi qua giờ kết thúc.
 - Người dùng đăng nhập hoặc đăng ký bằng Google. Tài khoản Google phải xác minh số điện thoại bằng mã OTP gửi qua SMS (brief F-004).
-- Người dùng đăng nhập hoặc đăng ký bằng Zalo. Số điện thoại của tài khoản Zalo được xác minh qua Zalo (brief F-004).
+- Người dùng đăng nhập hoặc đăng ký bằng Zalo. Số điện thoại của tài khoản Zalo được xác minh qua Zalo (brief F-018).
 - Đăng ký bằng số điện thoại và mật khẩu giữ như hiện tại, không cần OTP. Đây là giả định của agent ngày 23/10/2026, chờ bạn xác nhận (Open item 6).
 - Admin đếm người dùng hoạt động theo hoạt động trong tuần (booking, vào trận, tạo trận), không theo lần đăng nhập (brief F-016).
 
