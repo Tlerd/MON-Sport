@@ -1,10 +1,28 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import type { AccountView, Role } from '@monsport/shared';
-import type { User } from '../../generated/prisma/client.js';
+import type { Prisma, User } from '../../generated/prisma/client.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { Passwords } from './passwords.js';
+import { keyedDigest } from './session.js';
 
 export const PHONE_TAKEN = 'Số điện thoại này đã có tài khoản'; // BR-24
+
+/**
+ * R8 helper: clears Google identity and OTP rows when an account is deleted (brief F-004, R8).
+ */
+export async function clearAccountGoogleAndOtp(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  phone: string,
+): Promise<void> {
+  await tx.user.update({
+    where: { id: userId },
+    data: { googleSub: null, email: null, phoneVerifiedAt: null },
+  });
+  await tx.phoneOtp.deleteMany({
+    where: { phoneKey: keyedDigest(phone) },
+  });
+}
 
 // Prisma P2002 or Postgres SQLSTATE 23505: a unique index refused a second row, for example a second account on one phone.
 // The driver adapter can wrap the database error, so the code is searched on the error and its causes.
