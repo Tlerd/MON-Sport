@@ -7,6 +7,7 @@ RUN npm install --global pnpm@12.3.4
 COPY . .
 RUN pnpm install --frozen-lockfile \
  && pnpm --filter @monsport/web build \
+ && pnpm --filter @monsport/mobile build \
  && pnpm --filter @monsport/api build
 
 FROM node:26-slim
@@ -14,7 +15,7 @@ FROM node:26-slim
 RUN apt-get update \
  && apt-get install --yes --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
-ENV NODE_ENV=production WEB_DIST=/app/apps/web/dist PORT=8080
+ENV NODE_ENV=production WEB_DIST=/app/apps/web/dist MOBILE_DIST=/app/apps/mobile/dist PORT=8080
 COPY --from=build /app /app
 WORKDIR /app/apps/api
 USER node

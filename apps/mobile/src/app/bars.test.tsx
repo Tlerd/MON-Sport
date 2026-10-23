@@ -4,7 +4,7 @@ import { ActionBar } from '../components/ActionBar.tsx';
 import { ContextBar } from '../components/ContextBar.tsx';
 import { Sheet } from '../components/Sheet.tsx';
 import { TopBar } from '../components/TopBar.tsx';
-import { BarsProvider } from './bars.tsx';
+import { BarsProvider, useBars } from './bars.tsx';
 
 describe('bars: BarsProvider, useBars, ContextBar, and ActionBar', () => {
   const originalScrollY = window.scrollY;
@@ -150,5 +150,88 @@ describe('bars: BarsProvider, useBars, ContextBar, and ActionBar', () => {
     const aside = container.querySelector('aside');
     expect(aside).not.toBeNull();
     expect(aside!.classList.contains('at-bottom')).toBe(true);
+  });
+
+  it('BarsProvider counts locks, lock() returns a release function, and closed Sheet writes nothing', () => {
+    let captured: any;
+    function Consumer() {
+      captured = useBars();
+      return null;
+    }
+    const { rerender } = render(
+      <BarsProvider>
+        <Consumer />
+        <Sheet open={false} onClose={() => {}} title="Test">
+          <p>Closed</p>
+        </Sheet>
+      </BarsProvider>,
+    );
+
+    expect(typeof captured.lock).toBe('function');
+
+    let release1: () => void;
+    let release2: () => void;
+
+    act(() => {
+      release1 = captured.lock();
+    });
+    expect(captured.tabHidden).toBe(true);
+    // First lock taken
+    act(() => {
+      release2 = captured.lock();
+    });
+    expect(captured.tabHidden).toBe(true);
+    // Release first lock - second still holds
+    act(() => {
+      release1!();
+    });
+    expect(captured.tabHidden).toBe(true);
+    // Release second lock
+    act(() => {
+      release2!();
+    });
+    expect(captured.tabHidden).toBe(false);
+
+    // Releasing again has no effect
+    act(() => {
+      release2!();
+    });
+    expect(captured.tabHidden).toBe(false);
+
+    // Closed sheet does not acquire locks
+    rerender(
+      <BarsProvider>
+        <Consumer />
+        <Sheet open={false} onClose={() => {}} title="Test">
+          <p>Closed</p>
+        </Sheet>
+      </BarsProvider>,
+    );
+  });
+
+  it('renders <Sheet open>, unmounts it, and expects tabHidden === false', () => {
+    let captured: any;
+    function Consumer() {
+      captured = useBars();
+      return null;
+    }
+    const { rerender } = render(
+      <BarsProvider>
+        <Consumer />
+        <Sheet open onClose={() => {}} title="Test">
+          <p>Open</p>
+        </Sheet>
+      </BarsProvider>,
+    );
+
+    expect(captured.tabHidden).toBe(true);
+
+    rerender(
+      <BarsProvider>
+        <Consumer />
+      </BarsProvider>,
+    );
+
+    expect(captured.tabHidden).toBe(false);
   });
 });

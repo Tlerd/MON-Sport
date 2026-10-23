@@ -27,7 +27,7 @@ export function LoginSheet({ open, onClose }: LoginSheetProps) {
       await refresh();
       onClose();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Sai số điện thoại hoặc mật khẩu');
+      setError(err instanceof ApiError ? err.message : 'Không kết nối được. Thử lại sau');
     } finally {
       setBusy(false);
     }

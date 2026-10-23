@@ -17,17 +17,19 @@ const SEED = {
 };
 
 export function parseOptions(argv) {
-  const opts = { target: 'local', baseUrl: '', headed: false, flows: [] };
+  const opts = { target: 'local', baseUrl: '', app: 'web', headed: false, flows: [] };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--target') opts.target = argv[++i];
     else if (arg === '--base-url') opts.baseUrl = argv[++i];
+    else if (arg === '--app') opts.app = argv[++i];
     else if (arg === '--headed') opts.headed = true;
     else if (arg.startsWith('--')) throw new Error(`Unknown option ${arg}`);
     else opts.flows.push(arg);
   }
   if (!['local', 'live'].includes(opts.target)) throw new Error('--target is local or live');
-  opts.baseUrl ||= opts.target === 'local' ? 'http://localhost:5173' : liveUrl();
+  if (!['web', 'mobile'].includes(opts.app)) throw new Error('--app is web or mobile');
+  opts.baseUrl ||= opts.target === 'local' ? (opts.app === 'mobile' ? 'http://localhost:5180' : 'http://localhost:5173') : liveUrl();
   opts.baseUrl = opts.baseUrl.replace(/\/$/, '');
   return opts;
 }
