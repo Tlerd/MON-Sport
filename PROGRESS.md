@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-21 (Web Push plan).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-23 (push refresh merged, model routing).
 
 ## Current state
 
@@ -20,7 +20,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 - `docs/requirements/intake-monsport-v1.md` is the source of truth (ADR 0002).
 - The stack: NestJS 12, React 19 + Vite 8, PostgreSQL (18 locally and in CI), Prisma 7 from pull request 1, Zod 4, SSE for real-time updates.
 - The API is ESM and builds with SWC, because Nest needs decorator metadata. `packages/shared` ships TypeScript source.
-- Agents work without asking, under "Autonomy" in `AGENTS.md`. Claude Code: Opus, `acceptEdits`, and `Explore` on Haiku. Antigravity: `.agents/rules/model-routing.md`.
+- Agents work without asking, under "Autonomy" in `AGENTS.md`. Since 2026-10-23 (PR #99): Opus in Claude Code plans, reviews, checks, and merges. agy codes through `node scripts/agy-run.mjs` (every model, flash included). Exit 4 (agy out of quota) sends the step to `backend` or `frontend` on Sonnet, then Haiku. Antigravity: `.agents/rules/model-routing.md`.
 
 ## Open decisions
 
@@ -37,4 +37,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-User decision of 2026-10-21: Web Push goes to Android first, then iPhone (this changes the iPhone line of UC-14 in the intake; Safari shows no push because there is no app yet). (1) Merge `fix/live-notification-refresh` (PR open, one deploy). (2) Pass the UC-14 example on an Android phone: the owner phone gets a push within 30 seconds. Test it before the deploy with USB port forwarding (`chrome://inspect`) to `localhost`, or after the deploy over HTTPS. (3) Plan the iPhone app. Then wait for the open decisions, 7 and 10 first.
+User decision of 2026-10-21: Web Push goes to Android first, then iPhone (this changes the iPhone line of UC-14 in the intake; Safari shows no push because there is no app yet). PR #94 (live refresh of the list, AC-23, AC-24) is merged and live. (1) User: pass the UC-14 example on an Android phone over HTTPS on the live URL: the owner phone gets a push within 30 seconds. (2) UI redesign: `DESIGN.md` and the plans are on `main` (PR #98). Round 4 of the experiments runs on `exp/ui-c-web` and `exp/ui-d-mobile`. A brief brings the web redesign to `main`. The mobile app waits for ADR 0006 (user). (3) Plan the iPhone app. Then wait for the open decisions, 7 and 10 first.
