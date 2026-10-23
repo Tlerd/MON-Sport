@@ -12,8 +12,7 @@ import { Chip } from '../../components/Chip.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { SportIcon } from '../../components/icons.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
-import { api } from '../../lib/api.ts';
-import { formatDay, formatTime, formatVnd } from '../../lib/format.ts';
+import { api, formatDay, formatTime, formatVnd } from '@monsport/client';
 
 const SPORT_LABEL: Record<Sport, string> = {
   BADMINTON: 'Cầu lông',

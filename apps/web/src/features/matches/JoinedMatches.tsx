@@ -1,7 +1,6 @@
 import type { MatchStatus, MatchView } from '@monsport/shared';
 import { useEffect, useId, useState } from 'react';
-import { api } from '../../lib/api.ts';
-import { formatDay, formatTime } from '../../lib/format.ts';
+import { api, formatDay, formatTime } from '@monsport/client';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 

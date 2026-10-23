@@ -1,6 +1,6 @@
 import type { AccountView } from '@monsport/shared';
 import { type FormEvent, useRef, useState } from 'react';
-import { api, ApiError } from '../../lib/api.ts';
+import { api, ApiError } from '@monsport/client';
 
 const ROLE = { ADMIN: 'Admin', OWNER: 'Chủ sân', USER: 'Người dùng' } as const;
 

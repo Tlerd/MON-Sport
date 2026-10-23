@@ -194,6 +194,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@monsport/client':
+        specifier: workspace:*
+        version: link:../../packages/client
       '@monsport/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -234,6 +237,12 @@ importers:
       vite:
         specifier: 8.3.4
         version: 8.3.4(@types/node@26.6.5)(jiti@2.7.0)
+
+  packages/client:
+    dependencies:
+      '@monsport/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/shared:
     dependencies:

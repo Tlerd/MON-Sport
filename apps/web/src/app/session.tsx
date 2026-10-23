@@ -1,7 +1,6 @@
 import type { SessionUser } from '@monsport/shared';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api } from '../lib/api.ts';
-import { disablePush, resyncPush } from '../lib/push.ts';
+import { api, disablePush, resyncPush } from '@monsport/client';
 
 /** The most that a logout waits for the device to stop Web Push. */
 const PUSH_OFF_LIMIT_MS = 5000;

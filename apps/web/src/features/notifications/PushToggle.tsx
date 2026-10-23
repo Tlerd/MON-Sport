@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ApiError } from '../../lib/api.ts';
-import { disablePush, enablePush, getPublicKey, isPushOn, PushPermissionError, pushSupported } from '../../lib/push.ts';
+import { ApiError, disablePush, enablePush, getPublicKey, isPushOn, PushPermissionError, pushSupported } from '@monsport/client';
 
 type State = 'loading' | 'hidden' | 'unsupported' | 'denied' | 'off' | 'on';
 

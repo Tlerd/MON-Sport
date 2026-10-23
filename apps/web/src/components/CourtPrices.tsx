@@ -1,5 +1,5 @@
 import type { CourtView } from '@monsport/shared';
-import { formatVnd } from '../lib/format.ts';
+import { formatVnd } from '@monsport/client';
 
 const SPORT = { BADMINTON: 'Cầu lông', FOOTBALL: 'Bóng đá' } as const;
 

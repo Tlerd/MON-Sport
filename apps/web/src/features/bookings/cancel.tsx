@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ApiError } from '../../lib/api.ts';
+import { ApiError } from '@monsport/client';
 
 /**
  * The state that a list of cancellable rows shares (brief F-009): which row asks to confirm, the call in flight,

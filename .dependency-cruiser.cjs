@@ -48,7 +48,7 @@ module.exports = {
       severity: 'error',
       comment:
         'One app imports source files of another app. Apps share code only through packages. ' +
-        'Fix: move the shared type or schema to packages/shared.',
+        'Fix: move the shared code to packages/client (browser code) or packages/shared (schemas and types).',
       from: { path: '^apps/([^/]+)/' },
       to: { path: '^apps/', pathNot: '^apps/$1/' },
     },
