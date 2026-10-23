@@ -8,13 +8,14 @@
 
 import { spawnSync } from 'node:child_process';
 
-// A token is a path when it has a folder, or has no star. A bare "*.test.ts" would allow any folder, so it is dropped.
+// A token is a path when it has a folder, or has no star. A root file with no dot (`Dockerfile`, `Makefile`) counts when it starts
+// with a capital letter, so a backticked word such as `max` is not read as a path. A bare "*.test.ts" would allow any folder, so it is dropped.
 // A star in the first folder ("*/*", "**/x.ts") would allow .github/ and scripts/, so it is dropped too.
 const starFirst = (token) => token.split('/')[0].includes('*');
 const ticks = (text) =>
   [...text.matchAll(/`([^`\s]+)`/g)]
     .map((m) => m[1])
-    .filter((t) => /[./]/.test(t) && (t.includes('/') || !t.includes('*')) && !starFirst(t));
+    .filter((t) => (/[./]/.test(t) || /^[A-Z][A-Za-z0-9_-]*$/.test(t)) && (t.includes('/') || !t.includes('*')) && !starFirst(t));
 
 /** The backticked paths in the Paths cell of one row of the step table, the table whose header holds "Paths". */
 export function briefStepPaths(briefText, step) {
