@@ -1,6 +1,6 @@
 // Runs Antigravity (`agy`) with model fallback: `node scripts/agy-run.mjs [--strong-only] <agy args>`.
 // Claude Code (Opus) plans, checks, and merges. agy codes on every model of MODELS, flash included.
-// It always runs a high variant at high effort. When a model is out of quota, the same run
+// It runs each model at the effort in its name (`-medium` or `-high`). When a model is out of quota, the same run
 // starts again on the next model of MODELS. Any other result, pass or fail, ends the run.
 // `--strong-only` keeps a Reviewer run on the STRONG models: it fails rather than review on a weaker one.
 // AGY_MODELS (comma-separated) replaces the list.
@@ -14,7 +14,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const MODELS = (process.env.AGY_MODELS || 'claude-opus-5-5-high,gemini-4-argon-high,claude-sonnet-5-5-high,gemini-3.8-flash-high')
+export const MODELS = (process.env.AGY_MODELS || 'claude-sonnet-5-5-medium,claude-opus-5-5-high,gemini-4-argon-high,claude-sonnet-5-5-high,gemini-3.8-flash-high')
   .split(',')
   .map((model) => model.trim())
   .filter(Boolean);
@@ -50,7 +50,7 @@ export function buildArgs(args, model) {
     if (args[i] === '--model' || args[i] === '--effort') i++;
     else if (args[i] !== '--strong-only' && !/^--(model|effort)=/.test(args[i])) kept.push(args[i]);
   }
-  return [...kept, '--model', model, '--effort', 'high'];
+  return [...kept, '--model', model, '--effort', model.match(/-(low|medium|high)$/)?.[1] ?? 'high'];
 }
 
 // agy reports its own quota error on stderr, at the end. The task output on stdout can quote a 429
