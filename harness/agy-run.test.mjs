@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { MODELS, OUT_OF_QUOTA, STRONG, buildArgs, hitQuota, quotaText, runWithFallback, weeklyStop } from '../scripts/agy-run.mjs';
 
 describe('agy-run: an agy model that runs out of quota hands over to the next one', () => {
-  it('every model in the list is a high variant', () => {
+  it('the first model is Sonnet at medium effort, and every other model is a high variant', () => {
     expect(MODELS.length).toBeGreaterThan(1);
-    for (const model of MODELS) expect(model).toMatch(/-high$/);
+    expect(MODELS[0]).toBe('claude-sonnet-5-5-medium');
+    for (const model of MODELS.slice(1)) expect(model).toMatch(/-high$/);
   });
 
-  it('drops the model and effort of the caller, and sets high effort', () => {
+  it('drops the model and effort of the caller, and sets the effort of the model', () => {
     const args = buildArgs(['--model', 'gemini-3.8-flash-low', '--effort=low', '--mode', 'plan', '-p', 'task'], 'claude-opus-5-5-high');
     expect(args).toEqual(['--mode', 'plan', '-p', 'task', '--model', 'claude-opus-5-5-high', '--effort', 'high']);
+    expect(buildArgs(['-p', 'task'], 'claude-sonnet-5-5-medium')).toEqual(['-p', 'task', '--model', 'claude-sonnet-5-5-medium', '--effort', 'medium']);
   });
 
   it('reads a quota failure only from a failed run', () => {
