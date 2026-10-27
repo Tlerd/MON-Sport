@@ -12,11 +12,14 @@ import { Phone } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router';
 import type { ShellContextType } from '../../app/App.tsx';
+import { useSession } from '../../app/session.tsx';
 import { ActionBar } from '../../components/ActionBar.tsx';
 import { Chip } from '../../components/Chip.tsx';
 import { ContextBar } from '../../components/ContextBar.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { SlotRow } from '../../components/SlotRow.tsx';
+import { LoginSheet } from '../auth/LoginSheet.tsx';
+import { BookingSheet } from '../bookings/BookingSheet.tsx';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
 const DAY_COUNT = 7;
@@ -81,6 +84,7 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { setTitle, setOnBack, setTopBarActions } = useOutletContext<ShellContextType>();
+  const { user } = useSession();
   const now = nowProp ?? new Date();
   const today = vnDateString(now);
 
@@ -90,7 +94,9 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
 
   const [date, setDate] = useState(today);
   const [chosenWindow, setChosenWindow] = useState<{ key: string; id: WindowId; n: number } | null>(null);
-  const [selected, setSelected] = useState<{ courtId: string; start: number } | undefined>(undefined);
+  const [selected, setSelected] = useState<{ courtId: string; start: number; duration: number } | undefined>(undefined);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [courtStates, setCourtStates] = useState<Record<string, CourtState>>({});
   const dateRef = useRef(date);
   dateRef.current = date;
@@ -219,6 +225,7 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
   const pickDate = (ymd: string) => {
     setDate(ymd);
     setSelected(undefined);
+    setBookingOpen(false);
   };
 
   return (
@@ -300,7 +307,7 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
                   closesAt={venue.closesAt}
                   startable={startableOf(court)}
                   selected={selected?.courtId === court.id ? selected.start : undefined}
-                  onPick={(start) => setSelected({ courtId: court.id, start })}
+                  onPick={(start) => setSelected({ courtId: court.id, start, duration: HOUR })}
                   scrollToMinute={activeWindow?.from}
                   scrollSignal={scrollSignal}
                   onCellKeyDown={(event, minute) => onCellKeyDown(event, courtIndex, minute)}
@@ -314,20 +321,53 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
       {selected && selectedCourt && (
         <ActionBar
           hidden
-          title={`${selectedCourt.name} · ${hhmm(selected.start)}–${hhmm(selected.start + HOUR)}`}
+          title={`${selectedCourt.name} · ${hhmm(selected.start)}–${hhmm(selected.start + selected.duration)}`}
           price={formatK(
             bookingPrice(
               new Date(slotAt(date, selected.start)),
-              new Date(slotAt(date, selected.start + HOUR)),
+              new Date(slotAt(date, selected.start + selected.duration)),
               selectedCourt.priceNormal,
               selectedCourt.pricePeak,
             ),
           )}
           actionLabel="Gửi yêu cầu"
           onAction={() => {
-            // Step 3 adds the request sheet.
+            if (!user) setLoginOpen(true);
+            else setBookingOpen(true);
           }}
           secondary={{ label: 'Gọi chủ sân', href: `tel:${venue.phone}` }}
+        />
+      )}
+
+      <LoginSheet
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onLoggedIn={() => setBookingOpen(true)}
+      />
+
+      {selected && selectedCourt && (
+        <BookingSheet
+          open={bookingOpen}
+          court={selectedCourt}
+          date={date}
+          start={selected.start}
+          duration={selected.duration}
+          free={
+            (() => {
+              const s = stateOf(selectedCourt);
+              return s?.status === 'ok' ? s.free : [];
+            })()
+          }
+          now={now}
+          onDuration={(duration) => setSelected((s) => (s ? { ...s, duration } : s))}
+          onClose={() => setBookingOpen(false)}
+          onBooked={() => {
+            setSelected(undefined);
+            for (const court of venue.courts) loadCourt(court.id, date);
+          }}
+          onConflict={() => {
+            for (const court of venue.courts) loadCourt(court.id, date);
+          }}
         />
       )}
     </div>

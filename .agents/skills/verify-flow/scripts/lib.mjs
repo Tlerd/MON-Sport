@@ -204,6 +204,21 @@ export async function clickFor(page, locator, method, pathPart) {
 }
 
 async function login(run, page, account, role) {
+  if (run.opts.app === 'mobile') {
+    await page.goto(`${run.base}/app/toi`);
+    await page.getByRole('button', { name: 'Đăng nhập' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Đăng nhập' });
+    await dialog.getByLabel('Số điện thoại').fill(account.phone);
+    await dialog.getByLabel('Mật khẩu').fill(account.password);
+    const { status, body } = await clickFor(page, dialog.getByRole('button', { name: 'Đăng nhập' }), 'POST', '/api/auth/login');
+    assert(status !== 429, 'BR-30 blocked the login: wait 15 minutes. See Gotchas in SKILL.md');
+    assert(status === 200, `POST /api/auth/login answered ${status}: ${body.message ?? ''}`);
+    const want = role === 'owner' ? 'OWNER' : 'USER';
+    assert(body.role === want, `the account has role ${body.role}, the flow needs ${want}`);
+    await page.getByText(body.name).waitFor();
+    account.name = body.name;
+    return `role ${body.role}`;
+  }
   await page.goto(run.base);
   // The login form sits on the home page, or behind the "Đăng nhập" link of the top nav (F-017).
   const phone = page.getByLabel('Số điện thoại');

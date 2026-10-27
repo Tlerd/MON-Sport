@@ -25,6 +25,7 @@ The run is done when the last line says `PASSED` and each flow you picked has PA
 | "Yêu cầu đặt sân", confirm, reject, the player sees the new state (UC-4, F-002) | `owner-decide` | [flows/owner-decide.md](flows/owner-decide.md) |
 | Phone booking, schedule grid (UC-5, F-007) | `phone-booking` | [flows/phone-booking.md](flows/phone-booking.md) |
 | Mobile shell, tab bar scroll and hide/show (F-019) | `mobile-shell` | [flows/mobile-shell.md](flows/mobile-shell.md) |
+| Mobile booking tab, venue slot rows, request sheet (UC-2, UC-3, F-020) | `mobile-book` | [flows/mobile-book.md](flows/mobile-book.md) |
 
 To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each state change, register it in `FLOWS` in `scripts/run.mjs`, and add a row and a flow file here.
 

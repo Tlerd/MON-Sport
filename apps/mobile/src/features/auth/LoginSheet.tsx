@@ -6,9 +6,10 @@ import { Sheet } from '../../components/Sheet.tsx';
 export interface LoginSheetProps {
   open: boolean;
   onClose: () => void;
+  onLoggedIn?: () => void;
 }
 
-export function LoginSheet({ open, onClose }: LoginSheetProps) {
+export function LoginSheet({ open, onClose, onLoggedIn }: LoginSheetProps) {
   const { refresh } = useSession();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +27,7 @@ export function LoginSheet({ open, onClose }: LoginSheetProps) {
       });
       await refresh();
       onClose();
+      onLoggedIn?.();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không kết nối được. Thử lại sau');
     } finally {
