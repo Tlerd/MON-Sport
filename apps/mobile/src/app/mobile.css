@@ -51,7 +51,7 @@ textarea:focus-visible {
 
 .slot-col {
   flex: 0 0 auto;
-  width: 38px;
+  width: 44px;
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);

@@ -190,9 +190,16 @@ describe('VenueScreen', () => {
     });
     mockApi([VENUE], standard);
     openVenue();
-    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    const dayChip = await screen.findByRole('button', { name: 'T6 30/10' });
+    scrollTo.mockClear();
+    fireEvent.click(dayChip);
     await waitFor(() => expect(buttonMinutes(rowOf('Sân 1'))).toHaveLength(6));
-    expect(scrollTo).toHaveBeenLastCalledWith({ left: 880 });
+    expect(scrollTo).toHaveBeenCalledTimes(2);
+    expect(scrollTo).toHaveBeenNthCalledWith(1, { left: 880 });
+    expect(scrollTo).toHaveBeenNthCalledWith(2, { left: 880 });
+    expect(scrollTo.mock.contexts.map((c) => (c as HTMLElement).getAttribute('data-court-id')).sort()).toEqual(
+      [C1, C2].sort(),
+    );
 
     scrollTo.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Sáng 6–12' }));
@@ -273,7 +280,13 @@ describe('VenueScreen', () => {
   });
 
   it('AC-19: arrows move focus between startable cells, on a row and between courts', async () => {
-    mockApi([VENUE], standard);
+    const tieLowerFree = [range('2026-10-31', '17:00', '18:00'), range('2026-10-31', '18:00', '19:00')];
+    const tieUpperFree = [range('2026-10-31', '17:30', '18:30')];
+    expect(clientModule.startableMinutes('2026-10-31', tieLowerFree, new Date())).toEqual([1020, 1080]);
+    mockApi([VENUE], (courtId, date) => {
+      if (date === '2026-10-31') return { free: courtId === C1 ? tieUpperFree : tieLowerFree };
+      return standard(courtId, date);
+    });
     openVenue();
     fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
     await waitFor(() => expect(buttonMinutes(rowOf('Sân 2'))).toEqual([1020, 1050, 1080]));
@@ -295,6 +308,14 @@ describe('VenueScreen', () => {
     last.focus();
     fireEvent.keyDown(last, { key: 'ArrowRight' });
     expect(document.activeElement).toBe(within(rowOf('Sân 1')).getByRole('button', { name: 'Sân 1 21:00' }));
+
+    // Tie case: Sân 1 has 1050 (17:30) and Sân 2 has [1020, 1080] (17:00, 18:00). ArrowDown picks the earlier cell (1020).
+    fireEvent.click(screen.getByRole('button', { name: 'T7 31/10' }));
+    await waitFor(() => expect(buttonMinutes(rowOf('Sân 2'))).toEqual([1020, 1080]));
+    const upper1050 = within(rowOf('Sân 1')).getByRole('button', { name: 'Sân 1 17:30' });
+    upper1050.focus();
+    fireEvent.keyDown(upper1050, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(within(rowOf('Sân 2')).getByRole('button', { name: 'Sân 2 17:00' }));
   });
 
   it('AC-22: a failed court shows its own error with a retry that loads that court only', async () => {

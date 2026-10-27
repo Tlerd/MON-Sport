@@ -35,7 +35,9 @@ describe('ActionBar', () => {
     );
     const link = screen.getByRole('link', { name: 'Gọi chủ sân' });
     expect(link.getAttribute('href')).toBe('tel:0912345678');
-    expect(link.style.minHeight).toBe('44px');
+    expect(link.style.width).toBe('44px');
+    expect(link.style.height).toBe('44px');
+    expect(link.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(screen.getByRole('button', { name: 'Gửi yêu cầu' })).toBeDefined();
   });
 

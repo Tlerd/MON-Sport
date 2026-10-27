@@ -1,3 +1,4 @@
+import { Phone } from 'lucide-react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { useBars } from '../app/bars.tsx';
 
@@ -47,7 +48,7 @@ export function ActionBar({
         boxShadow: 'var(--shadow-float)',
         display: 'flex',
         alignItems: 'center',
-        gap: 'var(--space-md)',
+        gap: 'var(--space-sm)',
         padding: '10px 10px 10px var(--space-base)',
         transform: tabHidden ? 'translateY(72px)' : 'translateY(0)',
         transition: 'transform 200ms cubic-bezier(.2,.8,.2,1)',
@@ -85,22 +86,21 @@ export function ActionBar({
 
       {secondary && (
         <a
+          aria-label={secondary.label}
           href={secondary.href}
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '44px',
-            padding: '0 var(--space-md)',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--color-line)',
-            color: 'var(--color-primary)',
-            font: 'var(--font-body-strong)',
+            width: '44px',
+            height: '44px',
+            flex: 'none',
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: 'var(--radius-full)',
+            backgroundColor: 'var(--color-canvas)',
+            color: 'var(--color-ink)',
             textDecoration: 'none',
-            whiteSpace: 'nowrap',
           }}
         >
-          {secondary.label}
+          <Phone size={20} aria-hidden="true" />
         </a>
       )}
 
