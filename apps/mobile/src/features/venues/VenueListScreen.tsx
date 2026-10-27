@@ -62,9 +62,15 @@ export function VenueListScreen() {
 
         {failed ? (
           <EmptyState message="Không tải được danh sách đơn vị" actionLabel="Thử lại" onAction={load} />
+        ) : !shown ? (
+          <p style={{ margin: 0, padding: 'var(--space-xl) var(--space-base)', textAlign: 'center', font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
+            Đang tải…
+          </p>
+        ) : shown.length === 0 ? (
+          <EmptyState message="Chưa có đơn vị nào cho môn này" />
         ) : (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
-            {shown?.map((venue) => {
+            {shown.map((venue) => {
               const sports = sportsOf(venue);
               return (
                 <li key={venue.id} style={{ minWidth: 0 }}>
@@ -100,8 +106,7 @@ export function VenueListScreen() {
                       {sports.map((s) => (
                         <SportIcon key={s} sport={s} size={16} />
                       ))}
-                      <span>{sports.map((s) => SPORT_LABEL[s]).join(', ')}</span>
-                      <span>{venue.courts.length} sân</span>
+                      <span>{`${sports.map((s) => SPORT_LABEL[s]).join(', ')} · ${venue.courts.length} sân`}</span>
                     </span>
                     <span className="tnum" style={{ font: 'var(--font-numeric)' }}>
                       {`${priceRangeK(venue.courts)} · ${hhmm(venue.opensAt)}–${hhmm(venue.closesAt)}`}

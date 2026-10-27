@@ -53,8 +53,8 @@ describe('VenueListScreen', () => {
     const lines = Array.from(card.children).map((el) => el.textContent);
     expect(lines).toHaveLength(3);
     expect(lines[0]).toBe('Cầu lông A');
-    expect(lines[1]).toContain('Cầu lông');
-    expect(lines[1]).toContain('2 sân');
+    expect(lines[1]).toBe('Cầu lông · 2 sân');
+    expect(card.children[1].querySelector('svg')).not.toBeNull();
     expect(lines[2]).toBe('80k–120k · 06:00–23:00');
     expect(clientModule.api).toHaveBeenCalledWith('/api/venues');
   });

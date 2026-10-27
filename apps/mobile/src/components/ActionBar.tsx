@@ -1,3 +1,4 @@
+import { Phone } from 'lucide-react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { useBars } from '../app/bars.tsx';
 
@@ -9,6 +10,8 @@ export interface ActionBarProps extends HTMLAttributes<HTMLElement> {
   disabled?: boolean;
   hidden?: boolean;
   visible?: boolean;
+  /** A link next to the primary button, for example "Gọi chủ sân". */
+  secondary?: { label: string; href: string };
 }
 
 export function ActionBar({
@@ -19,6 +22,7 @@ export function ActionBar({
   disabled = false,
   hidden: hiddenProp,
   visible = true,
+  secondary,
   className,
   style,
   ...rest
@@ -44,7 +48,7 @@ export function ActionBar({
         boxShadow: 'var(--shadow-float)',
         display: 'flex',
         alignItems: 'center',
-        gap: 'var(--space-md)',
+        gap: 'var(--space-sm)',
         padding: '10px 10px 10px var(--space-base)',
         transform: tabHidden ? 'translateY(72px)' : 'translateY(0)',
         transition: 'transform 200ms cubic-bezier(.2,.8,.2,1)',
@@ -79,6 +83,26 @@ export function ActionBar({
           </span>
         )}
       </div>
+
+      {secondary && (
+        <a
+          aria-label={secondary.label}
+          href={secondary.href}
+          style={{
+            width: '44px',
+            height: '44px',
+            flex: 'none',
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: 'var(--radius-full)',
+            backgroundColor: 'var(--color-canvas)',
+            color: 'var(--color-ink)',
+            textDecoration: 'none',
+          }}
+        >
+          <Phone size={20} aria-hidden="true" />
+        </a>
+      )}
 
       <button
         type="button"
