@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ActionBar } from './ActionBar';
 
 describe('ActionBar', () => {
+  afterEach(cleanup);
+
   it('renders title, price, and action button', () => {
     const handleAction = vi.fn();
     render(
@@ -20,6 +22,26 @@ describe('ActionBar', () => {
     const btn = screen.getByRole('button', { name: 'Gửi yêu cầu' });
     fireEvent.click(btn);
     expect(handleAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the secondary link next to the primary button', () => {
+    render(
+      <ActionBar
+        title="Sân 1"
+        actionLabel="Gửi yêu cầu"
+        onAction={vi.fn()}
+        secondary={{ label: 'Gọi chủ sân', href: 'tel:0912345678' }}
+      />,
+    );
+    const link = screen.getByRole('link', { name: 'Gọi chủ sân' });
+    expect(link.getAttribute('href')).toBe('tel:0912345678');
+    expect(link.style.minHeight).toBe('44px');
+    expect(screen.getByRole('button', { name: 'Gửi yêu cầu' })).toBeDefined();
+  });
+
+  it('renders no link without the secondary prop', () => {
+    render(<ActionBar title="Sân 1" actionLabel="Gửi yêu cầu" onAction={vi.fn()} />);
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
   it('renders nothing when visible is false', () => {

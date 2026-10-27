@@ -9,6 +9,8 @@ export interface ActionBarProps extends HTMLAttributes<HTMLElement> {
   disabled?: boolean;
   hidden?: boolean;
   visible?: boolean;
+  /** A link next to the primary button, for example "Gọi chủ sân". */
+  secondary?: { label: string; href: string };
 }
 
 export function ActionBar({
@@ -19,6 +21,7 @@ export function ActionBar({
   disabled = false,
   hidden: hiddenProp,
   visible = true,
+  secondary,
   className,
   style,
   ...rest
@@ -79,6 +82,27 @@ export function ActionBar({
           </span>
         )}
       </div>
+
+      {secondary && (
+        <a
+          href={secondary.href}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '44px',
+            padding: '0 var(--space-md)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--color-line)',
+            color: 'var(--color-primary)',
+            font: 'var(--font-body-strong)',
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {secondary.label}
+        </a>
+      )}
 
       <button
         type="button"
