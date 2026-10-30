@@ -5,7 +5,7 @@ lang: vi
 
 # F-021: Tab Lịch của tôi trên app mobile
 
-Status: accepted
+Status: draft
 Source: `docs/design/ke-hoach-app-mobile.md` (bước 5, tách đôi), UC-6, UC-8 luồng 8.2, BR-11, BR-12, BR-20. `docs/briefs/F-020-app-mobile-dat-san.md` giao việc xem và hủy booking cho tab này. Quyết định tách F-021 (Lịch của tôi) khỏi F-022 (Phòng chờ): xem "Assumptions" mục 1.
 
 ## Goal
@@ -33,18 +33,19 @@ Each criterion has one test. The test name starts with the label, for example `A
 |---|---|---|---|
 | AC-1 | Khách chưa đăng nhập mở `/app/lich-cua-toi` | Màn hình tải xong | Thấy "Đăng nhập để xem lịch của bạn" và nút "Đăng nhập". Bấm nút mở sheet đăng nhập. Sau khi đăng nhập, danh sách tải và không mở lại trang |
 | AC-2 | Người dùng đã đăng nhập, `GET /api/bookings/mine` và `GET /api/matches/joined` trả dữ liệu | Mở tab | Thấy 3 chip: "Sắp tới", "Trận đã vào", "Lịch sử". "Sắp tới" được chọn. Bấm chip khác đổi danh sách và giữ chip đó được chọn |
-| AC-3 | `now` = 02/11/2026 10:00 (UTC+7). Booking A `PENDING` bắt đầu 20:00 cùng ngày. B `CONFIRMED` bắt đầu 08:00 cùng ngày. C `CANCELLED` bắt đầu ngày mai. D `REJECTED` bắt đầu ngày mai. E `EXPIRED` bắt đầu ngày mai | Hàm `splitMine(rows, now)` chạy, trong `TZ=UTC` và `TZ=Asia/Bangkok` | Sắp tới có đúng A. Lịch sử có B, C, D, E. Kết quả giống nhau ở cả hai múi giờ |
+| AC-3 | `now` = 02/11/2026 10:00 (UTC+7). Booking A `PENDING` bắt đầu 20:00 cùng ngày. B `CONFIRMED` bắt đầu 08:00 cùng ngày. C `CANCELLED` bắt đầu ngày mai. D `REJECTED` bắt đầu ngày mai. E `EXPIRED` bắt đầu ngày mai. F `CONFIRMED` bắt đầu 09:30 và kết thúc 10:30 cùng ngày | Hàm `splitMine(rows, now)` chạy, trong `TZ=UTC` và `TZ=America/New_York` | Sắp tới có đúng A. Lịch sử có B, C, D, E, F (booking đang diễn ra thuộc Lịch sử). Kết quả giống nhau ở cả hai múi giờ |
 | AC-4 | Sắp tới có 3 booking bắt đầu 18:00, 07:00, 12:00 cùng ngày. Lịch sử có 3 booking ở 3 ngày khác nhau | Danh sách hiện | Sắp tới theo giờ bắt đầu tăng dần: 07:00, 12:00, 18:00. Lịch sử theo giờ bắt đầu giảm dần |
 | AC-5 | Booking `PENDING` của "Sân 1", đơn vị "Cầu lông An Phú", 20:00–21:00 ngày 03/11/2026, `priceTotal` 120000, có trận `joinedCount` 3, `capacity` 10 | Thẻ hiện | Thẻ có tên đơn vị, "Sân 1", ngày, "20:00–21:00", "120.000đ", nhãn trạng thái "Chờ xác nhận", và dòng "Trận mở: 3/10 suất". Thẻ không hiện số điện thoại của người chơi (BR-20) |
 | AC-6 | Người dùng không có booking sắp tới | Mở chip "Sắp tới" | Thấy "Chưa có booking sắp tới" và nút "Đặt sân". Bấm nút đi tới `/app/`. Chip "Trận đã vào" và "Lịch sử" có câu rỗng riêng: "Bạn chưa vào trận nào", "Chưa có lịch sử" |
 | AC-7 | Booking `PENDING` bắt đầu sau 3 giờ | Bấm "Hủy", rồi "Hủy booking" trong sheet xác nhận | Sheet "Hủy booking này?" hiện sân, giờ và giá. Bấm xác nhận gửi `POST /api/bookings/:id/cancel`. Thẻ chuyển sang Lịch sử với nhãn "Đã hủy" |
-| AC-8 | `now` = 10:00. Booking `CONFIRMED` bắt đầu 17:00 cùng ngày (7 giờ). Booking `CONFIRMED` bắt đầu 15:00 cùng ngày (5 giờ) | Hai thẻ hiện | Thẻ 17:00 có nút "Hủy". Thẻ 15:00 không có nút "Hủy", có link "Gọi chủ sân để hủy" tới `tel:` của đơn vị (BR-11, BR-12) |
-| AC-9 | Hủy trả 409 "Booking đã được xử lý". Một lần khác hủy trả 401 | Xác nhận hủy | Với 409: sheet hiện thông báo của API và danh sách tải lại. Với 401: sheet đóng, sheet đăng nhập mở và hiện "Phiên đăng nhập đã hết. Hãy đăng nhập lại." |
-| AC-10 | `GET /api/matches/joined` trả 3 trận. T1 có `hostId` là người dùng. T2 do người khác làm host, `joinedCount` 4 trên `capacity` 10. T3 do người khác làm host, `joinedCount` 10 trên 10, bắt đầu sau 2 ngày | Mở chip "Trận đã vào" | Chỉ thấy T2 và T3. T1 không hiện (host thấy trận ở thẻ booking). T2 có "4/10 suất". T3 có "10/10 suất" và nhãn "Đầy". Mỗi thẻ có tên host, tên đơn vị, sân, giờ và một trong "Đã xác nhận" hoặc "Chưa xác nhận" theo `bookingStatus`. Không có số điện thoại |
+| AC-8 | `now` = 02/11/2026 10:00 (UTC+7). Booking `CONFIRMED` bắt đầu 17:00 cùng ngày (7 giờ). Booking `CONFIRMED` bắt đầu 16:00 cùng ngày (đúng 6 giờ). Booking `CONFIRMED` bắt đầu 15:00 cùng ngày (5 giờ). Mỗi thẻ lấy quyết định từ `userCancelDecision` của `packages/shared` | Ba thẻ hiện | Thẻ 17:00 và thẻ 16:00 có nút "Hủy" (`ALLOW`). Thẻ 15:00 không có nút "Hủy", có link "Gọi chủ sân để hủy" tới `tel:` của đơn vị (`CALL_OWNER`) (BR-11, BR-12) |
+| AC-9 | Hủy trả 409 "Booking này không hủy được nữa". Một lần khác hủy trả 401 | Xác nhận hủy | Với 409: sheet hiện thông báo của API và danh sách tải lại. Với 401: sheet đóng, sheet đăng nhập mở và hiện "Phiên đăng nhập đã hết. Hãy đăng nhập lại." |
+| AC-10 | `now` = 02/11/2026 10:00 (UTC+7). `GET /api/matches/joined` trả 5 trận. T1 có `hostId` là người dùng. T2 do người khác làm host, `status` `OPEN`, `joinedCount` 4 trên `capacity` 10, bắt đầu 20:00 ngày mai. T3 do người khác làm host, `status` `FULL`, `joinedCount` 10 trên 10, bắt đầu 18:00 sau 2 ngày. T4 do người khác làm host, `status` `CANCELLED`, bắt đầu ngày mai. T5 do người khác làm host, `status` `OPEN`, bắt đầu 08:00 cùng ngày | Hàm `joinedByOthers(matches, userId, now)` chạy, rồi mở chip "Trận đã vào" | Hàm trả T2 rồi T3, sắp theo giờ bắt đầu tăng dần. T1, T4, T5 không hiện (host thấy trận ở thẻ booking). T2 có "4/10 suất". T3 có "10/10 suất" và nhãn "Đầy" (lấy từ `status` `FULL`). Mỗi thẻ có tên host, tên đơn vị, sân, giờ và một trong "Đã xác nhận" hoặc "Chưa xác nhận" theo `bookingStatus`. Không có số điện thoại |
 | AC-11 | Người dùng có vai trò `OWNER` | Mở `/app/lich-cua-toi` | Ứng dụng chuyển tới `/app/chu-san/yeu-cau` |
 | AC-12 | Danh sách đã tải. Tab ẩn rồi hiện lại (`visibilitychange`). Một lần khác API lỗi mạng | Tab hiện lại. Lần khác tải lần đầu | Lần tab hiện lại: danh sách tải lại một lần. Lần lỗi: thấy "Không tải được" và nút "Thử lại". Bấm nút tải lại |
 | AC-13 | Luồng `mobile-history` của `verify-flow`: người chơi seed đăng nhập, mở "Lịch của tôi" ở 360px và 390px | Luồng chạy | Trang không cuộn ngang. Các ô bấm cao ít nhất 44px |
-| AC-14 | Cùng luồng: người chơi đã có một booking `PENDING` sắp tới | Bấm "Hủy" và xác nhận | Thẻ rời "Sắp tới" và nằm ở "Lịch sử" với nhãn "Đã hủy". Báo cáo `verify-flow` ghi 0 bước lỗi |
+| AC-14 | Cùng luồng: trước khi mở tab, luồng tự gửi một booking `PENDING` vào ngày mai bằng `POST /api/bookings`, để chạy lại được sau mỗi lần deploy | Bấm "Hủy" và xác nhận | Thẻ rời "Sắp tới" và nằm ở "Lịch sử" với nhãn "Đã hủy". Báo cáo `verify-flow` ghi 0 bước lỗi |
+| AC-15 | Booking `PENDING` bắt đầu sau 3 giờ, có trận `OPEN` với `joinedCount` 3 | Thẻ hiện | Thẻ không có nút "Hủy". Thẻ có dòng "Có trận đang mở. Hủy trận ở tab Phòng chờ." Cùng thẻ với `match.status` `FULL` cũng không có nút "Hủy". Booking có `match` là `null` hoặc `CANCELLED` vẫn có nút "Hủy" (BR-17) |
 
 ## Contract
 
@@ -55,7 +56,7 @@ Không đổi `packages/shared` và không đổi API.
 | `GET /api/bookings/mine` | unchanged | không | 200 `MyBookingView[]` (sắp theo `createdAt` giảm dần, nên app tự sắp lại). 401 |
 | `POST /api/bookings/:id/cancel` | unchanged | không | 200 `MyBookingView`. 400 · 403 · 404 · 409 với thông báo tiếng Việt. 401 |
 | `GET /api/matches/joined` | unchanged | không | 200 `MatchView[]` (gồm cả trận do người dùng làm host, và trận đã qua). 401 |
-| `splitMine`, `canCancel`, `sortUpcoming`, `sortHistory` trong `packages/client/src/my-bookings.ts` | new | `rows`, `now` | Hàm thuần, có test chạy ở `TZ=UTC` và `TZ=Asia/Bangkok`. `canCancel` theo BR-11 và BR-12. Server vẫn là nơi kiểm cuối |
+| `splitMine`, `sortUpcoming`, `sortHistory`, `joinedByOthers` trong `packages/client/src/my-bookings.ts` | new | `rows`, `now` (và `userId` cho `joinedByOthers`) | Hàm thuần, có test chạy ở `TZ=UTC` và `TZ=America/New_York`. Luật hủy dùng `userCancelDecision` có sẵn ở `packages/shared/src/booking-time.ts` (`ALLOW`, `CALL_OWNER`, `NONE`), không viết lại. Server vẫn là nơi kiểm cuối |
 
 ## Data
 
@@ -67,9 +68,12 @@ One pull request for each row. Each pull request passes the check command on its
 
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
-| 1 | Hàm thuần của app: `splitMine`, `canCancel`, hai hàm sắp xếp | `packages/client/src/my-bookings.ts`, `packages/client/src/my-bookings.test.ts`, `packages/client/src/index.ts` | AC-3, AC-4, phần tính toán của AC-8 |
-| 2 | Màn Lịch của tôi: chip, thẻ, trạng thái rỗng, khách, chủ sân, tải lại | `apps/mobile/src/features/my/`, `apps/mobile/src/app/router.tsx` | AC-1, AC-2, AC-5, AC-6, AC-10, AC-11, AC-12 |
-| 3 | Hủy booking và luồng `verify-flow` | `apps/mobile/src/features/my/`, `.agents/skills/verify-flow/flows/mobile-history.md`, `.agents/skills/verify-flow/scripts/mobile-history.mjs`, `.agents/skills/verify-flow/scripts/run.mjs` | AC-7, AC-8, AC-9, AC-13, AC-14 |
+| 1 | Hàm thuần của app: `splitMine`, hai hàm sắp xếp, `joinedByOthers` | `packages/client/src/my-bookings.ts`, `packages/client/src/my-bookings.test.ts`, `packages/client/src/index.ts` | AC-3, AC-4, phần lọc và sắp xếp của AC-10 |
+| 2 | Màn Lịch của tôi, chip Sắp tới và Lịch sử: thẻ booking, trạng thái rỗng, khách, chủ sân, tải lại | `apps/mobile/src/features/my/`, `apps/mobile/src/app/router.tsx` | AC-1, AC-2, AC-5, AC-6, AC-11, AC-12 |
+| 3 | Chip Trận đã vào: thẻ trận | `apps/mobile/src/features/my/` | AC-10 (phần màn hình) |
+| 4 | Hủy booking và luồng `verify-flow` | `apps/mobile/src/features/my/`, `.agents/skills/verify-flow/flows/mobile-history.md`, `.agents/skills/verify-flow/scripts/mobile-history.mjs`, `.agents/skills/verify-flow/scripts/run.mjs`, `PROGRESS.md` | AC-7, AC-8, AC-9, AC-13, AC-14, AC-15 |
+
+Các bước 2, 3 và 4 dùng chung `apps/mobile/src/features/my/` và chạy lần lượt, không song song.
 
 ## Edit boundaries
 
@@ -81,7 +85,8 @@ One pull request for each row. Each pull request passes the check command on its
 | Risk | Where | Control |
 |---|---|---|
 | Dữ liệu cá nhân: số điện thoại người chơi lộ cho người không có quyền (BR-20) | Thẻ trận ở bước 2 | Test AC-5 và AC-10 kiểm DOM không có số điện thoại. Chỉ `venuePhone` (công khai) xuất hiện |
-| Luật hủy sai giữa app và server (BR-11, BR-12) | `canCancel` ở bước 1 và nút ở bước 3 | Server giữ quyền quyết định. Test AC-8 ở hai phía ngưỡng 6 giờ. Lỗi 409 hiện thông báo của server |
+| Luật hủy sai giữa app và server (BR-11, BR-12) | Nút ở bước 4 | App dùng `userCancelDecision` của `packages/shared`, cùng hàm với server và web. Test AC-8 ở ngưỡng đúng 6 giờ. Lỗi 409 hiện thông báo của server |
+| Hủy booking làm hủy luôn trận và báo cho người chơi (BR-17) | Nút "Hủy" ở bước 4 | AC-15: booking có trận `OPEN` hoặc `FULL` không có nút "Hủy". Việc hủy trận thuộc F-022 |
 | Hai nơi chia "Sắp tới" và "Lịch sử" lệch nhau | `splitMine` ở bước 1 | Một hàm duy nhất và test ở hai múi giờ (AC-3) |
 | Phiên hết hạn khi hủy | Bước 3 | AC-9 mở lại đăng nhập và giữ danh sách |
 
@@ -94,6 +99,8 @@ One pull request for each row. Each pull request passes the check command on its
 5. Hủy booking dùng sheet xác nhận, vì hủy không đảo ngược được. Rời trận không có trong brief này nên chưa cần xác nhận.
 6. Chủ sân mở tab này đi tới `chu-san/yeu-cau`, giống F-020. Admin thấy màn "Dùng web để quản trị" của `App`.
 7. Khi người dùng đăng nhập từ tab này, danh sách tải ngay mà không rời trang.
+8. Booking chỉ thuộc "Sắp tới" khi giờ bắt đầu còn ở phía sau `now`. Booking đang diễn ra thuộc "Lịch sử". Lý do: người dùng không còn hủy hay đổi được booking đã bắt đầu.
+9. `PROGRESS.md` có "Status: accepted" của brief này sau khi Reviewer đóng mọi finding medium trở lên.
 
 ## Open questions
 
@@ -101,6 +108,7 @@ One pull request for each row. Each pull request passes the check command on its
 |---|---|---|
 | Trận đã vào đã qua giờ bắt đầu có hiện ở Lịch sử không? Mặc định: không (Assumptions 3) | Người dùng | none |
 | Host muốn thấy trận của mình ở chip "Trận đã vào" hay ở thẻ booking như hiện tại? Mặc định: thẻ booking (Assumptions 2) | Người dùng | AC-5, AC-10 |
+| Việc tách bước 5 của kế hoạch mobile thành hai brief (F-021 và F-022) có đúng ý không? Mặc định: tách (Assumptions 1) | Người dùng | none |
 
 ## Done when
 
