@@ -7,9 +7,10 @@ export interface LoginSheetProps {
   open: boolean;
   onClose: () => void;
   onLoggedIn?: () => void;
+  notice?: string;
 }
 
-export function LoginSheet({ open, onClose, onLoggedIn }: LoginSheetProps) {
+export function LoginSheet({ open, onClose, onLoggedIn, notice }: LoginSheetProps) {
   const { refresh } = useSession();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +38,11 @@ export function LoginSheet({ open, onClose, onLoggedIn }: LoginSheetProps) {
 
   return (
     <Sheet open={open} onClose={onClose} title="Đăng nhập">
+      {notice && (
+        <p style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }} role="status">
+          {notice}
+        </p>
+      )}
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
         {error && (
           <p style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">

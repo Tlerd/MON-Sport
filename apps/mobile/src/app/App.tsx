@@ -48,6 +48,12 @@ export function App() {
     refreshCounts();
   }, [user]);
 
+  useEffect(() => {
+    if (user?.role === 'OWNER' && location.pathname === '/') {
+      navigate('/chu-san/yeu-cau', { replace: true });
+    }
+  }, [user?.role, location.pathname, navigate]);
+
   if (user?.role === 'ADMIN') {
     return (
       <main

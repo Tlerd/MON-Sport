@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-27 (F-020 done).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-10-31 (F-020 done and live; QA fixes in progress).
 
 ## Current state
 
@@ -37,4 +37,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-F-020 done (Đặt sân tab live at /app/). Next for agents: first fix the findings in `docs/qa/F-020-qa-2026-10-30.md` in one `fix/` branch, then brief F-021, the tabs Lịch của tôi and Phòng chờ of the mobile app (step 5 of `docs/design/ke-hoach-app-mobile.md`), then the owner screens (step 6). F-004 steps 1 to 3 done, step 4 (live) waits for the user: choose the SMS provider and register a brandname, the Google console steps of the brief, then send the client ID; then brief F-018 (Zalo, OTP over ZNS). Waiting for the user: verify-flow on live, UC-14 on Android, and open decisions 1 to 6, 8, 9, 10 (expiry rate). Live users must log in again after the F-004 step 2 deploy (one key per cookie).
+F-020 is done and live; QA findings 1 to 3 of `docs/qa/F-020-qa-2026-10-30.md` are fixed in #137; findings 4 to 6 wait for the owner, and their defaults stand; the next step for agents is brief F-021. F-004 steps 1 to 3 done, step 4 (live) waits for the user: choose the SMS provider and register a brandname, the Google console steps of the brief, then send the client ID; then brief F-018 (Zalo, OTP over ZNS). Waiting for the user: verify-flow on live, UC-14 on Android, and open decisions 1 to 6, 8, 9, 10 (expiry rate). Live users must log in again after the F-004 step 2 deploy (one key per cookie).
