@@ -28,17 +28,23 @@ const FREE: FreeRange[] = [
 function Harness({
   start = 1080,
   now = NOW,
+  free = FREE,
+  duration: initialDuration = 60,
   onClose = () => {},
   onBooked = () => {},
   onConflict = () => {},
+  onUnauthorized,
 }: {
   start?: number;
   now?: Date;
+  free?: FreeRange[];
+  duration?: number;
   onClose?: () => void;
   onBooked?: () => void;
   onConflict?: () => void;
+  onUnauthorized?: () => void;
 }) {
-  const [duration, setDuration] = useState(60);
+  const [duration, setDuration] = useState(initialDuration);
   return (
     <BookingSheet
       open
@@ -46,12 +52,13 @@ function Harness({
       date="2026-10-30"
       start={start}
       duration={duration}
-      free={FREE}
+      free={free}
       now={now}
       onDuration={setDuration}
       onClose={onClose}
       onBooked={onBooked}
       onConflict={onConflict}
+      onUnauthorized={onUnauthorized}
     />
   );
 }
@@ -192,5 +199,69 @@ describe('BookingSheet', () => {
     expect(
       within(dialog).getByText('Chủ sân xác nhận trước 01:00 T6 30/10. Bạn trả tiền tại sân.'),
     ).toBeDefined();
+  });
+
+  it('fix-2 the server confirmDeadline (a different time than the client estimate) appears after the 201', async () => {
+    let resolvePost!: (val: unknown) => void;
+    vi.mocked(clientModule.api).mockImplementation(
+      () => new Promise((r) => { resolvePost = r; }) as never,
+    );
+    render(<Harness />);
+    const dialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    expect(
+      within(dialog).getByText('Chủ sân xác nhận trước 12:00 hôm nay. Bạn trả tiền tại sân.'),
+    ).toBeDefined();
+
+    const submitBtn = within(dialog).getByRole('button', { name: 'Gửi yêu cầu' });
+    fireEvent.click(submitBtn);
+
+    await act(async () => {
+      resolvePost({
+        id: 'b1',
+        courtId: C1,
+        userId: 'u1',
+        startAt: '2026-10-30T18:00:00+07:00',
+        endAt: '2026-10-30T19:00:00+07:00',
+        priceTotal: 120000,
+        status: 'PENDING',
+        confirmDeadline: '2026-10-29T14:30:00+07:00',
+        decidedAt: null,
+        customerName: null,
+        customerPhone: null,
+        createdAt: '2026-10-29T10:00:00+07:00',
+      });
+    });
+
+    expect(
+      within(dialog).getByText('Chủ sân xác nhận trước 14:30 hôm nay. Bạn trả tiền tại sân.'),
+    ).toBeDefined();
+  });
+
+  it('fix-3 a 401 calls onUnauthorized and shows the message', async () => {
+    const onUnauthorized = vi.fn();
+    vi.mocked(clientModule.api).mockRejectedValueOnce(new ApiError(401, 'Unauthorized'));
+    render(<Harness onUnauthorized={onUnauthorized} />);
+
+    const dialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    const submitBtn = within(dialog).getByRole('button', { name: 'Gửi yêu cầu' });
+
+    await act(async () => {
+      fireEvent.click(submitBtn);
+    });
+
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+    expect(within(dialog).getByRole('alert').textContent).toBe(
+      'Phiên đăng nhập đã hết. Hãy đăng nhập lại.',
+    );
+  });
+
+  it('fix-4 the button is disabled and the message shows when free no longer holds the range', () => {
+    render(<Harness free={[]} />);
+    const dialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    const submitBtn = within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }) as HTMLButtonElement;
+    expect(submitBtn.disabled).toBe(true);
+    expect(within(dialog).getByRole('alert').textContent).toBe(
+      'Giờ này không còn trống. Hãy chọn giờ khác.',
+    );
   });
 });

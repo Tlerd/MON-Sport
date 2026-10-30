@@ -1,4 +1,4 @@
-import { api, dayChipLabel, hhmm, slotAt, startableMinutes } from '@monsport/client';
+import { api, dayChipLabel, durationsAt, hhmm, slotAt, startableMinutes } from '@monsport/client';
 import {
   addDaysYmd,
   bookingPrice,
@@ -84,7 +84,7 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { setTitle, setOnBack, setTopBarActions } = useOutletContext<ShellContextType>();
-  const { user } = useSession();
+  const { user, setUser } = useSession();
   const now = nowProp ?? new Date();
   const today = vnDateString(now);
 
@@ -161,6 +161,17 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
     if (!venue) return;
     for (const court of venue.courts) loadCourt(court.id, date);
   }, [venue, date, loadCourt]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const s = courtStates[selected.courtId];
+    if (s?.status !== 'ok' || s.date !== date) return;
+    const durations = durationsAt(date, selected.start, s.free, now);
+    if (durations.length > 0 && !durations.includes(selected.duration)) {
+      const largest = Math.max(...durations);
+      setSelected((prev) => (prev ? { ...prev, duration: largest } : prev));
+    }
+  }, [courtStates, date, selected, now]);
 
   if (failed) {
     return <EmptyState message="Không tải được danh sách đơn vị" actionLabel="Thử lại" onAction={loadVenues} />;
@@ -332,6 +343,10 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
           )}
           actionLabel="Gửi yêu cầu"
           onAction={() => {
+            if (user?.role === 'OWNER') {
+              navigate('/chu-san/yeu-cau');
+              return;
+            }
             if (!user) setLoginOpen(true);
             else setBookingOpen(true);
           }}
@@ -367,6 +382,11 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
           }}
           onConflict={() => {
             for (const court of venue.courts) loadCourt(court.id, date);
+          }}
+          onUnauthorized={() => {
+            setBookingOpen(false);
+            setUser(null);
+            setLoginOpen(true);
           }}
         />
       )}

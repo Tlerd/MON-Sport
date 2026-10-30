@@ -88,6 +88,7 @@ function openVenue(path = '/don-vi/v1') {
         <Route path="/" element={<Shell />}>
           <Route index element={<p>Danh sách</p>} />
           <Route path="don-vi/:id" element={<VenueScreen />} />
+          <Route path="chu-san/yeu-cau" element={<p>Trang yêu cầu chủ sân</p>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -539,5 +540,118 @@ describe('VenueScreen', () => {
     expect(within(dialog).getByText('140.000đ')).toBeDefined();
     expect(within(bar).getByText('Sân 1 · 21:30–23:00')).toBeDefined();
     expect(within(bar).getByText('140k')).toBeDefined();
+  });
+
+  it('fix-1 owner who taps "Gửi yêu cầu" opens no booking sheet', async () => {
+    vi.spyOn(sessionModule, 'useSession').mockReturnValue({
+      user: { id: 'o1', name: 'Bình', role: 'OWNER' },
+      setUser: vi.fn(),
+      login: vi.fn(),
+      logout: vi.fn(),
+      refresh: vi.fn(),
+      loading: false,
+    });
+    mockApi([VENUE], standard);
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 18:00' }));
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Gửi yêu cầu' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Đăng nhập' })).toBeNull();
+    expect(await screen.findByText('Trang yêu cầu chủ sân')).toBeDefined();
+  });
+
+  it('fix-3 after a 401 the login sheet opens and the slot stays selected', async () => {
+    const setUser = vi.fn();
+    vi.spyOn(sessionModule, 'useSession').mockReturnValue({
+      user: { id: 'u1', name: 'An', role: 'USER' },
+      setUser,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refresh: vi.fn(),
+      loading: false,
+    });
+
+    vi.mocked(clientModule.api).mockImplementation((async (path: string) => {
+      if (path === '/api/venues') return [VENUE];
+      if (path === '/api/bookings') throw new ApiError(401, 'Phiên đăng nhập đã hết');
+      const m = /^\/api\/courts\/([^/]+)\/availability\?date=(.+)$/.exec(path);
+      if (m) return standard(m[1], m[2]);
+      throw new ApiError(404, 'Không có');
+    }) as never);
+
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    const cell = await screen.findByRole('button', { name: 'Sân 1 18:00' });
+    fireEvent.click(cell);
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const bookingDialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    const submitBtn = within(bookingDialog).getByRole('button', { name: 'Gửi yêu cầu' });
+
+    await act(async () => {
+      fireEvent.click(submitBtn);
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Gửi yêu cầu' })).toBeNull();
+    expect(setUser).toHaveBeenCalledWith(null);
+    expect(screen.getByRole('dialog', { name: 'Đăng nhập' })).toBeDefined();
+    expect(cell.classList.contains('slot-selected')).toBe(true);
+  });
+
+  it('fix-4 a reload that shortens the free range clamps 90 minutes to the largest valid duration', async () => {
+    let shortened = false;
+    vi.mocked(clientModule.api).mockImplementation((async (path: string) => {
+      if (path === '/api/venues') return [VENUE];
+      if (path === '/api/bookings') {
+        shortened = true;
+        throw new ApiError(409, 'Conflict');
+      }
+      const m = /^\/api\/courts\/([^/]+)\/availability\?date=(.+)$/.exec(path);
+      if (m) {
+        const courtId = m[1];
+        const d = m[2];
+        if (d === '2026-10-30') {
+          if (courtId === C1) {
+            return {
+              free: shortened
+                ? [range('2026-10-30', '18:00', '19:00')]
+                : FREE_1,
+            };
+          }
+          return { free: FREE_2 };
+        }
+        return { free: [] };
+      }
+      throw new ApiError(404, 'Không có');
+    }) as never);
+
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 18:00' }));
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '1,5 giờ' }));
+
+    expect(within(dialog).getByText('18:00–19:30')).toBeDefined();
+    expect(within(bar).getByText('Sân 1 · 18:00–19:30')).toBeDefined();
+
+    // Trigger submit -> 409 conflict -> calls onConflict -> reloads court availability with shortened range
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }));
+    });
+
+    await waitFor(() => {
+      expect(within(bar).getByText('Sân 1 · 18:00–19:00')).toBeDefined();
+    });
+    expect(within(bar).getByText('120k')).toBeDefined();
   });
 });

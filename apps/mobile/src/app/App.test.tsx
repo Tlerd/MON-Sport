@@ -178,4 +178,32 @@ describe('App Shell', () => {
     // The owner tab fetches its list after the tabs render, so a slow run sees the call later.
     await waitFor(() => expect(clientModule.api).toHaveBeenCalledWith('/api/owner/bookings?status=PENDING'));
   });
+
+  it('fix-1 owner on / ends on /chu-san/yeu-cau', async () => {
+    vi.mocked(clientModule.api).mockResolvedValue([]);
+    vi.spyOn(sessionModule, 'useSession').mockReturnValue({
+      user: { id: 'o1', name: 'Bình', role: 'OWNER' },
+      setUser: vi.fn(),
+      login: vi.fn(),
+      logout: vi.fn(),
+      refresh: vi.fn(),
+      loading: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<App />}>
+            <Route index element={<p>Trang đặt sân</p>} />
+            <Route path="chu-san/yeu-cau" element={<p>Trang yêu cầu chủ sân</p>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Trang yêu cầu chủ sân')).toBeDefined();
+    });
+    expect(screen.queryByText('Trang đặt sân')).toBeNull();
+  });
 });

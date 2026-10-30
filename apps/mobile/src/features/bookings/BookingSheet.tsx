@@ -24,10 +24,9 @@ import { StatusBadge } from '../../components/StatusBadge.tsx';
 
 const durationLabel = (minutes: number) => `${String(minutes / 60).replace('.', ',')} giờ`;
 
-function deadlineHint(now: Date, startAt: Date): string {
-  const dl = confirmDeadline(now, startAt);
-  const dayWord = vnDateString(dl) === vnDateString(now) ? 'hôm nay' : dayChipLabel(vnDateString(dl));
-  return `Chủ sân xác nhận trước ${hhmm(minuteOfDayVN(dl))} ${dayWord}. Bạn trả tiền tại sân.`;
+function deadlineHint(deadline: Date, now: Date): string {
+  const dayWord = vnDateString(deadline) === vnDateString(now) ? 'hôm nay' : dayChipLabel(vnDateString(deadline));
+  return `Chủ sân xác nhận trước ${hhmm(minuteOfDayVN(deadline))} ${dayWord}. Bạn trả tiền tại sân.`;
 }
 
 export interface BookingSheetProps {
@@ -42,6 +41,7 @@ export interface BookingSheetProps {
   onClose: () => void;
   onBooked?: (booking: BookingView) => void;
   onConflict?: () => void;
+  onUnauthorized?: () => void;
 }
 
 export function BookingSheet({
@@ -56,6 +56,7 @@ export function BookingSheet({
   onClose,
   onBooked,
   onConflict,
+  onUnauthorized,
 }: BookingSheetProps) {
   const now = nowProp ?? new Date();
   const [busy, setBusy] = useState(false);
@@ -74,6 +75,11 @@ export function BookingSheet({
   const endAt = new Date(endIso);
   const price = booking ? booking.priceTotal : bookingPrice(startAt, endAt, court.priceNormal, court.pricePeak);
   const durations = durationsAt(date, start, free, now);
+  const valid = durations.includes(duration);
+  const deadline =
+    booking?.confirmDeadline != null
+      ? new Date(booking.confirmDeadline)
+      : confirmDeadline(now, startAt);
 
   const handleSubmit = async () => {
     setError('');
@@ -89,7 +95,10 @@ export function BookingSheet({
       });
       setBooking(created);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (err instanceof ApiError && err.status === 401) {
+        setError('Phiên đăng nhập đã hết. Hãy đăng nhập lại.');
+        onUnauthorized?.();
+      } else if (err instanceof ApiError && err.status === 409) {
         setError('Khung giờ này vừa có người đặt');
         onConflict?.();
       } else if (err instanceof ApiError) {
@@ -121,7 +130,7 @@ export function BookingSheet({
           : {
               label: 'Gửi yêu cầu',
               onClick: handleSubmit,
-              disabled: busy,
+              disabled: busy || !valid,
             }
       }
     >
@@ -189,8 +198,14 @@ export function BookingSheet({
         </div>
 
         <p style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
-          {deadlineHint(now, startAt)}
+          {deadlineHint(deadline, now)}
         </p>
+
+        {!booking && !valid && (
+          <p role="alert" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}>
+            Giờ này không còn trống. Hãy chọn giờ khác.
+          </p>
+        )}
 
         {error && (
           <p role="alert" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}>
