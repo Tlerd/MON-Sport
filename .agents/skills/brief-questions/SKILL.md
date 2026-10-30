@@ -27,4 +27,4 @@ Run this only when the work touches money, concurrency, the schema, or personal 
 
 ## Model
 
-Run the `qa` subagent on Opus. In a trial on F-020, Opus found 3 real defects that Sonnet and Haiku missed, and it asked no question that a document already answers. Use Sonnet when the quota is low. Do not use Haiku: it asked questions that the brief already answers, and it used the most tokens.
+Only Opus asks. The `qa` subagent runs on Opus and has no fallback model. In a trial on F-020, Opus found 3 real defects that Sonnet and Haiku missed, and it asked no question that a document already answers. When Opus is out of quota, skip the step and say so in the end report.
