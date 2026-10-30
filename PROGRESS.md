@@ -37,4 +37,4 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step
 
-F-019 done (mobile shell live at /app/). F-004 steps 1 to 3 done, step 4 (live) waits for the user: choose the SMS provider and register a brandname, the Google console steps of the brief, then send the client ID; then brief F-018 (Zalo, OTP over ZNS) and the mobile tab briefs from F-020. Waiting for the user: verify-flow on live, UC-14 on Android, and open decisions 1 to 6, 8, 9, 10 (expiry rate). Live users must log in again after the F-004 step 2 deploy (one key per cookie).
+F-019 done (mobile shell live at /app/). F-004 steps 1 to 3 done, step 4 (live) waits for the user: choose the SMS provider and register a brandname, the Google console steps of the brief, then send the client ID; then brief F-018 (Zalo, OTP over ZNS) and the mobile tab briefs from F-020. When F-020 is merged, first fix the findings in `docs/qa/F-020-qa-2026-10-30.md` in one `fix/` branch. Waiting for the user: verify-flow on live, UC-14 on Android, and open decisions 1 to 6, 8, 9, 10 (expiry rate). Live users must log in again after the F-004 step 2 deploy (one key per cookie).
