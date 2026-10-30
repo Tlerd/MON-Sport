@@ -96,6 +96,7 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
   const [chosenWindow, setChosenWindow] = useState<{ key: string; id: WindowId; n: number } | null>(null);
   const [selected, setSelected] = useState<{ courtId: string; start: number; duration: number } | undefined>(undefined);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [loginNotice, setLoginNotice] = useState('');
   const [bookingOpen, setBookingOpen] = useState(false);
   const [courtStates, setCourtStates] = useState<Record<string, CourtState>>({});
   const dateRef = useRef(date);
@@ -163,15 +164,11 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
   }, [venue, date, loadCourt]);
 
   useEffect(() => {
-    if (!selected) return;
-    const s = courtStates[selected.courtId];
-    if (s?.status !== 'ok' || s.date !== date) return;
-    const durations = durationsAt(date, selected.start, s.free, now);
-    if (durations.length > 0 && !durations.includes(selected.duration)) {
-      const largest = Math.max(...durations);
-      setSelected((prev) => (prev ? { ...prev, duration: largest } : prev));
+    if (user?.role === 'OWNER' && bookingOpen) {
+      setBookingOpen(false);
+      navigate('/chu-san/yeu-cau');
     }
-  }, [courtStates, date, selected, now]);
+  }, [user?.role, bookingOpen, navigate]);
 
   if (failed) {
     return <EmptyState message="Không tải được danh sách đơn vị" actionLabel="Thử lại" onAction={loadVenues} />;
@@ -206,6 +203,16 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
   const allEmpty = allAnswered && venue.courts.every((c) => startableOf(c).length === 0);
 
   const selectedCourt = selected && venue.courts.find((c) => c.id === selected.courtId);
+  const selectedCourtState = selectedCourt ? stateOf(selectedCourt) : undefined;
+  const clampedDuration = (() => {
+    if (!selected) return HOUR;
+    if (selectedCourtState?.status !== 'ok') return selected.duration;
+    const durations = durationsAt(date, selected.start, selectedCourtState.free, now);
+    if (durations.length > 0 && !durations.includes(selected.duration)) {
+      return Math.max(...durations);
+    }
+    return selected.duration;
+  })();
 
   const focusCell = (courtId: string, minute: number) => {
     document
@@ -332,11 +339,11 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
       {selected && selectedCourt && (
         <ActionBar
           hidden
-          title={`${selectedCourt.name} · ${hhmm(selected.start)}–${hhmm(selected.start + selected.duration)}`}
+          title={`${selectedCourt.name} · ${hhmm(selected.start)}–${hhmm(selected.start + clampedDuration)}`}
           price={formatK(
             bookingPrice(
               new Date(slotAt(date, selected.start)),
-              new Date(slotAt(date, selected.start + selected.duration)),
+              new Date(slotAt(date, selected.start + clampedDuration)),
               selectedCourt.priceNormal,
               selectedCourt.pricePeak,
             ),
@@ -356,17 +363,24 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
 
       <LoginSheet
         open={loginOpen}
-        onClose={() => setLoginOpen(false)}
-        onLoggedIn={() => setBookingOpen(true)}
+        notice={loginNotice}
+        onClose={() => {
+          setLoginNotice('');
+          setLoginOpen(false);
+        }}
+        onLoggedIn={() => {
+          setLoginNotice('');
+          setBookingOpen(true);
+        }}
       />
 
       {selected && selectedCourt && (
         <BookingSheet
-          open={bookingOpen}
+          open={bookingOpen && user?.role === 'USER'}
           court={selectedCourt}
           date={date}
           start={selected.start}
-          duration={selected.duration}
+          duration={clampedDuration}
           free={
             (() => {
               const s = stateOf(selectedCourt);
@@ -386,6 +400,7 @@ export function VenueScreen({ now: nowProp }: VenueScreenProps) {
           onUnauthorized={() => {
             setBookingOpen(false);
             setUser(null);
+            setLoginNotice('Phiên đăng nhập đã hết. Hãy đăng nhập lại.');
             setLoginOpen(true);
           }}
         />

@@ -81,8 +81,8 @@ function Shell() {
   );
 }
 
-function openVenue(path = '/don-vi/v1') {
-  return render(
+function openVenue(path = '/don-vi/v1', withSession = false) {
+  const content = (
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/" element={<Shell />}>
@@ -91,8 +91,9 @@ function openVenue(path = '/don-vi/v1') {
           <Route path="chu-san/yeu-cau" element={<p>Trang yêu cầu chủ sân</p>} />
         </Route>
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+  return render(withSession ? <sessionModule.SessionProvider>{content}</sessionModule.SessionProvider> : content);
 }
 
 const rowOf = (courtName: string) => screen.getByRole('group', { name: `Giờ trống ${courtName}` });
@@ -653,5 +654,85 @@ describe('VenueScreen', () => {
       expect(within(bar).getByText('Sân 1 · 18:00–19:00')).toBeDefined();
     });
     expect(within(bar).getByText('120k')).toBeDefined();
+  });
+
+  it('fix-A: as a guest pick a slot and tap "Gửi yêu cầu", log in through the login sheet with a mocked owner session, and expect no dialog titled "Gửi yêu cầu" and the route /chu-san/yeu-cau', async () => {
+    vi.spyOn(sessionModule, 'useSession').mockRestore();
+    let currentUser: { id: string; name: string; role: 'USER' | 'OWNER' } | null = null;
+    vi.mocked(clientModule.api).mockImplementation((async (path: string) => {
+      if (path === '/api/auth/me') {
+        if (!currentUser) throw new ApiError(401, 'Chưa đăng nhập');
+        return currentUser;
+      }
+      if (path === '/api/auth/login') {
+        currentUser = { id: 'o1', name: 'Bình', role: 'OWNER' };
+        return { ok: true };
+      }
+      if (path === '/api/venues') return [VENUE];
+      const m = /^\/api\/courts\/([^/]+)\/availability\?date=(.+)$/.exec(path);
+      if (m) return standard(m[1], m[2]);
+      throw new ApiError(404, 'Không có');
+    }) as never);
+
+    openVenue('/don-vi/v1', true);
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 18:00' }));
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const loginSheet = screen.getByRole('dialog', { name: 'Đăng nhập' });
+    expect(loginSheet).toBeDefined();
+
+    fireEvent.change(within(loginSheet).getByLabelText('Số điện thoại'), { target: { value: '0901234567' } });
+    fireEvent.change(within(loginSheet).getByLabelText('Mật khẩu'), { target: { value: 'password123' } });
+
+    await act(async () => {
+      fireEvent.click(within(loginSheet).getByRole('button', { name: 'Đăng nhập' }));
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Gửi yêu cầu' })).toBeNull();
+    expect(await screen.findByText('Trang yêu cầu chủ sân')).toBeDefined();
+  });
+
+  it('fix-B: after a 401 on send, the login sheet opens and shows that text', async () => {
+    const setUser = vi.fn();
+    vi.spyOn(sessionModule, 'useSession').mockReturnValue({
+      user: { id: 'u1', name: 'An', role: 'USER' },
+      setUser,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refresh: vi.fn(),
+      loading: false,
+    });
+
+    vi.mocked(clientModule.api).mockImplementation((async (path: string) => {
+      if (path === '/api/venues') return [VENUE];
+      if (path === '/api/bookings') throw new ApiError(401, 'Phiên đăng nhập đã hết');
+      const m = /^\/api\/courts\/([^/]+)\/availability\?date=(.+)$/.exec(path);
+      if (m) return standard(m[1], m[2]);
+      throw new ApiError(404, 'Không có');
+    }) as never);
+
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    const cell = await screen.findByRole('button', { name: 'Sân 1 18:00' });
+    fireEvent.click(cell);
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const bookingDialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    const submitBtn = within(bookingDialog).getByRole('button', { name: 'Gửi yêu cầu' });
+
+    await act(async () => {
+      fireEvent.click(submitBtn);
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Gửi yêu cầu' })).toBeNull();
+    const loginDialog = screen.getByRole('dialog', { name: 'Đăng nhập' });
+    expect(loginDialog).toBeDefined();
+    const status = within(loginDialog).getByRole('status');
+    expect(status.textContent).toBe('Phiên đăng nhập đã hết. Hãy đăng nhập lại.');
   });
 });
