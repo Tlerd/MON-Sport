@@ -15,9 +15,9 @@ The owner changes their mind. So the agent never waits. It answers what it can, 
    - Cheap (a label, an order, a screen detail): pick the safer option. Write it under `Assumptions` with the reason and the one line to change.
    - Costly (money, schema, personal data, legal text, a public rule): write it under `Open questions` with the default and the owner.
 
-4. **Do not stop.** Build with the defaults. Build first the parts that do not depend on an open costly question. Stop only when one question blocks every acceptance criterion.
+4. **Do not stop.** Build with the defaults. Build first the parts that do not depend on an open costly question. When one question blocks every acceptance criterion, pick the safer default, record it under `Open questions`, and continue.
 
-5. **Run the `qa` subagent after the build.** It compares the intent with the product and returns at most 8 questions. Send the questions to the owner in one list, in Vietnamese. Each question has a default. The owner answers when they want. Work continues on the defaults.
+5. **Run the `qa` subagent after the build.** It compares the intent with the product and returns at most 8 questions. Save the questions in `docs/qa/<brief>-qa-<date>.md` and list them in the end report, in Vietnamese. Name the branch and the commit that you checked. Each question has a default. The owner answers when they want. Work continues on the defaults.
 
 6. **Apply an answer as a one-line change.** Update the brief, the code, and the `Assumptions` entry in one pull request.
 
