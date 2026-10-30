@@ -102,6 +102,14 @@ describe('VenueScreen', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-29T10:00:00+07:00'));
+    vi.spyOn(sessionModule, 'useSession').mockReturnValue({
+      user: { id: 'u1', name: 'An', role: 'USER' },
+      setUser: vi.fn(),
+      login: vi.fn(),
+      logout: vi.fn(),
+      refresh: vi.fn(),
+      loading: false,
+    });
   });
   afterEach(() => {
     cleanup();
@@ -333,5 +341,203 @@ describe('VenueScreen', () => {
     await waitFor(() => expect(calls(C1, '2026-10-29')).toHaveLength(2));
     expect(calls(C2, '2026-10-29')).toHaveLength(1);
     expect(await screen.findByText('Hết giờ trống trong ngày này. Hãy chọn ngày khác.')).toBeDefined();
+  });
+
+  it('AC-14: guest clicks Gửi yêu cầu, logs in with 0901234567, login sheet closes and booking sheet opens with 18:00 kept', async () => {
+    let currentUser: { id: string; name: string; role: 'USER' } | null = null;
+    const refresh = vi.fn(async () => {
+      currentUser = { id: 'u1', name: 'An', role: 'USER' };
+    });
+    vi.spyOn(sessionModule, 'useSession').mockImplementation(() => ({
+      user: currentUser,
+      setUser: vi.fn(),
+      login: vi.fn(),
+      logout: vi.fn(),
+      refresh,
+      loading: false,
+    }));
+    vi.mocked(clientModule.api).mockImplementation((async (path: string) => {
+      if (path === '/api/venues') return [VENUE];
+      if (path === '/api/auth/login') return { id: 'u1', name: 'An', role: 'USER' };
+      const m = /^\/api\/courts\/([^/]+)\/availability\?date=(.+)$/.exec(path);
+      if (m) return standard(m[1], m[2]);
+      throw new ApiError(404, 'Không có');
+    }) as never);
+
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    const cell = await screen.findByRole('button', { name: 'Sân 1 18:00' });
+    fireEvent.click(cell);
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const loginDialog = screen.getByRole('dialog', { name: 'Đăng nhập' });
+    fireEvent.change(within(loginDialog).getByLabelText('Số điện thoại'), { target: { value: '0901234567' } });
+    fireEvent.change(within(loginDialog).getByLabelText('Mật khẩu'), { target: { value: 'monsport123' } });
+    await act(async () => {
+      fireEvent.click(within(loginDialog).getByRole('button', { name: 'Đăng nhập' }));
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Đăng nhập' })).toBeNull();
+    const bookingDialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    expect(within(bookingDialog).getByText('18:00–19:00')).toBeDefined();
+    expect(cell.classList.contains('slot-selected')).toBe(true);
+  });
+
+  it('AC-15: logged-in An opens the booking sheet with court, date heading, range, duration chips, price, and deadline', async () => {
+    mockApi([VENUE], standard);
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 18:00' }));
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    expect(within(dialog).getByText('Sân 1')).toBeDefined();
+    expect(within(dialog).getByText('Thứ Sáu, 30/10/2026')).toBeDefined();
+    expect(within(dialog).getByText('18:00–19:00')).toBeDefined();
+    expect(within(dialog).getByText('120.000đ')).toBeDefined();
+    expect(within(dialog).getByText('Chủ sân xác nhận trước 12:00 hôm nay. Bạn trả tiền tại sân.')).toBeDefined();
+
+    const chips = within(within(dialog).getByRole('group', { name: 'Thời lượng' })).getAllByRole('button');
+    expect(chips.map((c) => c.textContent)).toEqual(['1 giờ', '1,5 giờ', '2 giờ']);
+    expect(chips[0].getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('AC-16: picking "1,5 giờ" updates both the sheet (18:00–19:30, 180.000đ) and the ActionBar (180k)', async () => {
+    mockApi([VENUE], standard);
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 18:00' }));
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '1,5 giờ' }));
+
+    expect(within(dialog).getByText('18:00–19:30')).toBeDefined();
+    expect(within(dialog).getByText('180.000đ')).toBeDefined();
+    expect(within(bar).getByText('Sân 1 · 18:00–19:30')).toBeDefined();
+    expect(within(bar).getByText('180k')).toBeDefined();
+  });
+
+  it('AC-17: submitting posts the booking, shows Đã gửi yêu cầu and Chờ xác nhận, and closing clears selection and reloads availability', async () => {
+    let resolvePost!: (val: unknown) => void;
+    vi.mocked(clientModule.api).mockImplementation((async (path: string) => {
+      if (path === '/api/venues') return [VENUE];
+      if (path === '/api/bookings') return new Promise((r) => { resolvePost = r; });
+      const m = /^\/api\/courts\/([^/]+)\/availability\?date=(.+)$/.exec(path);
+      if (m) return standard(m[1], m[2]);
+      throw new ApiError(404, 'Không có');
+    }) as never);
+
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 18:00' }));
+    expect(calls(C1, '2026-10-30')).toHaveLength(1);
+    expect(calls(C2, '2026-10-30')).toHaveLength(1);
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    const submitBtn = within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }) as HTMLButtonElement;
+    fireEvent.click(submitBtn);
+    expect(submitBtn.disabled).toBe(true);
+    expect(clientModule.api).toHaveBeenCalledWith('/api/bookings', {
+      method: 'POST',
+      json: {
+        courtId: C1,
+        startAt: '2026-10-30T18:00:00+07:00',
+        endAt: '2026-10-30T19:00:00+07:00',
+      },
+    });
+
+    await act(async () => {
+      resolvePost({
+        id: 'b1',
+        courtId: C1,
+        userId: 'u1',
+        startAt: '2026-10-30T18:00:00+07:00',
+        endAt: '2026-10-30T19:00:00+07:00',
+        priceTotal: 120000,
+        status: 'PENDING',
+        confirmDeadline: '2026-10-29T12:00:00+07:00',
+        decidedAt: null,
+        customerName: null,
+        customerPhone: null,
+        createdAt: '2026-10-29T10:00:00+07:00',
+      });
+    });
+
+    expect(within(dialog).getByText('Đã gửi yêu cầu')).toBeDefined();
+    expect(within(dialog).getByText('Chờ xác nhận').closest('.badge')?.querySelector('svg')).not.toBeNull();
+    expect(within(dialog).getByText('120.000đ')).toBeDefined();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+    expect(screen.queryByRole('dialog', { name: 'Gửi yêu cầu' })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Thanh hành động' })).toBeNull();
+    expect(document.querySelector('.slot-selected')).toBeNull();
+    await waitFor(() => expect(calls(C1, '2026-10-30')).toHaveLength(2));
+    expect(calls(C2, '2026-10-30')).toHaveLength(2);
+  });
+
+  it('AC-18: on 409 the sheet stays open with the conflict alert and reloads availability; on 400 or 403 shows API message', async () => {
+    let postError = new ApiError(409, 'Conflict');
+    vi.mocked(clientModule.api).mockImplementation((async (path: string) => {
+      if (path === '/api/venues') return [VENUE];
+      if (path === '/api/bookings') throw postError;
+      const m = /^\/api\/courts\/([^/]+)\/availability\?date=(.+)$/.exec(path);
+      if (m) return standard(m[1], m[2]);
+      throw new ApiError(404, 'Không có');
+    }) as never);
+
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 18:00' }));
+    expect(calls(C1, '2026-10-30')).toHaveLength(1);
+    expect(calls(C2, '2026-10-30')).toHaveLength(1);
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }));
+    });
+
+    expect(screen.getByRole('dialog', { name: 'Gửi yêu cầu' })).toBeDefined();
+    expect(within(dialog).getByRole('alert').textContent).toBe('Khung giờ này vừa có người đặt');
+    await waitFor(() => expect(calls(C1, '2026-10-30')).toHaveLength(2));
+    expect(calls(C2, '2026-10-30')).toHaveLength(2);
+
+    postError = new ApiError(403, 'Chủ sân không được đặt sân');
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }));
+    });
+    expect(within(dialog).getByRole('alert').textContent).toBe('Chủ sân không được đặt sân');
+  });
+
+  it('AC-21: at 21:30 only 1 giờ and 1,5 giờ appear, and 1,5 giờ prices at 140.000đ in sheet and 140k in ActionBar', async () => {
+    mockApi([VENUE], standard);
+    openVenue();
+    fireEvent.click(await screen.findByRole('button', { name: 'T6 30/10' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 21:30' }));
+
+    const bar = screen.getByRole('complementary', { name: 'Thanh hành động' });
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Gửi yêu cầu' });
+    const chips = within(within(dialog).getByRole('group', { name: 'Thời lượng' })).getAllByRole('button');
+    expect(chips.map((c) => c.textContent)).toEqual(['1 giờ', '1,5 giờ']);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '1,5 giờ' }));
+    expect(within(dialog).getByText('21:30–23:00')).toBeDefined();
+    expect(within(dialog).getByText('140.000đ')).toBeDefined();
+    expect(within(bar).getByText('Sân 1 · 21:30–23:00')).toBeDefined();
+    expect(within(bar).getByText('140k')).toBeDefined();
   });
 });
