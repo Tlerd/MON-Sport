@@ -5,7 +5,7 @@ lang: vi
 
 # F-021: Tab Lịch của tôi trên app mobile
 
-Status: draft
+Status: accepted
 Source: `docs/design/ke-hoach-app-mobile.md` (bước 5, tách đôi), UC-6, UC-8 luồng 8.2, BR-11, BR-12, BR-20. `docs/briefs/F-020-app-mobile-dat-san.md` giao việc xem và hủy booking cho tab này. Quyết định tách F-021 (Lịch của tôi) khỏi F-022 (Phòng chờ): xem "Assumptions" mục 1.
 
 ## Goal
@@ -45,7 +45,7 @@ Each criterion has one test. The test name starts with the label, for example `A
 | AC-12 | Danh sách đã tải. Tab ẩn rồi hiện lại (`visibilitychange`). Một lần khác API lỗi mạng | Tab hiện lại. Lần khác tải lần đầu | Lần tab hiện lại: danh sách tải lại một lần. Lần lỗi: thấy "Không tải được" và nút "Thử lại". Bấm nút tải lại |
 | AC-13 | Luồng `mobile-history` của `verify-flow`: người chơi seed đăng nhập, mở "Lịch của tôi" ở 360px và 390px | Luồng chạy | Trang không cuộn ngang. Các ô bấm cao ít nhất 44px |
 | AC-14 | Cùng luồng: trước khi mở tab, luồng tự gửi một booking `PENDING` vào ngày mai bằng `POST /api/bookings`, để chạy lại được sau mỗi lần deploy | Bấm "Hủy" và xác nhận | Thẻ rời "Sắp tới" và nằm ở "Lịch sử" với nhãn "Đã hủy". Báo cáo `verify-flow` ghi 0 bước lỗi |
-| AC-15 | Booking `PENDING` bắt đầu sau 3 giờ, có trận `OPEN` với `joinedCount` 3 | Thẻ hiện | Thẻ không có nút "Hủy". Thẻ có dòng "Có trận đang mở. Hủy trận ở tab Phòng chờ." Cùng thẻ với `match.status` `FULL` cũng không có nút "Hủy". Booking có `match` là `null` hoặc `CANCELLED` vẫn có nút "Hủy" (BR-17) |
+| AC-15 | Booking `PENDING` bắt đầu sau 3 giờ, có trận `OPEN` với `joinedCount` 3 | Thẻ hiện | Thẻ không có nút "Hủy". Thẻ có dòng "Booking có trận. Hủy trận trên web hoặc ở tab Phòng chờ khi có." Cùng thẻ với `match.status` `FULL` cũng không có nút "Hủy". Booking `CONFIRMED` bắt đầu sau 5 giờ và có trận `OPEN` hiện link "Gọi chủ sân để hủy", giống web. Booking có `match` là `null` hoặc `CANCELLED` vẫn có nút "Hủy" (BR-17) |
 
 ## Contract
 
@@ -84,11 +84,11 @@ Các bước 2, 3 và 4 dùng chung `apps/mobile/src/features/my/` và chạy l�
 
 | Risk | Where | Control |
 |---|---|---|
-| Dữ liệu cá nhân: số điện thoại người chơi lộ cho người không có quyền (BR-20) | Thẻ trận ở bước 2 | Test AC-5 và AC-10 kiểm DOM không có số điện thoại. Chỉ `venuePhone` (công khai) xuất hiện |
+| Dữ liệu cá nhân: số điện thoại người chơi lộ cho người không có quyền (BR-20) | Thẻ booking ở bước 2 và thẻ trận ở bước 3 | Test AC-5 và AC-10 kiểm DOM không có số điện thoại. Chỉ `venuePhone` (công khai) xuất hiện |
 | Luật hủy sai giữa app và server (BR-11, BR-12) | Nút ở bước 4 | App dùng `userCancelDecision` của `packages/shared`, cùng hàm với server và web. Test AC-8 ở ngưỡng đúng 6 giờ. Lỗi 409 hiện thông báo của server |
 | Hủy booking làm hủy luôn trận và báo cho người chơi (BR-17) | Nút "Hủy" ở bước 4 | AC-15: booking có trận `OPEN` hoặc `FULL` không có nút "Hủy". Việc hủy trận thuộc F-022 |
 | Hai nơi chia "Sắp tới" và "Lịch sử" lệch nhau | `splitMine` ở bước 1 | Một hàm duy nhất và test ở hai múi giờ (AC-3) |
-| Phiên hết hạn khi hủy | Bước 3 | AC-9 mở lại đăng nhập và giữ danh sách |
+| Phiên hết hạn khi hủy | Bước 4 | AC-9 mở lại đăng nhập và giữ danh sách |
 
 ## Assumptions
 
@@ -100,8 +100,6 @@ Các bước 2, 3 và 4 dùng chung `apps/mobile/src/features/my/` và chạy l�
 6. Chủ sân mở tab này đi tới `chu-san/yeu-cau`, giống F-020. Admin thấy màn "Dùng web để quản trị" của `App`.
 7. Khi người dùng đăng nhập từ tab này, danh sách tải ngay mà không rời trang.
 8. Booking chỉ thuộc "Sắp tới" khi giờ bắt đầu còn ở phía sau `now`. Booking đang diễn ra thuộc "Lịch sử". Lý do: người dùng không còn hủy hay đổi được booking đã bắt đầu.
-9. `PROGRESS.md` có "Status: accepted" của brief này sau khi Reviewer đóng mọi finding medium trở lên.
-
 ## Open questions
 
 | Question | Owner | Blocks |
