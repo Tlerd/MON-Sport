@@ -35,7 +35,13 @@ if (process.argv.includes('--check')) {
     current = readFileSync(target, 'utf8');
   } catch {}
   if (current !== map) {
-    console.error('FAIL map: @map.md is stale\nFix: run pnpm map, then commit @map.md.');
+    const have = new Set(current.split('\n'));
+    const want = new Set(map.split('\n'));
+    const diff = [
+      ...[...want].filter((l) => !have.has(l)).map((l) => `+ ${l}`),
+      ...[...have].filter((l) => !want.has(l)).map((l) => `- ${l}`),
+    ].slice(0, 20);
+    console.error(`FAIL map: @map.md is stale\n${diff.join('\n')}\nFix: run pnpm map, then commit @map.md.`);
     process.exit(1);
   }
 } else {
