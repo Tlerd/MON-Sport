@@ -1,12 +1,15 @@
 import { dayHeading, formatVnd, hhmm } from '@monsport/client';
-import { minuteOfDayVN, vnDateString, type MyBookingView } from '@monsport/shared';
+import { minuteOfDayVN, userCancelDecision, vnDateString, type MyBookingView } from '@monsport/shared';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 
 export interface BookingCardProps {
   booking: MyBookingView;
+  now: Date;
+  onCancel: (booking: MyBookingView) => void;
+  onOpenMatch?: (booking: MyBookingView) => void;
 }
 
-export function BookingCard({ booking }: BookingCardProps) {
+export function BookingCard({ booking, now, onCancel, onOpenMatch }: BookingCardProps) {
   const startDate = new Date(booking.startAt);
   const endDate = new Date(booking.endAt);
   const dateHeading = dayHeading(vnDateString(startDate));
@@ -17,6 +20,13 @@ export function BookingCard({ booking }: BookingCardProps) {
     booking.match !== null &&
     (booking.match.status === 'OPEN' || booking.match.status === 'FULL');
 
+  const canOpenMatch =
+    booking.match === null &&
+    (booking.status === 'PENDING' || booking.status === 'CONFIRMED') &&
+    startDate.getTime() > now.getTime();
+
+  const decision = userCancelDecision({ status: booking.status, startAt: startDate }, now);
+
   const deadline =
     booking.status === 'PENDING' && booking.confirmDeadline !== null
       ? `Chủ sân xác nhận trước ${hhmm(minuteOfDayVN(new Date(booking.confirmDeadline)))}`
@@ -24,6 +34,7 @@ export function BookingCard({ booking }: BookingCardProps) {
 
   return (
     <article
+      data-booking-id={booking.id}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -69,6 +80,77 @@ export function BookingCard({ booking }: BookingCardProps) {
       {hasOpenMatch && (
         <div style={{ font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
           {`Trận mở: ${booking.match!.joinedCount}/${booking.match!.capacity} suất`}
+        </div>
+      )}
+
+      {decision === 'ALLOW' && hasOpenMatch && (
+        <div style={{ font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
+          Booking có trận. Hủy trận ở tab Phòng chờ.
+        </div>
+      )}
+
+      {(canOpenMatch || (decision === 'ALLOW' && !hasOpenMatch) || decision === 'CALL_OWNER') && (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 'var(--space-sm)',
+            minWidth: 0,
+          }}
+        >
+          {canOpenMatch && (
+            <button
+              type="button"
+              onClick={() => onOpenMatch?.(booking)}
+              style={{
+                minHeight: '44px',
+                padding: '0 var(--space-base)',
+                border: '1px solid var(--color-line)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'transparent',
+                color: 'var(--color-primary)',
+                font: 'var(--font-body-strong)',
+                cursor: 'pointer',
+              }}
+            >
+              Mở trận
+            </button>
+          )}
+
+          {decision === 'ALLOW' && !hasOpenMatch && (
+            <button
+              type="button"
+              onClick={() => onCancel(booking)}
+              style={{
+                minHeight: '44px',
+                padding: '0 var(--space-base)',
+                border: '1px solid var(--color-line)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'transparent',
+                color: 'var(--color-status-no)',
+                font: 'var(--font-body-strong)',
+                cursor: 'pointer',
+              }}
+            >
+              Hủy
+            </button>
+          )}
+
+          {decision === 'CALL_OWNER' && (
+            <a
+              href={`tel:${booking.venuePhone}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                minHeight: '44px',
+                color: 'var(--color-primary)',
+                font: 'var(--font-body-strong)',
+              }}
+            >
+              Gọi chủ sân để hủy
+            </a>
+          )}
         </div>
       )}
 

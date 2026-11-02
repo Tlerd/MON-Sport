@@ -23,7 +23,7 @@ The owner changes their mind. So the agent never waits. It answers what it can, 
 
 ## Optional: six lenses
 
-Run this only when the work touches money, concurrency, the schema, or personal data. Run six `reviewer` subagents in parallel with the lenses YAGNI, cost, UX, migration, observability, and maintenance. Each returns at most 5 findings with a file path. It costs about 240k tokens. Merge the findings into `Assumptions` and `Open questions`.
+For money, concurrency, the schema, or personal data, run the six lenses of [references/six-lenses.md](references/six-lenses.md).
 
 ## Model
 

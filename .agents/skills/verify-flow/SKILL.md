@@ -7,6 +7,14 @@ description: Drives the real MONSPORT app in a browser through the booking flows
 
 Drive the running app through a user flow. Each step asserts a state (an API answer or the DOM) and saves a screenshot. The run ends `PASSED` or `FAILED` and writes `verify-output/<stamp>-<target>/report.md`. Git ignores that folder.
 
+## Read first
+
+- On `live`, the run deletes nothing and leaves test bookings. Never seed or clear `AuthThrottle` on the live database.
+- On `live`, take every account from the shell variables in [references/targets.md](references/targets.md). Never write a password in a file.
+- `PASSED (n skipped)` means a flow did not run. A SKIP is not a pass.
+- A 429 on login is BR-30. Wait 15 minutes. See [references/gotchas.md](references/gotchas.md).
+- More failures that need a person: [references/gotchas.md](references/gotchas.md).
+
 ## Run
 
 1. Pick the flows from the table below. A screen change needs the flows that touch that screen. After a deploy, run all flows.
@@ -15,35 +23,23 @@ Drive the running app through a user flow. Each step asserts a state (an API ans
 4. On `FAILED`, open the `-FAIL.png` screenshot and the flow file. Fix the app, or fix the flow when the screen changed on purpose. Run again until `PASSED`.
 5. Attach `report.md` and the screenshots of the changed screen to the pull request, or to a comment on it after a deploy.
 
-The run is done when the last line says `PASSED` and each flow you picked has PASS steps. `PASSED (n skipped)` means a flow did not run: a SKIP is not a pass.
+The run is done when the last line says `PASSED` and each flow you picked has PASS steps.
 
 ## Flows
 
 | Symptom or change | Flow | File |
 |---|---|---|
-| Login, booking form, price, "Booking của tôi" (UC-3, F-002) | `player-request` | [flows/player-request.md](flows/player-request.md) |
-| "Yêu cầu đặt sân", confirm, reject, the player sees the new state (UC-4, F-002) | `owner-decide` | [flows/owner-decide.md](flows/owner-decide.md) |
-| Phone booking, schedule grid (UC-5, F-007) | `phone-booking` | [flows/phone-booking.md](flows/phone-booking.md) |
-| Mobile shell, tab bar scroll and hide/show (F-019) | `mobile-shell` | [flows/mobile-shell.md](flows/mobile-shell.md) |
-| Mobile booking tab, venue slot rows, request sheet (UC-2, UC-3, F-020) | `mobile-book` | [flows/mobile-book.md](flows/mobile-book.md) |
+| Login, booking form, price, "Booking của tôi" (UC-3, F-002) | `player-request` | [references/flows/player-request.md](references/flows/player-request.md) |
+| "Yêu cầu đặt sân", confirm, reject, the player sees the new state (UC-4, F-002) | `owner-decide` | [references/flows/owner-decide.md](references/flows/owner-decide.md) |
+| Phone booking, schedule grid (UC-5, F-007) | `phone-booking` | [references/flows/phone-booking.md](references/flows/phone-booking.md) |
+| Mobile shell, tab bar scroll and hide/show (F-019) | `mobile-shell` | [references/flows/mobile-shell.md](references/flows/mobile-shell.md) |
+| Mobile booking tab, venue slot rows, request sheet (UC-2, UC-3, F-020) | `mobile-book` | [references/flows/mobile-book.md](references/flows/mobile-book.md) |
 
-To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each state change, register it in `FLOWS` in `scripts/run.mjs`, and add a row and a flow file here.
+To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each state change, register it in `FLOWS` in `scripts/run.mjs`, and add a row to this table and a flow file in `references/flows/`.
 
-## Targets and accounts
+## Files
 
-- `local` (default): `http://localhost:5173` for web and `http://localhost:5180` for mobile. The seed accounts of `apps/api/prisma/seed.ts`: player An `0901234567`, owner Bình `0912345678`, venue "Cầu lông A", court "Sân 1".
-- `live`: the "Live at" URL in `PROGRESS.md`. Live passwords are secrets, so the run takes every account from the shell: `VERIFY_OWNER_PHONE`, `VERIFY_OWNER_PASSWORD`, `VERIFY_PLAYER_PHONE`, `VERIFY_PLAYER_PASSWORD`. The player is one reused account named `test-verify`, signed up once in the app. Write these values only in the shell or a password manager.
-- `owner-decide` and `phone-booking` on live also need `VERIFY_VENUE` and `VERIFY_COURT` set to a test court of that owner, because they leave or may leave a CONFIRMED booking there. Without them, these flows end with SKIP.
-- Live screenshots mask the names and phones of customers and of the signed-in user, because the evidence goes to a public pull request. The report writes an account phone as `<role phone>`.
-- The same env vars override the local defaults. `VERIFY_BROWSER` picks a Playwright channel.
-- The run deletes nothing. Each run leaves its bookings: one PENDING per `player-request` run, one CONFIRMED and one REJECTED per `owner-decide` run, and one CANCELLED phone booking per `phone-booking` run (CONFIRMED when the run stops before the cancel). A PENDING booking expires 2 hours later (BR-7, BR-8).
-
-## Gotchas
-
-- Time zone: the API answers instants in UTC (`...Z`). The app shows `Asia/Ho_Chi_Minh` (BR-27), and the form sends `+07:00`. Compare instants, never date strings.
-- BR-30: 10 logins for each phone and 30 for each IP in 15 minutes. A full run signs in twice (player and owner), and a good login clears only the phone counter. So about 15 full runs from one IP hit the limit. A 429 fails the login step, and the run does not sign in again for that role. Wait 15 minutes. Never clear `AuthThrottle` on the live database.
-- Slots: a court holds one PENDING or CONFIRMED booking for each slot (BR-1). The scripts pick a random slot 30 to 365 days ahead, skip the starts the player already has, and take a new slot on a 409.
-- Seed data: the seed empties the tables, so it runs only on localhost. Never seed to reset a live run.
-- A full-page screenshot draws the sticky "Gửi yêu cầu" or "Lưu booking" bar over the form fields. That is the capture, not a layout bug.
-- A select's accessible name ends with its chosen option ("Đơn vị Chọn đơn vị"). Match the label by prefix: `getByLabel(/^Đơn vị/)`.
-- Windows: run the commands from the repository root. The scripts build paths with `node:path`, so `\` and `/` both work. The browser is the installed Edge or Chrome (`playwright-core`, no browser download).
+- `scripts/`: `run.mjs` starts a run. `lib.mjs` holds the shared steps. One `<flow>.mjs` for each flow.
+- `references/flows/`: what each flow checks.
+- `references/targets.md`: targets, accounts, environment variables, and what a run leaves behind.
+- `references/gotchas.md`: known failures and their fixes.

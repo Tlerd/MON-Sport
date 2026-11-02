@@ -211,7 +211,7 @@ async function login(run, page, account, role) {
     await dialog.getByLabel('Số điện thoại').fill(account.phone);
     await dialog.getByLabel('Mật khẩu').fill(account.password);
     const { status, body } = await clickFor(page, dialog.getByRole('button', { name: 'Đăng nhập' }), 'POST', '/api/auth/login');
-    assert(status !== 429, 'BR-30 blocked the login: wait 15 minutes. See Gotchas in SKILL.md');
+    assert(status !== 429, 'BR-30 blocked the login: wait 15 minutes. See .agents/skills/verify-flow/references/gotchas.md');
     assert(status === 200, `POST /api/auth/login answered ${status}: ${body.message ?? ''}`);
     const want = role === 'owner' ? 'OWNER' : 'USER';
     assert(body.role === want, `the account has role ${body.role}, the flow needs ${want}`);
@@ -228,7 +228,7 @@ async function login(run, page, account, role) {
   await phone.fill(account.phone);
   await page.getByLabel('Mật khẩu').fill(account.password);
   const { status, body } = await clickFor(page, page.getByRole('button', { name: 'Đăng nhập' }), 'POST', '/api/auth/login');
-  assert(status !== 429, 'BR-30 blocked the login: wait 15 minutes. See Gotchas in SKILL.md');
+  assert(status !== 429, 'BR-30 blocked the login: wait 15 minutes. See .agents/skills/verify-flow/references/gotchas.md');
   assert(status === 200, `POST /api/auth/login answered ${status}: ${body.message ?? ''}`);
   const want = role === 'owner' ? 'OWNER' : 'USER';
   assert(body.role === want, `the account has role ${body.role}, the flow needs ${want}`);

@@ -20,7 +20,7 @@ const FILES = input.pr ? `gh pr diff ${input.pr} --name-only` : `git diff --name
 const HEAD = input.head || (input.range ? input.range.split(/\.{2,3}/)[1] : null)
 const READ_FILE = HEAD ? `\`git show ${HEAD}:<path>\`` : 'the working tree'
 const DESCRIPTION = input.pr ? `\`gh pr view ${input.pr} --json title,body\`` : `\`git log --format=%B ${input.range}\``
-const RUBRIC = '.claude/skills/rule-review/rubric.md'
+const RUBRIC = '.claude/skills/rule-review/references/rubric.md'
 const READ_ONLY = 'Read only: do not edit files, commit, push, or post comments.'
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 }
 
