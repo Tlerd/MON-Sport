@@ -58,7 +58,7 @@ Each tool maps these roles to its own models. In Claude Code, the session model 
 4. Open one pull request for each step with `gh pr create`. Fill in `.github/pull_request_template.md`, with the paths of the step under "Allowed paths". Write `Refs #<issue>` on each step, and `Closes #<issue>` on the last step only.
 5. After the last step of a brief, run the subagent `qa`, and put its questions in the end report and in `docs/qa/`. A Reviewer reviews each pull request. Post its findings as a pull request comment, and end the comment with the marker line of `REVIEW.md`. Fix each finding of medium or higher, then run a new Reviewer on the new head. That Reviewer reviews only the diff since the last reviewed head, as `REVIEW.md` says. A finding is closed only when that Reviewer says so. Each Reviewer run is one round. When the pull request touches money, concurrency, the schema, or personal data, the round also runs the skill `rule-review` and posts its comment.
 6. Wait for the checks in the background: `gh pr checks <n> --watch --fail-fast`, as a background command or a scheduled check, never as a foreground command that can time out. Merge only with `node scripts/merge.mjs <n>`, after that command exits 0. The script merges when every check is green and the latest Reviewer marker for the current head shows no finding of medium or higher. A direct `gh pr merge` is on the deny list of `.claude/settings.json`. That list is advisory: the repository has no branch protection, so the rule holds only while agents follow it. A finding tagged pre-existing (as `REVIEW.md` and the skill `rule-review` say) does not count in the marker. The check `pr-gates` fails the pull request when it changes a path outside its allowed list, or when a listed AC has no test. Never push to `main`. Never force push.
-7. When the next step or an open decision changes, rewrite `PROGRESS.md` in the same pull request, before the merge.
+7. When the next step changes, rewrite `PROGRESS.md` in the same pull request, before the merge. When a decision needs the user, or the user answers one, update `HUMAN_DECISIONS.md` in the same pull request.
 
 Run the skill `.agents/skills/verify-flow/` before you open a pull request that changes a screen, and after each deploy. Attach its report and screenshots to the pull request.
 
@@ -68,7 +68,7 @@ A fix, a chore, or a docs change that no brief covers needs no issue. Its branch
 
 The user starts work with "tiếp tục", "continue", or a goal. Then plan, build, review, merge, and deploy without asking, until the result is live and handed over. Do not stop to ask the user.
 
-- Run `git status` first. Finish work in progress on the current branch before anything new.
+- Run `git status` first. Read `PROGRESS.md` and `HUMAN_DECISIONS.md`. Finish work in progress on the current branch before anything new.
 - Without a goal, do the steps in `PROGRESS.md` in order until no step is left. Pick the next slice by the launch order in the intake.
 - When a decision is open, choose the option that the intake supports best, or else the safer one. Write it under "Assumptions" in the brief or the pull request, with the reason. The user corrects it later.
 - When a finding of medium or higher stays open after 2 review rounds, or autofix gives up, choose the safest fix you can. Record the open finding in the pull request and in `PROGRESS.md`, post `<!-- review-accepted head=<sha> -->` on the pull request, and continue.
@@ -88,4 +88,6 @@ The user starts work with "tiếp tục", "continue", or a goal. Then plan, buil
 
 Git and the tests hold the state. To see where the work stands, read `git log --oneline -15` and run `pnpm check`. A criterion with a passing `AC-n` test is done.
 
-`PROGRESS.md` holds what they cannot show: the next step and the open decisions. Read it when you start. Rewrite it in place when either changes.
+`PROGRESS.md` holds what they cannot show: the next step. Read it when you start. Rewrite it in place when it changes.
+
+`HUMAN_DECISIONS.md` holds each decision that only the user can make, with the default that agents follow, and each step that only the user can do. Read it when you start, with `PROGRESS.md`. Add a row when work needs a decision. Move the row to "Đã chốt" when the user answers. Never delete a row.
