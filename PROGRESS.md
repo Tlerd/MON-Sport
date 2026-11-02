@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step or an open decision changes. History is in git. Updated: 2026-11-03 (F-023 done).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-03 (F-023 done).
 
 ## Current state
 
@@ -24,7 +24,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Open decisions
 
-See `HUMAN_DECISIONS.md`. It holds the open decisions (numbers 1 to 17), the steps that only the user can do, and the settled ones.
+See `HUMAN_DECISIONS.md`. It holds the open decisions (numbers 1 to 25), the steps that only the user can do, and the settled ones.
 
 ## Next step
 

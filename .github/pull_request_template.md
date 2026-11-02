@@ -36,5 +36,5 @@ Refs #
 ## Checks
 
 - [ ] `pnpm check` passes.
-- [ ] `PROGRESS.md` is rewritten, when the next step or an open decision changed.
+- [ ] `PROGRESS.md` is rewritten, when the next step changed. `HUMAN_DECISIONS.md` is updated, when a decision needs the user or the user answered one.
 - [ ] Money, concurrency, or schema change: a fresh session reviewed it. Link:

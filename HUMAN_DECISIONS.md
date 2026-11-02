@@ -28,11 +28,19 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 10 | Tỷ lệ hết hạn có tính booking đã bị hủy sau khi xác nhận không? | Không tính | Không | F-016 |
 | 11 | Chọn nhà cung cấp SMS và đăng ký brandname. Làm các bước trong Google console của brief F-004, rồi gửi client ID | Chưa có | F-004 bước 4 (live), rồi F-018 (Zalo, OTP qua ZNS) | F-004 |
 | 12 | Người chơi (không phải host) bấm thẻ "Trận bị hủy": app nên mở màn nào? "Lịch của tôi" hiện không hiện trận đã hủy | Mở "Lịch của tôi" (QA F-023 D-1, mức medium) | Không | QA F-023 câu 2 |
-| 13 | Bấm thông báo có mở đúng màn của booking hoặc trận (`/lich-cua-toi/:id`, `/chu-san/yeu-cau/:id`), hay chỉ màn danh sách? | Màn danh sách | Brief màn chủ sân | QA F-023 câu 1 |
+| 13 | Bấm thông báo có mở đúng màn của booking hoặc trận (`/lich-cua-toi/:id`, `/chu-san/yeu-cau/:id`), hay chỉ màn danh sách? | Màn danh sách. Đổi sang màn chi tiết cần brief màn chủ sân | Không | QA F-023 câu 1 |
 | 14 | Thẻ thông báo trên app có ghi lúc nhận (`createdAt`) như web không? | Không ghi | Không | QA F-023 câu 3 |
 | 15 | Web Push có chạy trên app `/app/` không? Đăng ký hiện gắn với `sw.js` của web ở phạm vi `/` | Không | Không | brief F-023 |
 | 16 | Có cần nút "Xem thêm" khi `unreadCount` lớn hơn 50 mục mà API trả không? | Không | Không | brief F-023 |
-| 17 | Các mục 4 đến 6 của QA F-020 và các câu 1 đến 5 của QA F-022 (ví dụ: người chưa vào có thấy trận "Đầy" không, host có được hủy trận dưới 6 giờ không, luồng `mobile-lobby` có được tạo booking thật sau mỗi deploy không) | Các mặc định trong hai file QA | Không | `docs/qa/F-020-qa-2026-10-30.md` (4 đến 6), `docs/qa/F-022-qa-2026-11-02.md` |
+| 17 | Các mục 4 đến 6 của QA F-020 (đọc `docs/qa/F-020-qa-2026-10-30.md`) | Các mặc định trong file QA | Không | QA F-020 |
+| 18 | Người chưa vào trận có cần thấy trận "Đầy" trong Phòng chờ không? | Không. Trận đầy biến khỏi feed | Không | QA F-022 câu 1 |
+| 19 | Khi booking "Đã xác nhận" còn dưới 6 giờ tới giờ bắt đầu, host có được hủy trận không? | Không. Host nhận 409 "Hãy gọi chủ sân" (BR-11) | Không | QA F-022 câu 2 |
+| 20 | Luồng `mobile-lobby` có được tạo yêu cầu đặt sân thật trên đơn vị chạy thử sau mỗi lần deploy không? | Có, trên `VERIFY_VENUE` | Không | QA F-022 câu 3 |
+| 21 | Thẻ trận có được dài hơn 3 dòng không? | Có, 4 dòng | Không | QA F-022 câu 4 |
+| 22 | Chủ sân có tab Phòng chờ trên app không? | Không có tab. Chủ sân vào bằng URL và chỉ xem | Không | QA F-022 câu 5 |
+| 23 | Host có thấy trận của mình trong feed Phòng chờ không? | Có | Không | brief F-022 |
+| 24 | Giá mặc định mỗi suất khi mở trận | 0 | Không | brief F-022 |
+| 25 | Có gửi thông báo đẩy khi có người vào hoặc rời trận không? | Không | Không | brief F-022 |
 
 ## Việc chỉ người dùng làm được
 
