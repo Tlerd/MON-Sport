@@ -24,7 +24,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Open decisions
 
-See `HUMAN_DECISIONS.md`. It holds the open decisions (numbers 1 to 25), the steps that only the user can do, and the settled ones.
+See `HUMAN_DECISIONS.md`. It holds the open decisions (numbers 1 to 6 and 8 to 25), the steps that only the user can do, and the settled ones.
 
 ## Next step
 

@@ -34,12 +34,12 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 16 | Có cần nút "Xem thêm" khi `unreadCount` lớn hơn 50 mục mà API trả không? | Không | Không | brief F-023 |
 | 17 | Các mục 4 đến 6 của QA F-020 (đọc `docs/qa/F-020-qa-2026-10-30.md`) | Các mặc định trong file QA | Không | QA F-020 |
 | 18 | Người chưa vào trận có cần thấy trận "Đầy" trong Phòng chờ không? | Không. Trận đầy biến khỏi feed | Không | QA F-022 câu 1 |
-| 19 | Khi booking "Đã xác nhận" còn dưới 6 giờ tới giờ bắt đầu, host có được hủy trận không? | Không. Host nhận 409 "Hãy gọi chủ sân" (BR-11) | Không | QA F-022 câu 2 |
+| 19 | Khi booking "Đã xác nhận" còn dưới 6 giờ tới giờ bắt đầu, host có được hủy trận không? | Không. App ẩn "Hủy trận" và chỉ tới "Lịch của tôi". Server trả 409 (BR-11) | Không | QA F-022 câu 2 |
 | 20 | Luồng `mobile-lobby` có được tạo yêu cầu đặt sân thật trên đơn vị chạy thử sau mỗi lần deploy không? | Có, trên `VERIFY_VENUE` | Không | QA F-022 câu 3 |
 | 21 | Thẻ trận có được dài hơn 3 dòng không? | Có, 4 dòng | Không | QA F-022 câu 4 |
 | 22 | Chủ sân có tab Phòng chờ trên app không? | Không có tab. Chủ sân vào bằng URL và chỉ xem | Không | QA F-022 câu 5 |
 | 23 | Host có thấy trận của mình trong feed Phòng chờ không? | Có | Không | brief F-022 |
-| 24 | Giá mặc định mỗi suất khi mở trận | 0 | Không | brief F-022 |
+| 24 | Giá mặc định mỗi suất khi mở trận: 0, hay giá sân chia đều theo số suất? | 0 | Không | brief F-022 |
 | 25 | Có gửi thông báo đẩy khi có người vào hoặc rời trận không? | Không | Không | brief F-022 |
 
 ## Việc chỉ người dùng làm được
