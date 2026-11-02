@@ -31,7 +31,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - google.config.ts: GOOGLE_CONFIG, GOOGLE_OIDC_CONFIGURATION, GoogleConfig, assertGoogleConfig, isGoogleEnabled, GoogleEnabledGuard
 - passwords.ts: Passwords
 - session.guard.ts: AuthedRequest, Roles, SessionGuard
-- session.ts: SESSION_COOKIE, SESSION_MS, GOOGLE_FLOW_COOKIE, GOOGLE_PENDING_COOKIE, GOOGLE_VERIFY_COOKIE, GOOGLE_FLOW_MS
+- session.ts: SESSION_COOKIE, SESSION_MS, GOOGLE_FLOW_COOKIE, GOOGLE_PENDING_COOKIE, GOOGLE_VERIFY_COOKIE, GOOGLE_FLOW_MS, …
 - throttle.service.ts: LIMITS, OtpCountResult, ipBucket, ThrottleService
 
 ## apps/api/src/modules/bookings/
@@ -74,7 +74,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - otp.types.ts: OTP_SENDER, OtpSender
 
 ## apps/api/src/modules/push/
-- push-sender.ts: PushTarget, PushVapid, PushOptions, PushSendError, WebPushSender, isValidVapid
+- push-sender.ts: PushTarget, PushVapid, PushOptions, PushSendError, PushSender, WebPushSender, …
 - push.controller.ts: PushController
 - push.module.ts: PushModule
 - push.service.ts: PushService
@@ -148,7 +148,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - CourtPrices.tsx: CourtPrices
 - EmptyState.tsx: EmptyStateProps, EmptyState
 - Panel.tsx: PanelProps, Panel
-- SlotGrid.tsx: SlotCellStatus, SlotCellInfo, CourtItem, SelectedSlot, SlotGridProps, WindowId
+- SlotGrid.tsx: SlotCellStatus, SlotCellInfo, CourtItem, SelectedSlot, SlotGridProps, WindowId, …
 - StatusBadge.tsx: StatusValue, StatusBadgeProps, StatusBadge
 - icons.tsx: IconProps, IconBadminton, IconFootball, SportIcon
 
@@ -206,29 +206,29 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## packages/client/src/
 - api.ts: ApiError, api
-- booking.ts: DURATIONS, slotAt, dayChipLabel, dayHeading, priceRangeK, startableMinutes
+- booking.ts: DURATIONS, slotAt, dayChipLabel, dayHeading, priceRangeK, startableMinutes, …
 - format.ts: formatVnd, formatTime, formatDay, formatSlot, HALF_HOURS, hhmm
 - index.ts
 - my-bookings.ts: sortUpcoming, sortHistory, splitMine, joinedByOthers
-- push.ts: PushPermissionError, pushSupported, getPublicKey, urlBase64ToUint8Array, isPushOn, enablePush
+- push.ts: PushPermissionError, pushSupported, getPublicKey, urlBase64ToUint8Array, isPushOn, enablePush, …
 
 ## packages/client/
 - vitest.config.ts
 
 ## packages/shared/src/
-- account.ts: Messages, errorMessage, PRIVACY_NOTICE, RegisterRequest, RegisterRequest, CreateOwnerRequest
-- admin-stats.ts: AdminStatsQuerySchema, AdminStatsQuery, AdminVenueStat, AdminVenueStat, AdminStatsView, AdminStatsView
-- availability.ts: AvailabilityQuery, AvailabilityQuery, FreeRange, FreeRange, Availability, Availability
-- booking-time.ts: minuteOfDayVN, isOnGrid, isLongEnough, bookingPrice, confirmDeadline, USER_CANCEL_WINDOW_MS
-- booking.ts: Role, Role, Sport, Sport, BookingStatus, BookingStatus
+- account.ts: Messages, errorMessage, PRIVACY_NOTICE, RegisterRequest, CreateOwnerRequest, UserSearchRequest, …
+- admin-stats.ts: AdminStatsQuerySchema, AdminStatsQuery, AdminVenueStat, AdminStatsView
+- availability.ts: AvailabilityQuery, FreeRange, Availability, FreeRangesInput, startOfDayVN, freeRanges
+- booking-time.ts: minuteOfDayVN, isOnGrid, isLongEnough, bookingPrice, confirmDeadline, USER_CANCEL_WINDOW_MS, …
+- booking.ts: Role, Sport, BookingStatus, BookingSource, PHONE_MESSAGE, Phone, …
 - common-passwords.ts: COMMON_PASSWORDS, isWeakPassword
-- finance.ts: FinancialPeriod, FinancialPeriod, FinancialQuerySchema, FinancialQuery, FinancialChartPoint, FinancialChartPoint
-- google-auth.ts: OTP_CODE_MESSAGE, OtpCode, ProvidersResponse, ProvidersResponse, OtpResponse, OtpResponse
-- health.ts: HealthResponse, HealthResponse
+- finance.ts: FinancialPeriod, FinancialQuerySchema, FinancialQuery, FinancialChartPoint, FinancialDashboardView, UpdatePaidAtVenueSchema, …
+- google-auth.ts: OTP_CODE_MESSAGE, OtpCode, ProvidersResponse, OtpResponse, GoogleOtpSignupRequest, GoogleOtpVerifyRequest, …
+- health.ts: HealthResponse
 - index.ts
-- match.ts: MatchPlayerStatus, MatchPlayerStatus, MATCH_CAPACITY_MESSAGE, MATCH_PRICE_MESSAGE, MATCH_FULL_MESSAGE, ALREADY_IN_MATCH_MESSAGE
-- notification.ts: NotificationType, NotificationType, NotificationItemView, NotificationItemView, NotificationsListResponse, NotificationsListResponse
-- push.ts: PUSH_HOST_ALLOWLIST, isAllowedPushEndpoint, PushSubscribeRequest, PushSubscribeRequest, PushUnsubscribeRequest, PushUnsubscribeRequest
+- match.ts: MatchPlayerStatus, MATCH_CAPACITY_MESSAGE, MATCH_PRICE_MESSAGE, MATCH_FULL_MESSAGE, ALREADY_IN_MATCH_MESSAGE, NOT_JOINABLE_MESSAGE, …
+- notification.ts: NotificationType, NotificationItemView, NotificationsListResponse, NotificationReadResponse, NotificationReadAllResponse, formatSlotTime, …
+- push.ts: PUSH_HOST_ALLOWLIST, isAllowedPushEndpoint, PushSubscribeRequest, PushUnsubscribeRequest, PushPublicKeyResponse, PushPayload
 
 ## packages/shared/
 - vitest.config.ts

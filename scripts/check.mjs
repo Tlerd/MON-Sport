@@ -83,7 +83,7 @@ const steps = [
 
 const failures = [];
 
-if (existsSync(join(root, 'scripts/gen-map.mjs'))) {
+{
   const { ok, output } = run('node scripts/gen-map.mjs --check');
   if (!ok) failures.push(output.trim());
 }
