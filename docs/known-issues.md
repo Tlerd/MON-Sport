@@ -6,7 +6,8 @@ Errors that happened before. When a new error looks the same, apply the fix firs
 
 - Seen: 2026-11-02, Windows, Claude Code background command `pnpm check 2>&1 | tail -30`. The run did not finish in 59 minutes. The same command passed in 100 s later, on `main`.
 - Not proven: the cause. Tests (93 files), types, and boundaries each pass alone in under 100 s.
-- Suspects: a stale lock in `%TEMP%/monsport-check-*.lock`, a cold local Postgres start, or a child process that keeps the output pipe open.
+- Likely cause: lock contention. One checkout has one lock. The git hook, the Stop hook, and a manual `pnpm check` queue behind each other. A Stop hook then prints `Timeout waiting for check lock held by pid <n>`. Run one check at a time. Do not start a second one while a commit or push runs in the background.
+- Other suspects: a stale lock in `%TEMP%/monsport-check-*.lock`, a cold local Postgres start, or a child process that keeps the output pipe open.
 - Fix: `scripts/check.mjs` now stops a step after 8 minutes and prints `TIMEOUT`. On a timeout, do these in order:
   1. Delete `%TEMP%/monsport-check-*.lock` when no `pnpm check` runs.
   2. Run `pnpm db:start`, then run `pnpm check` again.
