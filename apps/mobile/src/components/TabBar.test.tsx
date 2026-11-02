@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TabBar } from './TabBar';
 
@@ -41,6 +41,21 @@ describe('TabBar', () => {
   it('renders nothing for ADMIN role', () => {
     const { container } = render(<TabBar role="ADMIN" activePath="/" onSelect={vi.fn()} />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it.each([
+    [0, null],
+    [1, '1'],
+    [99, '99'],
+    [100, '99+'],
+  ])('AC-9: the Thông báo badge for %i unread shows %s', (count, text) => {
+    render(<TabBar role="USER" activePath="/" onSelect={vi.fn()} unreadNotifications={count} />);
+    const tab = screen.getByRole('button', { name: 'Thông báo' });
+    if (text === null) {
+      expect(tab.querySelector('span')).toBeNull();
+    } else {
+      expect(within(tab).getByText(text)).toBeDefined();
+    }
   });
 
   it('renders user initial avatar when provided', () => {

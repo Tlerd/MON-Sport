@@ -1,10 +1,13 @@
 import { api } from '@monsport/client';
-import { useEffect, useState, type ReactNode } from 'react';
+import type { NotificationsListResponse } from '@monsport/shared';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { TabBar } from '../components/TabBar.tsx';
 import { TopBar } from '../components/TopBar.tsx';
 import { BarsProvider } from './bars.tsx';
 import { useSession } from './session.tsx';
+
+const NOTIFICATIONS_RELOAD_MS = 15_000;
 
 export interface ShellContextType {
   setTitle: (title: string | undefined) => void;
@@ -49,6 +52,57 @@ export function App() {
   useEffect(() => {
     refreshCounts();
   }, [user]);
+
+  // The shell owns the unread count while the Thông báo screen is closed. The screen owns it while open.
+  const countsNotifications = user?.role === 'USER' || user?.role === 'OWNER';
+  const onNotificationsScreen = location.pathname === '/thong-bao';
+  const notificationsReq = useRef(0);
+
+  useEffect(() => {
+    if (!countsNotifications || onNotificationsScreen) return;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const fetchUnread = () => {
+      const reqId = ++notificationsReq.current;
+      api<NotificationsListResponse>('/api/notifications').then(
+        (res) => {
+          if (reqId !== notificationsReq.current) return;
+          if (typeof res?.unreadCount === 'number') setUnreadNotifications(res.unreadCount);
+        },
+        () => {
+          // A failed fetch keeps the old count.
+        },
+      );
+    };
+    const stop = () => {
+      if (timer !== undefined) clearInterval(timer);
+      timer = undefined;
+    };
+    const start = () => {
+      stop();
+      timer = setInterval(fetchUnread, NOTIFICATIONS_RELOAD_MS);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUnread();
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    if (document.visibilityState === 'visible') {
+      fetchUnread();
+      start();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      // Drops a reply still in flight: the screen or a new user owns the count now.
+      notificationsReq.current++;
+    };
+  }, [user?.id, countsNotifications, onNotificationsScreen]);
 
   useEffect(() => {
     if (user?.role === 'OWNER' && location.pathname === '/') {

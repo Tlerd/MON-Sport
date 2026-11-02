@@ -1,3 +1,4 @@
+import { unreadBadge } from '@monsport/client';
 import {
   Bell,
   CalendarDays,
@@ -207,7 +208,7 @@ export function TabBar({
             }}
           >
             {tab.icon}
-            {tab.badgeCount !== undefined && tab.badgeCount > 0 && (
+            {unreadBadge(tab.badgeCount ?? 0) !== '' && (
               <span
                 style={{
                   position: 'absolute',
@@ -226,7 +227,7 @@ export function TabBar({
                   lineHeight: 1,
                 }}
               >
-                {tab.badgeCount}
+                {unreadBadge(tab.badgeCount ?? 0)}
               </span>
             )}
           </button>
