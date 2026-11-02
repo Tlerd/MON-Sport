@@ -1,5 +1,5 @@
-import { api, ApiError, formatVnd, hhmm, joinedByOthers, splitMine } from '@monsport/client';
-import { minuteOfDayVN, type MatchView, type MyBookingView } from '@monsport/shared';
+import { api, ApiError, dayHeading, formatVnd, hhmm, joinedByOthers, splitMine } from '@monsport/client';
+import { minuteOfDayVN, vnDateString, type MatchView, type MyBookingView } from '@monsport/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../../app/session.tsx';
@@ -241,7 +241,12 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
       >
         {cancelTarget && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
-            <div style={{ font: 'var(--font-body-strong)' }}>{cancelTarget.courtName}</div>
+            <div style={{ font: 'var(--font-body-strong)' }}>
+              {`${cancelTarget.venueName} · ${cancelTarget.courtName}`}
+            </div>
+            <div style={{ font: 'var(--font-body)' }}>
+              {dayHeading(vnDateString(new Date(cancelTarget.startAt)))}
+            </div>
             <div className="tnum" style={{ font: 'var(--font-numeric)', color: 'var(--color-ink-muted)' }}>
               {`${hhmm(minuteOfDayVN(new Date(cancelTarget.startAt)))}–${hhmm(minuteOfDayVN(new Date(cancelTarget.endAt)))}`}
               {' · '}

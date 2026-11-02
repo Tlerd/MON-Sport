@@ -28,6 +28,7 @@ export function BookingCard({ booking, now, onCancel }: BookingCardProps) {
 
   return (
     <article
+      data-booking-id={booking.id}
       style={{
         display: 'flex',
         flexDirection: 'column',

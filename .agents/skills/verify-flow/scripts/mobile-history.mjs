@@ -85,7 +85,8 @@ export default async function mobileHistory(run) {
       });
 
       const range = `${showTime(booking.startAt)}–${showTime(booking.endAt)}`;
-      const cards = page.locator('article').filter({ hasText: courtName }).filter({ hasText: range });
+      // By booking id, never by content: a leftover booking with the same court and hours must stay untouched.
+      const cards = page.locator(`article[data-booking-id="${booking.id}"]`);
       const tab = (name) => page.getByRole('button', { name, exact: true });
 
       await run.step(FLOW, `open Lịch của tôi (${size}): no sideways scroll, targets 44px`, page, async () => {
@@ -115,9 +116,7 @@ export default async function mobileHistory(run) {
 
       await run.step(FLOW, `cancel the booking (${size}): card moves to Lịch sử as Đã hủy`, page, async () => {
         const before = await cards.count();
-        await cards.filter({ has: page.getByRole('button', { name: 'Hủy', exact: true }) }).first()
-          .getByRole('button', { name: 'Hủy', exact: true })
-          .click();
+        await cards.getByRole('button', { name: 'Hủy', exact: true }).click();
 
         const sheet = page.getByRole('dialog', { name: 'Hủy booking này?' });
         await sheet.waitFor({ state: 'visible' });
