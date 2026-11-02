@@ -143,7 +143,11 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
       : '';
   const openAlert = openValidationMessage || openError;
 
+  // The sheet that a reply belongs to: a late reply for booking A must not close or change the sheet of booking B.
+  const openTargetId = useRef<string | null>(null);
+
   const openMatch = (booking: MyBookingView) => {
+    openTargetId.current = booking.id;
     setOpenError('');
     setOpenCapacity('10');
     setOpenPrice('0');
@@ -151,33 +155,42 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
   };
 
   const closeOpenMatch = () => {
+    openTargetId.current = null;
     setOpenTarget(null);
     setOpenError('');
   };
 
   const confirmOpenMatch = async () => {
     if (!openTarget || openBusy || openValidationMessage) return;
+    const targetId = openTarget.id;
     setOpenBusy(true);
     setOpenError('');
     try {
       await api<MatchView>('/api/matches', {
         method: 'POST',
         json: {
-          bookingId: openTarget.id,
+          bookingId: targetId,
           capacity: capacityNum,
           pricePerSlot: priceNum,
         },
       });
-      setOpenTarget(null);
+      if (openTargetId.current === targetId) {
+        openTargetId.current = null;
+        setOpenTarget(null);
+      }
       load();
     } catch (err) {
+      const same = openTargetId.current === targetId;
       if (err instanceof ApiError && err.status === 401) {
-        setOpenTarget(null);
+        if (same) {
+          openTargetId.current = null;
+          setOpenTarget(null);
+        }
         setSessionLoginOpen(true);
       } else if (err instanceof ApiError) {
-        setOpenError(err.message);
+        if (same) setOpenError(err.message);
         if (err.status === 409) load();
-      } else {
+      } else if (same) {
         setOpenError('Không kết nối được. Thử lại sau');
       }
     } finally {

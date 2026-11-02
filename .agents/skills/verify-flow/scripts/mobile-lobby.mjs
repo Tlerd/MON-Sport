@@ -77,15 +77,17 @@ export default async function mobileLobby(run) {
     const page = await context.newPage();
     run.watch(page);
 
+    let booking;
+    let matchId;
+    let matchCancelled = false;
+
     try {
-      let booking;
       await run.step(FLOW, `create a booking for tomorrow (${size})`, page, async () => {
         booking = await createBooking(run, context.request, court, courtName);
         return `${size} ${courtName} ${showTime(booking.startAt)} -> PENDING`;
       });
 
       const bookingCard = page.locator(`article[data-booking-id="${booking.id}"]`);
-      let matchId;
 
       await run.step(FLOW, `open a match from Lịch của tôi (${size})`, page, async () => {
         await page.goto(`${run.base}/app/lich-cua-toi`);
@@ -160,6 +162,7 @@ export default async function mobileLobby(run) {
           cancelSheet.getByRole('button', { name: 'Hủy trận', exact: true }).click(),
         ]);
         assert(response.status() === 200, `POST /api/matches/:id/cancel answered ${response.status()}`);
+        matchCancelled = true;
 
         await cancelSheet.waitFor({ state: 'hidden' });
         await matchCards.first().waitFor({ state: 'detached' });
@@ -167,6 +170,17 @@ export default async function mobileLobby(run) {
         return `${size} match ${matchId} cancelled and removed from feed`;
       });
     } finally {
+      // A failed step must not leave a public match or a held slot on live. Clean up only what this run created.
+      // Cancelling the match also cancels its booking (BR-17). Errors here stay silent: the first failure is the one to report.
+      try {
+        if (matchId && !matchCancelled) {
+          await context.request.post(`${run.base}/api/matches/${matchId}/cancel`);
+        } else if (booking && !matchId) {
+          await context.request.post(`${run.base}/api/bookings/${booking.id}/cancel`);
+        }
+      } catch {
+        // ignore
+      }
       await context.close();
     }
   }
