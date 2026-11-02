@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 
 const STREAM_URL = '/api/matches/stream';
 const DEBOUNCE_MS = 500;
+const MAX_WAIT_MS = 1000;
 
 /**
  * Calls onChange once per burst of `match` events (500 ms debounce) from the lobby SSE stream.
@@ -19,19 +20,27 @@ export function useLobbyStream(onChange: () => void, enabled = true): void {
     let source: EventSource | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
+    let firstEventAt: number | null = null;
+
     const clearTimer = () => {
       if (timer !== null) clearTimeout(timer);
       timer = null;
+      firstEventAt = null;
     };
     const open = () => {
       if (source) return;
       source = new EventSource(STREAM_URL);
       source.addEventListener('match', () => {
-        clearTimer();
+        const now = Date.now();
+        if (firstEventAt === null) firstEventAt = now;
+        // Wait for 500 ms of quiet, but never longer than 1 s after the first event of a burst.
+        const delay = Math.min(DEBOUNCE_MS, Math.max(0, firstEventAt + MAX_WAIT_MS - now));
+        if (timer !== null) clearTimeout(timer);
         timer = setTimeout(() => {
           timer = null;
+          firstEventAt = null;
           onChangeRef.current();
-        }, DEBOUNCE_MS);
+        }, delay);
       });
     };
     const close = () => {

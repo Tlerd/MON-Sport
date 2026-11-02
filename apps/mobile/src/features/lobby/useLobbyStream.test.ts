@@ -58,6 +58,34 @@ describe('useLobbyStream', () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
+  it('AC-4: a steady stream of events still reloads within 1 s of the first event', () => {
+    const onChange = vi.fn();
+    renderHook(() => useLobbyStream(onChange));
+    const es = FakeEventSource.instances[0]!;
+    // An event every 300 ms: the 500 ms quiet period never comes, so only the maximum wait can reload.
+    for (let t = 0; t < 3000; t += 300) {
+      es.emit('match');
+      vi.advanceTimersByTime(300);
+    }
+    expect(onChange.mock.calls.length).toBeGreaterThanOrEqual(2);
+    // The first reload is at most 1 s after the first event.
+    const solo = vi.fn();
+    cleanup();
+    FakeEventSource.instances = [];
+    renderHook(() => useLobbyStream(solo));
+    const es2 = FakeEventSource.instances[0]!;
+    es2.emit('match');
+    vi.advanceTimersByTime(300);
+    es2.emit('match');
+    vi.advanceTimersByTime(300);
+    es2.emit('match');
+    vi.advanceTimersByTime(300);
+    es2.emit('match');
+    expect(solo).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(100);
+    expect(solo).toHaveBeenCalledTimes(1);
+  });
+
   it('AC-4: hidden closes the stream and cancels the debounce, visible reopens and calls once', () => {
     const onChange = vi.fn();
     renderHook(() => useLobbyStream(onChange));

@@ -43,6 +43,45 @@ describe('LobbyMatchCard', () => {
     expect(onJoin).toHaveBeenCalledWith(expect.objectContaining({ id: match.id }));
   });
 
+  it('AC-12: a host card shows "Hủy trận" only while userCancelDecision is ALLOW (BR-11)', () => {
+    const buttons = (c: HTMLElement) => [...c.querySelectorAll('button')].map((b) => b.textContent);
+    const at = (iso: string) => new Date(iso);
+    const host = (over: Partial<MatchView>) => make({ isHost: true, joined: true, match: over });
+    const startAt = '2026-11-02T16:00:00+07:00';
+    const endAt = '2026-11-02T17:00:00+07:00';
+
+    // CONFIRMED, exactly 6 h before the start: still ALLOW.
+    const six = render(
+      <LobbyMatchCard
+        card={host({ bookingStatus: 'CONFIRMED', startAt, endAt })}
+        now={at('2026-11-02T10:00:00+07:00')}
+      />,
+    );
+    expect(buttons(six.container)).toContain('Hủy trận');
+    six.unmount();
+
+    // CONFIRMED, 5 h before the start: CALL_OWNER. The server would answer 409, so no button, and a hint.
+    const five = render(
+      <LobbyMatchCard
+        card={host({ bookingStatus: 'CONFIRMED', startAt, endAt })}
+        now={at('2026-11-02T11:00:00+07:00')}
+      />,
+    );
+    expect(buttons(five.container)).not.toContain('Hủy trận');
+    expect(five.container.textContent).toContain('Còn dưới 6 giờ');
+    expect(five.container.textContent).toContain('Lịch của tôi');
+    five.unmount();
+
+    // PENDING, 1 h before the start: ALLOW.
+    const pending = render(
+      <LobbyMatchCard
+        card={host({ bookingStatus: 'PENDING', startAt, endAt })}
+        now={at('2026-11-02T15:00:00+07:00')}
+      />,
+    );
+    expect(buttons(pending.container)).toContain('Hủy trận');
+  });
+
   it('AC-1: FULL, joined, and host cards have no join button and show their labels', () => {
     const full = render(<LobbyMatchCard card={make({ match: { status: 'FULL' }, joined: true })} />);
     const fullButtons = [...full.container.querySelectorAll('button')].map((b) => b.textContent);
@@ -51,7 +90,12 @@ describe('LobbyMatchCard', () => {
     expect(full.container.textContent).toContain('Đầy');
     expect(full.container.textContent).toContain('Bạn đã vào');
     cleanup();
-    const host = render(<LobbyMatchCard card={make({ joined: true, isHost: true })} />);
+    const host = render(
+      <LobbyMatchCard
+        card={make({ joined: true, isHost: true })}
+        now={new Date('2026-11-02T10:00:00+07:00')}
+      />,
+    );
     const hostButtons = [...host.container.querySelectorAll('button')].map((b) => b.textContent);
     expect(hostButtons).not.toContain('Vào trận');
     expect(hostButtons).not.toContain('Rời trận');
