@@ -104,7 +104,7 @@ Việc chờ bạn:
 3. ⬜ **Chạy verify-flow trên live** với các biến `VERIFY_*`.
 4. ⬜ **Trả lời mục 6 của intake:** đăng ký bằng số điện thoại và mật khẩu có cần OTP không.
 5. ⬜ **Trả lời mục 5 của intake:** ví dụ nghiệm thu cho Google và Zalo, nhà cung cấp SMS và chi phí.
-6. ⬜ **Các quyết định mở** 1 đến 6, 8, 9 và tỉ lệ hết hạn (quyết định 10) trong `PROGRESS.md`.
+6. ⬜ **Các quyết định mở** 1 đến 6, 8, 9 và tỉ lệ hết hạn (quyết định 10) trong `HUMAN_DECISIONS.md`.
 7. ⬜ **Đề xuất, không bắt buộc:** thêm cột `lastLoginAt` để đếm người dùng theo lần đăng nhập. Agent chỉ làm khi bạn đồng ý.
 
 Việc agent làm tiếp:
