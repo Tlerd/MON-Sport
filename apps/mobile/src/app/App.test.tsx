@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
 import { ApiError } from '@monsport/client';
 import { ToiScreen } from '../features/auth/ToiScreen';
+import { NotificationsScreen } from '../features/notifications/NotificationsScreen';
 import { App } from './App';
 import * as sessionModule from './session';
 import { SessionProvider } from './session';
@@ -177,6 +178,52 @@ describe('App Shell', () => {
     expect(clientModule.api).toHaveBeenCalledWith('/api/auth/me');
     // The owner tab fetches its list after the tabs render, so a slow run sees the call later.
     await waitFor(() => expect(clientModule.api).toHaveBeenCalledWith('/api/owner/bookings?status=PENDING'));
+  });
+
+  it('AC-1: the Thông báo screen reports its unreadCount 2 to the tab badge, with one GET /api/notifications', async () => {
+    const mk = (n: number, readAt: string | null) => ({
+      id: `00000000-0000-4000-8000-00000000000${n}`,
+      type: 'BOOKING_CONFIRMED',
+      bookingId: `00000000-0000-4000-8000-00000000001${n}`,
+      matchId: null,
+      readAt,
+      createdAt: '2026-11-03T01:00:00.000Z',
+      title: `Tiêu đề ${n}`,
+      message: `Nội dung ${n}`,
+      venueName: 'Đơn vị',
+      courtName: 'Sân',
+      startAt: '2026-11-03T00:00:00.000Z',
+      endAt: '2026-11-03T01:00:00.000Z',
+    });
+    vi.mocked(clientModule.api).mockResolvedValue({
+      unreadCount: 2,
+      items: [mk(1, null), mk(2, null), mk(3, '2026-11-03T02:00:00.000Z')],
+    });
+    vi.spyOn(sessionModule, 'useSession').mockReturnValue({
+      user: { id: 'u1', name: 'An', role: 'USER' },
+      setUser: vi.fn(),
+      login: vi.fn(),
+      logout: vi.fn(),
+      refresh: vi.fn(),
+      loading: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/thong-bao']}>
+        <Routes>
+          <Route path="/" element={<App />}>
+            <Route path="thong-bao" element={<NotificationsScreen />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Tiêu đề 1');
+    const nav = screen.getByRole('navigation', { name: 'Điều hướng' });
+    const tab = within(nav).getByRole('button', { name: 'Thông báo' });
+    await waitFor(() => expect(within(tab).getByText('2')).toBeDefined());
+    const gets = vi.mocked(clientModule.api).mock.calls.filter((c) => c[0] === '/api/notifications');
+    expect(gets).toHaveLength(1);
   });
 
   it('fix-1 owner on / ends on /chu-san/yeu-cau', async () => {
