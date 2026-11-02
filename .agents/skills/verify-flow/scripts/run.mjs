@@ -5,6 +5,7 @@
 import { spawnSync } from 'node:child_process';
 import mobileBook from './mobile-book.mjs';
 import mobileHistory from './mobile-history.mjs';
+import mobileLobby from './mobile-lobby.mjs';
 import mobileShell from './mobile-shell.mjs';
 import ownerDecide from './owner-decide.mjs';
 import phoneBooking from './phone-booking.mjs';
@@ -12,7 +13,12 @@ import playerRequest from './player-request.mjs';
 import { parseOptions, ROOT, Run } from './lib.mjs';
 
 const WEB_FLOWS = { 'player-request': playerRequest, 'owner-decide': ownerDecide, 'phone-booking': phoneBooking };
-const MOBILE_FLOWS = { 'mobile-shell': mobileShell, 'mobile-book': mobileBook, 'mobile-history': mobileHistory };
+const MOBILE_FLOWS = {
+  'mobile-shell': mobileShell,
+  'mobile-book': mobileBook,
+  'mobile-history': mobileHistory,
+  'mobile-lobby': mobileLobby,
+};
 const FLOWS = { ...WEB_FLOWS, ...MOBILE_FLOWS };
 
 let opts;
