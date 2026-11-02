@@ -19,14 +19,27 @@ vi.mock('./useLobbyStream.ts', () => ({
   },
 }));
 
-// A stub that logs in on a tap, so the test controls the moment of the login.
+// A stub that logs in or closes on a tap, so the test controls the moment of the action.
 vi.mock('../auth/LoginSheet.tsx', () => ({
-  LoginSheet: ({ open, notice, onLoggedIn }: { open: boolean; notice?: string; onLoggedIn?: () => void }) =>
+  LoginSheet: ({
+    open,
+    notice,
+    onClose,
+    onLoggedIn,
+  }: {
+    open: boolean;
+    notice?: string;
+    onClose: () => void;
+    onLoggedIn?: () => void;
+  }) =>
     open ? (
       <div role="dialog">
         <p>{notice ?? 'Đăng nhập'}</p>
         <button type="button" onClick={() => onLoggedIn?.()}>
           Đăng nhập xong
+        </button>
+        <button type="button" onClick={() => onClose()}>
+          Đóng
         </button>
       </div>
     ) : null,
@@ -135,5 +148,40 @@ describe('LobbyScreen session expiry', () => {
     await act(async () => streamOnChange!());
     await waitFor(() => expect(joinedCalls().length).toBeGreaterThan(closeCalls));
     expect(screen.getAllByText(NOTICE)).toHaveLength(1);
+  });
+
+  it('AC-3: closing the session-expiry sheet without a login clears expiredShown so the next 401 reopens it', async () => {
+    api().mockImplementation(async (path: string) => {
+      if (path.startsWith('/api/matches/joined')) throw new ApiError(401, 'expired');
+      return [match];
+    });
+    setup({ id: USER_ID, name: 'A', role: 'USER' } as User);
+    expect(await screen.findByText(NOTICE)).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+    expect(screen.queryByText(NOTICE)).toBeNull();
+
+    await act(async () => streamOnChange!());
+    expect(await screen.findByText(NOTICE)).toBeDefined();
+  });
+
+  it('AC-3: logging in as a different account from the session-expiry sheet fetches only once', async () => {
+    let expired = true;
+    api().mockImplementation(async (path: string) => {
+      if (path.startsWith('/api/matches/joined')) {
+        if (expired) throw new ApiError(401, 'expired');
+        return [];
+      }
+      return [match];
+    });
+    const view = setup({ id: USER_ID, name: 'A', role: 'USER' } as User);
+    expect(await screen.findByText(NOTICE)).toBeDefined();
+
+    expired = false;
+    const joinedBefore = joinedCalls().length;
+    view.switchTo({ id: '00000000-0000-4000-8000-0000000000b9', name: 'B', role: 'USER' } as User);
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập xong' }));
+    await waitFor(() => expect(joinedCalls()).toHaveLength(joinedBefore + 1));
+    expect(joinedCalls()).toHaveLength(joinedBefore + 1);
   });
 });

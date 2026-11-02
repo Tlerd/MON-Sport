@@ -45,12 +45,17 @@ describe('LobbyMatchCard', () => {
 
   it('AC-1: FULL, joined, and host cards have no join button and show their labels', () => {
     const full = render(<LobbyMatchCard card={make({ match: { status: 'FULL' }, joined: true })} />);
-    expect(full.container.querySelector('button')).toBeNull();
+    const fullButtons = [...full.container.querySelectorAll('button')].map((b) => b.textContent);
+    expect(fullButtons).not.toContain('Vào trận');
+    expect(fullButtons).toEqual(['Rời trận', 'Chi tiết']);
     expect(full.container.textContent).toContain('Đầy');
     expect(full.container.textContent).toContain('Bạn đã vào');
     cleanup();
     const host = render(<LobbyMatchCard card={make({ joined: true, isHost: true })} />);
-    expect(host.container.querySelector('button')).toBeNull();
+    const hostButtons = [...host.container.querySelectorAll('button')].map((b) => b.textContent);
+    expect(hostButtons).not.toContain('Vào trận');
+    expect(hostButtons).not.toContain('Rời trận');
+    expect(hostButtons).toEqual(['Hủy trận', 'Chi tiết']);
     expect(host.container.textContent).toContain('Bạn là host');
     expect(host.container.textContent).not.toContain('Bạn đã vào');
   });
