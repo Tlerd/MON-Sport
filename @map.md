@@ -115,6 +115,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/mobile/src/features/bookings/
 - BookingSheet.tsx: BookingSheetProps, BookingSheet
 
+## apps/mobile/src/features/lobby/
+- LobbyMatchCard.tsx: LobbyMatchCardProps, CALL_OWNER_TO_CANCEL_HINT, LobbyMatchCard
+- LobbyScreen.tsx: LobbyScreenProps, LobbyScreen
+- useLobbyStream.ts: useLobbyStream
+
 ## apps/mobile/src/features/my/
 - BookingCard.tsx: BookingCardProps, BookingCard
 - MatchCard.tsx: MatchCardProps, MatchCard
@@ -209,6 +214,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - booking.ts: DURATIONS, slotAt, dayChipLabel, dayHeading, priceRangeK, startableMinutes, …
 - format.ts: formatVnd, formatTime, formatDay, formatSlot, HALF_HOURS, hhmm
 - index.ts
+- lobby.ts: LobbyFilter, LobbyCard, lobbyMatches, lobbyChips, matchesForDay
 - my-bookings.ts: sortUpcoming, sortHistory, splitMine, joinedByOthers
 - push.ts: PushPermissionError, pushSupported, getPublicKey, urlBase64ToUint8Array, isPushOn, enablePush, …
 
