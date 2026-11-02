@@ -125,6 +125,10 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - MatchCard.tsx: MatchCardProps, MatchCard
 - MyScreen.tsx: MyScreenProps, MyScreen
 
+## apps/mobile/src/features/notifications/
+- NotificationCard.tsx: NotificationCardProps, NotificationCard
+- NotificationsScreen.tsx: NotificationsScreen
+
 ## apps/mobile/src/features/venues/
 - VenueListScreen.tsx: VenueListScreen
 - VenueScreen.tsx: VenueScreenProps, VenueScreen

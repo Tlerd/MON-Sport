@@ -11,6 +11,8 @@ export interface ShellContextType {
   setOnBack: (onBack: (() => void) | undefined) => void;
   setTopBarActions: (actions: ReactNode) => void;
   unreadNotifications: number;
+  // Optional: a test outside this feature builds a shell context without it.
+  setUnreadNotifications?: (count: number) => void;
   pendingRequests: number;
   refreshCounts: () => void;
 }
@@ -124,6 +126,7 @@ export function App() {
               setOnBack,
               setTopBarActions,
               unreadNotifications,
+              setUnreadNotifications,
               pendingRequests,
               refreshCounts,
             }}
