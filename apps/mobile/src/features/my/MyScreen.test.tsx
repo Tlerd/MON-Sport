@@ -554,8 +554,14 @@ describe('MyScreen', () => {
     // T2 shows "4/10 suất" and "Đã xác nhận"
     expect(articles[0].textContent).toContain('4/10 suất');
     expect(articles[0].textContent).toContain('Đã xác nhận');
+    expect(articles[0].textContent).toContain('Host T2 Minh');
+    expect(articles[0].textContent).toContain('Sân T2 Cầu Lông');
+    expect(articles[0].textContent).toContain('20:00–21:00');
 
     // T3 shows "10/10 suất", "Đầy", and "Chưa xác nhận"
+    expect(articles[1].textContent).toContain('Host T3 Hùng');
+    expect(articles[1].textContent).toContain('Sân T3 Bóng Đá');
+    expect(articles[1].textContent).toContain('18:00–19:00');
     expect(articles[1].textContent).toContain('10/10 suất');
     expect(articles[1].textContent).toContain('Đầy');
     expect(articles[1].textContent).toContain('Chưa xác nhận');
@@ -693,5 +699,274 @@ describe('MyScreen', () => {
     // User A's data must NOT overwrite or appear
     expect(screen.queryByText('Sân của User A')).toBeNull();
     expect(screen.getByText('Sân của User B')).toBeDefined();
+  });
+});
+
+const CANCEL_USER = { id: '00000000-0000-4000-8000-000000000001', name: 'User 1', role: 'USER' as const };
+const CANCEL_NOW = new Date('2026-11-02T10:00:00+07:00');
+
+function makeBooking(overrides: Partial<MyBookingView> & { id: string }): MyBookingView {
+  return {
+    courtId: '00000000-0000-4000-8000-000000000002',
+    courtName: 'Sân 1',
+    venueName: 'Cầu lông An Phú',
+    venuePhone: '0912345678',
+    sport: 'BADMINTON',
+    startAt: '2026-11-02T13:00:00+07:00',
+    endAt: '2026-11-02T14:00:00+07:00',
+    status: 'PENDING',
+    source: 'APP',
+    priceTotal: 120000,
+    confirmDeadline: null,
+    confirmedAt: null,
+    cancelledAt: null,
+    createdAt: '2026-11-02T08:00:00+07:00',
+    match: null,
+    ...overrides,
+  };
+}
+
+function mockLists(bookings: () => MyBookingView[]) {
+  vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
+    if (path === '/api/bookings/mine') return bookings();
+    if (path === '/api/matches/joined') return [];
+    return {};
+  });
+}
+
+describe('MyScreen cancel', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('AC-7: a PENDING booking 3 hours ahead: "Hủy" opens the sheet "Hủy booking này?" with court, time and price; confirm sends POST /api/bookings/:id/cancel; the card moves to Lịch sử as "Đã hủy"', async () => {
+    const id = '00000000-0000-4000-8000-0000000000a1';
+    let cancelled = false;
+    const row = () =>
+      makeBooking({
+        id,
+        courtName: 'Sân Hủy',
+        startAt: '2026-11-02T13:00:00+07:00',
+        endAt: '2026-11-02T14:00:00+07:00',
+        status: cancelled ? 'CANCELLED' : 'PENDING',
+        cancelledAt: cancelled ? '2026-11-02T10:00:00+07:00' : null,
+      });
+    vi.mocked(clientModule.api).mockImplementation(async (path: string, init?: unknown) => {
+      if (path === '/api/bookings/mine') return [row()];
+      if (path === '/api/matches/joined') return [];
+      if (path === `/api/bookings/${id}/cancel`) {
+        expect((init as { method?: string }).method).toBe('POST');
+        cancelled = true;
+        return row();
+      }
+      return {};
+    });
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Hủy' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Hủy booking này?' });
+    expect(dialog.textContent).toContain('Sân Hủy');
+    expect(dialog.textContent).toContain('13:00–14:00');
+    expect(dialog.textContent).toContain('120.000đ');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy booking' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(clientModule.api).toHaveBeenCalledWith(`/api/bookings/${id}/cancel`, { method: 'POST' });
+    expect(await screen.findByText('Chưa có booking sắp tới')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lịch sử' }));
+    expect(await screen.findByText('Sân Hủy')).toBeDefined();
+    expect(screen.getByText('Đã hủy')).toBeDefined();
+  });
+
+  it('AC-8: at 10:00 a CONFIRMED booking at 17:00 (7 h) and one at 16:00 (exactly 6 h) show "Hủy"; the one at 15:00 (5 h) shows no "Hủy" and a "Gọi chủ sân để hủy" link to the venue tel:', async () => {
+    const at = (h: number, n: string) =>
+      makeBooking({
+        id: `00000000-0000-4000-8000-0000000000b${n}`,
+        courtName: `Sân ${h}h`,
+        status: 'CONFIRMED',
+        startAt: `2026-11-02T${h}:00:00+07:00`,
+        endAt: `2026-11-02T${h + 1}:00:00+07:00`,
+      });
+    const rows = [at(17, '1'), at(16, '2'), at(15, '3')];
+    mockLists(() => rows);
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+    await screen.findByText('Sân 17h');
+
+    const card = (court: string) => screen.getByText(court).closest('article') as HTMLElement;
+    for (const court of ['Sân 17h', 'Sân 16h']) {
+      const el = card(court);
+      expect(Array.from(el.querySelectorAll('button')).map((b) => b.textContent)).toContain('Hủy');
+      expect(el.querySelector('a[href^="tel:"]')).toBeNull();
+    }
+    const late = card('Sân 15h');
+    expect(Array.from(late.querySelectorAll('button')).map((b) => b.textContent)).not.toContain('Hủy');
+    const link = late.querySelector('a') as HTMLAnchorElement;
+    expect(link.textContent).toBe('Gọi chủ sân để hủy');
+    expect(link.getAttribute('href')).toBe('tel:0912345678');
+  });
+
+  it('AC-9: a 409 keeps the sheet open, shows the API message, and reloads the list', async () => {
+    const id = '00000000-0000-4000-8000-0000000000c1';
+    mockLists(() => [makeBooking({ id })]);
+    const base = vi.mocked(clientModule.api).getMockImplementation()!;
+    vi.mocked(clientModule.api).mockImplementation(async (path: string, init?: unknown) => {
+      if (path === `/api/bookings/${id}/cancel`) throw new ApiError(409, 'Booking này không hủy được nữa');
+      return base(path, init as never);
+    });
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+    fireEvent.click(await screen.findByRole('button', { name: 'Hủy' }));
+    await screen.findByRole('dialog', { name: 'Hủy booking này?' });
+    const before = vi
+      .mocked(clientModule.api)
+      .mock.calls.filter(([p]) => p === '/api/bookings/mine').length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy booking' }));
+
+    expect(await screen.findByText('Booking này không hủy được nữa')).toBeDefined();
+    expect(screen.getByRole('dialog', { name: 'Hủy booking này?' })).toBeDefined();
+    await waitFor(() => {
+      const after = vi
+        .mocked(clientModule.api)
+        .mock.calls.filter(([p]) => p === '/api/bookings/mine').length;
+      expect(after).toBe(before + 1);
+    });
+  });
+
+  it('AC-9: a 401 closes the sheet and opens the login sheet with "Phiên đăng nhập đã hết. Hãy đăng nhập lại."', async () => {
+    const id = '00000000-0000-4000-8000-0000000000c2';
+    mockLists(() => [makeBooking({ id })]);
+    const base = vi.mocked(clientModule.api).getMockImplementation()!;
+    vi.mocked(clientModule.api).mockImplementation(async (path: string, init?: unknown) => {
+      if (path === `/api/bookings/${id}/cancel`) throw new ApiError(401, 'Chưa đăng nhập');
+      return base(path, init as never);
+    });
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+    fireEvent.click(await screen.findByRole('button', { name: 'Hủy' }));
+    await screen.findByRole('dialog', { name: 'Hủy booking này?' });
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy booking' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Đăng nhập' })).toBeDefined();
+    expect(screen.queryByRole('dialog', { name: 'Hủy booking này?' })).toBeNull();
+    expect(screen.getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.')).toBeDefined();
+  });
+
+  it('AC-9: the confirm button is disabled while the request runs', async () => {
+    const id = '00000000-0000-4000-8000-0000000000c3';
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mockLists(() => [makeBooking({ id })]);
+    const base = vi.mocked(clientModule.api).getMockImplementation()!;
+    vi.mocked(clientModule.api).mockImplementation(async (path: string, init?: unknown) => {
+      if (path === `/api/bookings/${id}/cancel`) {
+        await gate;
+        return {};
+      }
+      return base(path, init as never);
+    });
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+    fireEvent.click(await screen.findByRole('button', { name: 'Hủy' }));
+    await screen.findByRole('dialog', { name: 'Hủy booking này?' });
+    const confirm = screen.getByRole('button', { name: 'Hủy booking' }) as HTMLButtonElement;
+    fireEvent.click(confirm);
+    await waitFor(() => expect(confirm.disabled).toBe(true));
+    release();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('AC-15: a PENDING booking 3 hours ahead with an OPEN match shows the note and no "Hủy"; the same with a FULL match also has no "Hủy"', async () => {
+    const note = 'Booking có trận. Hủy trận trên web hoặc ở tab Phòng chờ khi có.';
+    const match = (status: 'OPEN' | 'FULL' | 'CANCELLED') => ({
+      id: '00000000-0000-4000-8000-0000000000d0',
+      status,
+      joinedCount: 3,
+      capacity: 10,
+      pricePerSlot: 40000,
+    });
+    for (const status of ['OPEN', 'FULL'] as const) {
+      mockLists(() => [makeBooking({ id: '00000000-0000-4000-8000-0000000000d1', match: match(status) })]);
+      renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+      expect(await screen.findByText(note)).toBeDefined();
+      expect(screen.queryByRole('button', { name: 'Hủy' })).toBeNull();
+      expect(document.querySelector('a[href^="tel:"]')).toBeNull();
+      cleanup();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('AC-15: a CONFIRMED booking 5 hours ahead with an OPEN match shows "Gọi chủ sân để hủy" and no "Hủy"', async () => {
+    mockLists(() => [
+      makeBooking({
+        id: '00000000-0000-4000-8000-0000000000d2',
+        status: 'CONFIRMED',
+        startAt: '2026-11-02T15:00:00+07:00',
+        endAt: '2026-11-02T16:00:00+07:00',
+        match: { id: '00000000-0000-4000-8000-0000000000d0', status: 'OPEN', joinedCount: 3, capacity: 10, pricePerSlot: 40000 },
+      }),
+    ]);
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+    const link = (await screen.findByText('Gọi chủ sân để hủy')) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('tel:0912345678');
+    expect(screen.queryByRole('button', { name: 'Hủy' })).toBeNull();
+  });
+
+  it('AC-15: a booking with match null or a CANCELLED match still has "Hủy" (BR-17)', async () => {
+    mockLists(() => [
+      makeBooking({ id: '00000000-0000-4000-8000-0000000000d3', courtName: 'Sân không trận', match: null }),
+      makeBooking({
+        id: '00000000-0000-4000-8000-0000000000d4',
+        courtName: 'Sân trận hủy',
+        startAt: '2026-11-02T14:00:00+07:00',
+        endAt: '2026-11-02T15:00:00+07:00',
+        match: { id: '00000000-0000-4000-8000-0000000000d0', status: 'CANCELLED', joinedCount: 3, capacity: 10, pricePerSlot: 40000 },
+      }),
+    ]);
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+    await screen.findByText('Sân không trận');
+    expect(screen.getAllByRole('button', { name: 'Hủy' }).length).toBe(2);
+  });
+
+  it('fix-race: a response for the old user is dropped after logout', async () => {
+    let resolveA!: (value: MyBookingView[]) => void;
+    const pending = new Promise<MyBookingView[]>((resolve) => {
+      resolveA = resolve;
+    });
+    vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
+      if (path === '/api/bookings/mine') return pending;
+      return [];
+    });
+    let current: sessionModule.SessionContextType['user'] = { id: 'user-a', name: 'A', role: 'USER' };
+    vi.spyOn(sessionModule, 'useSession').mockImplementation(() => ({
+      user: current,
+      setUser: vi.fn(),
+      login: vi.fn(),
+      logout: vi.fn(),
+      refresh: vi.fn(),
+      loading: false,
+    }));
+    // A new element each call: React skips a re-render for the same element object.
+    const makeTree = () => (
+      <MemoryRouter initialEntries={['/lich-cua-toi']}>
+        <Routes>
+          <Route path="/lich-cua-toi" element={<MyScreen now={CANCEL_NOW} />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const { rerender } = render(makeTree());
+    current = null;
+    rerender(makeTree());
+    expect(await screen.findByText('Đăng nhập để xem lịch của bạn')).toBeDefined();
+    resolveA([makeBooking({ id: '00000000-0000-4000-8000-0000000000e1', courtName: 'Sân của A' })]);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(screen.queryByText('Sân của A')).toBeNull();
   });
 });
