@@ -1,6 +1,6 @@
 # Rule review rubric
 
-The classifier, the verifiers, and the skeptic of `rule-review.workflow.js` read this file.
+The classifier, the verifiers, and the skeptic of `scripts/rule-review.workflow.js` read this file.
 
 ## Rule catalogue
 

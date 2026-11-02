@@ -71,7 +71,7 @@ One pull request for each row. Each pull request passes the check command on its
 | 1 | Hàm thuần của app: `splitMine`, hai hàm sắp xếp, `joinedByOthers` | `packages/client/src/my-bookings.ts`, `packages/client/src/my-bookings.test.ts`, `packages/client/src/index.ts` | AC-3, AC-4, phần lọc và sắp xếp của AC-10 |
 | 2 | Màn Lịch của tôi, chip Sắp tới và Lịch sử: thẻ booking, trạng thái rỗng, khách, chủ sân, tải lại | `apps/mobile/src/features/my/`, `apps/mobile/src/app/router.tsx` | AC-1, AC-2, AC-5, AC-6, AC-11, AC-12 |
 | 3 | Chip Trận đã vào: thẻ trận | `apps/mobile/src/features/my/` | AC-10 (phần màn hình) |
-| 4 | Hủy booking và luồng `verify-flow` | `apps/mobile/src/features/my/`, `.agents/skills/verify-flow/flows/mobile-history.md`, `.agents/skills/verify-flow/scripts/mobile-history.mjs`, `.agents/skills/verify-flow/scripts/run.mjs`, `PROGRESS.md` | AC-7, AC-8, AC-9, AC-13, AC-14, AC-15 |
+| 4 | Hủy booking và luồng `verify-flow` | `apps/mobile/src/features/my/`, `.agents/skills/verify-flow/references/flows/mobile-history.md`, `.agents/skills/verify-flow/scripts/mobile-history.mjs`, `.agents/skills/verify-flow/scripts/run.mjs`, `PROGRESS.md` | AC-7, AC-8, AC-9, AC-13, AC-14, AC-15 |
 
 Các bước 2, 3 và 4 dùng chung `apps/mobile/src/features/my/` và chạy lần lượt, không song song.
 
