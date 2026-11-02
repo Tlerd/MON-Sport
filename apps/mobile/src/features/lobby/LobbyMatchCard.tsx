@@ -5,6 +5,8 @@ import { SPORT_LABEL, SportIcon } from '../../components/SportIcon.tsx';
 export interface LobbyMatchCardProps {
   card: LobbyCard;
   onJoin?: (match: MatchView) => void;
+  /** A tap on the card body. */
+  onOpen?: (match: MatchView) => void;
 }
 
 const badgeStyle = {
@@ -16,7 +18,7 @@ const badgeStyle = {
   font: 'var(--font-label)',
 } as const;
 
-export function LobbyMatchCard({ card, onJoin }: LobbyMatchCardProps) {
+export function LobbyMatchCard({ card, onJoin, onOpen }: LobbyMatchCardProps) {
   const { match, joined, isHost } = card;
   const startDate = new Date(match.startAt);
   const endDate = new Date(match.endAt);
@@ -29,6 +31,7 @@ export function LobbyMatchCard({ card, onJoin }: LobbyMatchCardProps) {
   return (
     <article
       data-match-id={match.id}
+      onClick={() => onOpen?.(match)}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -142,7 +145,10 @@ export function LobbyMatchCard({ card, onJoin }: LobbyMatchCardProps) {
       {canJoin && (
         <button
           type="button"
-          onClick={() => onJoin?.(match)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onJoin?.(match);
+          }}
           style={{
             alignSelf: 'flex-start',
             minHeight: '44px',

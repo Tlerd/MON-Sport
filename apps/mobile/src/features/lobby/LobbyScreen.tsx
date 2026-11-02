@@ -38,6 +38,13 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const reqCounter = useRef(0);
   const inFlight = useRef(false);
   const pending = useRef(false);
+  // The login sheet opens once for each expiry, not on every SSE reload that gets a 401.
+  const expiredShown = useRef(false);
+  const [loginTick, setLoginTick] = useState(0);
+  const roleRef = useRef(role);
+  useLayoutEffect(() => {
+    roleRef.current = role;
+  });
 
   const fetchAll = useCallback(() => {
     const reqId = ++reqCounter.current;
@@ -77,7 +84,10 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         setJoinedRows([]);
         if (j.error instanceof ApiError && j.error.status === 401) {
           setJoinedFailed(false);
-          setSessionLoginOpen(true);
+          if (!expiredShown.current) {
+            expiredShown.current = true;
+            setSessionLoginOpen(true);
+          }
         } else {
           setJoinedFailed(true);
         }
@@ -101,6 +111,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   }, []);
 
   const retryJoined = useCallback(() => {
+    if (roleRef.current !== 'USER') return;
     const reqId = reqCounter.current;
     setJoinedFailed(false);
     api<MatchView[]>('/api/matches/joined').then(
@@ -110,8 +121,12 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
       },
       (error: unknown) => {
         if (reqId !== reqCounter.current) return;
-        if (error instanceof ApiError && error.status === 401) setSessionLoginOpen(true);
-        else setJoinedFailed(true);
+        if (error instanceof ApiError && error.status === 401) {
+          if (!expiredShown.current) {
+            expiredShown.current = true;
+            setSessionLoginOpen(true);
+          }
+        } else setJoinedFailed(true);
       },
     );
   }, []);
@@ -120,6 +135,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
     reqCounter.current++;
     inFlight.current = false;
     pending.current = false;
+    expiredShown.current = false;
     setRows(undefined);
     setJoinedRows([]);
     setJoinedFailed(false);
@@ -130,7 +146,20 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
     fetchAll();
   }, [userId, user === undefined, fetchAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // After a login from the expiry sheet: reload in an effect, so the request sees the role of the new session.
+  useEffect(() => {
+    if (loginTick === 0) return;
+    expiredShown.current = false;
+    fetchRef.current();
+  }, [loginTick]);
+
   useLobbyStream(reload, user !== undefined);
+
+  // Step 3 adds the detail sheet for a USER. OWNER and ADMIN never call the API from a card (AC-15).
+  const handleOpen = (match: MatchView) => {
+    void match;
+    if (role === 'OWNER' || role === 'ADMIN') setPlayerSheetOpen(true);
+  };
 
   const handleJoin = (match: MatchView) => {
     void match;
@@ -186,7 +215,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
           <EmptyState message="Đang tải" />
         ) : (
           <>
-            {joinedFailed && (
+            {joinedFailed && isPlayer && (
               <div
                 style={{
                   display: 'flex',
@@ -235,7 +264,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
               >
                 {cards.map((card) => (
                   <li key={card.match.id} style={{ minWidth: 0 }}>
-                    <LobbyMatchCard card={card} onJoin={handleJoin} />
+                    <LobbyMatchCard card={card} onJoin={handleJoin} onOpen={handleOpen} />
                   </li>
                 ))}
               </ul>
@@ -248,7 +277,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
       <LoginSheet
         open={sessionLoginOpen}
         onClose={() => setSessionLoginOpen(false)}
-        onLoggedIn={fetchAll}
+        onLoggedIn={() => setLoginTick((t) => t + 1)}
         notice="Phiên đăng nhập đã hết. Hãy đăng nhập lại."
       />
       <Sheet
