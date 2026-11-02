@@ -83,6 +83,11 @@ const steps = [
 
 const failures = [];
 
+{
+  const { ok, output } = run('node scripts/gen-map.mjs --check');
+  if (!ok) failures.push(output.trim());
+}
+
 // Every session reads these files, so they stay short.
 for (const [file, limit] of [['AGENTS.md', 100], ['PROGRESS.md', 40]]) {
   if (!existsSync(join(root, file))) continue;

@@ -9,6 +9,8 @@ Web app to book sports courts and join matches. Venue owners confirm bookings by
 - `pnpm dev:api` and `pnpm dev:web`: start the API on port 3000 and the web app, which sends `/api` to the API.
 - `pnpm db:start`: starts the local Postgres on port 55432, and creates it on the first run. Copy `apps/api/.env.example` to `apps/api/.env`. The API tests need this database.
 
+`pnpm map`: rewrites `@map.md`, the list of code files by folder with their exported names. Read it to find a file, then read only that file. `pnpm check` fails when it is stale. A step may always commit `@map.md`. After a merge, if `main` is stale, open `chore/map-refresh` with `pnpm map`.
+
 Work is done when `pnpm check` passes. The git hook and CI run the same command. When a command hangs or fails in a way you met before, read `docs/known-issues.md` first.
 
 ## Layout

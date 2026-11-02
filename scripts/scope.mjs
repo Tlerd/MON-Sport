@@ -74,7 +74,8 @@ if (import.meta.main) {
     return shown.status === 0 ? shown.stdout : '';
   };
   const allowed = allowedPaths(process.env.PR_BODY ?? '', readBase);
-  const outside = outOfScope(files, allowed);
+  // `pnpm check` keeps @map.md in step with the code, so every step may commit it.
+  const outside = outOfScope(files, [...allowed, '@map.md']);
   if (files.length && !allowed.length) {
     console.error('FAIL scope: the pull request description lists no allowed path\nFix: list the paths under "## Allowed paths", one backticked path or prefix per line.');
     process.exit(1);
