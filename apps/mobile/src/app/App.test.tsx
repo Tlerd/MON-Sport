@@ -226,6 +226,134 @@ describe('App Shell', () => {
     expect(gets).toHaveLength(1);
   });
 
+  describe('AC-9 shell unread count', () => {
+    const asUser = (role: 'USER' | 'OWNER' | 'ADMIN' | null) =>
+      vi.spyOn(sessionModule, 'useSession').mockReturnValue({
+        user: role ? { id: 'u1', name: 'An', role } : null,
+        setUser: vi.fn(),
+        login: vi.fn(),
+        logout: vi.fn(),
+        refresh: vi.fn(),
+        loading: false,
+      });
+    const getsOf = () => vi.mocked(clientModule.api).mock.calls.filter((c) => c[0] === '/api/notifications');
+    const setVisibility = (state: 'visible' | 'hidden') => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    const badgeOf = () =>
+      within(within(screen.getByRole('navigation', { name: 'Điều hướng' })).getByRole('button', { name: 'Thông báo' }));
+    const renderApp = (path: string) =>
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/" element={<App />}>
+              <Route index element={<p>Trang đặt sân</p>} />
+              <Route path="thong-bao" element={<p>Màn thông báo</p>} />
+              <Route path="toi" element={<p>Màn tôi</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+
+    afterEach(() => {
+      vi.useRealTimers();
+      setVisibility('visible');
+    });
+
+    it('AC-9: a USER on the Đặt sân tab sees badge 2 from unreadCount without opening Thông báo', async () => {
+      vi.mocked(clientModule.api).mockResolvedValue({ unreadCount: 2, items: [] });
+      asUser('USER');
+      renderApp('/');
+      await waitFor(() => expect(badgeOf().getByText('2')).toBeDefined());
+      expect(getsOf()).toHaveLength(1);
+    });
+
+    it('AC-9: a new unread item shows after 15 s, and a failed fetch keeps the old count', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      const mock = vi.mocked(clientModule.api);
+      mock.mockResolvedValue({ unreadCount: 0, items: [] });
+      asUser('USER');
+      renderApp('/');
+      await waitFor(() => expect(getsOf()).toHaveLength(1));
+
+      mock.mockResolvedValue({ unreadCount: 3, items: [] });
+      await vi.advanceTimersByTimeAsync(15_000);
+      await waitFor(() => expect(badgeOf().getByText('3')).toBeDefined());
+      expect(getsOf()).toHaveLength(2);
+
+      mock.mockRejectedValue(new ApiError(500, 'Lỗi'));
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(getsOf()).toHaveLength(3);
+      expect(badgeOf().getByText('3')).toBeDefined();
+    });
+
+    it('AC-9: guest and ADMIN do not call GET /api/notifications and see no badge', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      vi.mocked(clientModule.api).mockResolvedValue({ unreadCount: 5, items: [] });
+
+      asUser(null);
+      renderApp('/');
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(getsOf()).toHaveLength(0);
+      expect(badgeOf().queryByText('5')).toBeNull();
+      cleanup();
+
+      asUser('ADMIN');
+      renderApp('/');
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(getsOf()).toHaveLength(0);
+    });
+
+    it('AC-9: a hidden tab stops the fetch, and a visible tab fetches at once', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      vi.mocked(clientModule.api).mockResolvedValue({ unreadCount: 1, items: [] });
+      asUser('USER');
+      renderApp('/');
+      await waitFor(() => expect(getsOf()).toHaveLength(1));
+
+      setVisibility('hidden');
+      await vi.advanceTimersByTimeAsync(45_000);
+      expect(getsOf()).toHaveLength(1);
+
+      setVisibility('visible');
+      await waitFor(() => expect(getsOf()).toHaveLength(2));
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(getsOf()).toHaveLength(3);
+    });
+
+    it('AC-9: the shell pauses on /thong-bao and fetches once at once on leaving it', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      vi.mocked(clientModule.api).mockResolvedValue({ unreadCount: 4, items: [] });
+      asUser('USER');
+      renderApp('/thong-bao');
+      await vi.advanceTimersByTimeAsync(45_000);
+      expect(getsOf()).toHaveLength(0);
+
+      fireEvent.click(within(screen.getByRole('navigation', { name: 'Điều hướng' })).getByRole('button', { name: 'Tôi' }));
+      await waitFor(() => expect(getsOf()).toHaveLength(1));
+      await waitFor(() => expect(badgeOf().getByText('4')).toBeDefined());
+    });
+
+    it('AC-9: a stale reply is dropped after a newer request', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      const mock = vi.mocked(clientModule.api);
+      let releaseSlow: (v: unknown) => void = () => undefined;
+      mock.mockImplementationOnce(() => new Promise((resolve) => (releaseSlow = resolve)));
+      asUser('USER');
+      renderApp('/');
+      await waitFor(() => expect(getsOf()).toHaveLength(1));
+
+      mock.mockResolvedValue({ unreadCount: 7, items: [] });
+      await vi.advanceTimersByTimeAsync(15_000);
+      await waitFor(() => expect(badgeOf().getByText('7')).toBeDefined());
+
+      releaseSlow({ unreadCount: 1, items: [] });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(badgeOf().getByText('7')).toBeDefined();
+    });
+  });
+
   it('fix-1 owner on / ends on /chu-san/yeu-cau', async () => {
     vi.mocked(clientModule.api).mockResolvedValue([]);
     vi.spyOn(sessionModule, 'useSession').mockReturnValue({
