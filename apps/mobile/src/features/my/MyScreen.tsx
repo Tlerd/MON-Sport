@@ -1,6 +1,6 @@
-import { api, splitMine } from '@monsport/client';
-import type { MyBookingView } from '@monsport/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { api, joinedByOthers, splitMine } from '@monsport/client';
+import type { MatchView, MyBookingView } from '@monsport/shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../../app/session.tsx';
 import { Chip } from '../../components/Chip.tsx';
@@ -8,6 +8,7 @@ import { ContextBar } from '../../components/ContextBar.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { LoginSheet } from '../auth/LoginSheet.tsx';
 import { BookingCard } from './BookingCard.tsx';
+import { MatchCard } from './MatchCard.tsx';
 
 type Tab = 'UPCOMING' | 'JOINED' | 'HISTORY';
 
@@ -22,14 +23,30 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
 
   const [tab, setTab] = useState<Tab>('UPCOMING');
   const [bookings, setBookings] = useState<MyBookingView[] | undefined>(undefined);
+  const [matches, setMatches] = useState<MatchView[] | undefined>(undefined);
   const [failed, setFailed] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
 
+  const reqCounter = useRef(0);
+
   const load = useCallback(() => {
     setFailed(false);
-    api<MyBookingView[]>('/api/bookings/mine').then(
-      (data) => setBookings(data),
-      () => setFailed(true),
+    const reqId = ++reqCounter.current;
+    Promise.all([
+      api<MyBookingView[]>('/api/bookings/mine'),
+      api<MatchView[]>('/api/matches/joined'),
+    ]).then(
+      ([b, m]) => {
+        if (reqId === reqCounter.current) {
+          setBookings(b);
+          setMatches(m);
+        }
+      },
+      () => {
+        if (reqId === reqCounter.current) {
+          setFailed(true);
+        }
+      },
     );
   }, []);
 
@@ -40,10 +57,12 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
   }, [user?.role, navigate]);
 
   useEffect(() => {
+    setBookings(undefined);
+    setMatches(undefined);
     if (user && user.role !== 'OWNER') {
       load();
     }
-  }, [user, load]);
+  }, [user?.id, load]);
 
   useEffect(() => {
     if (!user || user.role === 'OWNER') return;
@@ -58,7 +77,7 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [user, load]);
+  }, [user?.id, load]);
 
   if (user === undefined) {
     return <EmptyState message="Đang tải" />;
@@ -82,6 +101,7 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
   }
 
   const split = bookings ? splitMine(bookings, now) : undefined;
+  const joinedMatches = matches ? joinedByOthers(matches, user.id, now) : undefined;
 
   return (
     <div style={{ minWidth: 0 }}>
@@ -100,7 +120,7 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
       <div style={{ paddingTop: '61px', minWidth: 0 }}>
         {failed ? (
           <EmptyState message="Không tải được" actionLabel="Thử lại" onAction={load} />
-        ) : !bookings || !split ? (
+        ) : !bookings || !matches || !split || !joinedMatches ? (
           <EmptyState message="Đang tải" />
         ) : tab === 'UPCOMING' ? (
           split.upcoming.length === 0 ? (
@@ -129,7 +149,27 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
             </ul>
           )
         ) : tab === 'JOINED' ? (
-          <EmptyState message="Bạn chưa vào trận nào" />
+          joinedMatches.length === 0 ? (
+            <EmptyState message="Bạn chưa vào trận nào" />
+          ) : (
+            <ul
+              style={{
+                listStyle: 'none',
+                margin: 0,
+                padding: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1px',
+                minWidth: 0,
+              }}
+            >
+              {joinedMatches.map((match) => (
+                <li key={match.id} style={{ minWidth: 0 }}>
+                  <MatchCard match={match} />
+                </li>
+              ))}
+            </ul>
+          )
         ) : split.history.length === 0 ? (
           <EmptyState message="Chưa có lịch sử" />
         ) : (
