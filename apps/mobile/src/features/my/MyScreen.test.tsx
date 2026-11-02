@@ -970,3 +970,325 @@ describe('MyScreen cancel', () => {
     expect(screen.queryByText('Sân của A')).toBeNull();
   });
 });
+
+describe('MyScreen open match (F-022)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('AC-13: at 02/11/2026 10:00 UTC+7, only future PENDING or CONFIRMED bookings with match === null show "Mở trận" (minHeight 44px); bookings with OPEN, FULL, or CANCELLED matches, past startAt, or CANCELLED/REJECTED/EXPIRED status show no "Mở trận"', async () => {
+    const matchSummary = (status: 'OPEN' | 'FULL' | 'CANCELLED') => ({
+      id: `00000000-0000-4000-8000-00000000090${status === 'OPEN' ? '1' : status === 'FULL' ? '2' : '3'}`,
+      status,
+      joinedCount: status === 'FULL' ? 10 : 2,
+      capacity: 10,
+      pricePerSlot: 30000,
+    });
+
+    const bPendingNull = makeBooking({
+      id: '00000000-0000-4000-8000-000000000101',
+      courtName: 'Sân Pending Null',
+      status: 'PENDING',
+      startAt: '2026-11-02T13:00:00+07:00',
+      endAt: '2026-11-02T14:00:00+07:00',
+      match: null,
+    });
+    const bConfirmedNull = makeBooking({
+      id: '00000000-0000-4000-8000-000000000102',
+      courtName: 'Sân Confirmed Null',
+      status: 'CONFIRMED',
+      startAt: '2026-11-02T15:00:00+07:00',
+      endAt: '2026-11-02T16:00:00+07:00',
+      match: null,
+    });
+    const bMatchOpen = makeBooking({
+      id: '00000000-0000-4000-8000-000000000103',
+      courtName: 'Sân Match Open',
+      status: 'PENDING',
+      startAt: '2026-11-02T16:00:00+07:00',
+      endAt: '2026-11-02T17:00:00+07:00',
+      match: matchSummary('OPEN'),
+    });
+    const bMatchFull = makeBooking({
+      id: '00000000-0000-4000-8000-000000000104',
+      courtName: 'Sân Match Full',
+      status: 'CONFIRMED',
+      startAt: '2026-11-02T17:00:00+07:00',
+      endAt: '2026-11-02T18:00:00+07:00',
+      match: matchSummary('FULL'),
+    });
+    const bMatchCancelled = makeBooking({
+      id: '00000000-0000-4000-8000-000000000105',
+      courtName: 'Sân Match Cancelled',
+      status: 'CONFIRMED',
+      startAt: '2026-11-02T18:00:00+07:00',
+      endAt: '2026-11-02T19:00:00+07:00',
+      match: matchSummary('CANCELLED'),
+    });
+    const bPastPending = makeBooking({
+      id: '00000000-0000-4000-8000-000000000106',
+      courtName: 'Sân Past Pending',
+      status: 'PENDING',
+      startAt: '2026-11-02T08:00:00+07:00',
+      endAt: '2026-11-02T09:00:00+07:00',
+      match: null,
+    });
+    const bCancelled = makeBooking({
+      id: '00000000-0000-4000-8000-000000000107',
+      courtName: 'Sân Cancelled',
+      status: 'CANCELLED',
+      startAt: '2026-11-02T19:00:00+07:00',
+      endAt: '2026-11-02T20:00:00+07:00',
+      match: null,
+    });
+    const bRejected = makeBooking({
+      id: '00000000-0000-4000-8000-000000000108',
+      courtName: 'Sân Rejected',
+      status: 'REJECTED',
+      startAt: '2026-11-02T20:00:00+07:00',
+      endAt: '2026-11-02T21:00:00+07:00',
+      match: null,
+    });
+    const bExpired = makeBooking({
+      id: '00000000-0000-4000-8000-000000000109',
+      courtName: 'Sân Expired',
+      status: 'EXPIRED',
+      startAt: '2026-11-02T21:00:00+07:00',
+      endAt: '2026-11-02T22:00:00+07:00',
+      match: null,
+    });
+
+    mockLists(() => [
+      bPendingNull,
+      bConfirmedNull,
+      bMatchOpen,
+      bMatchFull,
+      bMatchCancelled,
+      bPastPending,
+      bCancelled,
+      bRejected,
+      bExpired,
+    ]);
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+    await screen.findByText('Sân Pending Null');
+
+    const byId = (id: string) => document.querySelector<HTMLElement>(`article[data-booking-id="${id}"]`)!;
+    const openBtn = (el: HTMLElement) =>
+      Array.from(el.querySelectorAll('button')).find((b) => b.textContent === 'Mở trận');
+
+    const btn1 = openBtn(byId(bPendingNull.id));
+    const btn2 = openBtn(byId(bConfirmedNull.id));
+    expect(btn1).toBeDefined();
+    expect(btn1?.style.minHeight).toBe('44px');
+    expect(btn2).toBeDefined();
+    expect(btn2?.style.minHeight).toBe('44px');
+
+    expect(openBtn(byId(bMatchOpen.id))).toBeUndefined();
+    expect(byId(bMatchOpen.id).textContent).toContain(
+      'Booking có trận. Hủy trận trên web hoặc ở tab Phòng chờ khi có.',
+    );
+    expect(openBtn(byId(bMatchFull.id))).toBeUndefined();
+    expect(openBtn(byId(bMatchCancelled.id))).toBeUndefined();
+    expect(
+      Array.from(byId(bMatchCancelled.id).querySelectorAll('button')).map((b) => b.textContent),
+    ).toContain('Hủy');
+
+    // Switch to Lịch sử to verify past and non-active bookings have no "Mở trận" button
+    fireEvent.click(screen.getByRole('button', { name: 'Lịch sử' }));
+    await screen.findByText('Sân Past Pending');
+
+    expect(openBtn(byId(bPastPending.id))).toBeUndefined();
+    expect(openBtn(byId(bCancelled.id))).toBeUndefined();
+    expect(openBtn(byId(bRejected.id))).toBeUndefined();
+    expect(openBtn(byId(bExpired.id))).toBeUndefined();
+  });
+
+  it('AC-14: "Mở trận" opens the sheet with defaults 10 and 0; filling 8 and 30000 sends POST /api/matches with { bookingId, capacity: 8, pricePerSlot: 30000 }, disables the button while running, closes the sheet, reloads the list, shows "Trận mở: 1/8 suất", and renders no phone number', async () => {
+    const id = '00000000-0000-4000-8000-000000000201';
+    let opened = false;
+    let releasePost!: () => void;
+    const postGate = new Promise<void>((resolve) => {
+      releasePost = resolve;
+    });
+
+    const row = (): MyBookingView =>
+      makeBooking({
+        id,
+        courtName: 'Sân Mở Trận',
+        startAt: '2026-11-02T18:00:00+07:00',
+        endAt: '2026-11-02T19:00:00+07:00',
+        match: opened
+          ? {
+              id: '00000000-0000-4000-8000-000000000301',
+              status: 'OPEN',
+              joinedCount: 1,
+              capacity: 8,
+              pricePerSlot: 30000,
+            }
+          : null,
+      });
+
+    vi.mocked(clientModule.api).mockImplementation(async (path: string, init?: unknown) => {
+      if (path === '/api/bookings/mine') return [row()];
+      if (path === '/api/matches/joined') return [];
+      if (path === '/api/matches') {
+        await postGate;
+        opened = true;
+        return {
+          id: '00000000-0000-4000-8000-000000000301',
+          bookingId: id,
+          hostId: CANCEL_USER.id,
+          hostName: CANCEL_USER.name,
+          sport: 'BADMINTON',
+          capacity: 8,
+          joinedCount: 1,
+          pricePerSlot: 30000,
+          status: 'OPEN',
+          bookingStatus: 'PENDING',
+          startAt: '2026-11-02T18:00:00+07:00',
+          endAt: '2026-11-02T19:00:00+07:00',
+          courtName: 'Sân Mở Trận',
+          venueName: 'Cầu lông An Phú',
+          venueAddress: '123 Đường 1',
+          createdAt: '2026-11-02T10:00:00+07:00',
+        };
+      }
+      return {};
+    });
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở trận' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mở trận' });
+
+    const capInput = screen.getByLabelText('Số suất') as HTMLInputElement;
+    const priceInput = screen.getByLabelText('Giá mỗi suất') as HTMLInputElement;
+    expect(capInput.value).toBe('10');
+    expect(priceInput.value).toBe('0');
+
+    // No phone number in DOM while sheet is open
+    expect(document.body.textContent).not.toMatch(/0\d{9}/);
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull();
+
+    fireEvent.change(capInput, { target: { value: '8' } });
+    fireEvent.change(priceInput, { target: { value: '30000' } });
+
+    const confirmBtn = Array.from(dialog.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Mở trận',
+    ) as HTMLButtonElement;
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => expect(confirmBtn.disabled).toBe(true));
+    expect(clientModule.api).toHaveBeenCalledWith('/api/matches', {
+      method: 'POST',
+      json: {
+        bookingId: id,
+        capacity: 8,
+        pricePerSlot: 30000,
+      },
+    });
+
+    releasePost();
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Mở trận' })).toBeNull());
+    expect(await screen.findByText('Trận mở: 1/8 suất')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Mở trận' })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/0\d{9}/);
+  });
+
+  it('AC-14: invalid capacity (1 or 31) or price (-1) disables "Mở trận", shows the validation message in role="alert", and sends nothing', async () => {
+    const id = '00000000-0000-4000-8000-000000000202';
+    mockLists(() => [makeBooking({ id })]);
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở trận' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mở trận' });
+    const capInput = screen.getByLabelText('Số suất') as HTMLInputElement;
+    const priceInput = screen.getByLabelText('Giá mỗi suất') as HTMLInputElement;
+    const confirmBtn = () =>
+      Array.from(dialog.querySelectorAll('button')).find(
+        (b) => b.textContent === 'Mở trận',
+      ) as HTMLButtonElement;
+
+    // capacity = 1
+    fireEvent.change(capInput, { target: { value: '1' } });
+    expect(confirmBtn().disabled).toBe(true);
+    expect(screen.getByRole('alert').textContent).toBe('Số suất từ 2 đến 30');
+    fireEvent.click(confirmBtn());
+
+    // capacity = 31
+    fireEvent.change(capInput, { target: { value: '31' } });
+    expect(confirmBtn().disabled).toBe(true);
+    expect(screen.getByRole('alert').textContent).toBe('Số suất từ 2 đến 30');
+    fireEvent.click(confirmBtn());
+
+    // restore capacity = 8, set price = -1
+    fireEvent.change(capInput, { target: { value: '8' } });
+    fireEvent.change(priceInput, { target: { value: '-1' } });
+    expect(confirmBtn().disabled).toBe(true);
+    expect(screen.getByRole('alert').textContent).toBe('Giá mỗi suất không hợp lệ');
+    fireEvent.click(confirmBtn());
+
+    const postCalls = vi
+      .mocked(clientModule.api)
+      .mock.calls.filter(([p]) => p === '/api/matches');
+    expect(postCalls.length).toBe(0);
+  });
+
+  it('AC-14: a 409 or 403 on POST /api/matches shows the API message in the sheet', async () => {
+    const id = '00000000-0000-4000-8000-000000000203';
+    mockLists(() => [makeBooking({ id })]);
+    const base = vi.mocked(clientModule.api).getMockImplementation()!;
+
+    let nextError = new ApiError(409, 'Booking này đã có trận');
+    vi.mocked(clientModule.api).mockImplementation(async (path: string, init?: unknown) => {
+      if (path === '/api/matches') throw nextError;
+      return base(path, init as never);
+    });
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở trận' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mở trận' });
+    const confirmBtn = Array.from(dialog.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Mở trận',
+    ) as HTMLButtonElement;
+
+    fireEvent.click(confirmBtn);
+    expect(await screen.findByRole('alert')).toBeDefined();
+    expect(screen.getByRole('alert').textContent).toBe('Booking này đã có trận');
+    expect(screen.getByRole('dialog', { name: 'Mở trận' })).toBeDefined();
+
+    nextError = new ApiError(403, 'Không có quyền thực hiện');
+    fireEvent.click(confirmBtn);
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toBe('Không có quyền thực hiện');
+    });
+    expect(screen.getByRole('dialog', { name: 'Mở trận' })).toBeDefined();
+  });
+
+  it('AC-14: a 401 on POST /api/matches closes the sheet and opens the login sheet with "Phiên đăng nhập đã hết. Hãy đăng nhập lại."', async () => {
+    const id = '00000000-0000-4000-8000-000000000204';
+    mockLists(() => [makeBooking({ id })]);
+    const base = vi.mocked(clientModule.api).getMockImplementation()!;
+    vi.mocked(clientModule.api).mockImplementation(async (path: string, init?: unknown) => {
+      if (path === '/api/matches') throw new ApiError(401, 'Chưa đăng nhập');
+      return base(path, init as never);
+    });
+
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở trận' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mở trận' });
+    const confirmBtn = Array.from(dialog.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Mở trận',
+    ) as HTMLButtonElement;
+
+    fireEvent.click(confirmBtn);
+
+    expect(await screen.findByRole('dialog', { name: 'Đăng nhập' })).toBeDefined();
+    expect(screen.queryByRole('dialog', { name: 'Mở trận' })).toBeNull();
+    expect(screen.getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.')).toBeDefined();
+  });
+});
