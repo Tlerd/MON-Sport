@@ -20,9 +20,21 @@ const env = {
   NO_COLOR: '1',
 };
 
+// A hung step must fail with a message, not block for an hour. The slowest step (tests) takes about 100 s.
+const STEP_TIMEOUT_MS = 8 * 60 * 1000;
+
 function run(command) {
-  const result = spawnSync(command, { cwd: root, env, shell: true, encoding: 'utf8' });
-  return { ok: result.status === 0, output: `${result.stdout ?? ''}${result.stderr ?? ''}` };
+  const result = spawnSync(command, {
+    cwd: root,
+    env,
+    shell: true,
+    encoding: 'utf8',
+    timeout: STEP_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
+  });
+  const timedOut = result.error?.code === 'ETIMEDOUT';
+  const note = timedOut ? `\nTIMEOUT after ${STEP_TIMEOUT_MS / 1000} s. See docs/known-issues.md.` : '';
+  return { ok: result.status === 0 && !timedOut, output: `${result.stdout ?? ''}${result.stderr ?? ''}${note}` };
 }
 
 if (hook) {
