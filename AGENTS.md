@@ -11,7 +11,7 @@ Web app to book sports courts and join matches. Venue owners confirm bookings by
 
 `pnpm map`: rewrites `@map.md`, the list of code files by folder with their exported names. Read it to find a file, then read only that file. `pnpm check` fails when it is stale.
 
-Work is done when `pnpm check` passes. The git hook and CI run the same command.
+Work is done when `pnpm check` passes. The git hook and CI run the same command. When a command hangs or fails in a way you met before, read `docs/known-issues.md` first.
 
 ## Layout
 

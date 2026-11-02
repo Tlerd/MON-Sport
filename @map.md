@@ -117,6 +117,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/mobile/src/features/my/
 - BookingCard.tsx: BookingCardProps, BookingCard
+- MatchCard.tsx: MatchCardProps, MatchCard
 - MyScreen.tsx: MyScreenProps, MyScreen
 
 ## apps/mobile/src/features/venues/
