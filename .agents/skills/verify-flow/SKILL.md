@@ -35,7 +35,7 @@ The run is done when the last line says `PASSED` and each flow you picked has PA
 | Mobile shell, tab bar scroll and hide/show (F-019) | `mobile-shell` | [references/flows/mobile-shell.md](references/flows/mobile-shell.md) |
 | Mobile booking tab, venue slot rows, request sheet (UC-2, UC-3, F-020) | `mobile-book` | [references/flows/mobile-book.md](references/flows/mobile-book.md) |
 
-To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each state change, register it in `FLOWS` in `scripts/run.mjs`, and add a row and a flow file here.
+To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each state change, register it in `FLOWS` in `scripts/run.mjs`, and add a row to this table and a flow file in `references/flows/`.
 
 ## Files
 
