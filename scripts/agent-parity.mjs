@@ -1,5 +1,5 @@
 // Parity test: Claude Code and Antigravity answer the same prompt in this repository, read only.
-// Each answer must match the rule that AGENTS.md, REVIEW.md, PROGRESS.md, and model-routing.md set.
+// Each answer must match the rule that AGENTS.md, REVIEW.md, PROGRESS.md, HUMAN_DECISIONS.md, and model-routing.md set.
 // Run: `node scripts/agent-parity.mjs [claude] [agy]`. No name runs both. It is not part of
 // `pnpm check`, because each run uses model quota. Exit 0 when every answer of every CLI passes.
 
@@ -25,6 +25,7 @@ const EXPECT = {
   weekly_stop: [/94/],
   never_push: [/main/],
   ci_wait: [/background|schedul/i],
+  open_decisions: [/HUMAN_DECISIONS\.md/],
 };
 
 const CLIS = {

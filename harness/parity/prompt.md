@@ -7,7 +7,7 @@ Each answer is short: a command, a name, or one sentence.
 1. check: the one command that tells whether work is done.
 2. branch: the branch name for step 1 of issue 12, slug `booking-schema`.
 3. merge: the exact command that merges pull request 50.
-4. next_step: the file that holds the next step and the open decisions.
+4. next_step: the file that holds the next step.
 5. open_field: a brief leaves a field open during an unattended run. What do you do, and where do you write it?
 6. rule_review: for which kinds of change does a Reviewer round also run the skill `rule-review`?
 7. reviewer_model: which model does the Reviewer use for a schema change?
@@ -16,6 +16,7 @@ Each answer is short: a command, a name, or one sentence.
 10. weekly_stop: the weekly usage at which every run stops, in percent.
 11. never_push: the one branch you never push to.
 12. ci_wait: how do you wait for the checks of a pull request?
+13. open_decisions: the file that holds the decisions that only the user can make.
 
 Reply with one JSON object and nothing else, between the lines <json> and </json>.
-Use the keys check, branch, merge, next_step, open_field, rule_review, reviewer_model, lock_order, time_zone, weekly_stop, never_push, ci_wait. Each value is a string.
+Use the keys check, branch, merge, next_step, open_field, rule_review, reviewer_model, lock_order, time_zone, weekly_stop, never_push, ci_wait, open_decisions. Each value is a string.

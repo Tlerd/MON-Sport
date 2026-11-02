@@ -1,6 +1,6 @@
 # Tiến độ MONSPORT bản đầu
 
-Cập nhật: 23/10/2026. Nguồn: `docs/requirements/intake-monsport-v1.md` (UC-1 đến UC-14), `PROGRESS.md`, và git.
+Cập nhật: 03/11/2026. Nguồn: `docs/requirements/intake-monsport-v1.md` (UC-1 đến UC-14), `PROGRESS.md`, `HUMAN_DECISIONS.md`, và git.
 
 ## Cách làm việc
 
@@ -104,7 +104,7 @@ Việc chờ bạn:
 3. ⬜ **Chạy verify-flow trên live** với các biến `VERIFY_*`.
 4. ⬜ **Trả lời mục 6 của intake:** đăng ký bằng số điện thoại và mật khẩu có cần OTP không.
 5. ⬜ **Trả lời mục 5 của intake:** ví dụ nghiệm thu cho Google và Zalo, nhà cung cấp SMS và chi phí.
-6. ⬜ **Các quyết định mở** 1 đến 6, 8, 9 và tỉ lệ hết hạn (quyết định 10) trong `PROGRESS.md`.
+6. ⬜ **Các quyết định ở mục "Đang mở"** của `HUMAN_DECISIONS.md`. Agent chạy theo cột "Mặc định". Các dòng có cột "Chặn" khác "Không" chặn thử nghiệm thật hoặc F-004 bước 4.
 7. ⬜ **Đề xuất, không bắt buộc:** thêm cột `lastLoginAt` để đếm người dùng theo lần đăng nhập. Agent chỉ làm khi bạn đồng ý.
 
 Việc agent làm tiếp:
