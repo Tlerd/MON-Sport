@@ -1,0 +1,76 @@
+# Kế hoạch MCP (`apps/api/src/modules/mcp`)
+
+**Kế hoạch này chỉ có hiệu lực sau khi ADR 0008 được duyệt (Accepted) và intake đổi.** Intake hiện không nói về MCP hay AI agent. Xem [ADR 0008](../adr/0008-mcp-cho-ai-dat-san.md).
+
+MCP (Model Context Protocol) cho một AI gọi các chức năng của web như công cụ. Kế hoạch này làm một máy chủ MCP với hai cách nối.
+
+## Mục tiêu
+
+1. **AI tự đặt lịch.** Một AI agent tìm sân, xem giờ trống và gửi yêu cầu đặt sân thay người dùng.
+2. **Người biết dùng AI tự nối.** Người dùng thêm một connector vào Claude hoặc một client MCP khác, bằng một đường dẫn. Họ đăng nhập MONSPORT và cho phép. Sau đó AI hành động bằng tài khoản của họ.
+
+Hai mục tiêu dùng chung một lớp công cụ. Chỉ khác cách xác thực.
+
+## Không đổi luật
+
+- AI gọi cùng service với web và app. Không có luật riêng cho AI.
+- Yêu cầu đặt sân qua AI vẫn ở trạng thái chờ. Chủ sân vẫn xác nhận bằng tay (UC-4).
+- Mọi luật BR giữ nguyên: khóa `Court` (BR-6), hạn xác nhận, hủy (BR-11, BR-12), giới hạn tần suất (BR-30), thu hồi phiên (BR-32).
+- Bản đầu không có thanh toán, nên AI không trả tiền.
+
+## Công cụ (vai trò người dùng)
+
+| Công cụ | UC | Loại | Ghi chú |
+|---|---|---|---|
+| `search_venues` | UC-2 | đọc | Lọc theo môn và tên sân |
+| `get_availability` | UC-2 | đọc | Theo sân và ngày, như `GET /api/courts/:id/availability` |
+| `request_booking` | UC-3 | ghi | Trả về hạn chủ sân xác nhận. Kèm số của chủ sân để AI nhắc người dùng gọi (UC-2) |
+| `list_my_bookings` | UC-6 | đọc | |
+| `cancel_booking` | UC-6 | ghi | |
+| `list_matches` | UC-8 | đọc | Phòng chờ |
+| `open_match` | UC-7 | ghi | |
+| `join_match` và `leave_match` | UC-8 | ghi | |
+
+- Mỗi công cụ ghi có chú thích `destructiveHint` và mô tả rõ hậu quả, để client hỏi người dùng trước khi chạy.
+- Chủ sân và admin chưa có công cụ ở bản đầu. Xem mục 27 của `HUMAN_DECISIONS.md`.
+- Tên và tham số công cụ lấy từ Zod schema trong `packages/shared`. Đó là một nguồn cho hợp đồng.
+
+## Hai cách nối
+
+| | Cách A: máy cục bộ | Cách B: connector từ xa |
+|---|---|---|
+| Dành cho | Nhà phát triển, agent chạy trên máy | Người dùng Claude và các client MCP |
+| Giao thức | stdio | Streamable HTTP tại `/mcp` |
+| Xác thực | Mã truy cập cá nhân (PAT) | OAuth 2.1, mã cấp phép với PKCE |
+| Người dùng làm | Tạo PAT ở trang "Tôi", dán vào cấu hình | Dán URL, đăng nhập, bấm "Cho phép" |
+
+- Cách B là cách cho người không rành kỹ thuật. Cách A là bước đệm rẻ để thử các công cụ.
+- Cả hai cách ánh xạ về một `userId`. Từ đó guard và service chạy như request thường.
+- Token chỉ lưu dạng băm. Token có hạn, có phạm vi (`read`, `book`), và thu hồi được.
+- Một lần mở khóa của admin thu hồi mọi token cũ của người dùng, qua `User.sessionsValidFrom` (BR-32).
+- Người dùng xem và thu hồi từng kết nối ở trang "Tôi".
+
+## Rủi ro và cách giữ an toàn
+
+| Rủi ro | Cách giữ |
+|---|---|
+| AI đặt nhiều lần một lúc | Giới hạn theo người dùng và theo token trong `AuthThrottle`. Mỗi người dùng có tối đa số yêu cầu chờ như BR hiện có |
+| Dữ liệu lạ trong tên sân thành lệnh cho AI | Công cụ trả dữ liệu có cấu trúc. Không trả chuỗi tự do của người dùng khác mà không đánh dấu là dữ liệu |
+| Token bị lộ | Chỉ lưu băm, hạn ngắn, thu hồi từng token, phạm vi nhỏ nhất |
+| Đồng ý dữ liệu cá nhân (BR-29, luật 91/2025) | Màn "Cho phép" nêu rõ dữ liệu nào AI đọc. Câu hỏi 4 của `HUMAN_DECISIONS.md` đang mở |
+| Hai giao diện cho một luật | Công cụ gọi service. Không chép luật |
+
+## Thứ tự làm
+
+1. **Duyệt ADR 0008 và sửa intake.** Thêm "MCP cho AI" vào phạm vi, và một UC mới.
+2. **Lớp công cụ.** Module `mcp` trong API, schema trong `packages/shared`, test `AC-n` cho từng công cụ. Chưa có xác thực ngoài, chỉ test với một `userId` giả.
+3. **PAT và cách A.** Bảng token (đổi schema, cần reviewer mạnh nhất), trang "Tôi", lệnh stdio.
+4. **OAuth và cách B.** Điểm cuối OAuth (metadata, đăng ký client, cấp phép, token), màn "Cho phép", `/mcp` qua HTTP.
+5. **Deploy và thử thật.** Nối bằng connector của Claude trên bản live. Người dùng chạy bước này, vì cần tài khoản của họ. Viết hướng dẫn "Nối MONSPORT với AI" bằng tiếng Việt.
+
+Mỗi bước là một brief và một pull request, theo `AGENTS.md`. Các bước 3 và 4 chạm vào tiền, dữ liệu cá nhân và schema nên chạy thêm `rule-review`.
+
+## Việc kiểm tra trước khi code
+
+- Đọc đặc tả MCP hiện hành và tài liệu SDK bằng Context7 hoặc nguồn chính. Kế hoạch này chưa kiểm phiên bản đặc tả, đường dẫn metadata OAuth, hay yêu cầu của từng client.
+- Kiểm Cloud Run có giữ được kết nối Streamable HTTP và SSE như thiết lập hiện tại (ADR 0005). Nếu không, dùng chế độ không giữ kết nối.

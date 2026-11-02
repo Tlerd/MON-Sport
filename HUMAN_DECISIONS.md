@@ -41,6 +41,8 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 23 | Host có thấy trận của mình trong feed Phòng chờ không? | Có | Không | brief F-022 |
 | 24 | Giá mặc định mỗi suất khi mở trận: 0, hay giá sân chia đều theo số suất? | 0 | Không | brief F-022 |
 | 25 | Có gửi thông báo đẩy khi có người vào hoặc rời trận không? | Không | Không | brief F-022 |
+| 26 | Duyệt ADR 0008 (máy chủ MCP cho AI đặt sân và connector) và đổi intake để thêm MCP vào phạm vi? | Chưa duyệt. Agent không code MCP | Kế hoạch MCP (`docs/design/ke-hoach-mcp.md`) | ADR 0008 |
+| 27 | Chủ sân và admin có công cụ MCP không (xác nhận booking, đóng sân)? | Không. Bản đầu chỉ có công cụ cho người dùng | Không | `docs/design/ke-hoach-mcp.md` |
 
 ## Việc chỉ người dùng làm được
 
