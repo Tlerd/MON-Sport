@@ -5,7 +5,7 @@ lang: vi
 
 # F-023: Tab Thông báo trên app mobile
 
-Status: draft
+Status: built
 Source: `docs/design/ke-hoach-app-mobile.md` (tab theo vai trò, bước 5 và 6), UC-14, BR-27. `docs/briefs/F-013` (API thông báo trong app và màn của web). `docs/briefs/F-014` (Web Push). Quyết định theo "Autonomy" của `AGENTS.md`: xem "Assumptions".
 
 ## Goal
