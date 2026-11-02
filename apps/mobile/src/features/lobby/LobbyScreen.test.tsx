@@ -648,6 +648,34 @@ describe('LobbyScreen', () => {
     expect(screen.getByRole('dialog').textContent).toContain('Người M2');
   });
 
+  it('AC-12: a HOST of a CONFIRMED match under 6 h away has no "Hủy trận" on the card or in the sheet, only the hint', async () => {
+    const hostUser: User = { id: HOST_ID, name: 'Host 1', role: 'USER' } as User;
+    // now = 02/11/2026 10:00 (UTC+7): this match starts at 14:00, 4 h ahead (CALL_OWNER).
+    const soon = makeMatch(7, {
+      bookingStatus: 'CONFIRMED',
+      startAt: '2026-11-02T14:00:00+07:00',
+      endAt: '2026-11-02T15:00:00+07:00',
+    });
+    const detail: MatchDetailView = { ...soon, viewerRole: 'HOST', players: [] };
+    api().mockImplementation(async (path: string) => {
+      if (path === `/api/matches/${soon.id}`) return detail;
+      if (path.startsWith('/api/matches/joined')) return [soon];
+      if (path.startsWith('/api/matches')) return [soon];
+      throw new Error(`unexpected ${path}`);
+    });
+
+    const { container } = renderScreen(hostUser);
+    await waitFor(() => expect(cardIds(container)).toEqual([soon.id]));
+    const names = (el: Element) => [...el.querySelectorAll('button')].map((b) => b.textContent);
+    expect(names(card(container, soon))).not.toContain('Hủy trận');
+    expect(card(container, soon).textContent).toContain('Còn dưới 6 giờ');
+
+    fireEvent.click(card(container, soon));
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(dialog.textContent).toContain('Còn dưới 6 giờ'));
+    expect(names(dialog)).not.toContain('Hủy trận');
+  });
+
   it('AC-11: a HOST opening the detail sheet sees player names with tel: links, "Hủy trận", and no "Rời trận"', async () => {
     const hostUser: User = { id: HOST_ID, name: 'Host 1', role: 'USER' } as User;
     const detail: MatchDetailView = {

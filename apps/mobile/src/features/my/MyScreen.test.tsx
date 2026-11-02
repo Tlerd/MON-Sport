@@ -884,7 +884,7 @@ describe('MyScreen cancel', () => {
   });
 
   it('AC-15: a PENDING booking 3 hours ahead with an OPEN match shows the note and no "Hủy"; the same with a FULL match also has no "Hủy"', async () => {
-    const note = 'Booking có trận. Hủy trận trên web hoặc ở tab Phòng chờ khi có.';
+    const note = 'Booking có trận. Hủy trận ở tab Phòng chờ.';
     const match = (status: 'OPEN' | 'FULL' | 'CANCELLED') => ({
       id: '00000000-0000-4000-8000-0000000000d0',
       status,
@@ -1087,7 +1087,7 @@ describe('MyScreen open match (F-022)', () => {
 
     expect(openBtn(byId(bMatchOpen.id))).toBeUndefined();
     expect(byId(bMatchOpen.id).textContent).toContain(
-      'Booking có trận. Hủy trận trên web hoặc ở tab Phòng chờ khi có.',
+      'Booking có trận. Hủy trận ở tab Phòng chờ.',
     );
     expect(openBtn(byId(bMatchFull.id))).toBeUndefined();
     expect(openBtn(byId(bMatchCancelled.id))).toBeUndefined();

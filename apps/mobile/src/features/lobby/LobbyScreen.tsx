@@ -1,5 +1,12 @@
 import { api, ApiError, dayHeading, formatVnd, hhmm, lobbyChips, lobbyMatches } from '@monsport/client';
-import { minuteOfDayVN, vnDateString, type MatchDetailView, type MatchView, type Sport } from '@monsport/shared';
+import {
+  minuteOfDayVN,
+  userCancelDecision,
+  vnDateString,
+  type MatchDetailView,
+  type MatchView,
+  type Sport,
+} from '@monsport/shared';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../../app/session.tsx';
@@ -9,7 +16,7 @@ import { EmptyState } from '../../components/EmptyState.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
 import { IconBadminton, IconFootball, SPORT_LABEL } from '../../components/SportIcon.tsx';
 import { LoginSheet } from '../auth/LoginSheet.tsx';
-import { LobbyMatchCard } from './LobbyMatchCard.tsx';
+import { CALL_OWNER_TO_CANCEL_HINT, LobbyMatchCard } from './LobbyMatchCard.tsx';
 import { useLobbyStream } from './useLobbyStream.ts';
 
 export interface LobbyScreenProps {
@@ -525,6 +532,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                           ? undefined
                           : cardErrors[card.match.id]
                       }
+                      now={now}
                       onJoin={handleJoin}
                       onLeave={openLeave}
                       onCancel={openCancel}
@@ -653,7 +661,20 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                       Rời trận
                     </button>
                   )}
-                  {detail.viewerRole === 'HOST' && (
+                  {detail.viewerRole === 'HOST' &&
+                    userCancelDecision(
+                      { status: detail.bookingStatus, startAt: new Date(detail.startAt) },
+                      now,
+                    ) === 'CALL_OWNER' && (
+                      <p style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
+                        {CALL_OWNER_TO_CANCEL_HINT}
+                      </p>
+                    )}
+                  {detail.viewerRole === 'HOST' &&
+                    userCancelDecision(
+                      { status: detail.bookingStatus, startAt: new Date(detail.startAt) },
+                      now,
+                    ) === 'ALLOW' && (
                     <button
                       type="button"
                       onClick={() => openCancel(detail)}

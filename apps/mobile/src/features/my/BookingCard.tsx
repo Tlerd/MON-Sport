@@ -85,7 +85,7 @@ export function BookingCard({ booking, now, onCancel, onOpenMatch }: BookingCard
 
       {decision === 'ALLOW' && hasOpenMatch && (
         <div style={{ font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
-          Booking có trận. Hủy trận trên web hoặc ở tab Phòng chờ khi có.
+          Booking có trận. Hủy trận ở tab Phòng chờ.
         </div>
       )}
 

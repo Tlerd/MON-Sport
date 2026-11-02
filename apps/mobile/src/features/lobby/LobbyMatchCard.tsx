@@ -1,5 +1,5 @@
 import { dayHeading, formatVnd, hhmm, type LobbyCard } from '@monsport/client';
-import { minuteOfDayVN, vnDateString, type MatchView } from '@monsport/shared';
+import { minuteOfDayVN, userCancelDecision, vnDateString, type MatchView } from '@monsport/shared';
 import { SPORT_LABEL, SportIcon } from '../../components/SportIcon.tsx';
 
 export interface LobbyMatchCardProps {
@@ -13,6 +13,8 @@ export interface LobbyMatchCardProps {
   busy?: boolean;
   /** The error message of the last action on this card. */
   error?: string;
+  /** For the cancel rule of the host (BR-11). Tests pass a fixed value. */
+  now?: Date;
 }
 
 const actionStyle = {
@@ -42,7 +44,11 @@ const badgeStyle = {
   font: 'var(--font-label)',
 } as const;
 
-export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, error }: LobbyMatchCardProps) {
+/** The text for a host who cannot cancel any more: the server answers 409 (BR-11). */
+export const CALL_OWNER_TO_CANCEL_HINT =
+  'Còn dưới 6 giờ nữa tới giờ bắt đầu. Gọi chủ sân ở tab Lịch của tôi để hủy trận.';
+
+export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, error, now = new Date() }: LobbyMatchCardProps) {
   const { match, joined, isHost } = card;
   const startDate = new Date(match.startAt);
   const endDate = new Date(match.endAt);
@@ -53,6 +59,9 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
   const canJoin = match.status === 'OPEN' && !joined && !isHost;
   // The feed keeps only future matches, so a joined non-host card can leave (BR-18).
   const canLeave = joined && !isHost;
+  const cancelDecision = isHost
+    ? userCancelDecision({ status: match.bookingStatus, startAt: startDate }, now)
+    : 'NONE';
 
   return (
     <article
@@ -220,7 +229,7 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
             Rời trận
           </button>
         )}
-        {isHost && (
+        {cancelDecision === 'ALLOW' && (
           <button
             type="button"
             onClick={(event) => {
@@ -257,6 +266,11 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
           Chi tiết
         </button>
       </div>
+      {cancelDecision === 'CALL_OWNER' && (
+        <div style={{ font: 'var(--font-meta)', color: 'var(--color-ink-muted)', overflowWrap: 'anywhere' }}>
+          {CALL_OWNER_TO_CANCEL_HINT}
+        </div>
+      )}
     </article>
   );
 }
