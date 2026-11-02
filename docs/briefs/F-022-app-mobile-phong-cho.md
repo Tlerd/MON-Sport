@@ -16,7 +16,7 @@ Người dùng mở tab "Phòng chờ" trên `/app/`, xem feed trận mở, lọ
 
 | Non-goal | Why it is out | When it comes back |
 |---|---|---|
-| Sửa API hoặc schema | `GET /api/matches`, `GET /api/matches/stream`, `GET /api/matches/:id`, `POST /api/matches`, `POST /api/matches/:id/join`, `/leave`, `/cancel` đã đủ (F-011, F-012) | Không cần |
+| Sửa API hoặc schema | `GET /api/matches`, `GET /api/matches/stream`, `GET /api/matches/joined`, `GET /api/matches/:id`, `POST /api/matches`, `POST /api/matches/:id/join`, `/leave`, `/cancel` đã đủ (F-011, F-012) | Không cần |
 | Số điện thoại của người chơi trên màn hình của người không phải host | BR-20. API đã ẩn. App chỉ hiện `phone` khi `viewerRole` là `HOST` | Không đổi |
 | Chat, đánh giá người chơi, mời bạn | Ngoài intake | Không có kế hoạch |
 | Đổi `apps/web` để dùng hàm mới của `packages/client` | Web chạy đúng. Giữ thay đổi nhỏ | Một brief `chore` sau |
@@ -30,7 +30,7 @@ Each criterion has one test. The test name starts with the label, for example `A
 
 | Label | Given | When | Then |
 |---|---|---|---|
-| AC-1 | `now` = 02/11/2026 10:00 (UTC+7). `GET /api/matches` trả 3 trận `OPEN`: M1 cầu lông 20:00 ngày mai, `joinedCount` 4 trên `capacity` 10, `pricePerSlot` 40000, `bookingStatus` `CONFIRMED`. M2 bóng đá 18:00 sau 2 ngày, `joinedCount` 6 trên 14, `bookingStatus` `PENDING`. M3 cầu lông 07:00 hôm nay (đã qua) | Mở `/app/phong-cho` | Thấy M1 rồi M2, theo giờ bắt đầu tăng dần. M3 không hiện. Thẻ M1 có tên host, tên đơn vị, sân, ngày, "20:00–21:00", "4/10 suất", "40.000đ/suất", nhãn "Đã xác nhận", nút "Vào trận". Thẻ M2 có nhãn "Chưa xác nhận". Trận `FULL` (`joinedCount` bằng `capacity`) hiện nhãn "Đầy" và không có nút "Vào trận". Các nhãn này vẽ trong `features/lobby/` |
+| AC-1 | `now` = 02/11/2026 10:00 (UTC+7). `GET /api/matches` trả 3 trận `OPEN`: M1 cầu lông 20:00 ngày mai, `joinedCount` 4 trên `capacity` 10, `pricePerSlot` 40000, `bookingStatus` `CONFIRMED`. M2 bóng đá 18:00 sau 2 ngày, `joinedCount` 6 trên 14, `bookingStatus` `PENDING`. M3 cầu lông 07:00 hôm nay (đã qua). Người dùng `USER` đã vào M4, bóng đá 19:00 ngày mai, `FULL`: `GET /api/matches/joined` trả M4, `GET /api/matches` không trả M4 | Mở `/app/phong-cho` | Thấy M1, M4, M2 theo giờ bắt đầu tăng dần (feed gộp trận của `GET /api/matches` với trận `OPEN` hoặc `FULL` chưa bắt đầu của `GET /api/matches/joined`, bỏ trùng theo `id`). M3 không hiện. Thẻ M1 có tên host, tên đơn vị, sân, ngày, "20:00–21:00", "4/10 suất", "40.000đ/suất", nhãn "Đã xác nhận", nút "Vào trận". Thẻ M2 có nhãn "Chưa xác nhận". Thẻ M4 có nhãn "Đầy" và "Bạn đã vào", không có nút "Vào trận". Các nhãn vẽ trong `features/lobby/`. Khách chưa đăng nhập không gọi `GET /api/matches/joined` |
 | AC-2 | Cùng danh sách. Có chip môn "Tất cả", "Cầu lông", "Bóng đá" và chip ngày | Bấm chip "Bóng đá", rồi chip ngày của M2 | Mỗi lần bấm gửi `GET /api/matches?sport=FOOTBALL`, rồi `GET /api/matches?sport=FOOTBALL&date=<ngày>`. Chỉ thẻ khớp hiện. Bấm lại chip đang chọn bỏ bộ lọc đó. Ngày tính theo `Asia/Ho_Chi_Minh` (BR-27), ở `TZ=UTC` và `TZ=America/New_York` kết quả giống nhau |
 | AC-3 | API trả danh sách rỗng. Một lần khác API lỗi mạng | Mở tab. Lần khác mở tab | Lần rỗng: thấy "Chưa có trận nào" và nút "Đặt sân" tới `/app/`. Lần lỗi: thấy "Không tải được" và nút "Thử lại". Bấm nút tải lại |
 | AC-4 | Tab đang mở. Luồng SSE `/api/matches/stream` gửi sự kiện `match` | Sự kiện tới | Danh sách tải lại một lần, dù có nhiều sự kiện trong 500 ms. Sự kiện `ping` không tải lại. Khi tab ẩn (`visibilitychange`) app đóng luồng. Khi tab hiện lại app mở luồng mới và tải lại danh sách một lần. Khi rời tab Phòng chờ app đóng luồng |
@@ -47,6 +47,7 @@ Each criterion has one test. The test name starts with the label, for example `A
 | AC-15 | Người dùng có vai trò `OWNER` hoặc `ADMIN` mở tab Phòng chờ | Tab mở | Thấy feed như khách. Nút "Vào trận" và thân thẻ mở màn "Dùng tài khoản người chơi để vào trận". App không gọi `join` và không gọi `GET /api/matches/:id` (server trả 403 vì `@Roles('USER')`) |
 | AC-16 | Thẻ trận ở 360px và 390px | Tab mở | Không cuộn ngang. Chip và nút cao ít nhất 44px. Tên đơn vị dài xuống dòng, không tràn |
 | AC-17 | Luồng `mobile-lobby` của `verify-flow`: người chơi seed đăng nhập, mở "Phòng chờ" ở 360px và 390px | Luồng chạy | Trang không cuộn ngang. Ô bấm cao ít nhất 44px. Luồng tự mở một trận trên booking mà nó tạo, thấy thẻ của trận trong feed, mở sheet chi tiết (không có nút "Rời trận" vì là host), và hủy trận đó. Báo cáo ghi 0 bước lỗi. Luồng chỉ đổi dữ liệu mà nó tạo |
+| AC-18 | Người dùng `USER` ở trong M4 (`FULL`, không phải host, bắt đầu sau 3 giờ). Một lần khác người dùng là host của M4 | Mở thẻ M4 và sheet chi tiết | Người chơi có nút "Rời trận" (BR-18). Host có nút "Hủy trận" (BR-17). Hai nút chạy như AC-9 và AC-12. Sau khi rời, M4 về `OPEN` và vẫn có trong feed. Sau khi host hủy, M4 rời feed |
 
 ## Contract
 
@@ -58,7 +59,7 @@ Không đổi `packages/shared` và không đổi API.
 | `GET /api/matches/stream` | unchanged | không | SSE: sự kiện `match` khi một trận đổi, `ping` giữ kết nối. Tối đa 40 luồng mỗi instance. Quá giới hạn: một `ping` có `retry` rồi luồng kết thúc |
 | `GET /api/matches/joined` | unchanged | không | 200 `MatchView[]` (trận mà người dùng có dòng `ACTIVE`, gồm cả trận do họ làm host). 401 · 403. App tải cùng với feed khi người dùng là `USER` |
 | `GET /api/matches/:id` | unchanged | không | 200 `MatchDetailView`. 400 (id không phải UUID) · 401 · 403 (`OWNER`, `ADMIN`) · 404 |
-| `POST /api/matches` | unchanged | `{ bookingId, capacity, pricePerSlot }` | 201 `MatchView`. 400 · 401 · 403 · 404 · 409 "Booking này đã có trận", "Yêu cầu đang được xử lý, hãy thử lại" |
+| `POST /api/matches` | unchanged | `{ bookingId, capacity, pricePerSlot }` | 201 `MatchView`. 400 · 401 · 403 · 404 · 409 "Booking này đã có trận", "Chỉ mở được trận trên booking đang chờ xác nhận hoặc đã xác nhận", "Yêu cầu đang được xử lý, hãy thử lại" |
 | `POST /api/matches/:id/join` | unchanged | không | 200 `MatchDetailView`. 400 · 401 · 403 · 404 · 409 "Trận đã đủ người", "Bạn đã ở trong trận này", "Trận này không vào được nữa", "Yêu cầu đang được xử lý, hãy thử lại" |
 | `POST /api/matches/:id/leave` | unchanged | không | 200 `MatchDetailView`. 400 · 401 · 403 · 404 · 409 "Host không rời trận được. Hãy hủy trận", "Đã tới giờ bắt đầu, không rời trận được nữa", "Trận này không rời được nữa", "Bạn không ở trong trận này", "Yêu cầu đang được xử lý, hãy thử lại" |
 | `POST /api/matches/:id/cancel` | unchanged | không | 200 `MatchView`. 400 · 401 · 403 (`OWNER`, `ADMIN`) · 404 (người gọi không phải host) · 409 thông báo của server |
@@ -75,8 +76,8 @@ One pull request for each row. Each pull request passes the check command on its
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
 | 1 | Hàm thuần của feed và hook luồng SSE `useLobbyStream` | `packages/client/src/lobby.ts`, `packages/client/src/lobby.test.ts`, `packages/client/src/index.ts`, `apps/mobile/src/features/lobby/useLobbyStream.ts`, `apps/mobile/src/features/lobby/useLobbyStream.test.ts` | AC-1 (lọc và sắp xếp), AC-2 (ngày), AC-4, AC-5 |
-| 2 | Màn Phòng chờ: feed, chip môn và ngày, trạng thái rỗng và lỗi, route `phong-cho` | `apps/mobile/src/features/lobby/`, `apps/mobile/src/app/router.tsx` | AC-1, AC-2, AC-3, AC-15, AC-16 |
-| 3 | Vào, rời, chi tiết, hủy trận của host | `apps/mobile/src/features/lobby/` | AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12 |
+| 2 | Màn Phòng chờ: feed gộp với danh sách đã vào, chip môn và ngày, trạng thái rỗng và lỗi, route `phong-cho` | `apps/mobile/src/features/lobby/`, `apps/mobile/src/app/router.tsx` | AC-1, AC-2, AC-3, AC-15, AC-16 |
+| 3 | Vào, rời, chi tiết, hủy trận của host | `apps/mobile/src/features/lobby/` | AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-18 |
 | 4 | Mở trận từ "Lịch của tôi" và luồng `verify-flow` | `apps/mobile/src/features/my/`, `.agents/skills/verify-flow/flows/mobile-lobby.md`, `.agents/skills/verify-flow/scripts/mobile-lobby.mjs`, `.agents/skills/verify-flow/scripts/run.mjs`, `PROGRESS.md` | AC-13, AC-14, AC-17 |
 
 Các bước 2, 3 và 4 chạy lần lượt, không song song. Bước 1 không đụng `apps/mobile` ngoài `features/lobby/`.
@@ -100,7 +101,7 @@ Các bước 2, 3 và 4 chạy lần lượt, không song song. Bước 1 không
 
 ## Assumptions
 
-1. Feed chỉ hiện trận `OPEN` chưa bắt đầu, sắp theo giờ bắt đầu tăng dần. Lý do: `GET /api/matches` chỉ trả trận `OPEN`. Một trận đầy rời feed ở lần tải lại sau đó, và hiện "Đầy" từ phản hồi của `join` cho tới lúc đó. Hiện trận đầy trong feed cần đổi API: để sau. Sửa lại bằng cách đổi API và bộ lọc `lobbyMatches`.
+1. Feed gộp `GET /api/matches` (chỉ trận `OPEN`) với trận `OPEN` hoặc `FULL` chưa bắt đầu của `GET /api/matches/joined`, bỏ trùng theo `id`, sắp theo giờ bắt đầu tăng dần. Lý do: người ở trong một trận đầy vẫn phải thấy nó để rời trận (BR-18) hoặc hủy trận (BR-17), và API công khai không trả trận đầy. Người ngoài không thấy trận đầy: hiện trận đầy cho mọi người cần đổi API, để sau. Sửa lại bằng cách đổi API và bộ lọc `lobbyMatches`.
 2. Nút "Vào trận" hiện ở thẻ. Thân thẻ mở sheet chi tiết. Lý do: hành động thường dùng nhất cần một lần chạm. Sửa lại bằng cách gộp hai chỗ.
 3. Vào trận không cần sheet xác nhận, vì rời trận được tới giờ bắt đầu (BR-18). Rời trận và hủy trận cần xác nhận, vì hủy trận không đảo ngược được.
 4. Chip ngày là 7 ngày bắt đầu từ hôm nay, theo `Asia/Ho_Chi_Minh`, dùng `dayChipLabel` của `packages/client`. Lý do: giống tab Đặt sân (F-020). Không chọn ngày là xem mọi ngày.
@@ -108,7 +109,7 @@ Các bước 2, 3 và 4 chạy lần lượt, không song song. Bước 1 không
 6. Host thấy trận của mình trong feed như người khác, với nhãn "Bạn là host" và nút "Hủy trận" thay cho "Vào trận". Lý do: host vẫn muốn xem trận mở. Câu hỏi mở 1.
 7. Chủ sân và admin xem feed như khách. "Vào trận" và thân thẻ cho vai trò này chỉ hiện thông báo, không gọi API. Lý do: mọi thao tác trận ngoài danh sách và luồng chỉ cho vai trò `USER` (`@Roles('USER')`, mục "Phân quyền" của intake).
 8. "Mở trận" nằm ở thẻ booking của "Lịch của tôi" (UC-7), vì trận gắn với một booking. Số suất mặc định là 10 cho mọi môn, và người dùng sửa được. Giá mặc định là 0.
-9. Sau khi F-022 xong, dòng AC-15 của F-021 ("Hủy trận trên web hoặc ở tab Phòng chờ khi có") vẫn đúng, vì "Hủy trận" nằm ở Phòng chờ.
+9. Sau khi F-022 xong, dòng AC-15 của F-021 ("Hủy trận trên web hoặc ở tab Phòng chờ khi có") vẫn đúng, kể cả với trận `FULL`, vì feed gộp trận đã vào (Assumptions 1, AC-18).
 
 ## Open questions
 
