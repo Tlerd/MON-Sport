@@ -216,6 +216,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - index.ts
 - lobby.ts: LobbyFilter, LobbyCard, lobbyMatches, lobbyChips, matchesForDay
 - my-bookings.ts: sortUpcoming, sortHistory, splitMine, joinedByOthers
+- notifications.ts: notificationTarget, unreadBadge
 - push.ts: PushPermissionError, pushSupported, getPublicKey, urlBase64ToUint8Array, isPushOn, enablePush, …
 
 ## packages/client/
