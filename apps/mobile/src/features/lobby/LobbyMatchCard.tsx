@@ -7,7 +7,31 @@ export interface LobbyMatchCardProps {
   onJoin?: (match: MatchView) => void;
   /** A tap on the card body. */
   onOpen?: (match: MatchView) => void;
+  onLeave?: (match: MatchView) => void;
+  onCancel?: (match: MatchView) => void;
+  /** The join request runs: the join button is disabled. */
+  busy?: boolean;
+  /** The error message of the last action on this card. */
+  error?: string;
 }
+
+const actionStyle = {
+  minHeight: '44px',
+  minWidth: '44px',
+  padding: '0 var(--space-base)',
+  borderRadius: 'var(--radius-sm)',
+  font: 'var(--font-body-strong)',
+} as const;
+const primaryStyle = {
+  border: 'none',
+  backgroundColor: 'var(--color-primary)',
+  color: 'var(--color-on-primary)',
+} as const;
+const secondaryStyle = {
+  border: '1px solid var(--color-line)',
+  backgroundColor: 'var(--color-surface)',
+  color: 'var(--color-ink)',
+} as const;
 
 const badgeStyle = {
   display: 'inline-flex',
@@ -18,7 +42,7 @@ const badgeStyle = {
   font: 'var(--font-label)',
 } as const;
 
-export function LobbyMatchCard({ card, onJoin, onOpen }: LobbyMatchCardProps) {
+export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, error }: LobbyMatchCardProps) {
   const { match, joined, isHost } = card;
   const startDate = new Date(match.startAt);
   const endDate = new Date(match.endAt);
@@ -27,6 +51,8 @@ export function LobbyMatchCard({ card, onJoin, onOpen }: LobbyMatchCardProps) {
   const sportName = SPORT_LABEL[match.sport] ?? match.sport;
   const isConfirmed = match.bookingStatus === 'CONFIRMED';
   const canJoin = match.status === 'OPEN' && !joined && !isHost;
+  // The feed keeps only future matches, so a joined non-host card can leave (BR-18).
+  const canLeave = joined && !isHost;
 
   return (
     <article
@@ -142,29 +168,95 @@ export function LobbyMatchCard({ card, onJoin, onOpen }: LobbyMatchCardProps) {
         )}
       </div>
 
-      {canJoin && (
+      {error && (
+        <p
+          role="alert"
+          style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}
+        >
+          {error}
+        </p>
+      )}
+
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 'var(--space-sm)',
+          minWidth: 0,
+        }}
+      >
+        {canJoin && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={(event) => {
+              event.stopPropagation();
+              onJoin?.(match);
+            }}
+            style={{
+              ...actionStyle,
+              ...primaryStyle,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              opacity: busy ? 0.6 : 1,
+            }}
+          >
+            Vào trận
+          </button>
+        )}
+        {canLeave && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onLeave?.(match);
+            }}
+            style={{
+              ...actionStyle,
+              ...secondaryStyle,
+              cursor: 'pointer',
+            }}
+          >
+            Rời trận
+          </button>
+        )}
+        {isHost && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onCancel?.(match);
+            }}
+            style={{
+              ...actionStyle,
+              ...secondaryStyle,
+              color: 'var(--color-status-no)',
+              cursor: 'pointer',
+            }}
+          >
+            Hủy trận
+          </button>
+        )}
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            onJoin?.(match);
+            onOpen?.(match);
           }}
           style={{
-            alignSelf: 'flex-start',
             minHeight: '44px',
             minWidth: '44px',
-            padding: '0 var(--space-base)',
+            padding: '0 var(--space-sm)',
             border: 'none',
-            borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'var(--color-primary)',
-            color: 'var(--color-on-primary)',
+            background: 'transparent',
+            color: 'var(--color-primary)',
             font: 'var(--font-body-strong)',
             cursor: 'pointer',
           }}
         >
-          Vào trận
+          Chi tiết
         </button>
-      )}
+      </div>
     </article>
   );
 }

@@ -1,5 +1,5 @@
-import { api, ApiError, lobbyChips, lobbyMatches } from '@monsport/client';
-import type { MatchView, Sport } from '@monsport/shared';
+import { api, ApiError, dayHeading, formatVnd, hhmm, lobbyChips, lobbyMatches } from '@monsport/client';
+import { minuteOfDayVN, vnDateString, type MatchDetailView, type MatchView, type Sport } from '@monsport/shared';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../../app/session.tsx';
@@ -16,6 +16,15 @@ export interface LobbyScreenProps {
   now?: Date;
 }
 
+const sheetBtnStyle = {
+  minHeight: '44px',
+  minWidth: '44px',
+  padding: '0 var(--space-base)',
+  borderRadius: 'var(--radius-sm)',
+  font: 'var(--font-body-strong)',
+  cursor: 'pointer',
+} as const;
+
 export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const navigate = useNavigate();
   const { user } = useSession();
@@ -31,20 +40,56 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const [guestLoginOpen, setGuestLoginOpen] = useState(false);
   const [playerSheetOpen, setPlayerSheetOpen] = useState(false);
 
+  const [joiningIds, setJoiningIds] = useState<Record<string, boolean>>({});
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
+
+  const [detailTarget, setDetailTarget] = useState<MatchView | null>(null);
+  const [detail, setDetail] = useState<MatchDetailView | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+
+  const [leaveTarget, setLeaveTarget] = useState<MatchView | null>(null);
+  const [leaveBusy, setLeaveBusy] = useState(false);
+  const [leaveError, setLeaveError] = useState('');
+
+  const [cancelTarget, setCancelTarget] = useState<MatchView | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+
   const userId = user?.id;
   const role = user?.role;
   const isPlayer = role === 'USER';
 
   const reqCounter = useRef(0);
+  const detailReqCounter = useRef(0);
   const inFlight = useRef(false);
   const pending = useRef(false);
   // The login sheet opens once for each expiry, not on every SSE reload that gets a 401.
   const expiredShown = useRef(false);
+  const fetchedSinceExpiry = useRef(false);
+  const pendingJoinRef = useRef<string | null>(null);
   const [loginTick, setLoginTick] = useState(0);
+  const [guestLoginTick, setGuestLoginTick] = useState(0);
   const roleRef = useRef(role);
   useLayoutEffect(() => {
     roleRef.current = role;
   });
+
+  const openSessionLogin = useCallback(() => {
+    if (!expiredShown.current) {
+      expiredShown.current = true;
+      fetchedSinceExpiry.current = false;
+      setSessionLoginOpen(true);
+    }
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    detailReqCounter.current++;
+    setDetailTarget(null);
+    setDetail(null);
+    setDetailError('');
+    setDetailLoading(false);
+  }, []);
 
   const fetchAll = useCallback(() => {
     const reqId = ++reqCounter.current;
@@ -84,17 +129,14 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         setJoinedRows([]);
         if (j.error instanceof ApiError && j.error.status === 401) {
           setJoinedFailed(false);
-          if (!expiredShown.current) {
-            expiredShown.current = true;
-            setSessionLoginOpen(true);
-          }
+          openSessionLogin();
         } else {
           setJoinedFailed(true);
         }
       }
       finish();
     });
-  }, [sport, date, isPlayer]);
+  }, [sport, date, isPlayer, openSessionLogin]);
 
   const fetchRef = useRef(fetchAll);
   useLayoutEffect(() => {
@@ -122,27 +164,35 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
       (error: unknown) => {
         if (reqId !== reqCounter.current) return;
         if (error instanceof ApiError && error.status === 401) {
-          if (!expiredShown.current) {
-            expiredShown.current = true;
-            setSessionLoginOpen(true);
-          }
+          openSessionLogin();
         } else setJoinedFailed(true);
       },
     );
-  }, []);
+  }, [openSessionLogin]);
 
   useEffect(() => {
     reqCounter.current++;
+    detailReqCounter.current++;
     inFlight.current = false;
     pending.current = false;
     expiredShown.current = false;
     setRows(undefined);
     setJoinedRows([]);
     setJoinedFailed(false);
+    setCardErrors({});
+    setDetailTarget(null);
+    setDetail(null);
+    setDetailError('');
+    setDetailLoading(false);
+    setLeaveTarget(null);
+    setLeaveError('');
+    setCancelTarget(null);
+    setCancelError('');
   }, [userId]);
 
   useEffect(() => {
     if (user === undefined) return;
+    fetchedSinceExpiry.current = true;
     fetchAll();
   }, [userId, user === undefined, fetchAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -150,21 +200,203 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   useEffect(() => {
     if (loginTick === 0) return;
     expiredShown.current = false;
+    if (fetchedSinceExpiry.current) {
+      fetchedSinceExpiry.current = false;
+      return;
+    }
     fetchRef.current();
   }, [loginTick]);
 
+  const joinMatch = useCallback(
+    async (id: string) => {
+      setJoiningIds((prev) => ({ ...prev, [id]: true }));
+      setCardErrors((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setDetailError('');
+      try {
+        const res = await api<MatchDetailView>(`/api/matches/${id}/join`, { method: 'POST' });
+        if (res && typeof res === 'object' && 'id' in res) {
+          setJoinedRows((prev) => [...prev.filter((m) => m.id !== res.id), res]);
+          setRows((prev) => prev?.map((m) => (m.id === res.id ? res : m)));
+          setDetail((prev) => (prev && prev.id === res.id ? res : prev));
+        }
+        reload();
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          closeDetail();
+          openSessionLogin();
+        } else if (err instanceof ApiError) {
+          setCardErrors((prev) => ({ ...prev, [id]: err.message }));
+          setDetailError(err.message);
+          if (err.status === 409) reload();
+        } else {
+          const msg = 'Không kết nối được. Thử lại sau';
+          setCardErrors((prev) => ({ ...prev, [id]: msg }));
+          setDetailError(msg);
+        }
+      } finally {
+        setJoiningIds((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      }
+    },
+    [reload, closeDetail, openSessionLogin],
+  );
+
+  useEffect(() => {
+    if (guestLoginTick === 0) return;
+    const id = pendingJoinRef.current;
+    pendingJoinRef.current = null;
+    if (!id) return;
+    if (roleRef.current === 'OWNER' || roleRef.current === 'ADMIN') {
+      setPlayerSheetOpen(true);
+      return;
+    }
+    void joinMatch(id);
+  }, [guestLoginTick, joinMatch]);
+
   useLobbyStream(reload, user !== undefined);
 
-  // Step 3 adds the detail sheet for a USER. OWNER and ADMIN never call the API from a card (AC-15).
   const handleOpen = (match: MatchView) => {
-    void match;
-    if (role === 'OWNER' || role === 'ADMIN') setPlayerSheetOpen(true);
+    if (role === 'OWNER' || role === 'ADMIN') {
+      setPlayerSheetOpen(true);
+      return;
+    }
+    if (user === null) {
+      detailReqCounter.current++;
+      setDetailTarget(match);
+      setDetail(null);
+      setDetailError('');
+      setDetailLoading(false);
+      return;
+    }
+    const reqId = ++detailReqCounter.current;
+    setDetailTarget(match);
+    setDetail(null);
+    setDetailError('');
+    setDetailLoading(true);
+    api<MatchDetailView>(`/api/matches/${match.id}`).then(
+      (d) => {
+        if (reqId !== detailReqCounter.current) return;
+        setDetail(d);
+        setDetailLoading(false);
+      },
+      (err: unknown) => {
+        if (reqId !== detailReqCounter.current) return;
+        setDetailLoading(false);
+        if (err instanceof ApiError && err.status === 401) {
+          closeDetail();
+          openSessionLogin();
+        } else {
+          setDetailError(err instanceof ApiError ? err.message : 'Không tải được');
+        }
+      },
+    );
   };
 
   const handleJoin = (match: MatchView) => {
-    void match;
-    if (user === null) setGuestLoginOpen(true);
-    else if (role === 'OWNER' || role === 'ADMIN') setPlayerSheetOpen(true);
+    if (user === null) {
+      pendingJoinRef.current = match.id;
+      setGuestLoginOpen(true);
+      return;
+    }
+    if (role === 'OWNER' || role === 'ADMIN') {
+      setPlayerSheetOpen(true);
+      return;
+    }
+    if (joiningIds[match.id]) return;
+    void joinMatch(match.id);
+  };
+
+  const openLeave = (match: MatchView) => {
+    setLeaveError('');
+    setLeaveTarget(match);
+  };
+
+  const closeLeave = () => {
+    setLeaveTarget(null);
+    setLeaveError('');
+  };
+
+  const confirmLeave = async () => {
+    if (!leaveTarget || leaveBusy) return;
+    const target = leaveTarget;
+    setLeaveBusy(true);
+    setLeaveError('');
+    try {
+      const res = await api<MatchDetailView>(`/api/matches/${target.id}/leave`, { method: 'POST' });
+      const updated: MatchView =
+        res && typeof res === 'object' && 'id' in res
+          ? res
+          : { ...target, status: 'OPEN', joinedCount: Math.max(0, target.joinedCount - 1) };
+      setJoinedRows((prev) => prev.filter((m) => m.id !== target.id));
+      setRows((prev) => {
+        if (!prev) return [updated];
+        return prev.some((m) => m.id === target.id)
+          ? prev.map((m) => (m.id === target.id ? updated : m))
+          : [...prev, updated];
+      });
+      setLeaveTarget(null);
+      closeDetail();
+      reload();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setLeaveTarget(null);
+        closeDetail();
+        openSessionLogin();
+      } else if (err instanceof ApiError) {
+        setLeaveError(err.message);
+        if (err.status === 409) reload();
+      } else {
+        setLeaveError('Không kết nối được. Thử lại sau');
+      }
+    } finally {
+      setLeaveBusy(false);
+    }
+  };
+
+  const openCancel = (match: MatchView) => {
+    setCancelError('');
+    setCancelTarget(match);
+  };
+
+  const closeCancel = () => {
+    setCancelTarget(null);
+    setCancelError('');
+  };
+
+  const confirmCancel = async () => {
+    if (!cancelTarget || cancelBusy) return;
+    const target = cancelTarget;
+    setCancelBusy(true);
+    setCancelError('');
+    try {
+      await api(`/api/matches/${target.id}/cancel`, { method: 'POST' });
+      setRows((prev) => prev?.filter((m) => m.id !== target.id));
+      setJoinedRows((prev) => prev.filter((m) => m.id !== target.id));
+      setCancelTarget(null);
+      closeDetail();
+      reload();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setCancelTarget(null);
+        closeDetail();
+        openSessionLogin();
+      } else if (err instanceof ApiError) {
+        setCancelError(err.message);
+        if (err.status === 409) reload();
+      } else {
+        setCancelError('Không kết nối được. Thử lại sau');
+      }
+    } finally {
+      setCancelBusy(false);
+    }
   };
 
   if (user === undefined) {
@@ -172,7 +404,15 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   }
 
   const chips = lobbyChips(now);
-  const cards = rows ? lobbyMatches(rows, joinedRows, now, { sport, date }, userId) : undefined;
+  const joinedById = new Map(joinedRows.map((m) => [m.id, m]));
+  const mergedFeed = rows?.map((m) => joinedById.get(m.id) ?? m);
+  const cards = mergedFeed ? lobbyMatches(mergedFeed, joinedRows, now, { sport, date }, userId) : undefined;
+  const detailOpen = detailTarget !== null && leaveTarget === null && cancelTarget === null;
+  const shownMatch = detail ?? detailTarget;
+  const orphanError =
+    !detailOpen && cards
+      ? Object.entries(cardErrors).find(([id]) => !cards.some((c) => c.match.id === id))?.[1]
+      : undefined;
 
   return (
     <div style={{ minWidth: 0 }}>
@@ -248,6 +488,19 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                 </button>
               </div>
             )}
+            {orphanError && (
+              <p
+                role="alert"
+                style={{
+                  margin: 0,
+                  padding: 'var(--space-sm) var(--space-base)',
+                  font: 'var(--font-meta)',
+                  color: 'var(--color-status-no)',
+                }}
+              >
+                {orphanError}
+              </p>
+            )}
             {cards.length === 0 ? (
               <EmptyState message="Chưa có trận nào" actionLabel="Đặt sân" onAction={() => navigate('/')} />
             ) : (
@@ -264,7 +517,19 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
               >
                 {cards.map((card) => (
                   <li key={card.match.id} style={{ minWidth: 0 }}>
-                    <LobbyMatchCard card={card} onJoin={handleJoin} onOpen={handleOpen} />
+                    <LobbyMatchCard
+                      card={card}
+                      busy={Boolean(joiningIds[card.match.id])}
+                      error={
+                        detailOpen && detailTarget?.id === card.match.id
+                          ? undefined
+                          : cardErrors[card.match.id]
+                      }
+                      onJoin={handleJoin}
+                      onLeave={openLeave}
+                      onCancel={openCancel}
+                      onOpen={handleOpen}
+                    />
                   </li>
                 ))}
               </ul>
@@ -273,11 +538,230 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         )}
       </div>
 
-      <LoginSheet open={guestLoginOpen} onClose={() => setGuestLoginOpen(false)} />
+      <Sheet open={detailOpen} onClose={closeDetail} title="Chi tiết trận">
+        {shownMatch && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', minWidth: 0 }}>
+            <div style={{ font: 'var(--font-body-strong)', overflowWrap: 'anywhere', minWidth: 0 }}>
+              {`${shownMatch.venueName} · ${shownMatch.courtName}`}
+            </div>
+            <div style={{ font: 'var(--font-body)', minWidth: 0 }}>
+              {dayHeading(vnDateString(new Date(shownMatch.startAt)))}
+            </div>
+            <div className="tnum" style={{ font: 'var(--font-numeric)', color: 'var(--color-ink-muted)', minWidth: 0 }}>
+              {`${hhmm(minuteOfDayVN(new Date(shownMatch.startAt)))}–${hhmm(minuteOfDayVN(new Date(shownMatch.endAt)))} · ${shownMatch.joinedCount}/${shownMatch.capacity} suất · ${formatVnd(shownMatch.pricePerSlot)}/suất`}
+            </div>
+            {user === null ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', minWidth: 0 }}>
+                <p style={{ margin: 0, font: 'var(--font-body)' }}>Đăng nhập để xem người chơi</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeDetail();
+                    pendingJoinRef.current = null;
+                    setGuestLoginOpen(true);
+                  }}
+                  style={{
+                    ...sheetBtnStyle,
+                    border: 'none',
+                    backgroundColor: 'var(--color-primary)',
+                    color: 'var(--color-on-primary)',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  Đăng nhập
+                </button>
+              </div>
+            ) : detailLoading ? (
+              <p style={{ margin: 0, font: 'var(--font-body)', color: 'var(--color-ink-muted)' }}>Đang tải</p>
+            ) : (
+              detail && (
+                <>
+                  <ul
+                    style={{
+                      listStyle: 'none',
+                      margin: 0,
+                      padding: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--space-xs)',
+                      minWidth: 0,
+                    }}
+                  >
+                    {(detail.players ?? [])
+                      .filter((p) => !('status' in p) || (p as { status?: string }).status === 'ACTIVE')
+                      .map((p) => (
+                        <li
+                          key={p.userId}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 'var(--space-sm)',
+                            minWidth: 0,
+                          }}
+                        >
+                          <span style={{ font: 'var(--font-body)', overflowWrap: 'anywhere', minWidth: 0 }}>
+                            {p.name}
+                          </span>
+                          {detail.viewerRole === 'HOST' && p.phone && (
+                            <a
+                              href={`tel:${p.phone}`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                minHeight: '44px',
+                                color: 'var(--color-primary)',
+                                font: 'var(--font-body-strong)',
+                              }}
+                            >
+                              {p.phone}
+                            </a>
+                          )}
+                        </li>
+                      ))}
+                  </ul>
+                  {detail.viewerRole === 'NONE' && detail.status === 'OPEN' && (
+                    <button
+                      type="button"
+                      disabled={Boolean(joiningIds[detail.id])}
+                      onClick={() => handleJoin(detail)}
+                      style={{
+                        ...sheetBtnStyle,
+                        border: 'none',
+                        backgroundColor: 'var(--color-primary)',
+                        color: 'var(--color-on-primary)',
+                        alignSelf: 'flex-start',
+                        cursor: joiningIds[detail.id] ? 'not-allowed' : 'pointer',
+                        opacity: joiningIds[detail.id] ? 0.6 : 1,
+                      }}
+                    >
+                      Vào trận
+                    </button>
+                  )}
+                  {detail.viewerRole === 'PLAYER' && Date.parse(detail.startAt) > now.getTime() && (
+                    <button
+                      type="button"
+                      onClick={() => openLeave(detail)}
+                      style={{
+                        ...sheetBtnStyle,
+                        border: '1px solid var(--color-line)',
+                        backgroundColor: 'var(--color-surface)',
+                        color: 'var(--color-ink)',
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      Rời trận
+                    </button>
+                  )}
+                  {detail.viewerRole === 'HOST' && (
+                    <button
+                      type="button"
+                      onClick={() => openCancel(detail)}
+                      style={{
+                        ...sheetBtnStyle,
+                        border: '1px solid var(--color-line)',
+                        backgroundColor: 'var(--color-surface)',
+                        color: 'var(--color-status-no)',
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      Hủy trận
+                    </button>
+                  )}
+                </>
+              )
+            )}
+            {detailError && (
+              <p
+                role="alert"
+                style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}
+              >
+                {detailError}
+              </p>
+            )}
+          </div>
+        )}
+      </Sheet>
+
+      <Sheet
+        open={leaveTarget !== null}
+        onClose={closeLeave}
+        title="Rời trận này?"
+        primaryAction={{ label: 'Rời trận', onClick: confirmLeave, disabled: leaveBusy }}
+      >
+        {leaveTarget && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)', minWidth: 0 }}>
+            <div style={{ font: 'var(--font-body-strong)', overflowWrap: 'anywhere', minWidth: 0 }}>
+              {`${leaveTarget.venueName} · ${leaveTarget.courtName}`}
+            </div>
+            <div style={{ font: 'var(--font-body)', minWidth: 0 }}>
+              {dayHeading(vnDateString(new Date(leaveTarget.startAt)))}
+            </div>
+            <div className="tnum" style={{ font: 'var(--font-numeric)', color: 'var(--color-ink-muted)', minWidth: 0 }}>
+              {`${hhmm(minuteOfDayVN(new Date(leaveTarget.startAt)))}–${hhmm(minuteOfDayVN(new Date(leaveTarget.endAt)))}`}
+            </div>
+            {leaveError && (
+              <p
+                role="alert"
+                style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}
+              >
+                {leaveError}
+              </p>
+            )}
+          </div>
+        )}
+      </Sheet>
+
+      <Sheet
+        open={cancelTarget !== null}
+        onClose={closeCancel}
+        title="Hủy trận này?"
+        primaryAction={{ label: 'Hủy trận', onClick: confirmCancel, disabled: cancelBusy }}
+      >
+        {cancelTarget && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)', minWidth: 0 }}>
+            <div style={{ font: 'var(--font-body-strong)', overflowWrap: 'anywhere', minWidth: 0 }}>
+              {`${cancelTarget.venueName} · ${cancelTarget.courtName}`}
+            </div>
+            <div style={{ font: 'var(--font-body)', minWidth: 0 }}>
+              {dayHeading(vnDateString(new Date(cancelTarget.startAt)))}
+            </div>
+            <div className="tnum" style={{ font: 'var(--font-numeric)', color: 'var(--color-ink-muted)', minWidth: 0 }}>
+              {`${hhmm(minuteOfDayVN(new Date(cancelTarget.startAt)))}–${hhmm(minuteOfDayVN(new Date(cancelTarget.endAt)))}`}
+            </div>
+            <p style={{ margin: 0, font: 'var(--font-body)', color: 'var(--color-ink)' }}>
+              Trận và booking của trận sẽ bị hủy.
+            </p>
+            {cancelError && (
+              <p
+                role="alert"
+                style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}
+              >
+                {cancelError}
+              </p>
+            )}
+          </div>
+        )}
+      </Sheet>
+
+      <LoginSheet
+        open={guestLoginOpen}
+        onClose={() => setGuestLoginOpen(false)}
+        onLoggedIn={() => {
+          setGuestLoginOpen(false);
+          setGuestLoginTick((t) => t + 1);
+        }}
+      />
       <LoginSheet
         open={sessionLoginOpen}
-        onClose={() => setSessionLoginOpen(false)}
-        onLoggedIn={() => setLoginTick((t) => t + 1)}
+        onClose={() => {
+          expiredShown.current = false;
+          setSessionLoginOpen(false);
+        }}
+        onLoggedIn={() => {
+          setSessionLoginOpen(false);
+          setLoginTick((t) => t + 1);
+        }}
         notice="Phiên đăng nhập đã hết. Hãy đăng nhập lại."
       />
       <Sheet
