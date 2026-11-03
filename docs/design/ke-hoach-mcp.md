@@ -22,7 +22,7 @@ Hai mục tiêu dùng chung một lớp công cụ. Chỉ khác cách xác thự
 
 | Công cụ | UC | Loại | Ghi chú |
 |---|---|---|---|
-| `search_venues` | UC-2 | đọc | Lọc theo môn và tên sân |
+| `search_venues` | UC-2 | đọc | Lọc theo môn và tên sân. Nhận thêm `lat`, `lng`, `radiusKm` (mục "Định vị GPS") |
 | `get_availability` | UC-2 | đọc | Theo sân và ngày, như `GET /api/courts/:id/availability` |
 | `request_booking` | UC-3 | ghi | Trả về hạn chủ sân xác nhận. Kèm số của chủ sân để AI nhắc người dùng gọi (UC-2) |
 | `list_my_bookings` | UC-6 | đọc | |
@@ -34,6 +34,38 @@ Hai mục tiêu dùng chung một lớp công cụ. Chỉ khác cách xác thự
 - Mỗi công cụ ghi có chú thích `destructiveHint` và mô tả rõ hậu quả, để client hỏi người dùng trước khi chạy.
 - Chủ sân và admin chưa có công cụ ở bản đầu. Xem mục 27 của `HUMAN_DECISIONS.md`.
 - Tên và tham số công cụ lấy từ Zod schema trong `packages/shared`. Đó là một nguồn cho hợp đồng.
+
+## Định vị GPS và sân trong bán kính 20 km
+
+Người dùng cho phép lấy vị trí. Hệ thống liệt kê các sân trong bán kính 20 km, gần nhất trước. Tính năng này chạy cho web, app và AI. Nó không chỉ thuộc về MCP.
+
+**Hiện trạng.** `Venue` chỉ có `address` (chuỗi). Chưa có tọa độ. Phải thêm tọa độ trước khi tìm theo khoảng cách.
+
+**Dữ liệu.**
+- Thêm `latitude` và `longitude` (kiểu số thực, có thể rỗng) vào `Venue`. Đổi schema nên cần reviewer mạnh nhất.
+- Chủ sân đặt tọa độ khi tạo hoặc sửa đơn vị. Cách nhập: bấm "Dùng vị trí hiện tại" hoặc chọn trên bản đồ.
+- Sân chưa có tọa độ không xuất hiện trong kết quả theo bán kính. Chúng vẫn xuất hiện khi tìm theo tên.
+
+**Tìm kiếm.**
+- `GET /api/venues` nhận thêm `lat`, `lng`, `radiusKm`. Mặc định `radiusKm` là 20. Giá trị tối đa là 20.
+- Kết quả có thêm `distanceKm` và xếp theo khoảng cách tăng dần.
+- Tính khoảng cách bằng công thức haversine trong SQL. Lọc trước bằng hộp giới hạn (bounding box) trên hai cột tọa độ, rồi mới tính haversine. Với số sân hiện tại, chưa cần PostGIS.
+- Công cụ `search_venues` của MCP gọi cùng service. AI truyền `lat` và `lng` mà người dùng cung cấp.
+
+**Giao diện.**
+- Web dùng `navigator.geolocation`. App mobile (PWA, ADR 0006) dùng cùng API.
+- Chỉ hỏi quyền vị trí khi người dùng bấm "Gần tôi". Không hỏi khi mở trang.
+- Nếu người dùng từ chối, hiện ô chọn khu vực hoặc tìm theo tên. Không chặn màn hình.
+
+**Riêng tư (BR-29, luật 91/2025).**
+- Vị trí người dùng là dữ liệu cá nhân. Server chỉ dùng `lat` và `lng` trong một request để tính khoảng cách. Không lưu, không ghi vào log.
+- Không đưa tọa độ chính xác của người dùng vào kết quả hay vào dữ liệu trả cho AI.
+- Màn "Cho phép" của connector nêu rõ: AI có thể gửi vị trí của người dùng khi tìm sân.
+
+**Giả định, chờ chủ dự án duyệt.**
+- Bán kính 20 km là giới hạn cứng ở server. Người dùng không tăng được.
+- Khoảng cách tính theo đường chim bay, không theo đường đi.
+- Chưa có bản đồ trong bản đầu. Danh sách có `distanceKm` là đủ.
 
 ## Hai cách nối
 
@@ -63,6 +95,7 @@ Hai mục tiêu dùng chung một lớp công cụ. Chỉ khác cách xác thự
 ## Thứ tự làm
 
 1. **Duyệt ADR 0008 và sửa intake.** Thêm "MCP cho AI" vào phạm vi, và một UC mới.
+1b. **Định vị GPS và tìm trong 20 km.** Một brief riêng, làm được trước MCP. Thêm tọa độ vào `Venue`, ô nhập của chủ sân, tham số `lat`, `lng`, `radiusKm` cho `GET /api/venues`, và nút "Gần tôi". Chạm schema và dữ liệu cá nhân, nên chạy thêm `rule-review`. Intake cần thêm một UC và một BR cho bán kính 20 km.
 2. **Lớp công cụ.** Module `mcp` trong API, schema trong `packages/shared`, test `AC-n` cho từng công cụ. Chưa có xác thực ngoài, chỉ test với một `userId` giả.
 3. **PAT và cách A.** Bảng token (đổi schema, cần reviewer mạnh nhất), trang "Tôi", lệnh stdio.
 4. **OAuth và cách B.** Điểm cuối OAuth (metadata, đăng ký client, cấp phép, token), màn "Cho phép", `/mcp` qua HTTP.
