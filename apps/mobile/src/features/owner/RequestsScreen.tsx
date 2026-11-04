@@ -18,7 +18,17 @@ interface Notice {
   text: string;
 }
 
+/**
+ * Owner screen for pending requests. The body is keyed by the user id, so a login as
+ * another user mounts a fresh body. Old cards, notices, and sheets of the previous user
+ * never paint for the new user, not even for one frame before the effect clears them.
+ */
 export function RequestsScreen() {
+  const { user } = useSession();
+  return <RequestsScreenBody key={user?.id ?? 'guest'} />;
+}
+
+function RequestsScreenBody() {
   const navigate = useNavigate();
   const { user } = useSession();
   // The screen also renders without the shell (tests, a route outside App), so the context may be missing.

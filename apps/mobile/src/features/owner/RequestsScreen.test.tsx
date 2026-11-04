@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter, Outlet, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
-import { ApiError, formatSlot, formatVnd } from '@monsport/client';
+import { ApiError, formatSlot } from '@monsport/client';
 import type { OwnerBookingView, VenueView } from '@monsport/shared';
 import * as sessionModule from '../../app/session';
 import { RequestsScreen } from './RequestsScreen';
@@ -161,10 +161,8 @@ describe('RequestsScreen', () => {
 
     await waitFor(() => expect(within(r1).getByText('Sân 1')).toBeDefined());
     expect(within(r1).getByText('Sân Cầu Lông An Phú')).toBeDefined();
-    expect(within(r1).getByText(formatSlot(booking(1).startAt, booking(1).endAt))).toBeDefined();
-    expect(r1.textContent).toContain('18:00');
-    expect(r1.textContent).toContain('06/11/2026');
-    expect(within(r1).getByText(formatVnd(240000))).toBeDefined();
+    expect(within(r1).getByText('18:00–19:00 ngày 06/11/2026')).toBeDefined();
+    expect(within(r1).getByText('240.000đ')).toBeDefined();
     const tel = within(r1).getByRole('link', { name: '0901234567' });
     expect(tel.getAttribute('href')).toBe('tel:0901234567');
     expect(within(r1).getByText('Còn 1 giờ 30 phút')).toBeDefined();
@@ -514,6 +512,70 @@ describe('RequestsScreen', () => {
 
     expect(await screen.findByText('Nguyễn Văn A')).toBeDefined();
     expect(gets).toBe(2);
+  });
+
+  it('AC-9: a 401 on a reload keeps the list, opens the login sheet, and reloads after login', async () => {
+    let gets = 0;
+    mockApi({
+      [LIST]: () => {
+        gets += 1;
+        if (gets === 2) throw new ApiError(401, 'Chưa đăng nhập');
+        return two();
+      },
+      [VENUES]: venues,
+      '/api/auth/login': () => ({ ok: true }),
+    });
+    renderScreen(OWNER);
+    await screen.findByText('Nguyễn Văn A');
+
+    act(() => setVisibility('visible'));
+    expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
+    expect(screen.getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.')).toBeDefined();
+    expect(cardOf(1)).not.toBeNull();
+    expect(cardOf(2)).not.toBeNull();
+    expect(calls(LIST)).toHaveLength(2);
+
+    fireEvent.change(screen.getByLabelText('Số điện thoại'), { target: { value: '0901234567' } });
+    fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'matkhau123' } });
+    const submit = screen.getAllByRole('button', { name: 'Đăng nhập' }).find((b) => b.getAttribute('type') === 'submit')!;
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(calls(LIST)).toHaveLength(3));
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('AC-9: a login as another owner does not show the old cards', async () => {
+    let gets = 0;
+    mockApi({
+      [LIST]: () => (++gets === 1 ? two() : [booking(3)]),
+      [VENUES]: venues,
+    });
+    const { rerender } = renderScreen(OWNER);
+    await screen.findByText('Nguyễn Văn A');
+
+    const OWNER2: User = { id: 'o2', name: 'Cường', role: 'OWNER' };
+    vi.mocked(sessionModule.useSession).mockReturnValue({
+      user: OWNER2,
+      setUser: vi.fn(),
+      login: vi.fn(),
+      logout: vi.fn(),
+      refresh: vi.fn(),
+      loading: false,
+    });
+    rerender(
+      <MemoryRouter initialEntries={['/chu-san/yeu-cau']}>
+        <Routes>
+          <Route element={<Shell ctx={{ setPendingRequests: vi.fn(), refreshCounts: vi.fn() }} />}>
+            <Route path="*" element={<Probe />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+    // The first paint for the new user holds no card of the old user.
+    expect(cardOf(1)).toBeNull();
+    expect(cardOf(2)).toBeNull();
+    await waitFor(() => expect(cardOf(3)).not.toBeNull());
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
   });
 
   it('AC-9: a 401 on "Xác nhận" opens the login sheet and keeps the card', async () => {
