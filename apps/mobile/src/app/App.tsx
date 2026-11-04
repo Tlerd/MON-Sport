@@ -17,6 +17,8 @@ export interface ShellContextType {
   // Optional: a test outside this feature builds a shell context without it.
   setUnreadNotifications?: (count: number) => void;
   pendingRequests: number;
+  // Optional: the Yêu cầu screen reports its list length after each load.
+  setPendingRequests?: (count: number) => void;
   refreshCounts: () => void;
 }
 
@@ -182,6 +184,7 @@ export function App() {
               unreadNotifications,
               setUnreadNotifications,
               pendingRequests,
+              setPendingRequests,
               refreshCounts,
             }}
           />
