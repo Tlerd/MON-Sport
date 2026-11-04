@@ -43,6 +43,12 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 25 | Có gửi thông báo đẩy khi có người vào hoặc rời trận không? | Không | Không | brief F-022 |
 | 26 | Duyệt ADR 0008 (máy chủ MCP cho AI đặt sân và connector) và đổi intake để thêm MCP vào phạm vi? | Chưa duyệt. Agent không code MCP | Kế hoạch MCP (`docs/design/ke-hoach-mcp.md`) | ADR 0008 |
 | 27 | Chủ sân và admin có công cụ MCP không (xác nhận booking, đóng sân)? | Không. Bản đầu chỉ có công cụ cho người dùng | Không | `docs/design/ke-hoach-mcp.md` |
+| 28 | Khi booking có trận, sheet từ chối của chủ sân trên app có cần báo trước "Trận có N người sẽ bị hủy" không? Cần đổi API | Không báo trước | Không | QA F-024 câu 1 |
+| 29 | Chủ sân có nhiều đơn vị có cần chip lọc theo đơn vị trên tab Yêu cầu của app không? | Không. Một danh sách chung, mỗi thẻ ghi tên đơn vị | Không | QA F-024 câu 2 |
+| 30 | Tab Yêu cầu xếp theo hạn xác nhận (gấp nhất trước) hay theo giờ chơi? | Theo giờ chơi (`startAt` tăng dần) | Không | QA F-024 câu 3 |
+| 31 | Thẻ yêu cầu trên app có được dài 7 dòng không (`DESIGN.md` cho tối đa 3)? | Có, 7 dòng theo brief F-024 | Không | QA F-024 câu 4 |
+| 32 | Khi thẻ yêu cầu ghi "Hết hạn", hai nút có cần khóa không? | Không. Server trả 409 và app bỏ thẻ | Không | QA F-024 câu 5 |
+| 33 | Chủ sân có cần nhập lý do khi từ chối không? Cần đổi schema và thông báo | Không | Không | brief F-024 |
 
 ## Việc chỉ người dùng làm được
 
