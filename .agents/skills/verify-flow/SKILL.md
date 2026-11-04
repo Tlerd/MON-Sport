@@ -34,7 +34,7 @@ The run is done when the last line says `PASSED` and each flow you picked has PA
 | Phone booking, schedule grid (UC-5, F-007) | `phone-booking` | [references/flows/phone-booking.md](references/flows/phone-booking.md) |
 | Mobile shell, tab bar scroll and hide/show (F-019) | `mobile-shell` | [references/flows/mobile-shell.md](references/flows/mobile-shell.md) |
 | Mobile booking tab, venue slot rows, request sheet (UC-2, UC-3, F-020) | `mobile-book` | [references/flows/mobile-book.md](references/flows/mobile-book.md) |
-| Mobile "Lịch của tôi" tabs, booking cancel (UC-5, F-021) | `mobile-history` | [references/flows/mobile-history.md](references/flows/mobile-history.md) |
+| Mobile "Lịch của tôi" tabs, booking cancel (UC-6, UC-8, F-021) | `mobile-history` | [references/flows/mobile-history.md](references/flows/mobile-history.md) |
 | Mobile "Mở trận", "Phòng chờ" tab (UC-7, UC-8, UC-9, F-022) | `mobile-lobby` | [references/flows/mobile-lobby.md](references/flows/mobile-lobby.md) |
 | Mobile owner "Thông báo" tab (UC-14, F-023) | `mobile-notifications` | [references/flows/mobile-notifications.md](references/flows/mobile-notifications.md) |
 

@@ -1,6 +1,6 @@
 # Flow mobile-history
 
-Mobile "Lịch của tôi" tab and booking cancel (UC-5, brief F-021, AC-13 and AC-14). Script: `scripts/mobile-history.mjs`. Screen: `/app/lich-cua-toi` (tabs "Sắp tới", "Trận đã vào", "Lịch sử"), sheet "Hủy booking này?".
+Mobile "Lịch của tôi" tab and booking cancel (UC-6, UC-8, brief F-021, AC-13 and AC-14). Script: `scripts/mobile-history.mjs`. Screen: `/app/lich-cua-toi` (tabs "Sắp tới", "Trận đã vào", "Lịch sử"), sheet "Hủy booking này?".
 
 The flow makes its own data. It sends `POST /api/bookings` for a free 1-hour slot tomorrow on the target court (up to 5 slots on 409), so a re-run after each deploy works. It cancels only the booking that it created.
 
