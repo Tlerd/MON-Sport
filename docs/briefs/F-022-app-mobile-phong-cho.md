@@ -78,7 +78,7 @@ One pull request for each row. Each pull request passes the check command on its
 | 1 | Hàm thuần của feed và hook luồng SSE `useLobbyStream` | `packages/client/src/lobby.ts`, `packages/client/src/lobby.test.ts`, `packages/client/src/index.ts`, `apps/mobile/src/features/lobby/useLobbyStream.ts`, `apps/mobile/src/features/lobby/useLobbyStream.test.ts` | AC-1 (lọc và sắp xếp), AC-2 (ngày), AC-4, AC-5 |
 | 2 | Màn Phòng chờ: feed gộp với danh sách đã vào, chip môn và ngày, trạng thái rỗng và lỗi, route `phong-cho` | `apps/mobile/src/features/lobby/`, `apps/mobile/src/app/router.tsx` | AC-1, AC-2, AC-3, AC-15, AC-16 |
 | 3 | Vào, rời, chi tiết, hủy trận của host | `apps/mobile/src/features/lobby/` | AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-18 |
-| 4 | Mở trận từ "Lịch của tôi" và luồng `verify-flow` | `apps/mobile/src/features/my/`, `.agents/skills/verify-flow/flows/mobile-lobby.md`, `.agents/skills/verify-flow/scripts/mobile-lobby.mjs`, `.agents/skills/verify-flow/scripts/run.mjs`, `PROGRESS.md` | AC-13, AC-14, AC-17 |
+| 4 | Mở trận từ "Lịch của tôi" và luồng `verify-flow` | `apps/mobile/src/features/my/`, `.agents/skills/verify-flow/references/flows/mobile-lobby.md`, `.agents/skills/verify-flow/scripts/mobile-lobby.mjs`, `.agents/skills/verify-flow/scripts/run.mjs`, `PROGRESS.md` | AC-13, AC-14, AC-17 |
 
 Các bước 2, 3 và 4 chạy lần lượt, không song song. Bước 1 không đụng `apps/mobile` ngoài `features/lobby/`.
 
