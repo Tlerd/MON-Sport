@@ -5,7 +5,7 @@ lang: vi
 
 # F-024: Tab Yêu cầu của chủ sân trên app mobile
 
-Status: draft
+Status: accepted
 Source: `docs/design/ke-hoach-app-mobile.md` (bước 6, bảng "Màn chính", dòng "Yêu cầu (chủ sân)"), UC-4, BR-22, BR-23, BR-27. `docs/briefs/F-002` (API xác nhận và từ chối). Quyết định theo "Autonomy" của `AGENTS.md`: xem "Assumptions".
 
 ## Goal
@@ -27,6 +27,8 @@ Chủ sân mở tab "Yêu cầu" trên `/app/chu-san/yeu-cau`, thấy các yêu 
 
 Each criterion has one test. The test name starts with the label, for example `AC-1`.
 
+Mọi giờ trong bảng là giờ `Asia/Ho_Chi_Minh`. Test viết giờ có độ lệch, ví dụ `2026-11-06T18:00:00+07:00`, vì CI chạy ở UTC (BR-27).
+
 | Label | Given | When | Then |
 |---|---|---|---|
 | AC-1 | Chủ sân (`OWNER`) đăng nhập. `GET /api/owner/bookings?status=PENDING` trả 2 yêu cầu theo `startAt` tăng dần: R1 ở "Sân 1" của "Sân Cầu Lông An Phú", 18:00-19:00 ngày 06/11/2026, 240.000đ, khách "Nguyễn Văn A" số `0901234567`, hạn 17:00 ngày 06/11/2026. R2 ở "Sân 2", khách không có số. `GET /api/owner/venues` trả đơn vị với hai sân đó | Mở `/app/chu-san/yeu-cau` lúc 15:30 ngày 06/11/2026 | Thấy 2 thẻ theo đúng thứ tự. Thẻ R1 có "Sân 1", "Sân Cầu Lông An Phú", "18:00–19:00 ngày 06/11/2026" (BR-27), "240.000đ", tên khách, số khách là link `tel:0901234567`, "Còn 1 giờ 30 phút", nút "Xác nhận" và nút "Từ chối". Thẻ R2 không có link gọi. Mỗi thẻ có `data-booking-id`. Tiêu đề ghi "2 yêu cầu đang chờ". Một lần khác `GET /api/owner/venues` lỗi: 2 thẻ vẫn hiện, tên sân là "Sân", không có tên đơn vị |
@@ -34,7 +36,7 @@ Each criterion has one test. The test name starts with the label, for example `A
 | AC-3 | Khách chưa đăng nhập, hoặc tài khoản `USER` | Mở `/app/chu-san/yeu-cau` | Khách: thấy "Đăng nhập để xem yêu cầu" và nút "Đăng nhập" mở sheet đăng nhập. `USER`: app chuyển tới `/app/`. Cả hai không gọi `GET /api/owner/bookings` |
 | AC-4 | Thẻ R1 như AC-1 | Bấm "Xác nhận" | App gửi `POST /api/owner/bookings/R1/confirm` một lần. Hai nút của thẻ khóa trong lúc chờ. Thành công: thẻ R1 biến khỏi danh sách, hiện "Đã xác nhận yêu cầu", tiêu đề ghi "1 yêu cầu đang chờ", và app gọi `refreshCounts` để số trên tab "Yêu cầu" giảm |
 | AC-5 | Thẻ R1 như AC-1 | Bấm "Từ chối" | Một sheet mở với "Từ chối yêu cầu này?", tên khách và giờ. Bấm "Từ chối" trong sheet: app gửi `POST /api/owner/bookings/R1/reject` một lần, thẻ biến khỏi danh sách, hiện "Đã từ chối yêu cầu", app gọi `refreshCounts`. Bấm "Thôi": sheet đóng, app không gửi request |
-| AC-6 | Thẻ R1. API trả lần lượt: 409 "Yêu cầu đã hết hạn", 409 "Yêu cầu không còn chờ xác nhận", 409 "Yêu cầu đang được xử lý, hãy thử lại", 403, 404, lỗi mạng | Bấm "Xác nhận" | Hai 409 đầu (kết quả cuối): app hiện đúng văn bản của API, bỏ thẻ R1, gọi `refreshCounts`. 409 "đang được xử lý" (`BUSY`, booking vẫn `PENDING`): thẻ ở lại, hai nút mở lại, hiện văn bản của API. 403 và 404: hiện "Yêu cầu này không còn trong danh sách của bạn", bỏ thẻ, và tải lại danh sách một lần. Lỗi mạng: thẻ ở lại, hai nút mở lại, hiện "Không lưu được quyết định. Thử lại." |
+| AC-6 | Thẻ R1. API trả lần lượt: 409 "Yêu cầu đã hết hạn", 409 "Yêu cầu không còn chờ xác nhận", 409 "Yêu cầu đang được xử lý, hãy thử lại", 403, 404, lỗi mạng | Bấm "Xác nhận", hoặc "Từ chối" trong sheet. Có ít nhất một test cho đường từ chối với 409 `BUSY` | Hai 409 đầu (kết quả cuối): app hiện đúng văn bản của API, bỏ thẻ R1, gọi `refreshCounts`. 409 "đang được xử lý" (`BUSY`, booking vẫn `PENDING`): thẻ ở lại, hai nút mở lại, hiện văn bản của API. 403 và 404: hiện "Yêu cầu này không còn trong danh sách của bạn", bỏ thẻ, và tải lại danh sách một lần. Lỗi mạng: thẻ ở lại, hai nút mở lại, hiện "Không lưu được quyết định. Thử lại." |
 | AC-7 | Chủ sân mở tab. Sau 15 giây API trả thêm yêu cầu R3 | 15 giây trôi qua | Danh sách tải lại và hiện R3. Khi tab ẩn (`visibilitychange`) app dừng tải lại. Khi tab hiện lại app tải lại một lần ngay và tiếp tục chu kỳ. Khi rời màn app dừng chu kỳ. Mỗi lần tải lại thành công, app báo số yêu cầu lên khung app bằng `setPendingRequests` |
 | AC-8 | Một lần tải chậm trả về sau khi chủ sân xác nhận R1 | Danh sách chậm tới | App bỏ danh sách chậm. R1 không quay lại thẻ (đánh số yêu cầu như F-023) |
 | AC-9 | Phiên hết hạn: API trả 401 | Mở tab hoặc bấm "Xác nhận" | Sheet đăng nhập mở và hiện "Phiên đăng nhập đã hết. Hãy đăng nhập lại." Danh sách giữ nguyên. Sau khi đăng nhập app tải lại danh sách |
@@ -81,7 +83,7 @@ One pull request for each row. Each pull request passes the check command on its
 
 | Risk | Where | Control |
 |---|---|---|
-| Đồng thời: hai thiết bị của chủ sân, hoặc hạn vừa qua, cùng quyết định một yêu cầu | Bước 2 | Server khóa `Venue` rồi `Court` và trả 409 (F-002). App hiện văn bản 409 và bỏ thẻ (AC-6). App không tự đổi trạng thái khi chưa có phản hồi |
+| Đồng thời: hai thiết bị của chủ sân, hoặc hạn vừa qua, cùng quyết định một yêu cầu | Bước 2 | Server khóa `Venue` rồi `Court` và trả 409 (F-002). 409 kết quả cuối: app hiện văn bản và bỏ thẻ. 409 `BUSY`: app giữ thẻ và mở lại nút (AC-6). App không tự đổi trạng thái khi chưa có phản hồi |
 | Bấm hai lần gửi hai request | Bước 2 | Hai nút khóa khi chờ (AC-4) |
 | Dữ liệu cá nhân: tên và số của khách | Thẻ ở bước 2 | API chỉ trả booking ở sân của chủ sân (BR-23). Số chỉ hiện dạng link `tel:`. App không lưu số ở `localStorage` |
 | Từ chối nhầm | Bước 2 | Sheet xác nhận trước khi gửi (AC-5) |
