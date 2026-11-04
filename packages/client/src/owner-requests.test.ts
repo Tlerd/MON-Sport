@@ -20,6 +20,10 @@ describe('deadlineLeft', () => {
   it('AC-12: null gives an empty string', () => {
     expect(deadlineLeft(null, now)).toBe('');
   });
+
+  it('AC-12: an unreadable deadline "x" gives an empty string', () => {
+    expect(deadlineLeft('x', now)).toBe('');
+  });
 });
 
 const venue = (id: string, name: string, courts: [string, string][]): VenueView => ({
