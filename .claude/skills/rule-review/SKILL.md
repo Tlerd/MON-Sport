@@ -22,7 +22,7 @@ Use it in the Reviewer round (`AGENTS.md`, Workflow step 5) for a pull request t
 - the schema: `apps/api/prisma/`, migrations;
 - personal data: phone numbers, names, consent, sessions.
 
-Do not run it on every pull request. It starts one agent per rule and one per flag, so it costs several times a single Reviewer session. A diff of about 550 lines with 21 rules ran 23 agents, used about 2 million subagent tokens, and took 3 minutes. A screen-only or docs-only pull request does not need it. It adds to the fresh Reviewer session. It does not replace it.
+Do not run it on a screen-only or docs-only pull request. The cost and the Reviewer-session rule are in "Read first".
 
 ## Steps
 
