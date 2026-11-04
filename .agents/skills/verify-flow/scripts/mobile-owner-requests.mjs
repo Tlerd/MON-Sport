@@ -31,7 +31,10 @@ async function createBooking(run, api, court, courtName) {
   const starts = [];
   for (const range of free) {
     const end = new Date(range.endAt).getTime();
-    for (let at = new Date(range.startAt).getTime(); at + HOUR <= end; at += HALF_HOUR) starts.push(at);
+    for (let at = new Date(range.startAt).getTime(); at + HOUR <= end; at += HALF_HOUR) {
+      // The confirm deadline is min(now+2h, startAt-1h): keep it in the future so the card shows "Còn ...".
+      if (at - HOUR > Date.now() + 5 * 60_000) starts.push(at);
+    }
   }
   assert(starts.length > 0, `No free 1-hour slot tomorrow on ${courtName}`);
 
@@ -46,7 +49,6 @@ async function createBooking(run, api, court, courtName) {
     }
     const body = await post.json().catch(() => ({}));
     assert(post.status() === 201, `POST /api/bookings answered ${post.status()}: ${body.message ?? ''}`);
-    assert(body.status === 'PENDING', `the new booking is ${body.status}, not PENDING`);
     return body;
   }
   throw new Error(`${conflicts} slots on ${courtName} returned 409`);
@@ -87,6 +89,7 @@ export default async function mobileOwnerRequests(run) {
         booking = await createBooking(run, playerContext.request, court, courtName);
         return `${size} ${courtName} ${showTime(booking.startAt)} -> PENDING`;
       });
+      assert(booking.status === 'PENDING', `the new booking is ${booking.status}, not PENDING`);
 
       const card = () => page.locator(`[data-booking-id="${booking.id}"]`);
 
@@ -100,9 +103,10 @@ export default async function mobileOwnerRequests(run) {
           await card().waitFor({ state: 'visible', timeout: WAIT_MS });
         }
 
+        const shownCourt = ((await card().locator('[data-field="court"]').textContent()) ?? '').trim();
         assert(
-          (await card().getByText(courtName, { exact: false }).count()) > 0,
-          `The card of booking ${booking.id} does not show the court "${courtName}" (${size})`,
+          shownCourt === courtName,
+          `The card of booking ${booking.id} shows court "${shownCourt}", not "${courtName}" (${size})`,
         );
         assert(
           (await card().getByText(/Còn/).count()) > 0,
