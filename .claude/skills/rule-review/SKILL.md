@@ -15,7 +15,7 @@ This skill checks a pull request one rule at a time. Each rule gets its own agen
 
 ## When to use it
 
-Use it in the Reviewer round (`AGENTS.md`, Workflow step 5) for a pull request that touches one of these:
+Use it in the Reviewer round (skill `agent-workflow`, step 6) for a pull request that touches one of these:
 
 - money: prices, revenue, `bookingPrice`;
 - concurrency: row locks, transactions, status changes that two requests can race;
@@ -33,7 +33,7 @@ Do not run it on a screen-only or docs-only pull request. The cost and the Revie
 2. Call the Workflow tool with `scriptPath` set to `.claude/skills/rule-review/scripts/rule-review.workflow.js` and `args` set to the input. Calling this skill is the opt-in that the Workflow tool asks for.
 3. Read the result. `comment` holds the markdown. `counts`, `confirmed`, and `dismissed` hold the data.
 4. Write `comment` to a file in the scratchpad, then post it with `gh pr comment <n> --body-file <file>`.
-5. Treat each confirmed finding that this change introduced as a Reviewer finding of its severity, under the merge rule in `AGENTS.md` Workflow step 6.
+5. Treat each confirmed finding that this change introduced as a Reviewer finding of its severity, under the merge rule in skill `agent-workflow`, step 7.
 6. A finding under "Older than this change" is pre-existing. As `REVIEW.md` says, it does not block the merge. Record each one of medium or higher in `PROGRESS.md` as a next step, in the same pull request. Add `PROGRESS.md` to the paths in the pull request description when it is not there.
 
 ## Adapt the template
