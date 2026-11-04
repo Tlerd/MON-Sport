@@ -9,7 +9,7 @@ This skill checks a pull request one rule at a time. Each rule gets its own agen
 
 ## Read first
 
-- Run it only for money, concurrency, the schema, or personal data. It starts one agent per rule and one per flag. A 550-line diff with 21 rules ran 23 agents and used about 2 million subagent tokens.
+- Run it only for money, concurrency, the schema, or personal data. It starts one agent per rule and one per flag. A 550-line diff with 21 rules ran 23 agents and used about 2 million subagent tokens, and took 3 minutes.
 - It adds to the fresh Reviewer session. It does not replace it.
 - A finding under "Older than this change" is pre-existing. It does not block the merge.
 
