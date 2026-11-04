@@ -31,29 +31,97 @@ export function App() {
   const [onBack, setOnBack] = useState<(() => void) | undefined>(undefined);
   const [topBarActions, setTopBarActions] = useState<ReactNode>(undefined);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [pendingRequests, setPendingRequests] = useState(0);
+  const [pendingRequests, setPendingRequestsState] = useState(0);
 
-  const refreshCounts = async () => {
-    if (!user) {
-      setPendingRequests(0);
-      setUnreadNotifications(0);
-      return;
-    }
+  // A reply is applied only when no newer fetch or report started after it began.
+  const pendingReq = useRef(0);
+
+  // The Yêu cầu screen reports its exact list length. That report also drops older replies in flight.
+  const setPendingRequests = (count: number) => {
+    pendingReq.current++;
+    setPendingRequestsState(count);
+  };
+
+  const fetchPending = async () => {
+    const reqId = ++pendingReq.current;
     try {
-      if (user.role === 'OWNER') {
-        const reqs = await api<Array<{ id: string }>>('/api/owner/bookings?status=PENDING').catch(() => []);
-        setPendingRequests(Array.isArray(reqs) ? reqs.length : 0);
-      } else {
-        setPendingRequests(0);
-      }
+      const reqs = await api<Array<{ id: string }>>('/api/owner/bookings?status=PENDING');
+      if (reqId !== pendingReq.current) return;
+      if (Array.isArray(reqs)) setPendingRequestsState(reqs.length);
     } catch {
-      // Ignore count fetch errors
+      // A failed fetch (network or 401) keeps the old count.
     }
   };
 
+  const refreshCounts = async () => {
+    if (!user) {
+      pendingReq.current++;
+      setPendingRequestsState(0);
+      setUnreadNotifications(0);
+      return;
+    }
+    if (user.role === 'OWNER') {
+      await fetchPending();
+    } else {
+      pendingReq.current++;
+      setPendingRequestsState(0);
+    }
+  };
+  const fetchPendingRef = useRef(fetchPending);
+  fetchPendingRef.current = fetchPending;
+
+  // On the Yêu cầu screen, the screen reports the count, so the shell skips its own fetch there.
+  const onRequestsScreen = location.pathname === '/chu-san/yeu-cau';
+  const onRequestsScreenRef = useRef(onRequestsScreen);
+  onRequestsScreenRef.current = onRequestsScreen;
+
   useEffect(() => {
+    if (user?.role === 'OWNER' && onRequestsScreenRef.current) return;
     refreshCounts();
   }, [user]);
+
+  // The shell owns the pending request count for an OWNER while the Yêu cầu screen is closed.
+  const countsPending = user?.role === 'OWNER';
+  const onOwnerRedirect = countsPending && location.pathname === '/';
+  const wasOnRequestsRef = useRef(false);
+  useEffect(() => {
+    if (!countsPending || onRequestsScreen || onOwnerRedirect) {
+      if (onRequestsScreen) wasOnRequestsRef.current = true;
+      return;
+    }
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const stop = () => {
+      if (timer !== undefined) clearInterval(timer);
+      timer = undefined;
+    };
+    const start = () => {
+      stop();
+      timer = setInterval(() => void fetchPendingRef.current(), NOTIFICATIONS_RELOAD_MS);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchPendingRef.current();
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    const leftRequests = wasOnRequestsRef.current;
+    wasOnRequestsRef.current = false;
+    if (document.visibilityState === 'visible') {
+      if (leftRequests) void fetchPendingRef.current();
+      start();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      // Drops a reply still in flight: the screen or a new user owns the count now.
+      pendingReq.current++;
+    };
+  }, [user?.id, countsPending, onRequestsScreen, onOwnerRedirect]);
 
   // The shell owns the unread count while the Thông báo screen is closed. The screen owns it while open.
   const countsNotifications = user?.role === 'USER' || user?.role === 'OWNER';

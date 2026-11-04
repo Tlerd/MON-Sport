@@ -9,6 +9,7 @@ export interface CourtLabel {
 export function deadlineLeft(confirmDeadline: string | null, now: Date): string {
   if (confirmDeadline === null) return '';
   const ms = Date.parse(confirmDeadline) - now.getTime();
+  if (Number.isNaN(ms)) return '';
   if (ms <= 0) return 'Hết hạn';
   const min = Math.floor(ms / 60000);
   if (min === 0) return 'Còn dưới 1 phút';

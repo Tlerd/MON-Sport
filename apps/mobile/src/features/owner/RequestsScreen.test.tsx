@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter, Outlet, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
-import { ApiError, formatSlot } from '@monsport/client';
+import { ApiError } from '@monsport/client';
 import type { OwnerBookingView, VenueView } from '@monsport/shared';
 import * as sessionModule from '../../app/session';
 import { RequestsScreen } from './RequestsScreen';
@@ -264,10 +264,10 @@ describe('RequestsScreen', () => {
     expect(vi.mocked(clientModule.api)).not.toHaveBeenCalled();
   });
 
-  it('AC-4: "Xác nhận" posts once, locks both buttons, removes the card, shows status, header 1, refreshCounts', async () => {
+  it('AC-4: "Xác nhận" posts once, locks both buttons, removes the card, shows status, header 1, setPendingRequests', async () => {
     const post = deferred<unknown>();
     mockApi({ [LIST]: two, [VENUES]: venues, [CONFIRM(1)]: () => post.promise });
-    const { refreshCounts } = renderScreen(OWNER);
+    const { refreshCounts, setPending } = renderScreen(OWNER);
     await screen.findByText('Nguyễn Văn A');
 
     const r1 = cardOf(1)!;
@@ -283,19 +283,20 @@ describe('RequestsScreen', () => {
     expect(cardOf(2)).not.toBeNull();
     expect(screen.getByRole('status').textContent).toBe('Đã xác nhận yêu cầu');
     expect(screen.getByRole('heading', { name: '1 yêu cầu đang chờ' })).toBeDefined();
-    expect(refreshCounts).toHaveBeenCalledTimes(1);
+    expect(setPending).toHaveBeenLastCalledWith(1);
+    expect(refreshCounts).not.toHaveBeenCalled();
   });
 
-  it('AC-5: "Từ chối" opens the sheet; the sheet "Từ chối" posts reject once, removes the card, shows status, refreshCounts', async () => {
+  it('AC-5: "Từ chối" opens the sheet; the sheet "Từ chối" posts reject once, removes the card, shows status, setPendingRequests', async () => {
     mockApi({ [LIST]: two, [VENUES]: venues, [REJECT(1)]: () => ({}) });
-    const { refreshCounts } = renderScreen(OWNER);
+    const { refreshCounts, setPending } = renderScreen(OWNER);
     await screen.findByText('Nguyễn Văn A');
 
     fireEvent.click(btn(cardOf(1)!, 'Từ chối'));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByRole('heading', { name: 'Từ chối yêu cầu này?' })).toBeDefined();
     expect(dialog.textContent).toContain('Nguyễn Văn A');
-    expect(dialog.textContent).toContain(formatSlot(booking(1).startAt, booking(1).endAt));
+    expect(dialog.textContent).toContain('18:00–19:00 ngày 06/11/2026');
     expect(calls(REJECT(1))).toHaveLength(0);
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Từ chối' }));
@@ -303,7 +304,8 @@ describe('RequestsScreen', () => {
     expect(calls(REJECT(1))).toHaveLength(1);
     expect(screen.getByRole('status').textContent).toBe('Đã từ chối yêu cầu');
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(refreshCounts).toHaveBeenCalledTimes(1);
+    expect(setPending).toHaveBeenLastCalledWith(1);
+    expect(refreshCounts).not.toHaveBeenCalled();
   });
 
   it('AC-5: "Thôi" closes the sheet and sends nothing', async () => {
@@ -321,7 +323,7 @@ describe('RequestsScreen', () => {
   });
 
   for (const text of ['Yêu cầu đã hết hạn', 'Yêu cầu không còn chờ xác nhận']) {
-    it(`AC-6: confirm with 409 "${text}" shows the text, removes the card, calls refreshCounts`, async () => {
+    it(`AC-6: confirm with 409 "${text}" shows the text, removes the card, reports the new count`, async () => {
       mockApi({
         [LIST]: two,
         [VENUES]: venues,
@@ -329,13 +331,14 @@ describe('RequestsScreen', () => {
           throw new ApiError(409, text);
         },
       });
-      const { refreshCounts } = renderScreen(OWNER);
+      const { refreshCounts, setPending } = renderScreen(OWNER);
       await screen.findByText('Nguyễn Văn A');
 
       fireEvent.click(btn(cardOf(1)!, 'Xác nhận'));
       await waitFor(() => expect(cardOf(1)).toBeNull());
       expect(screen.getByRole('alert').textContent).toBe(text);
-      expect(refreshCounts).toHaveBeenCalledTimes(1);
+      expect(setPending).toHaveBeenLastCalledWith(1);
+      expect(refreshCounts).not.toHaveBeenCalled();
     });
   }
 
@@ -394,11 +397,12 @@ describe('RequestsScreen', () => {
           throw new ApiError(status, 'Không tìm thấy');
         },
       });
-      renderScreen(OWNER);
+      const { setPending } = renderScreen(OWNER);
       await screen.findByText('Nguyễn Văn A');
 
       fireEvent.click(btn(cardOf(1)!, 'Xác nhận'));
       await waitFor(() => expect(cardOf(1)).toBeNull());
+      expect(setPending).toHaveBeenCalledWith(1);
       expect(screen.getByRole('alert').textContent).toBe('Yêu cầu này không còn trong danh sách của bạn');
       await waitFor(() => expect(gets).toBe(2));
       expect(cardOf(2)).not.toBeNull();
@@ -462,6 +466,38 @@ describe('RequestsScreen', () => {
     expect(calls(LIST)).toHaveLength(4);
   });
 
+  it('D-3: without setPendingRequests in the context, a decision calls refreshCounts once', async () => {
+    mockApi({ [LIST]: two, [VENUES]: venues, [CONFIRM(1)]: () => ({}) });
+    const { refreshCounts } = renderScreen(OWNER, { setPendingRequests: undefined });
+    await screen.findByText('Nguyễn Văn A');
+
+    fireEvent.click(btn(cardOf(1)!, 'Xác nhận'));
+    await waitFor(() => expect(cardOf(1)).toBeNull());
+    expect(refreshCounts).toHaveBeenCalledTimes(1);
+  });
+
+  it('D-4: a visible tab does not reload while the session login sheet is open', async () => {
+    let gets = 0;
+    mockApi({
+      [LIST]: () => {
+        gets += 1;
+        if (gets === 2) throw new ApiError(401, 'Chưa đăng nhập');
+        return two();
+      },
+      [VENUES]: venues,
+    });
+    renderScreen(OWNER);
+    await screen.findByText('Nguyễn Văn A');
+
+    act(() => setVisibility('visible'));
+    expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
+    expect(gets).toBe(2);
+
+    await act(async () => setVisibility('hidden'));
+    await act(async () => setVisibility('visible'));
+    expect(gets).toBe(2);
+  });
+
   it('AC-8: a slow list that returns after a confirm is dropped; R1 does not come back', async () => {
     const slow = deferred<OwnerBookingView[]>();
     let gets = 0;
@@ -486,7 +522,8 @@ describe('RequestsScreen', () => {
     });
     expect(cardOf(1)).toBeNull();
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
-    expect(setPending).toHaveBeenCalledTimes(1);
+    expect(setPending).toHaveBeenCalledTimes(2);
+    expect(setPending).toHaveBeenLastCalledWith(1);
   });
 
   it('AC-9: a 401 on load opens the login sheet with the notice and reloads after login', async () => {

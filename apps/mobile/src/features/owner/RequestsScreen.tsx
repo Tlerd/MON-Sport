@@ -128,7 +128,7 @@ function RequestsScreenBody() {
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        load();
+        if (!sessionLoginOpenRef.current) load();
         start();
       } else {
         stop();
@@ -143,7 +143,19 @@ function RequestsScreenBody() {
     };
   }, [user?.id, active, load]);
 
-  const removeCard = (id: string) => setList((prev) => prev?.filter((r) => r.id !== id));
+  const removeCard = (id: string) => {
+    // The new length comes from the list after the removal. The shell badge follows it.
+    const next = (listRef.current ?? []).filter((r) => r.id !== id);
+    listRef.current = next;
+    setList(next);
+    return next.length;
+  };
+
+  // The shell takes the exact new length. Without that setter, the shell fetches the count itself.
+  const reportCount = (newLength: number) => {
+    if (setPendingRef.current) setPendingRef.current(newLength);
+    else refreshRef.current?.();
+  };
 
   const decide = async (request: OwnerBookingView, action: Action) => {
     if (busyRef.current.has(request.id)) return;
@@ -154,22 +166,21 @@ function RequestsScreenBody() {
     try {
       await api(`/api/owner/bookings/${request.id}/${action}`, { method: 'POST' });
       reqCounter.current++;
-      removeCard(request.id);
+      const newLength = removeCard(request.id);
       setNotice({
         kind: 'status',
         text: action === 'confirm' ? 'Đã xác nhận yêu cầu' : 'Đã từ chối yêu cầu',
       });
-      refreshRef.current?.();
+      reportCount(newLength);
     } catch (err) {
       reqCounter.current++;
       if (err instanceof ApiError && err.status === 409) {
         if (FINAL_409.includes(err.message)) {
-          removeCard(request.id);
-          refreshRef.current?.();
+          reportCount(removeCard(request.id));
         }
         setNotice({ kind: 'alert', text: err.message });
       } else if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
-        removeCard(request.id);
+        reportCount(removeCard(request.id));
         setNotice({ kind: 'alert', text: 'Yêu cầu này không còn trong danh sách của bạn' });
         load();
       } else if (err instanceof ApiError && err.status === 401) {
