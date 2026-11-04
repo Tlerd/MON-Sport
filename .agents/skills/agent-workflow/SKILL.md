@@ -1,0 +1,52 @@
+---
+name: agent-workflow
+description: Roles, branch names, review rounds, merge and deploy steps of the MONSPORT agent workflow. Use before you plan a brief step, pick a coder, open or review a pull request, handle a finding still open after 2 rounds, merge, or check a deploy.
+---
+
+Read this before you plan a step, open a pull request, review, or merge.
+
+## Roles
+
+Each tool maps these roles to its own models. In Claude Code, the session model (Opus) is the Planner and the Reviewer. It reads each coder diff and runs `pnpm check`.
+
+| Role | Does | Never |
+|---|---|---|
+| Planner | Reads the brief and the code. Writes a plan that lists each file to change. Uses the strongest model for money, concurrency, schema, or personal data | Edits a file |
+| Reader | Finds and reads files. Use the cheap read-only `Explore` agent for a search over several files | Edits a file, or changes state |
+| Coder | Writes the tests first, then the code the plan lists. Runs `pnpm check` | Edits a path the brief does not list |
+| Reviewer | A fresh session. Reads `REVIEW.md` first. Reviews a brief or pull request against the intake. Rates each finding high, medium, or low | Edits, commits, or pushes |
+
+Coder order: run `node scripts/agy-run.mjs --check-usage`, then `node scripts/agy-run.mjs --mode accept-edits -p "<plan>"`. Exit code 4 means every agy model is out of quota. Then use the subagent `backend` or `frontend` (Sonnet). When Sonnet is out of quota, run it with `model: haiku`.
+
+One coder does a step. Run `backend` and `frontend` together only when the contract in `packages/shared` is on the branch and their paths do not overlap. Then run `tester`, then `reviewer`. The `qa` agent lists questions for the owner after the last step. `deployer` checks a deploy.
+
+A Reviewer round is a `reviewer` subagent, or `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."`.
+
+## Steps
+
+1. Run skill `brief-questions` on the concept. Write the brief with skill `feature-brief`. A Reviewer checks it. It is accepted when no finding of medium or higher is open.
+2. Open one issue from `.github/ISSUE_TEMPLATE/feature.md`, label `enhancement`, linking the brief.
+3. One branch per step from `main`: `feat/<issue>-<step>-<slug>`, for example `feat/12-1-booking-schema`.
+4. One pull request per step with `gh pr create`, using `.github/pull_request_template.md` and the step paths under "Allowed paths". Write `Refs #<issue>`. Write `Closes #<issue>` on the last step only.
+5. After the last step, run `qa`. Put its questions in the end report and in `docs/qa/`.
+6. A Reviewer reviews each pull request. Post findings as a pull request comment that ends with the marker line of `REVIEW.md`. Fix each finding of medium or higher. Run a new Reviewer on the new head, on the diff since the last reviewed head. A finding is closed only when that Reviewer says so. Each run is one round. A pull request on money, concurrency, schema, or personal data also runs skill `rule-review` and posts its comment.
+7. Wait for checks in the background: `gh pr checks <n> --watch --fail-fast`. Merge only with `node scripts/merge.mjs <n>` after it exits 0. It merges when all checks pass and the latest marker for the current head shows no finding of medium or higher. A finding tagged pre-existing does not count. `gh pr merge` is on the deny list, but the repository has no branch protection, so the rule holds only while agents follow it. The check `pr-gates` fails a pull request that changes a path outside its allowed list, or lists an AC with no test.
+8. After the merge to `main`, `.github/workflows/deploy.yml` deploys. Check that the run passes and `/api/health` answers on the service URL.
+
+A fix, chore, or docs change with no brief needs no issue. Branch: `fix/<slug>`, `chore/<slug>`, or `docs/<slug>`. It still gets a pull request and changes only the files its description lists.
+
+After a merge, if `@map.md` on `main` is stale, open `chore/map-refresh` with `pnpm map`.
+
+## Autonomy details
+
+- Without a goal, do the steps in `PROGRESS.md` in order. Pick the next slice by the launch order in the intake.
+- A finding of medium or higher still open after 2 review rounds, or autofix giving up: choose the safest fix. Record the finding in the pull request and `PROGRESS.md`. Post `<!-- review-accepted head=<sha> -->` on the pull request and continue.
+- Keep a task list for the run, in the tool or in a file. Mark items done. Before you end a turn, read it again. While an item is open and not blocked, do it. A step only the user can do (a real device check) goes in the end report and `PROGRESS.md`. Go on with the other items.
+- You may create test data on the live service. Give each test account the name prefix `test-`.
+- End each run with a short report: what is done, the assumptions, the service URL, what is next.
+
+## Other
+
+- Antigravity maps the roles in `.agents/rules/model-routing.md` and runs CLI tasks through `node scripts/agy-run.mjs`.
+- A step may always commit `@map.md`.
+- When the next step changes, rewrite `PROGRESS.md` in the same pull request. When a decision needs the user, update `HUMAN_DECISIONS.md` the same way.

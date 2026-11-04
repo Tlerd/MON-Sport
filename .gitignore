@@ -11,5 +11,6 @@ apps/api/src/generated/
 .agents/skills/*
 !.agents/skills/verify-flow/
 !.agents/skills/brief-questions/
+!.agents/skills/agent-workflow/
 # Screenshots and reports of the verify-flow skill.
 verify-output/
