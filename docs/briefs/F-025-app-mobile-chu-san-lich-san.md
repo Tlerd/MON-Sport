@@ -5,7 +5,7 @@ lang: vi
 
 # F-025: Tab Lịch sân và nhập booking khách gọi điện trên app mobile
 
-Status: draft
+Status: accepted
 Source: `docs/design/ke-hoach-app-mobile.md` (bước 6, bảng "Màn chính", dòng "Lịch sân (chủ sân)"), UC-5, BR-1, BR-2, BR-3, BR-4, BR-23, BR-27. `docs/briefs/F-007` (API nhập booking khách gọi điện). `docs/briefs/F-008` (API giờ trống). `DESIGN.md` ("Courts by hours"). Quyết định theo "Autonomy" của `AGENTS.md`: xem "Assumptions".
 
 ## Goal
@@ -38,7 +38,7 @@ Mọi giờ trong bảng là giờ `Asia/Ho_Chi_Minh`. Test viết giờ có đ�
 | AC-5 | Sheet của AC-4 với "2 giờ", tên "Chú Ba", số `0901234567` | Bấm "Lưu booking" | App gửi một lần `POST /api/owner/bookings` với `courtId`, `startAt` `2026-11-06T16:00:00+07:00` dạng ISO, `endAt` 18:00, `customerName`, `customerPhone`. Nút khóa trong lúc chờ. Thành công: sheet đóng, hiện "Đã lưu booking", app tải lại giờ trống của "Sân 1" và danh sách booking. Ô trống và số không gửi trường đó |
 | AC-6 | Sheet của AC-5. API trả lần lượt 5 kết quả: 409 "Khung giờ này vừa có người đặt". 409 "Yêu cầu đang được xử lý, hãy thử lại". 400 với văn bản số điện thoại. 400 "Giờ bắt đầu đã qua". Lỗi mạng | Bấm "Lưu booking". Một lần khác API trả 404 "Không tìm thấy sân" | 409 có người đặt: sheet đóng, hiện văn bản của API, app tải lại giờ trống. 404: sheet đóng, hiện văn bản của API, app tải lại danh sách đơn vị. 409 `BUSY`, 400 và lỗi mạng: sheet ở lại, nút mở lại, hiện văn bản của API (lỗi mạng: "Không lưu được booking. Thử lại.") trong sheet. Dữ liệu đã nhập ở lại |
 | AC-7 | Đồng hồ 15:10 | Mở tab hôm nay | Ô 15:00 và các ô trước không bấm được. Ô 15:30 bấm được: chủ sân nhập booking bắt đầu sau `now` (BR-2), không cần cách 1 giờ như người chơi |
-| AC-8 | Đổi chip ngày sang "T7 07/11" khi lần tải của "T6 06/11" chưa về | Lần tải cũ về sau | App bỏ kết quả cũ. Lưới và danh sách chỉ hiện ngày "T7 07/11" |
+| AC-8 | Đổi chip ngày từ "Hôm nay" (06/11) sang "T7 07/11" khi lần tải của 06/11 chưa về | Lần tải cũ về sau | App bỏ kết quả cũ. Lưới và danh sách chỉ hiện ngày "T7 07/11" |
 | AC-9 | Khách chưa đăng nhập, tài khoản `USER`, hoặc phiên hết hạn (401) | Mở `/app/chu-san/lich`, hoặc lưu booking | Khách: thấy "Đăng nhập để xem lịch sân" và nút "Đăng nhập". `USER`: app chuyển tới `/app/`. Cả hai không gọi API của chủ sân. 401: sheet đăng nhập mở với "Phiên đăng nhập đã hết. Hãy đăng nhập lại.", dữ liệu trong sheet nhập ở lại |
 | AC-10 | Một lần `GET /api/owner/venues` lỗi. Một lần `GET .../availability` của một sân lỗi. Chủ sân không có đơn vị | Mở tab | Đơn vị lỗi: "Không tải được" và nút "Thử lại". Sân lỗi: hàng của sân đó ghi "Không tải được giờ trống" và các sân khác vẫn hiện. Không có đơn vị: "Bạn chưa có đơn vị nào" |
 | AC-11 | Lưới và sheet ở 360px và 390px. Tên khách rất dài | Tab mở | Trang không cuộn ngang. Chỉ các hàng ô cuộn ngang. Mỗi nút và ô bấm được cao ít nhất 44px. Văn bản dài xuống dòng |
