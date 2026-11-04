@@ -18,7 +18,7 @@ Each tool maps these roles to its own models. In Claude Code, the session model 
 
 Coder order: run `node scripts/agy-run.mjs --check-usage`, then `node scripts/agy-run.mjs --mode accept-edits -p "<plan>"`. Exit code 4 means every agy model is out of quota. Then use the subagent `backend` or `frontend` (Sonnet). When Sonnet is out of quota, run it with `model: haiku`.
 
-One coder does a step. Run `backend` and `frontend` together only when the contract in `packages/shared` is on the branch and their paths do not overlap. Then run `tester`, then `reviewer`. The `qa` agent lists questions for the owner after the last step. `deployer` checks a deploy.
+Claude Code runs a subagent on the `model` in its `.claude/agents/` file, or on the session model when the file sets none. One coder does a step. Run `backend` and `frontend` together only when the contract in `packages/shared` is on the branch and their paths do not overlap. Then run `tester`, then `reviewer`. The `qa` agent lists questions for the owner after the last step. `deployer` checks a deploy.
 
 A Reviewer round is a `reviewer` subagent, or `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."`.
 
