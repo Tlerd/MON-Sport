@@ -7,6 +7,7 @@ import mobileBook from './mobile-book.mjs';
 import mobileHistory from './mobile-history.mjs';
 import mobileLobby from './mobile-lobby.mjs';
 import mobileNotifications from './mobile-notifications.mjs';
+import mobileOwnerRequests from './mobile-owner-requests.mjs';
 import mobileShell from './mobile-shell.mjs';
 import ownerDecide from './owner-decide.mjs';
 import phoneBooking from './phone-booking.mjs';
@@ -20,6 +21,7 @@ const MOBILE_FLOWS = {
   'mobile-history': mobileHistory,
   'mobile-lobby': mobileLobby,
   'mobile-notifications': mobileNotifications,
+  'mobile-owner-requests': mobileOwnerRequests,
 };
 const FLOWS = { ...WEB_FLOWS, ...MOBILE_FLOWS };
 

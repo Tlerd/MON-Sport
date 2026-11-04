@@ -37,6 +37,7 @@ The run is done when the last line says `PASSED` and each flow you picked has PA
 | Mobile "Lịch của tôi" tabs, booking cancel (UC-6, UC-8, F-021) | `mobile-history` | [references/flows/mobile-history.md](references/flows/mobile-history.md) |
 | Mobile "Mở trận", "Phòng chờ" tab (UC-7, UC-8, UC-9, F-022) | `mobile-lobby` | [references/flows/mobile-lobby.md](references/flows/mobile-lobby.md) |
 | Mobile owner "Thông báo" tab (UC-14, F-023) | `mobile-notifications` | [references/flows/mobile-notifications.md](references/flows/mobile-notifications.md) |
+| Mobile owner "Yêu cầu" tab, confirm and reject (UC-4, F-024) | `mobile-owner-requests` | [references/flows/mobile-owner-requests.md](references/flows/mobile-owner-requests.md) |
 
 To add a flow: write `scripts/<flow>.mjs` with one `run.step(...)` for each state change, register it in `FLOWS` in `scripts/run.mjs`, and add a row to this table and a flow file in `references/flows/`.
 
