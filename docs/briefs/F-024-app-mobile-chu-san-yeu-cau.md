@@ -29,19 +29,19 @@ Each criterion has one test. The test name starts with the label, for example `A
 
 | Label | Given | When | Then |
 |---|---|---|---|
-| AC-1 | Chủ sân (`OWNER`) đăng nhập. `GET /api/owner/bookings?status=PENDING` trả 2 yêu cầu theo `startAt` tăng dần: R1 ở "Sân 1" của "Sân Cầu Lông An Phú", 18:00-19:00 ngày 06/11/2026, 240.000đ, khách "Nguyễn Văn A" số `0901234567`, hạn 17:00 ngày 06/11/2026. R2 ở "Sân 2", khách không có số. `GET /api/owner/venues` trả đơn vị với hai sân đó | Mở `/app/chu-san/yeu-cau` | Thấy 2 thẻ theo đúng thứ tự. Thẻ R1 có tên sân, tên đơn vị, "18:00–19:00 ngày 06/11/2026" (BR-27), "240.000đ", tên khách, số khách là link `tel:0901234567`, hạn còn lại, nút "Xác nhận" và nút "Từ chối". Thẻ R2 không có link gọi. Tiêu đề ghi "2 yêu cầu đang chờ" |
+| AC-1 | Chủ sân (`OWNER`) đăng nhập. `GET /api/owner/bookings?status=PENDING` trả 2 yêu cầu theo `startAt` tăng dần: R1 ở "Sân 1" của "Sân Cầu Lông An Phú", 18:00-19:00 ngày 06/11/2026, 240.000đ, khách "Nguyễn Văn A" số `0901234567`, hạn 17:00 ngày 06/11/2026. R2 ở "Sân 2", khách không có số. `GET /api/owner/venues` trả đơn vị với hai sân đó | Mở `/app/chu-san/yeu-cau` lúc 15:30 ngày 06/11/2026 | Thấy 2 thẻ theo đúng thứ tự. Thẻ R1 có "Sân 1", "Sân Cầu Lông An Phú", "18:00–19:00 ngày 06/11/2026" (BR-27), "240.000đ", tên khách, số khách là link `tel:0901234567`, "Còn 1 giờ 30 phút", nút "Xác nhận" và nút "Từ chối". Thẻ R2 không có link gọi. Mỗi thẻ có `data-booking-id`. Tiêu đề ghi "2 yêu cầu đang chờ". Một lần khác `GET /api/owner/venues` lỗi: 2 thẻ vẫn hiện, tên sân là "Sân", không có tên đơn vị |
 | AC-2 | Cùng chủ sân. Một lần danh sách rỗng. Một lần API lỗi mạng | Mở tab | Lần rỗng: thấy "Chưa có yêu cầu nào đang chờ". Lần lỗi: thấy "Không tải được" và nút "Thử lại". Bấm nút tải lại. Khi đã có danh sách và lần tải lại sau đó lỗi: danh sách cũ ở lại, app không hiện lỗi |
 | AC-3 | Khách chưa đăng nhập, hoặc tài khoản `USER` | Mở `/app/chu-san/yeu-cau` | Khách: thấy "Đăng nhập để xem yêu cầu" và nút "Đăng nhập" mở sheet đăng nhập. `USER`: app chuyển tới `/app/`. Cả hai không gọi `GET /api/owner/bookings` |
 | AC-4 | Thẻ R1 như AC-1 | Bấm "Xác nhận" | App gửi `POST /api/owner/bookings/R1/confirm` một lần. Hai nút của thẻ khóa trong lúc chờ. Thành công: thẻ R1 biến khỏi danh sách, hiện "Đã xác nhận yêu cầu", tiêu đề ghi "1 yêu cầu đang chờ", và app gọi `refreshCounts` để số trên tab "Yêu cầu" giảm |
 | AC-5 | Thẻ R1 như AC-1 | Bấm "Từ chối" | Một sheet mở với "Từ chối yêu cầu này?", tên khách và giờ. Bấm "Từ chối" trong sheet: app gửi `POST /api/owner/bookings/R1/reject` một lần, thẻ biến khỏi danh sách, hiện "Đã từ chối yêu cầu", app gọi `refreshCounts`. Bấm "Thôi": sheet đóng, app không gửi request |
-| AC-6 | Thẻ R1. API trả 409 "Yêu cầu đã hết hạn" (hoặc "Yêu cầu không còn chờ xác nhận") | Bấm "Xác nhận" | App hiện đúng văn bản của API, bỏ thẻ R1 khỏi danh sách, và gọi `refreshCounts`. Lỗi mạng: thẻ ở lại, hai nút mở lại, hiện "Không lưu được quyết định. Thử lại." |
+| AC-6 | Thẻ R1. API trả lần lượt: 409 "Yêu cầu đã hết hạn", 409 "Yêu cầu không còn chờ xác nhận", 409 "Yêu cầu đang được xử lý, hãy thử lại", 403, 404, lỗi mạng | Bấm "Xác nhận" | Hai 409 đầu (kết quả cuối): app hiện đúng văn bản của API, bỏ thẻ R1, gọi `refreshCounts`. 409 "đang được xử lý" (`BUSY`, booking vẫn `PENDING`): thẻ ở lại, hai nút mở lại, hiện văn bản của API. 403 và 404: hiện "Yêu cầu này không còn trong danh sách của bạn", bỏ thẻ, và tải lại danh sách một lần. Lỗi mạng: thẻ ở lại, hai nút mở lại, hiện "Không lưu được quyết định. Thử lại." |
 | AC-7 | Chủ sân mở tab. Sau 15 giây API trả thêm yêu cầu R3 | 15 giây trôi qua | Danh sách tải lại và hiện R3. Khi tab ẩn (`visibilitychange`) app dừng tải lại. Khi tab hiện lại app tải lại một lần ngay và tiếp tục chu kỳ. Khi rời màn app dừng chu kỳ. Mỗi lần tải lại thành công, app báo số yêu cầu lên khung app bằng `setPendingRequests` |
 | AC-8 | Một lần tải chậm trả về sau khi chủ sân xác nhận R1 | Danh sách chậm tới | App bỏ danh sách chậm. R1 không quay lại thẻ (đánh số yêu cầu như F-023) |
 | AC-9 | Phiên hết hạn: API trả 401 | Mở tab hoặc bấm "Xác nhận" | Sheet đăng nhập mở và hiện "Phiên đăng nhập đã hết. Hãy đăng nhập lại." Danh sách giữ nguyên. Sau khi đăng nhập app tải lại danh sách |
 | AC-10 | Danh sách ở 360px và 390px. Tên đơn vị và tên khách rất dài | Tab mở | Không cuộn ngang. Mỗi nút cao ít nhất 44px. Văn bản dài xuống dòng, không tràn |
-| AC-11 | Luồng `mobile-owner-requests` của `verify-flow`: người chơi seed gửi một yêu cầu đặt sân, chủ sân seed mở "Yêu cầu" ở 360px và 390px | Luồng chạy | Chủ sân thấy thẻ của booking mà luồng tạo, bấm "Từ chối" rồi xác nhận trong sheet, thẻ biến mất. Trang không cuộn ngang. Báo cáo ghi 0 bước lỗi. Luồng chỉ đổi dữ liệu mà nó tạo |
-| AC-12 | `deadlineLeft(confirmDeadline, now)` | Gọi với hạn sau `now` 2 giờ 5 phút, 45 phút, 30 giây, đúng bằng `now`, trước `now`, và `null` | Trả "Còn 2 giờ 5 phút", "Còn 45 phút", "Còn dưới 1 phút", "Hết hạn", "Hết hạn", "" |
-| AC-13 | `courtLabels(venues)` | Gọi với 2 đơn vị, mỗi đơn vị 2 sân | Trả một map từ `courtId` tới `{ courtName, venueName }` cho cả 4 sân. Sân không có trong map: màn hiện "Sân" và không có tên đơn vị |
+| AC-11 | Luồng `mobile-owner-requests` của `verify-flow`: người chơi seed gửi một yêu cầu đặt sân, chủ sân seed mở "Yêu cầu" ở 360px và 390px | Luồng chạy | Luồng gửi một yêu cầu cho mỗi cỡ màn. Chủ sân tìm thẻ theo `data-booking-id` của booking mà luồng tạo, bấm "Từ chối" rồi xác nhận trong sheet, thẻ biến mất. Trang không cuộn ngang. Báo cáo ghi 0 bước lỗi. Luồng chỉ từ chối booking mà nó tạo |
+| AC-12 | `deadlineLeft(confirmDeadline, now)`. Phút làm tròn xuống | Gọi với hạn sau `now` 2 giờ 5 phút, 1 giờ 59 phút 59 giây, 45 phút, 30 giây, đúng bằng `now`, trước `now`, và `null` | Trả "Còn 2 giờ 5 phút", "Còn 1 giờ 59 phút", "Còn 45 phút", "Còn dưới 1 phút", "Hết hạn", "Hết hạn", "" |
+| AC-13 | `courtLabels(venues)` | Gọi với 2 đơn vị, mỗi đơn vị 2 sân, và với danh sách rỗng | Trả một map từ `courtId` tới `{ courtName, venueName }` cho cả 4 sân. Danh sách rỗng trả map rỗng |
 
 ## Contract
 
@@ -50,7 +50,7 @@ Không đổi `packages/shared` và không đổi API.
 | Endpoint or schema | Change | Request | Response and errors |
 |---|---|---|---|
 | `GET /api/owner/bookings?status=PENDING` | unchanged | không | 200 `OwnerBookingView[]` theo `startAt` tăng dần. Server cho hết hạn các yêu cầu quá hạn trước khi trả. 401. 403 khi không phải `OWNER` |
-| `POST /api/owner/bookings/:id/confirm` | unchanged | không | 200 `BookingView`. 403 khi sân của chủ khác (BR-23). 404. 409 "Yêu cầu đã hết hạn" hoặc "Yêu cầu không còn chờ xác nhận" |
+| `POST /api/owner/bookings/:id/confirm` | unchanged | không | 200 `BookingView`. 400 khi `id` không phải UUID (văn bản tiếng Anh của `ParseUUIDPipe`, app không gửi id lạ). 403 khi sân của chủ khác (BR-23). 404. 409 "Yêu cầu đã hết hạn" hoặc "Yêu cầu không còn chờ xác nhận" (kết quả cuối). 409 "Yêu cầu đang được xử lý, hãy thử lại" (`BUSY`, sau deadlock, booking vẫn `PENDING`) |
 | `POST /api/owner/bookings/:id/reject` | unchanged | không | Như `confirm` |
 | `GET /api/owner/venues` | unchanged | không | 200 `VenueView[]` có `courts`. Chỉ đơn vị của chủ sân |
 
@@ -70,7 +70,7 @@ One pull request for each row. Each pull request passes the check command on its
 |---|---|---|---|
 | 1 | Hàm thuần: `deadlineLeft`, `courtLabels` | `packages/client/src/owner-requests.ts`, `packages/client/src/owner-requests.test.ts`, `packages/client/src/index.ts` | AC-12, AC-13 |
 | 2 | Màn Yêu cầu: danh sách, trạng thái rỗng, lỗi, khách, `USER`, xác nhận, sheet từ chối, 409, tải lại 15 giây, bỏ danh sách chậm, 401. Router thay `EmptyTab` của `chu-san/yeu-cau`. `App.tsx` thêm `setPendingRequests` vào context | `apps/mobile/src/features/owner/`, `apps/mobile/src/app/router.tsx`, `apps/mobile/src/app/App.tsx`, `apps/mobile/src/app/App.test.tsx` | AC-1 đến AC-10 |
-| 3 | Luồng `verify-flow` và `PROGRESS.md` | `.agents/skills/verify-flow/references/flows/mobile-owner-requests.md`, `.agents/skills/verify-flow/scripts/mobile-owner-requests.mjs`, `.agents/skills/verify-flow/scripts/run.mjs`, `PROGRESS.md` | AC-11 |
+| 3 | Luồng `verify-flow` và `PROGRESS.md` | `.agents/skills/verify-flow/references/flows/mobile-owner-requests.md`, `.agents/skills/verify-flow/scripts/mobile-owner-requests.mjs`, `.agents/skills/verify-flow/scripts/run.mjs`, `.agents/skills/verify-flow/SKILL.md`, `PROGRESS.md` | AC-11 |
 
 ## Edit boundaries
 
