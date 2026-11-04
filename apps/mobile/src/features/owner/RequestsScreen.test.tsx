@@ -476,6 +476,27 @@ describe('RequestsScreen', () => {
     expect(refreshCounts).toHaveBeenCalledTimes(1);
   });
 
+  it('D-3: a confirm that resolves after unmount does not call setPendingRequests or refreshCounts', async () => {
+    const post = deferred<unknown>();
+    mockApi({ [LIST]: two, [VENUES]: venues, [CONFIRM(1)]: () => post.promise });
+    const { refreshCounts, setPending, unmount } = renderScreen(OWNER);
+    await screen.findByText('Nguyễn Văn A');
+    expect(setPending).toHaveBeenCalledTimes(1);
+    setPending.mockClear();
+    refreshCounts.mockClear();
+
+    fireEvent.click(btn(cardOf(1)!, 'Xác nhận'));
+    await waitFor(() => expect(calls(CONFIRM(1))).toHaveLength(1));
+
+    unmount();
+    await act(async () => {
+      post.resolve({});
+    });
+
+    expect(setPending).not.toHaveBeenCalled();
+    expect(refreshCounts).not.toHaveBeenCalled();
+  });
+
   it('D-4: a visible tab does not reload while the session login sheet is open', async () => {
     let gets = 0;
     mockApi({

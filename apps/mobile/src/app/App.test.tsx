@@ -1,10 +1,11 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useOutletContext } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
 import { ApiError } from '@monsport/client';
 import { ToiScreen } from '../features/auth/ToiScreen';
 import { NotificationsScreen } from '../features/notifications/NotificationsScreen';
+import { RequestsScreen } from '../features/owner/RequestsScreen';
 import { App } from './App';
 import * as sessionModule from './session';
 import { SessionProvider } from './session';
@@ -47,7 +48,25 @@ describe('App Shell', () => {
   });
 
   it('AC-12: owner Bình logged in with 2 PENDING bookings has tabs: Yêu cầu (2), Lịch sân, Doanh thu, Thông báo, Tôi; 0 PENDING shows no badge', async () => {
-    vi.mocked(clientModule.api).mockResolvedValue([{ id: 'b1' }, { id: 'b2' }]);
+    const mkPending = (id: string) => ({
+      id,
+      courtId: 'c1',
+      startAt: '2026-11-06T18:00:00+07:00',
+      endAt: '2026-11-06T19:00:00+07:00',
+      status: 'PENDING',
+      source: 'ONLINE',
+      priceTotal: 240000,
+      confirmDeadline: '2026-11-06T17:00:00+07:00',
+      confirmedAt: null,
+      cancelledAt: null,
+      createdAt: '2026-11-06T10:00:00+07:00',
+      paidAtVenue: false,
+      customer: { name: 'Khách', phone: null },
+    });
+    vi.mocked(clientModule.api).mockImplementation((async (path: string) => {
+      if (path === '/api/owner/bookings?status=PENDING') return [mkPending('b1'), mkPending('b2')];
+      return [];
+    }) as typeof clientModule.api);
 
     vi.spyOn(sessionModule, 'useSession').mockReturnValue({
       user: { id: 'o1', name: 'Bình', role: 'OWNER' },
@@ -60,7 +79,11 @@ describe('App Shell', () => {
 
     render(
       <MemoryRouter initialEntries={['/']}>
-        <App />
+        <Routes>
+          <Route path="/" element={<App />}>
+            <Route path="chu-san/yeu-cau" element={<RequestsScreen />} />
+          </Route>
+        </Routes>
       </MemoryRouter>,
     );
 
@@ -81,7 +104,11 @@ describe('App Shell', () => {
 
     render(
       <MemoryRouter initialEntries={['/']}>
-        <App />
+        <Routes>
+          <Route path="/" element={<App />}>
+            <Route path="chu-san/yeu-cau" element={<RequestsScreen />} />
+          </Route>
+        </Routes>
       </MemoryRouter>,
     );
 
@@ -453,8 +480,9 @@ describe('App Shell', () => {
       expect(pendingGets()).toHaveLength(2);
       fireEvent.click(within(screen.getByRole('navigation', { name: 'Điều hướng' })).getByRole('button', { name: 'Yêu cầu' }));
       releaseSlow([{ id: 'b1' }, { id: 'b2' }, { id: 'b3' }]);
-      await Promise.resolve();
-      await Promise.resolve();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
       expect(tabOf().queryByText('3')).toBeNull();
       expect(tabOf().getByText('1')).toBeDefined();
     });
@@ -527,10 +555,48 @@ describe('App Shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Làm mới số' }));
       await waitFor(() => expect(pendingGets()).toHaveLength(3));
       releaseSlow([{ id: 'x' }]);
-      await Promise.resolve();
-      await Promise.resolve();
+      await act(async () => {});
       expect(tabOf().queryByText('1')).toBeNull();
       expect(tabOf().getByText('3')).toBeDefined();
+    });
+
+    it('D-3: an owner entering at / sends one GET /api/owner/bookings?status=PENDING', async () => {
+      vi.mocked(clientModule.api).mockImplementation((async (path: string) => {
+        if (path === PENDING) {
+          return [
+            {
+              id: 'b1',
+              courtId: 'c1',
+              startAt: '2026-11-06T18:00:00+07:00',
+              endAt: '2026-11-06T19:00:00+07:00',
+              status: 'PENDING',
+              source: 'ONLINE',
+              priceTotal: 240000,
+              confirmDeadline: '2026-11-06T17:00:00+07:00',
+              confirmedAt: null,
+              cancelledAt: null,
+              createdAt: '2026-11-06T10:00:00+07:00',
+              paidAtVenue: false,
+              customer: { name: 'Nguyễn Văn A', phone: '0901234567' },
+            },
+          ];
+        }
+        if (path === '/api/owner/venues') return [];
+        return { unreadCount: 0, items: [] };
+      }) as typeof clientModule.api);
+      asOwner();
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route path="/" element={<App />}>
+              <Route path="chu-san/yeu-cau" element={<RequestsScreen />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+      await screen.findByText('Nguyễn Văn A');
+      await waitFor(() => expect(tabOf().getByText('1')).toBeDefined());
+      expect(pendingGets()).toHaveLength(1);
     });
   });
 

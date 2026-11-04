@@ -47,6 +47,7 @@ function RequestsScreenBody() {
 
   // A reply is applied only when no newer request or write started after it began.
   const reqCounter = useRef(0);
+  const mountedRef = useRef(true);
   const listRef = useRef(list);
   listRef.current = list;
   const sessionLoginOpenRef = useRef(false);
@@ -59,17 +60,25 @@ function RequestsScreenBody() {
 
   const active = user?.role === 'OWNER';
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      reqCounter.current++;
+    };
+  }, []);
+
   const load = useCallback(() => {
     const reqId = ++reqCounter.current;
     api<OwnerBookingView[]>('/api/owner/bookings?status=PENDING').then(
       (res) => {
-        if (reqId !== reqCounter.current) return;
+        if (!mountedRef.current || reqId !== reqCounter.current) return;
         setFailed(false);
         setList(res);
         setPendingRef.current?.(res.length);
       },
       (err: unknown) => {
-        if (reqId !== reqCounter.current) return;
+        if (!mountedRef.current || reqId !== reqCounter.current) return;
         if (err instanceof ApiError && err.status === 401) setSessionLoginOpen(true);
         // A failed reload keeps the old list. Only an empty screen shows the error.
         if (!listRef.current) setFailed(true);
@@ -166,6 +175,7 @@ function RequestsScreenBody() {
     try {
       await api(`/api/owner/bookings/${request.id}/${action}`, { method: 'POST' });
       reqCounter.current++;
+      if (!mountedRef.current) return;
       const newLength = removeCard(request.id);
       setNotice({
         kind: 'status',
@@ -174,6 +184,7 @@ function RequestsScreenBody() {
       reportCount(newLength);
     } catch (err) {
       reqCounter.current++;
+      if (!mountedRef.current) return;
       if (err instanceof ApiError && err.status === 409) {
         if (FINAL_409.includes(err.message)) {
           reportCount(removeCard(request.id));
@@ -190,7 +201,7 @@ function RequestsScreenBody() {
       }
     } finally {
       busyRef.current.delete(request.id);
-      setBusyIds(new Set(busyRef.current));
+      if (mountedRef.current) setBusyIds(new Set(busyRef.current));
     }
   };
 

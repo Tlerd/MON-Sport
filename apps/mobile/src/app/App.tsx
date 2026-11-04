@@ -70,19 +70,19 @@ export function App() {
   const fetchPendingRef = useRef(fetchPending);
   fetchPendingRef.current = fetchPending;
 
-  // On the Yêu cầu screen, the screen reports the count, so the shell skips its own fetch there.
+  // The shell owns the pending request count for an OWNER while the Yêu cầu screen is closed.
+  // On the Yêu cầu screen (or at '/', which redirects there), the screen reports the count, so the shell skips its own fetch.
+  const countsPending = user?.role === 'OWNER';
   const onRequestsScreen = location.pathname === '/chu-san/yeu-cau';
-  const onRequestsScreenRef = useRef(onRequestsScreen);
-  onRequestsScreenRef.current = onRequestsScreen;
+  const onOwnerRedirect = countsPending && location.pathname === '/';
+  const onRequestsOrRedirectRef = useRef(false);
+  onRequestsOrRedirectRef.current = onRequestsScreen || onOwnerRedirect;
 
   useEffect(() => {
-    if (user?.role === 'OWNER' && onRequestsScreenRef.current) return;
+    if (user?.role === 'OWNER' && onRequestsOrRedirectRef.current) return;
     refreshCounts();
   }, [user]);
 
-  // The shell owns the pending request count for an OWNER while the Yêu cầu screen is closed.
-  const countsPending = user?.role === 'OWNER';
-  const onOwnerRedirect = countsPending && location.pathname === '/';
   const wasOnRequestsRef = useRef(false);
   useEffect(() => {
     if (!countsPending || onRequestsScreen || onOwnerRedirect) {
