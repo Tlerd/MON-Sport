@@ -1,18 +1,14 @@
 import { createBrowserRouter } from 'react-router';
-import { EmptyState } from '../components/EmptyState.tsx';
 import { ToiScreen } from '../features/auth/ToiScreen.tsx';
 import { LobbyScreen } from '../features/lobby/LobbyScreen.tsx';
 import { MyScreen } from '../features/my/MyScreen.tsx';
 import { NotificationsScreen } from '../features/notifications/NotificationsScreen.tsx';
 import { RequestsScreen } from '../features/owner/RequestsScreen.tsx';
+import { RevenueScreen } from '../features/owner/RevenueScreen.tsx';
 import { ScheduleScreen } from '../features/owner/ScheduleScreen.tsx';
 import { VenueListScreen } from '../features/venues/VenueListScreen.tsx';
 import { VenueScreen } from '../features/venues/VenueScreen.tsx';
 import { App } from './App.tsx';
-
-function EmptyTab() {
-  return <EmptyState message="Sắp có" />;
-}
 
 export const router = createBrowserRouter(
   [
@@ -28,7 +24,7 @@ export const router = createBrowserRouter(
         { path: 'toi', element: <ToiScreen /> },
         { path: 'chu-san/yeu-cau', element: <RequestsScreen /> },
         { path: 'chu-san/lich', element: <ScheduleScreen /> },
-        { path: 'chu-san/doanh-thu', element: <EmptyTab /> },
+        { path: 'chu-san/doanh-thu', element: <RevenueScreen /> },
       ],
     },
   ],
