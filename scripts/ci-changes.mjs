@@ -21,12 +21,18 @@ function skipImage(file) {
   return false;
 }
 
+function skipDeploy(file) {
+  if (file.startsWith('.agents/')) return true;
+  return skipImage(file);
+}
+
 export function classify(files = []) {
   const list = files.map((f) => f.trim().replaceAll('\\', '/')).filter(Boolean);
   if (list.length === 0) return { check: true, image: true, deploy: true };
   const check = list.some((f) => !skipCheck(f));
   const image = list.some((f) => !skipImage(f));
-  return { check, image, deploy: image };
+  const deploy = list.some((f) => !skipDeploy(f));
+  return { check, image, deploy };
 }
 
 function arg(args, flag) {
@@ -34,13 +40,13 @@ function arg(args, flag) {
   return index !== -1 ? args[index + 1] : undefined;
 }
 
-function changedFiles(args) {
+export function changedFiles(args = [], cwd) {
   const range = arg(args, '--range');
   const base = arg(args, '--base');
   const head = arg(args, '--head') || 'HEAD';
   const spec = range || (base ? `${base}...${head}` : '');
   if (!spec) return [];
-  const res = spawnSync('git', ['diff', '--name-only', spec], { encoding: 'utf8' });
+  const res = spawnSync('git', ['diff', '--name-only', '--no-renames', spec], { cwd, encoding: 'utf8' });
   if (res.status !== 0 || res.error) {
     console.error(`ci-changes: git diff ${spec} failed, running all jobs: ${(res.stderr || res.error?.message || '').trim()}`);
     return [];

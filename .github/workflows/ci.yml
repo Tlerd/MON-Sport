@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   # A skipped job counts as passed for scripts/merge.mjs (SKIPPED is in PASSED of scripts/ci-autofix.mjs).
+  # A push to main always runs every job: deploy.yml compares with the serving revision, so main must be fully tested.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -32,10 +33,9 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             node scripts/ci-changes.mjs --base "origin/${{ github.base_ref }}"
-          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ] || [ -z "${{ github.event.before }}" ]; then
-            node scripts/ci-changes.mjs
           else
-            node scripts/ci-changes.mjs --range "${{ github.event.before }}..${{ github.sha }}"
+            echo "check=true" >> "$GITHUB_OUTPUT"
+            echo "image=true" >> "$GITHUB_OUTPUT"
           fi
 
   check:
