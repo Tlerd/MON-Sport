@@ -10,6 +10,7 @@ export interface RevenueChartProps {
 
 export function RevenueChart({ points }: RevenueChartProps) {
   const maxRevenue = points.reduce((max, p) => (p.revenue > max ? p.revenue : max), 0);
+  const labelStep = points.length > 7 ? Math.ceil(points.length / 7) : 1;
 
   return (
     <section
@@ -33,13 +34,12 @@ export function RevenueChart({ points }: RevenueChartProps) {
           gap: 'var(--space-xs)',
           minWidth: 0,
           maxWidth: '100%',
-          overflowX: 'auto',
-          scrollbarWidth: 'none',
         }}
       >
-        {points.map((point) => {
+        {points.map((point, index) => {
           const ratio = maxRevenue > 0 ? point.revenue / maxRevenue : 0;
           const heightPx = Math.max(BAR_MIN_HEIGHT_PX, Math.round(ratio * BAR_MAX_HEIGHT_PX));
+          const showLabel = index % labelStep === 0;
           return (
             <div
               key={point.label}
@@ -71,13 +71,11 @@ export function RevenueChart({ points }: RevenueChartProps) {
                 style={{
                   font: 'var(--font-meta)',
                   color: 'var(--color-ink-muted)',
-                  minWidth: 0,
-                  maxWidth: '100%',
-                  overflowWrap: 'anywhere',
+                  whiteSpace: 'nowrap',
                   textAlign: 'center',
                 }}
               >
-                {point.label}
+                {showLabel ? point.label : ' '}
               </span>
             </div>
           );

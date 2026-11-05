@@ -132,11 +132,8 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
       },
       (err: unknown) => {
         if (!mountedRef.current || reqId !== venuesReqRef.current) return;
-        if (err instanceof ApiError && err.status === 401) {
-          setSessionLoginOpen(true);
-        } else if (!venuesRef.current) {
-          setVenuesFailed(true);
-        }
+        if (err instanceof ApiError && err.status === 401) setSessionLoginOpen(true);
+        if (!venuesRef.current) setVenuesFailed(true);
       },
     );
   }, []);
@@ -180,9 +177,8 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
           }
           if (err instanceof ApiError && err.status === 401) {
             setSessionLoginOpen(true);
-          } else {
-            setFinancialsFailed(true);
           }
+          setFinancialsFailed(true);
         },
       );
     },
@@ -274,13 +270,17 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
     financialsReqRef.current++;
     setFinancialsFailed(false);
     setPeriod(nextPeriod);
+    setDate((prev) => (prev > today ? today : prev));
   };
 
   const shiftDate = (steps: number) => {
     if (steps > 0 && nextDisabled) return;
     financialsReqRef.current++;
     setFinancialsFailed(false);
-    setDate((prev) => shiftPeriodDate(prev, period, steps));
+    setDate((prev) => {
+      const shifted = shiftPeriodDate(prev, period, steps);
+      return steps > 0 && shifted > today ? today : shifted;
+    });
   };
 
   return (

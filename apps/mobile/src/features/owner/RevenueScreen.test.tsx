@@ -297,6 +297,41 @@ describe('RevenueScreen', () => {
       expect(calls(`/api/owner/venues/${VA}/financials?period=day&date=2026-11-06`)).toHaveLength(2),
     );
     expect(nextBtn.disabled).toBe(true);
+
+    // Cross-period sequence: Tuần -> Kỳ trước (2026-10-30) -> Tháng -> Kỳ sau -> Ngày must clamp to <= 2026-11-06
+    fireEvent.click(screen.getByRole('button', { name: 'Tuần' }));
+    await waitFor(() =>
+      expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(3),
+    );
+    fireEvent.click(prevBtn);
+    await waitFor(() =>
+      expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-10-30`)).toHaveLength(3),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Tháng' }));
+    await waitFor(() =>
+      expect(calls(`/api/owner/venues/${VA}/financials?period=month&date=2026-10-30`)).toHaveLength(1),
+    );
+    fireEvent.click(nextBtn);
+    await waitFor(() =>
+      expect(calls(`/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`)).toHaveLength(3),
+    );
+    expect(nextBtn.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Ngày' }));
+    await waitFor(() =>
+      expect(calls(`/api/owner/venues/${VA}/financials?period=day&date=2026-11-06`)).toHaveLength(3),
+    );
+    expect(screen.getByRole('heading', { name: 'Thứ Sáu, 06/11/2026' })).toBeDefined();
+    expect(nextBtn.disabled).toBe(true);
+
+    const financialDates = vi
+      .mocked(clientModule.api)
+      .mock.calls.map((c) => String(c[0]))
+      .map((p) => /&date=(\d{4}-\d{2}-\d{2})$/.exec(p)?.[1])
+      .filter((d): d is string => Boolean(d));
+    expect(financialDates.length).toBeGreaterThan(0);
+    for (const d of financialDates) {
+      expect(d <= TODAY).toBe(true);
+    }
   });
 
   it('AC-4: renders 7 chart bars scaled by revenue / max (min 2px), keeps labels on 0-revenue bars, and sets aria-label with formatVnd', async () => {
@@ -446,16 +481,49 @@ describe('RevenueScreen', () => {
     expect(vi.mocked(clientModule.api)).not.toHaveBeenCalled();
     unmountAdmin();
 
-    // 4. 401 on financials -> opens session login sheet and reloads after login
+    // 4. 401 on venues -> opens session login sheet; closing shows "Không tải được" and "Thử lại", and "Thử lại" loads again
+    let venueAuthCalls = 0;
+    mockStandardApi({
+      venues: () => {
+        if (++venueAuthCalls === 1) throw new ApiError(401, 'Chưa đăng nhập');
+        return [VENUE_A];
+      },
+    });
+    const { unmount: unmountVenue401 } = renderScreen(OWNER);
+
+    const venueLoginDialog = await screen.findByRole('dialog', { name: 'Đăng nhập' });
+    expect(
+      within(venueLoginDialog).getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.'),
+    ).toBeDefined();
+    fireEvent.click(within(venueLoginDialog).getByRole('button', { name: 'Đóng' }));
+    expect(screen.queryByRole('dialog', { name: 'Đăng nhập' })).toBeNull();
+    expect(screen.getByText('Không tải được')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText('960.000đ')).toBeDefined();
+    expect(venueAuthCalls).toBe(2);
+    unmountVenue401();
+
+    // 5. 401 on financials -> opens session login sheet; closing shows "Không tải được" and "Thử lại", "Thử lại" reloads, and login sheet also reloads
     let finCalls = 0;
     mockStandardApi({
       financials: () => {
-        if (++finCalls === 1) throw new ApiError(401, 'Chưa đăng nhập');
+        finCalls++;
+        if (finCalls <= 2) throw new ApiError(401, 'Chưa đăng nhập');
         return mkFinancials();
       },
     });
     renderScreen(OWNER);
 
+    const finLoginDialog1 = await screen.findByRole('dialog', { name: 'Đăng nhập' });
+    expect(
+      within(finLoginDialog1).getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.'),
+    ).toBeDefined();
+    fireEvent.click(within(finLoginDialog1).getByRole('button', { name: 'Đóng' }));
+    expect(screen.queryByRole('dialog', { name: 'Đăng nhập' })).toBeNull();
+    expect(screen.getByText('Không tải được')).toBeDefined();
+
+    // Clicking "Thử lại" triggers another load (which 401s on call 2 and opens dialog; logging in triggers call 3 and succeeds)
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     const loginDialog = await screen.findByRole('dialog', { name: 'Đăng nhập' });
     expect(within(loginDialog).getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.')).toBeDefined();
 
@@ -470,7 +538,7 @@ describe('RevenueScreen', () => {
     });
 
     expect(await screen.findByText('960.000đ')).toBeDefined();
-    expect(finCalls).toBe(2);
+    expect(finCalls).toBe(3);
   });
 
   it('AC-11: handles venue load error with retry, financials load error with retry while keeping chips usable, and empty venue list', async () => {
@@ -545,13 +613,26 @@ describe('RevenueScreen', () => {
     }
   });
 
-  it('AC-13: wraps long venue names, keeps every button and chip at least 44px high, prevents horizontal overflow at 360px and 390px, and lays out metric cards in 2 columns', async () => {
+  it('AC-13: wraps long venue names, keeps every button and chip at least 44px high, prevents horizontal overflow at 360px and 390px, lays out metric cards in 2 columns, and thins chart labels when >7 points', async () => {
     const longName = 'Đơn-vị-cầu-lông-rất-dài-'.repeat(12);
+    const monthChart: FinancialChartPoint[] = Array.from({ length: 30 }, (_, i) => ({
+      label: `${String(i + 1).padStart(2, '0')}/11`,
+      revenue: i === 0 ? 0 : (i + 1) * 10000,
+      bookedHours: 1,
+      bookingCount: 1,
+    }));
     mockStandardApi({
       venues: () => [
         { ...VENUE_A, name: longName },
         { ...VENUE_B, name: 'Sân bóng đá B' },
       ],
+      financials: (venueId, period, date) =>
+        mkFinancials({
+          venueId,
+          period,
+          date,
+          chartData: monthChart,
+        }),
     });
     renderScreen(OWNER);
 
@@ -578,5 +659,29 @@ describe('RevenueScreen', () => {
       expect(card.style.minWidth).toBe('0px');
       expect(card.style.overflowWrap).toBe('anywhere');
     }
+
+    const chart = screen.getByRole('region', { name: 'Biểu đồ doanh thu' });
+    const list = within(chart).getByRole('list', { name: 'Cột doanh thu' });
+    expect(list.style.overflowX).toBe('');
+
+    const bars = within(chart).getAllByRole('img');
+    expect(bars).toHaveLength(30);
+    monthChart.forEach((p, i) => {
+      expect(bars[i]!.getAttribute('aria-label')).toBe(
+        `${p.label}: ${clientModule.formatVnd(p.revenue)}`,
+      );
+      const ratio = p.revenue / 300000;
+      const expectedPx = Math.max(2, Math.round(ratio * BAR_MAX_HEIGHT_PX));
+      expect(bars[i]!.style.height).toBe(`${expectedPx}px`);
+    });
+
+    const labelSpans = Array.from(chart.querySelectorAll('span.tnum')) as HTMLElement[];
+    expect(labelSpans).toHaveLength(30);
+    for (const span of labelSpans) {
+      expect(span.style.overflowWrap).not.toBe('anywhere');
+      expect(span.style.whiteSpace).toBe('nowrap');
+    }
+    const visibleLabels = labelSpans.map((s) => (s.textContent ?? '').replace(/ /g, '')).filter((t) => t !== '');
+    expect(visibleLabels).toEqual(['01/11', '06/11', '11/11', '16/11', '21/11', '26/11']);
   });
 });
