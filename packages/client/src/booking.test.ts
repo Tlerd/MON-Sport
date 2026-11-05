@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CourtView } from '@monsport/shared';
-import { dayChipLabel, dayHeading, durationsAt, priceRangeK, startableMinutes } from './booking.ts';
+import { dayChipLabel, dayHeading, durationsAt, priceRangeK, rangeHolding, startableMinutes } from './booking.ts';
 
 const NOW = new Date('2026-10-29T10:00:00+07:00');
 const range = (date: string, from: string, to: string) => ({ startAt: `${date}T${from}:00+07:00`, endAt: `${date}T${to}:00+07:00` });
@@ -28,6 +28,16 @@ describe('booking helpers', () => {
 
   const date = '2026-10-30';
   const free = [range(date, '18:00', '20:00'), range(date, '21:00', '23:00')];
+
+  it('AC-2: rangeHolding returns the free range that holds [start, end], undefined when too short, and compares instants across midnight', () => {
+    expect(rangeHolding(date, free, 1080, 1200)).toEqual(free[0]);
+    expect(rangeHolding(date, free, 1080, 1230)).toBeUndefined();
+    const midnightRange = {
+      startAt: '2026-10-30T22:00:00+07:00',
+      endAt: '2026-10-31T00:00:00+07:00',
+    };
+    expect(rangeHolding(date, [midnightRange], 1320, 1440)).toEqual(midnightRange);
+  });
 
   it('AC-2: startableMinutes needs 60 free minutes after the start', () => {
     expect(startableMinutes(date, free, NOW)).toEqual([1080, 1110, 1140, 1260, 1290, 1320]);

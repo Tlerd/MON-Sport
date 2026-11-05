@@ -1,14 +1,7 @@
 import { type FreeRange, vnDateString } from '@monsport/shared';
-import { DURATIONS, slotAt } from './booking.ts';
+import { DURATIONS, rangeHolding, slotAt } from './booking.ts';
 
 const HOUR = 60;
-
-/** The free range that holds [start, end], or undefined. Compares instants, not strings. */
-function rangeHolding(date: string, free: FreeRange[], start: number, end: number): FreeRange | undefined {
-  const from = Date.parse(slotAt(date, start));
-  const to = Date.parse(slotAt(date, end));
-  return free.find((r) => Date.parse(r.startAt) <= from && to <= Date.parse(r.endAt));
-}
 
 /** Start minutes (multiples of 30) after now with at least 60 free minutes after them (BR-2, BR-3). */
 export function ownerStartableMinutes(date: string, free: FreeRange[], now: Date): number[] {

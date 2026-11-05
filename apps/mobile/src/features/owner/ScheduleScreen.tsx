@@ -146,6 +146,7 @@ function ScheduleScreenBody({ now: nowProp }: ScheduleScreenProps) {
 
   const loadBookings = useCallback(() => {
     const reqId = ++bookingsReqRef.current;
+    setBookingsFailed(false);
     Promise.all([
       api<OwnerBookingView[]>('/api/owner/bookings?status=CONFIRMED'),
       api<OwnerBookingView[]>('/api/owner/bookings?status=PENDING'),

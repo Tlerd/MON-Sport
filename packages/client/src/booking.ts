@@ -39,7 +39,7 @@ const HOUR = 60;
 const MINUTE_MS = 60_000;
 
 /** The free range that holds [start, end], or undefined. Compares instants, not strings. */
-function rangeHolding(date: string, free: FreeRange[], start: number, end: number): FreeRange | undefined {
+export function rangeHolding(date: string, free: FreeRange[], start: number, end: number): FreeRange | undefined {
   const from = Date.parse(slotAt(date, start));
   const to = Date.parse(slotAt(date, end));
   return free.find((r) => Date.parse(r.startAt) <= from && to <= Date.parse(r.endAt));

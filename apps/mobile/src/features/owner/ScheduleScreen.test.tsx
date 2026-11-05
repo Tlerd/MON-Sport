@@ -801,4 +801,34 @@ describe('ScheduleScreen', () => {
     await waitFor(() => expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(2));
     expect(calls('/api/owner/bookings?status=PENDING')).toHaveLength(2);
   });
+
+  it('AC-10: clears the bookings error immediately on retry while the new request is pending, then shows bookings when it resolves', async () => {
+    let callCount = 0;
+    const retryDeferred = deferred<OwnerBookingView[]>();
+    const booking = mkBooking('b-retry', {
+      courtId: C1,
+      startAt: '2026-11-06T18:00:00+07:00',
+      endAt: '2026-11-06T19:00:00+07:00',
+      customer: { name: 'Chị Hương', phone: '0909111222' },
+    });
+    mockStandardApi({
+      confirmed: () => {
+        callCount += 1;
+        if (callCount === 1) throw new ApiError(500, 'Lỗi server');
+        return retryDeferred.promise;
+      },
+    });
+    renderScreen(OWNER);
+
+    const section = await screen.findByRole('region', { name: 'Booking trong ngày' });
+    expect(await within(section).findByText('Không tải được')).toBeDefined();
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Thử lại' }));
+    expect(within(section).queryByText('Không tải được')).toBeNull();
+
+    await act(async () => {
+      retryDeferred.resolve([booking]);
+    });
+    expect(await within(section).findByText('Chị Hương')).toBeDefined();
+  });
 });

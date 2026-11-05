@@ -137,6 +137,7 @@ export function PhoneBookingSheet({
   return (
     <Sheet
       open={open}
+      closeDisabled={busy}
       onClose={() => {
         if (busyRef.current) return;
         onClose();
