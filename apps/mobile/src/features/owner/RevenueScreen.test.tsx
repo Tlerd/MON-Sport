@@ -3,7 +3,13 @@ import { MemoryRouter, Outlet, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
 import { ApiError } from '@monsport/client';
-import type { FinancialChartPoint, FinancialDashboardView, FinancialPeriod, VenueView } from '@monsport/shared';
+import type {
+  FinancialChartPoint,
+  FinancialDashboardView,
+  FinancialPeriod,
+  OwnerBookingView,
+  VenueView,
+} from '@monsport/shared';
 import { BarsProvider } from '../../app/bars';
 import * as sessionModule from '../../app/session';
 import { BAR_MAX_HEIGHT_PX } from './RevenueChart';
@@ -29,6 +35,7 @@ const TODAY = '2026-11-06';
 const VA = '00000000-0000-4000-8000-000000000010';
 const VB = '00000000-0000-4000-8000-000000000020';
 const C1 = '00000000-0000-4000-8000-000000000001';
+const C2 = '00000000-0000-4000-8000-000000000002';
 const CB1 = '00000000-0000-4000-8000-000000000003';
 
 const VENUE_A: VenueView = {
@@ -40,6 +47,7 @@ const VENUE_A: VenueView = {
   closesAt: 960,
   courts: [
     { id: C1, name: 'Sân 1', sport: 'BADMINTON', priceNormal: 100000, pricePeak: 150000 },
+    { id: C2, name: 'Sân 2', sport: 'BADMINTON', priceNormal: 100000, pricePeak: 150000 },
   ],
 };
 
@@ -92,6 +100,69 @@ function mkFinancials(over: Partial<FinancialDashboardView> = {}): FinancialDash
     ...over,
   };
 }
+
+function mkBooking(
+  id: string,
+  over: Partial<OwnerBookingView> & { courtId: string; startAt: string; endAt: string },
+): OwnerBookingView {
+  return {
+    id,
+    status: 'CONFIRMED',
+    source: 'PHONE',
+    priceTotal: 150000,
+    confirmDeadline: null,
+    confirmedAt: '2026-11-02T10:00:00+07:00',
+    cancelledAt: null,
+    createdAt: '2026-11-02T10:00:00+07:00',
+    paidAtVenue: false,
+    customer: { name: 'Khách', phone: '0901234567' },
+    ...over,
+  };
+}
+
+const B_UNPAID_1 = mkBooking('00000000-0000-4000-8000-000000000101', {
+  courtId: C1,
+  startAt: '2026-11-03T09:00:00+07:00',
+  endAt: '2026-11-03T10:00:00+07:00',
+  priceTotal: 100000,
+  paidAtVenue: false,
+  customer: { name: 'Anh Minh', phone: '0901234567' },
+});
+
+const B_UNPAID_2 = mkBooking('00000000-0000-4000-8000-000000000102', {
+  courtId: C2,
+  startAt: '2026-11-06T18:00:00+07:00',
+  endAt: '2026-11-06T19:30:00+07:00',
+  priceTotal: 225000,
+  paidAtVenue: false,
+  customer: { name: 'Chị Lan', phone: '0909111222' },
+});
+
+const B_PAID_IN_WEEK = mkBooking('00000000-0000-4000-8000-000000000103', {
+  courtId: C1,
+  startAt: '2026-11-04T10:00:00+07:00',
+  endAt: '2026-11-04T11:00:00+07:00',
+  priceTotal: 100000,
+  paidAtVenue: true,
+  customer: { name: 'Khách Đã Thu', phone: '0902222333' },
+});
+
+const B_UNPAID_NEXT_WEEK = mkBooking('00000000-0000-4000-8000-000000000104', {
+  courtId: C1,
+  startAt: '2026-11-12T18:00:00+07:00',
+  endAt: '2026-11-12T19:00:00+07:00',
+  priceTotal: 150000,
+  paidAtVenue: false,
+  customer: { name: 'Khách Tuần Sau', phone: '0903333444' },
+});
+
+// 4 CONFIRMED bookings: 3 of "Cầu lông A" inside 02/11–08/11 (2 unpaid out of order, 1 paid) and 1 unpaid on 12/11.
+const AC6_BOOKINGS: OwnerBookingView[] = [
+  B_UNPAID_2,
+  B_PAID_IN_WEEK,
+  B_UNPAID_1,
+  B_UNPAID_NEXT_WEEK,
+];
 
 function deferred<T>() {
   let resolve!: (v: T) => void;
@@ -146,13 +217,24 @@ function renderScreen(user: User = OWNER) {
 function mockStandardApi(options?: {
   venues?: () => unknown;
   financials?: (venueId: string, period: FinancialPeriod, date: string) => unknown;
+  bookings?: () => unknown;
+  markPaid?: (bookingId: string, body: unknown) => unknown;
 }) {
   vi.mocked(clientModule.api).mockImplementation((async (path: string, init?: { method?: string; json?: unknown }) => {
     if (path === '/api/owner/venues') {
       return options?.venues ? options.venues() : [VENUE_A];
     }
+    if (path === '/api/owner/bookings?status=CONFIRMED') {
+      return options?.bookings ? options.bookings() : [];
+    }
     if (path === '/api/auth/login' && init?.method === 'POST') {
       return { user: OWNER };
+    }
+    const patchMatch = /^\/api\/owner\/bookings\/([^/]+)\/paid$/.exec(path);
+    if (patchMatch && init?.method === 'PATCH') {
+      const bookingId = patchMatch[1]!;
+      if (options?.markPaid) return options.markPaid(bookingId, init.json);
+      return { id: bookingId, paidAtVenue: true };
     }
     const m = /^\/api\/owner\/venues\/([^/]+)\/financials\?period=(day|week|month)&date=(\d{4}-\d{2}-\d{2})$/.exec(
       path,
@@ -398,6 +480,239 @@ describe('RevenueScreen', () => {
     expect(screen.queryByRole('group', { name: 'Đơn vị' })).toBeNull();
   });
 
+  it('AC-6: shows only the 2 unpaid CONFIRMED bookings of the selected venue and viewed period sorted by startAt, with court name, slot, price, data-field customer/phone, and >=44px "Đã thu tiền" button', async () => {
+    const finView = mkFinancials();
+    mockStandardApi({
+      financials: (venueId, period, date) =>
+        period === 'month'
+          ? mkFinancials({
+              venueId,
+              period,
+              date,
+              startDate: '2026-10-31T17:00:00.000Z',
+              endDate: '2026-11-30T16:59:59.999Z',
+              unpaidBookings: 3,
+            })
+          : finView,
+      bookings: () => AC6_BOOKINGS,
+    });
+    renderScreen(OWNER);
+
+    const unpaidSection = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(1);
+
+    const items = await within(unpaidSection).findAllByRole('listitem');
+    expect(items).toHaveLength(finView.unpaidBookings);
+    expect(items).toHaveLength(2);
+
+    // Row 0: B_UNPAID_1 (2026-11-03 09:00–10:00, Sân 1, 100.000đ, Anh Minh)
+    const row0 = items[0]!;
+    expect(within(row0).getByText('Sân 1')).toBeDefined();
+    expect(within(row0).getByText('09:00–10:00 ngày 03/11/2026')).toBeDefined();
+    expect(within(row0).getByText('100.000đ')).toBeDefined();
+    const customer0 = row0.querySelector<HTMLElement>('[data-field="customer"]');
+    expect(customer0?.textContent).toBe('Anh Minh');
+    const phone0 = row0.querySelector<HTMLElement>('[data-field="phone"]');
+    expect(phone0?.textContent).toBe('0901234567');
+    const btn0 = within(row0).getByRole('button', { name: 'Đã thu tiền' });
+    expect(parseInt(btn0.style.minHeight || btn0.style.height, 10)).toBeGreaterThanOrEqual(44);
+
+    // Row 1: B_UNPAID_2 (2026-11-06 18:00–19:30, Sân 2, 225.000đ, Chị Lan)
+    const row1 = items[1]!;
+    expect(within(row1).getByText('Sân 2')).toBeDefined();
+    expect(within(row1).getByText('18:00–19:30 ngày 06/11/2026')).toBeDefined();
+    expect(within(row1).getByText('225.000đ')).toBeDefined();
+    const customer1 = row1.querySelector<HTMLElement>('[data-field="customer"]');
+    expect(customer1?.textContent).toBe('Chị Lan');
+    const phone1 = row1.querySelector<HTMLElement>('[data-field="phone"]');
+    expect(phone1?.textContent).toBe('0909111222');
+    const btn1 = within(row1).getByRole('button', { name: 'Đã thu tiền' });
+    expect(parseInt(btn1.style.minHeight || btn1.style.height, 10)).toBeGreaterThanOrEqual(44);
+
+    // Paid booking in period and unpaid booking outside period are excluded
+    expect(within(unpaidSection).queryByText('Khách Đã Thu')).toBeNull();
+    expect(within(unpaidSection).queryByText('Khách Tuần Sau')).toBeNull();
+
+    // Switching to "Tháng" includes the 12/11 unpaid booking without refetching bookings
+    fireEvent.click(screen.getByRole('button', { name: 'Tháng' }));
+    expect(await screen.findByText('Khách Tuần Sau')).toBeDefined();
+    const monthSection = screen.getByRole('region', { name: 'Chưa thu tiền' });
+    expect(within(monthSection).getAllByRole('listitem')).toHaveLength(3);
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(1);
+  });
+
+  it('AC-7: clicking "Đã thu tiền" sends one PATCH with { paidAtVenue: true }, locks button and ignores double click while pending, removes the row on 200, and reloads financials from the server', async () => {
+    let finCalls = 0;
+    const patch = deferred<{ id: string; paidAtVenue: boolean }>();
+    mockStandardApi({
+      bookings: () => AC6_BOOKINGS,
+      financials: () => {
+        finCalls++;
+        if (finCalls === 1) return mkFinancials({ revenue: 960000, paidBookings: 8, unpaidBookings: 2 });
+        return mkFinancials({ revenue: 1060000, paidBookings: 9, unpaidBookings: 1 });
+      },
+      markPaid: () => patch.promise,
+    });
+    renderScreen(OWNER);
+
+    const unpaidSection = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    const items = await within(unpaidSection).findAllByRole('listitem');
+    expect(items).toHaveLength(2);
+
+    const firstBtn = within(items[0]!).getByRole('button', { name: 'Đã thu tiền' }) as HTMLButtonElement;
+    const secondBtn = within(items[1]!).getByRole('button', { name: 'Đã thu tiền' }) as HTMLButtonElement;
+
+    // Click twice consecutively while pending -> sends only one PATCH
+    fireEvent.click(firstBtn);
+    fireEvent.click(firstBtn);
+
+    expect(calls(`/api/owner/bookings/${B_UNPAID_1.id}/paid`)).toHaveLength(1);
+    expect(vi.mocked(clientModule.api)).toHaveBeenCalledWith(
+      `/api/owner/bookings/${B_UNPAID_1.id}/paid`,
+      {
+        method: 'PATCH',
+        json: { paidAtVenue: true },
+      },
+    );
+    expect(firstBtn.disabled).toBe(true);
+    expect(secondBtn.disabled).toBe(false);
+
+    // Revenue does not change before server financials reload
+    const revenueCard = screen.getByRole('article', { name: 'Doanh thu' });
+    expect(within(revenueCard).getByText('960.000đ')).toBeDefined();
+
+    await act(async () => {
+      patch.resolve({ id: B_UNPAID_1.id, paidAtVenue: true });
+    });
+
+    // Row disappears and financials reload updates "Doanh thu" with server numbers
+    await waitFor(() => expect(within(unpaidSection).getAllByRole('listitem')).toHaveLength(1));
+    expect(within(unpaidSection).queryByText('Anh Minh')).toBeNull();
+    expect(within(unpaidSection).getByText('Chị Lan')).toBeDefined();
+
+    await waitFor(() =>
+      expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(2),
+    );
+    expect(await within(revenueCard).findByText('1.060.000đ')).toBeDefined();
+    expect(within(revenueCard).getByText('9 đã thu · 1 chưa thu')).toBeDefined();
+  });
+
+  it('AC-8: handles PATCH errors (400, 404 show alert above list and reload bookings+financials; 409, network error keep row, show error in row, re-enable button, no reload) and ignores stale PATCH after period change', async () => {
+    let currentBookings: OwnerBookingView[] = [...AC6_BOOKINGS];
+    let patchImpl: (bookingId: string) => unknown = () => {
+      throw new ApiError(409, 'Yêu cầu đang được xử lý, hãy thử lại');
+    };
+
+    mockStandardApi({
+      bookings: () => currentBookings,
+      markPaid: (bookingId) => patchImpl(bookingId),
+    });
+    const { unmount } = renderScreen(OWNER);
+
+    const unpaidSection = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    let items = await within(unpaidSection).findAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(1);
+    expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(1);
+
+    // 1. 409 -> row stays, error shown inside row, button re-enabled, no reload
+    const row0 = items[0]!;
+    const btn0 = within(row0).getByRole('button', { name: 'Đã thu tiền' }) as HTMLButtonElement;
+    await act(async () => {
+      fireEvent.click(btn0);
+    });
+    expect(within(row0).getByText('Yêu cầu đang được xử lý, hãy thử lại')).toBeDefined();
+    expect(btn0.disabled).toBe(false);
+    expect(within(unpaidSection).getAllByRole('listitem')).toHaveLength(2);
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(1);
+    expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(1);
+    expect(within(screen.getByRole('article', { name: 'Doanh thu' })).getByText('960.000đ')).toBeDefined();
+
+    // 2. Network error -> row stays, "Không cập nhật được. Thử lại." shown inside row, button re-enabled, no reload
+    patchImpl = () => {
+      throw new TypeError('Failed to fetch');
+    };
+    await act(async () => {
+      fireEvent.click(btn0);
+    });
+    expect(within(row0).getByText('Không cập nhật được. Thử lại.')).toBeDefined();
+    expect(btn0.disabled).toBe(false);
+    expect(within(unpaidSection).getAllByRole('listitem')).toHaveLength(2);
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(1);
+    expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(1);
+    expect(within(screen.getByRole('article', { name: 'Doanh thu' })).getByText('960.000đ')).toBeDefined();
+
+    // 3. 400 -> shows API error in role="alert" ABOVE the list (not inside row), reloads both bookings and financials; row vanishes
+    currentBookings = [B_UNPAID_2];
+    patchImpl = () => {
+      throw new ApiError(400, 'Chỉ đánh dấu thu tiền cho booking đã xác nhận');
+    };
+    await act(async () => {
+      fireEvent.click(btn0);
+    });
+    const alert400 = await screen.findByRole('alert');
+    expect(alert400.textContent).toBe('Chỉ đánh dấu thu tiền cho booking đã xác nhận');
+    items = within(unpaidSection).getAllByRole('listitem');
+    expect(items).toHaveLength(1);
+    expect(within(items[0]!).queryByRole('alert')).toBeNull();
+    const listEl = within(unpaidSection).getByRole('list');
+    expect(Boolean(alert400.compareDocumentPosition(listEl) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(2);
+    expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(2);
+
+    // 4. 404 -> shows API error in role="alert" ABOVE the list, reloads both bookings and financials; remaining row vanishes
+    currentBookings = [];
+    patchImpl = () => {
+      throw new ApiError(404, 'Không tìm thấy booking');
+    };
+    const remainingBtn = within(items[0]!).getByRole('button', { name: 'Đã thu tiền' });
+    await act(async () => {
+      fireEvent.click(remainingBtn);
+    });
+    const alert404 = await screen.findByRole('alert');
+    expect(alert404.textContent).toBe('Không tìm thấy booking');
+    expect(await within(unpaidSection).findByText('Không có booking cần thu tiền')).toBeDefined();
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(3);
+    expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(3);
+
+    unmount();
+
+    // 5. Ignore PATCH result if period changed or component unmounted while PATCH was pending
+    const stalePatch = deferred<{ id: string; paidAtVenue: boolean }>();
+    const unmountedPatch = deferred<{ id: string; paidAtVenue: boolean }>();
+    let patchTurn = 0;
+    mockStandardApi({
+      bookings: () => AC6_BOOKINGS,
+      markPaid: () => (++patchTurn === 1 ? stalePatch.promise : unmountedPatch.promise),
+    });
+    const { unmount: unmount2 } = renderScreen(OWNER);
+    const section2 = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    const rows2 = await within(section2).findAllByRole('listitem');
+    fireEvent.click(within(rows2[0]!).getByRole('button', { name: 'Đã thu tiền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tháng' }));
+    await screen.findByRole('heading', { name: 'Tháng 11/2026' });
+    const monthFinCallsBefore = calls(`/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`).length;
+
+    await act(async () => {
+      stalePatch.reject(new ApiError(400, 'Chỉ đánh dấu thu tiền cho booking đã xác nhận'));
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(calls(`/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`)).toHaveLength(
+      monthFinCallsBefore,
+    );
+
+    const sectionAfterMonth = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    const rowsAfterMonth = within(sectionAfterMonth).getAllByRole('listitem');
+    fireEvent.click(within(rowsAfterMonth[0]!).getByRole('button', { name: 'Đã thu tiền' }));
+    unmount2();
+    await act(async () => {
+      unmountedPatch.resolve({ id: B_UNPAID_1.id, paidAtVenue: true });
+    });
+    expect(calls(`/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`)).toHaveLength(
+      monthFinCallsBefore,
+    );
+  });
+
   it('AC-9: drops stale financials replies when period, venue, or date changes before the previous request resolves', async () => {
     const pending = new Map<string, ReturnType<typeof deferred<FinancialDashboardView>>>();
     mockStandardApi({
@@ -458,7 +773,7 @@ describe('RevenueScreen', () => {
     expect(screen.queryByText('1.100.000đ')).toBeNull();
   });
 
-  it('AC-10: guest sees login prompt, USER redirects to /, neither calls owner APIs, and 401 opens session login sheet and reloads after login', async () => {
+  it('AC-10: guest sees login prompt, USER redirects to /, neither calls owner APIs, and 401 on venues, financials, bookings, or PATCH opens session login sheet and reloads after login', async () => {
     vi.mocked(clientModule.api).mockResolvedValue([]);
 
     // 1. Guest
@@ -512,7 +827,7 @@ describe('RevenueScreen', () => {
         return mkFinancials();
       },
     });
-    renderScreen(OWNER);
+    const { unmount: unmountFin401 } = renderScreen(OWNER);
 
     const finLoginDialog1 = await screen.findByRole('dialog', { name: 'Đăng nhập' });
     expect(
@@ -539,11 +854,66 @@ describe('RevenueScreen', () => {
 
     expect(await screen.findByText('960.000đ')).toBeDefined();
     expect(finCalls).toBe(3);
+    unmountFin401();
+
+    // 6. 401 on GET /api/owner/bookings?status=CONFIRMED -> opens session login sheet AND sets failed flag; closing shows "Không tải được" and "Thử lại" in "Chưa thu tiền"
+    let bookingAuthCalls = 0;
+    mockStandardApi({
+      bookings: () => {
+        if (++bookingAuthCalls === 1) throw new ApiError(401, 'Chưa đăng nhập');
+        return AC6_BOOKINGS;
+      },
+      markPaid: () => {
+        throw new ApiError(401, 'Chưa đăng nhập');
+      },
+    });
+    renderScreen(OWNER);
+
+    const bookingLoginDialog = await screen.findByRole('dialog', { name: 'Đăng nhập' });
+    expect(
+      within(bookingLoginDialog).getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.'),
+    ).toBeDefined();
+    fireEvent.click(within(bookingLoginDialog).getByRole('button', { name: 'Đóng' }));
+    const unpaidSection = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    expect(within(unpaidSection).getByText('Không tải được')).toBeDefined();
+    fireEvent.click(within(unpaidSection).getByRole('button', { name: 'Thử lại' }));
+    expect(await within(unpaidSection).findByText('Anh Minh')).toBeDefined();
+    expect(bookingAuthCalls).toBe(2);
+
+    // 7. 401 on PATCH /api/owner/bookings/:id/paid -> opens session login sheet without reloading, then reloads after login
+    const finCallsBeforePatch = calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`).length;
+    const rows = within(unpaidSection).getAllByRole('listitem');
+    await act(async () => {
+      fireEvent.click(within(rows[0]!).getByRole('button', { name: 'Đã thu tiền' }));
+    });
+    const patchLoginDialog = await screen.findByRole('dialog', { name: 'Đăng nhập' });
+    expect(
+      within(patchLoginDialog).getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.'),
+    ).toBeDefined();
+    expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(
+      finCallsBeforePatch,
+    );
+    expect(bookingAuthCalls).toBe(2);
+
+    fireEvent.change(within(patchLoginDialog).getByLabelText('Số điện thoại'), {
+      target: { value: '0912345678' },
+    });
+    fireEvent.change(within(patchLoginDialog).getByLabelText('Mật khẩu'), {
+      target: { value: 'password123' },
+    });
+    await act(async () => {
+      fireEvent.click(within(patchLoginDialog).getByRole('button', { name: 'Đăng nhập' }));
+    });
+    await waitFor(() => expect(bookingAuthCalls).toBe(3));
+    expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`).length).toBeGreaterThan(
+      finCallsBeforePatch,
+    );
   });
 
-  it('AC-11: handles venue load error with retry, financials load error with retry while keeping chips usable, and empty venue list', async () => {
+  it('AC-11: handles venue load error with retry, financials load error with retry while keeping chips usable, bookings load error with retry, and empty venue list', async () => {
     let venueCalls = 0;
     let finCalls = 0;
+    let bookingCalls = 0;
     mockStandardApi({
       venues: () => {
         if (++venueCalls === 1) throw new ApiError(500, 'Lỗi server');
@@ -552,6 +922,10 @@ describe('RevenueScreen', () => {
       financials: () => {
         if (++finCalls === 1) throw new ApiError(500, 'Lỗi báo cáo');
         return mkFinancials();
+      },
+      bookings: () => {
+        if (++bookingCalls === 1) throw new ApiError(500, 'Lỗi danh sách booking');
+        return AC6_BOOKINGS;
       },
     });
     const { unmount } = renderScreen(OWNER);
@@ -567,15 +941,22 @@ describe('RevenueScreen', () => {
 
     expect(await screen.findByText('960.000đ')).toBeDefined();
 
+    // 3. Bookings error -> "Chưa thu tiền" shows "Không tải được" + "Thử lại", and retrying loads the unpaid list
+    const unpaidSection = screen.getByRole('region', { name: 'Chưa thu tiền' });
+    expect(within(unpaidSection).getByText('Không tải được')).toBeDefined();
+    fireEvent.click(within(unpaidSection).getByRole('button', { name: 'Thử lại' }));
+    expect(await within(unpaidSection).findByText('Anh Minh')).toBeDefined();
+    expect(bookingCalls).toBe(2);
+
     unmount();
 
-    // 3. Empty venue list -> "Bạn chưa có đơn vị nào"
+    // 4. Empty venue list -> "Bạn chưa có đơn vị nào"
     mockStandardApi({ venues: () => [] });
     renderScreen(OWNER);
     expect(await screen.findByText('Bạn chưa có đơn vị nào')).toBeDefined();
   });
 
-  it('AC-12: renders 0đ, 0% rates, and 2px minimum chart bars without dividing by 0 when period has no bookings', async () => {
+  it('AC-12: renders 0đ, 0% rates, "Không có booking cần thu tiền", and 2px minimum chart bars without dividing by 0 when period has no bookings', async () => {
     const zeroChart = WEEK_CHART.map((p) => ({ ...p, revenue: 0, bookedHours: 0, bookingCount: 0 }));
     mockStandardApi({
       financials: () =>
@@ -594,6 +975,7 @@ describe('RevenueScreen', () => {
           returningCustomers: 0,
           chartData: zeroChart,
         }),
+      bookings: () => [],
     });
     renderScreen(OWNER);
 
@@ -604,6 +986,9 @@ describe('RevenueScreen', () => {
     expect(screen.getByRole('article', { name: 'Từ chối' }).textContent).toBe('Từ chối 0%');
     expect(screen.getByRole('article', { name: 'Khách quay lại' }).textContent).toBe('Khách quay lại 0/0');
 
+    const unpaidSection = screen.getByRole('region', { name: 'Chưa thu tiền' });
+    expect(within(unpaidSection).getByText('Không có booking cần thu tiền')).toBeDefined();
+
     const chart = screen.getByRole('region', { name: 'Biểu đồ doanh thu' });
     const bars = within(chart).getAllByRole('img');
     expect(bars).toHaveLength(7);
@@ -613,8 +998,9 @@ describe('RevenueScreen', () => {
     }
   });
 
-  it('AC-13: wraps long venue names, keeps every button and chip at least 44px high, prevents horizontal overflow at 360px and 390px, lays out metric cards in 2 columns, and thins chart labels when >7 points', async () => {
+  it('AC-13: wraps long venue and customer names, keeps every button and chip (including "Đã thu tiền") at least 44px high, prevents horizontal overflow at 360px and 390px, lays out metric cards in 2 columns, and thins chart labels when >7 points', async () => {
     const longName = 'Đơn-vị-cầu-lông-rất-dài-'.repeat(12);
+    const longCustomer = 'Khách-hàng-tên-rất-dài-'.repeat(12);
     const monthChart: FinancialChartPoint[] = Array.from({ length: 30 }, (_, i) => ({
       label: `${String(i + 1).padStart(2, '0')}/11`,
       revenue: i === 0 ? 0 : (i + 1) * 10000,
@@ -633,6 +1019,15 @@ describe('RevenueScreen', () => {
           date,
           chartData: monthChart,
         }),
+      bookings: () => [
+        mkBooking('b-long-customer', {
+          courtId: C1,
+          startAt: '2026-11-06T18:00:00+07:00',
+          endAt: '2026-11-06T19:00:00+07:00',
+          paidAtVenue: false,
+          customer: { name: longCustomer, phone: '0901234567' },
+        }),
+      ],
     });
     renderScreen(OWNER);
 
@@ -641,6 +1036,15 @@ describe('RevenueScreen', () => {
     expect(longChip.style.minHeight).toBe('44px');
     expect(longChip.style.overflowWrap).toBe('anywhere');
     expect(longChip.style.whiteSpace).toBe('normal');
+
+    const unpaidSection = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    const customerEl = await within(unpaidSection).findByText(longCustomer, {
+      selector: '[data-field="customer"]',
+    });
+    expect(customerEl.style.overflowWrap).toBe('anywhere');
+    expect(customerEl.style.minWidth).toBe('0px');
+    const markPaidBtn = within(unpaidSection).getByRole('button', { name: 'Đã thu tiền' });
+    expect(parseInt(markPaidBtn.style.minHeight || markPaidBtn.style.height, 10)).toBeGreaterThanOrEqual(44);
 
     const allButtons = screen.getAllByRole('button');
     for (const btn of allButtons) {

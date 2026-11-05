@@ -138,6 +138,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - RevenueChart.tsx: BAR_MAX_HEIGHT_PX, BAR_MIN_HEIGHT_PX, RevenueChartProps, RevenueChart
 - RevenueScreen.tsx: RevenueScreenProps, RevenueScreen
 - ScheduleScreen.tsx: ScheduleScreenProps, ScheduleScreen
+- UnpaidList.tsx: UnpaidListProps, UnpaidList
 
 ## apps/mobile/src/features/venues/
 - VenueListScreen.tsx: VenueListScreen
@@ -232,7 +233,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - my-bookings.ts: sortUpcoming, sortHistory, splitMine, joinedByOthers
 - notifications.ts: notificationTarget, unreadBadge
 - owner-requests.ts: CourtLabel, deadlineLeft, courtLabels
-- owner-revenue.ts: PeriodHeadingView, shiftPeriodDate, periodHeading, percent
+- owner-revenue.ts: PeriodHeadingView, shiftPeriodDate, periodHeading, unpaidInPeriod, percent
 - owner-schedule.ts: ownerStartableMinutes, ownerDurationsAt, bookingsOfDay
 - push.ts: PushPermissionError, pushSupported, getPublicKey, urlBase64ToUint8Array, isPushOn, enablePush, …
 

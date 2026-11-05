@@ -1,4 +1,10 @@
-import { addDaysYmd, type FinancialPeriod, vnDateString, vnWeekRange } from '@monsport/shared';
+import {
+  addDaysYmd,
+  type BookingStatus,
+  type FinancialPeriod,
+  vnDateString,
+  vnWeekRange,
+} from '@monsport/shared';
 import { dayHeading } from './booking.ts';
 
 export interface PeriodHeadingView {
@@ -40,6 +46,27 @@ export function periodHeading(view: PeriodHeadingView): string {
   if (view.period === 'day') return dayHeading(ymd);
   const [y, m] = ymd.split('-');
   return `Tháng ${m}/${y}`;
+}
+
+/**
+ * Confirmed, unpaid bookings of `courtIds` whose `startAt` instant falls within `[startDate, endDate]`,
+ * sorted by `startAt` ascending without mutating `bookings`.
+ */
+export function unpaidInPeriod<
+  T extends { status: BookingStatus; paidAtVenue: boolean; startAt: string; courtId: string },
+>(bookings: readonly T[], startDate: string, endDate: string, courtIds: readonly string[]): T[] {
+  const from = Date.parse(startDate);
+  const to = Date.parse(endDate);
+  const courts = new Set(courtIds);
+  return bookings
+    .filter((b) => {
+      if (b.status !== 'CONFIRMED' || b.paidAtVenue !== false || !courts.has(b.courtId)) {
+        return false;
+      }
+      const startAt = Date.parse(b.startAt);
+      return from <= startAt && startAt <= to;
+    })
+    .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt));
 }
 
 /** Formats a 0..1 rate as a rounded whole percentage string. */
