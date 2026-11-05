@@ -64,6 +64,16 @@ describe('owner revenue helpers', () => {
       startAt: '2026-11-01T16:59:00.000Z',
       endAt: '2026-11-01T17:59:00.000Z',
     });
+    const beforePeriodOffset = mkBooking('b-before-offset', {
+      courtId: C1,
+      startAt: '2026-11-01T23:59:00+07:00',
+      endAt: '2026-11-02T00:59:00+07:00',
+    });
+    const atStartOffset = mkBooking('b-start-offset', {
+      courtId: C2,
+      startAt: '2026-11-02T00:00:00+07:00',
+      endAt: '2026-11-02T01:00:00+07:00',
+    });
     const paidBooking = mkBooking('b-paid', {
       courtId: C1,
       startAt: '2026-11-03T10:00:00.000Z',
@@ -90,7 +100,9 @@ describe('owner revenue helpers', () => {
     const input = [
       laterInPeriod,
       beforePeriod,
+      beforePeriodOffset,
       atStartBoundary,
+      atStartOffset,
       paidBooking,
       otherCourtBooking,
       pendingBooking,
@@ -99,7 +111,7 @@ describe('owner revenue helpers', () => {
     const snapshot = [...input];
 
     const result = unpaidInPeriod(input, startDate, endDate, [C1, C2]);
-    expect(result.map((b) => b.id)).toEqual(['b-boundary', 'b-later']);
+    expect(result.map((b) => b.id)).toEqual(['b-boundary', 'b-start-offset', 'b-later']);
     expect(input).toEqual(snapshot);
   });
 

@@ -187,6 +187,12 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
   const activeKey = venue ? `${venue.id}|${period}|${date}` : '';
   const activeKeyRef = useRef(activeKey);
   activeKeyRef.current = activeKey;
+  const venueRef = useRef(venue);
+  venueRef.current = venue;
+  const periodRef = useRef(period);
+  periodRef.current = period;
+  const dateRef = useRef(date);
+  dateRef.current = date;
 
   const loadFinancials = useCallback(
     (forVenueId: string, forPeriod: FinancialPeriod, forDate: string) => {
@@ -230,6 +236,21 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
     loadFinancials(venue.id, period, date);
   }, [active, venue, period, date, loadFinancials]);
 
+  const handleSessionLoggedIn = useCallback(() => {
+    setVenuesFailed(false);
+    setBookingsFailed(false);
+    setFinancialsFailed(false);
+    loadBookings();
+    if (!venuesRef.current || venuesRef.current.length === 0) {
+      loadVenues();
+    } else {
+      const curVenue = venueRef.current;
+      if (curVenue) {
+        loadFinancials(curVenue.id, periodRef.current, dateRef.current);
+      }
+    }
+  }, [loadBookings, loadVenues, loadFinancials]);
+
   if (user === undefined) {
     return <EmptyState message="Đang tải" />;
   }
@@ -269,10 +290,7 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
         <LoginSheet
           open={sessionLoginOpen}
           onClose={() => setSessionLoginOpen(false)}
-          onLoggedIn={() => {
-            setVenuesFailed(false);
-            loadVenues();
-          }}
+          onLoggedIn={handleSessionLoggedIn}
           notice="Phiên đăng nhập đã hết. Hãy đăng nhập lại."
         />
       </div>
@@ -286,10 +304,7 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
         <LoginSheet
           open={sessionLoginOpen}
           onClose={() => setSessionLoginOpen(false)}
-          onLoggedIn={() => {
-            setVenuesFailed(false);
-            loadVenues();
-          }}
+          onLoggedIn={handleSessionLoggedIn}
           notice="Phiên đăng nhập đã hết. Hãy đăng nhập lại."
         />
       </div>
@@ -301,8 +316,6 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
   const nextDisabled = periodContainsOrAfterToday(period, date, today);
 
   const resetPatchState = () => {
-    busyRef.current.clear();
-    setBusyIds(new Set());
     setUnpaidAlert(null);
     setRowErrors({});
   };
@@ -336,9 +349,6 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
   const markPaid = async (booking: OwnerBookingView) => {
     if (busyRef.current.has(booking.id)) return;
     const keyAtStart = activeKeyRef.current;
-    const venueIdAtStart = venue.id;
-    const periodAtStart = period;
-    const dateAtStart = date;
 
     busyRef.current.add(booking.id);
     setBusyIds(new Set(busyRef.current));
@@ -355,16 +365,24 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
         method: 'PATCH',
         json: { paidAtVenue: true },
       });
-      if (!mountedRef.current || activeKeyRef.current !== keyAtStart) return;
-      bookingsReqRef.current++;
+      if (!mountedRef.current) return;
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
-      loadFinancials(venueIdAtStart, periodAtStart, dateAtStart);
+      const curVenue = venueRef.current;
+      if (curVenue) {
+        loadFinancials(curVenue.id, periodRef.current, dateRef.current);
+      }
     } catch (err) {
-      if (!mountedRef.current || activeKeyRef.current !== keyAtStart) return;
+      if (!mountedRef.current) return;
+      const isStale = activeKeyRef.current !== keyAtStart;
       if (err instanceof ApiError && (err.status === 400 || err.status === 404)) {
-        setUnpaidAlert(err.message);
+        if (!isStale) {
+          setUnpaidAlert(err.message);
+        }
         loadBookings();
-        loadFinancials(venueIdAtStart, periodAtStart, dateAtStart);
+        const curVenue = venueRef.current;
+        if (curVenue) {
+          loadFinancials(curVenue.id, periodRef.current, dateRef.current);
+        }
       } else if (err instanceof ApiError && err.status === 401) {
         setSessionLoginOpen(true);
       } else {
@@ -374,7 +392,7 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
       }
     } finally {
       busyRef.current.delete(booking.id);
-      if (mountedRef.current && activeKeyRef.current === keyAtStart) {
+      if (mountedRef.current) {
         setBusyIds(new Set(busyRef.current));
       }
     }
@@ -575,17 +593,7 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
       <LoginSheet
         open={sessionLoginOpen}
         onClose={() => setSessionLoginOpen(false)}
-        onLoggedIn={() => {
-          setVenuesFailed(false);
-          setFinancialsFailed(false);
-          setBookingsFailed(false);
-          loadBookings();
-          if (!venuesRef.current) {
-            loadVenues();
-          } else {
-            loadFinancials(venue.id, period, date);
-          }
-        }}
+        onLoggedIn={handleSessionLoggedIn}
         notice="Phiên đăng nhập đã hết. Hãy đăng nhập lại."
       />
     </div>

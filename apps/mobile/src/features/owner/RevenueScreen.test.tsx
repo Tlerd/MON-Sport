@@ -549,7 +549,7 @@ describe('RevenueScreen', () => {
       financials: () => {
         finCalls++;
         if (finCalls === 1) return mkFinancials({ revenue: 960000, paidBookings: 8, unpaidBookings: 2 });
-        return mkFinancials({ revenue: 1060000, paidBookings: 9, unpaidBookings: 1 });
+        return mkFinancials({ revenue: 1234000, paidBookings: 9, unpaidBookings: 1 });
       },
       markPaid: () => patch.promise,
     });
@@ -593,11 +593,11 @@ describe('RevenueScreen', () => {
     await waitFor(() =>
       expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(2),
     );
-    expect(await within(revenueCard).findByText('1.060.000đ')).toBeDefined();
+    expect(await within(revenueCard).findByText('1.234.000đ')).toBeDefined();
     expect(within(revenueCard).getByText('9 đã thu · 1 chưa thu')).toBeDefined();
   });
 
-  it('AC-8: handles PATCH errors (400, 404 show alert above list and reload bookings+financials; 409, network error keep row, show error in row, re-enable button, no reload) and ignores stale PATCH after period change', async () => {
+  it('AC-8: handles PATCH errors (400, 404 show alert above list and reload bookings+financials; 409, network error keep row, show error in row, re-enable button, no reload) and settles cross-view PATCH by updating bookings, keeping per-row busy lock, and reloading current view financials', async () => {
     let currentBookings: OwnerBookingView[] = [...AC6_BOOKINGS];
     let patchImpl: (bookingId: string) => unknown = () => {
       throw new ApiError(409, 'Yêu cầu đang được xử lý, hãy thử lại');
@@ -676,41 +676,150 @@ describe('RevenueScreen', () => {
     expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(3);
 
     unmount();
+    vi.mocked(clientModule.api).mockClear();
 
-    // 5. Ignore PATCH result if period changed or component unmounted while PATCH was pending
-    const stalePatch = deferred<{ id: string; paidAtVenue: boolean }>();
+    // 5. Cross-view PATCH: pending PATCH in "Tuần", switch to "Tháng", month financials resolve, button stays disabled in month view, then PATCH resolves 200 -> row gone in month view, month financials refetched
+    const stalePatch200 = deferred<{ id: string; paidAtVenue: boolean }>();
+    const stalePatch400 = deferred<{ id: string; paidAtVenue: boolean }>();
     const unmountedPatch = deferred<{ id: string; paidAtVenue: boolean }>();
+    let crossBookings: OwnerBookingView[] = [...AC6_BOOKINGS];
     let patchTurn = 0;
     mockStandardApi({
-      bookings: () => AC6_BOOKINGS,
-      markPaid: () => (++patchTurn === 1 ? stalePatch.promise : unmountedPatch.promise),
+      bookings: () => crossBookings,
+      financials: (venueId, period, date) =>
+        period === 'month'
+          ? mkFinancials({
+              venueId,
+              period,
+              date,
+              startDate: '2026-10-31T17:00:00.000Z',
+              endDate: '2026-11-30T16:59:59.999Z',
+              unpaidBookings: 3,
+            })
+          : mkFinancials({ venueId, period, date }),
+      markPaid: () => {
+        patchTurn++;
+        if (patchTurn === 1) return stalePatch200.promise;
+        if (patchTurn === 2) return stalePatch400.promise;
+        return unmountedPatch.promise;
+      },
     });
     const { unmount: unmount2 } = renderScreen(OWNER);
     const section2 = await screen.findByRole('region', { name: 'Chưa thu tiền' });
     const rows2 = await within(section2).findAllByRole('listitem');
     fireEvent.click(within(rows2[0]!).getByRole('button', { name: 'Đã thu tiền' }));
+    expect(calls(`/api/owner/bookings/${B_UNPAID_1.id}/paid`)).toHaveLength(1);
+
+    // Switch to "Tháng" and wait for month financials to resolve
     fireEvent.click(screen.getByRole('button', { name: 'Tháng' }));
     await screen.findByRole('heading', { name: 'Tháng 11/2026' });
-    const monthFinCallsBefore = calls(`/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`).length;
+    const monthSection = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    const monthRowsBefore = await within(monthSection).findAllByRole('listitem');
+    expect(monthRowsBefore).toHaveLength(3);
 
+    // The same booking's button is STILL disabled in the month view while pending, and clicking it sends no second PATCH
+    const monthBtn0 = within(monthRowsBefore[0]!).getByRole('button', {
+      name: 'Đã thu tiền',
+    }) as HTMLButtonElement;
+    expect(monthBtn0.disabled).toBe(true);
+    fireEvent.click(monthBtn0);
+    expect(calls(`/api/owner/bookings/${B_UNPAID_1.id}/paid`)).toHaveLength(1);
+
+    const monthFinCallsBefore200 = calls(
+      `/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`,
+    ).length;
+
+    // Now the pending PATCH resolves 200 -> row is removed in month view and month financials are fetched again
     await act(async () => {
-      stalePatch.reject(new ApiError(400, 'Chỉ đánh dấu thu tiền cho booking đã xác nhận'));
+      stalePatch200.resolve({ id: B_UNPAID_1.id, paidAtVenue: true });
+    });
+    await waitFor(() => expect(within(monthSection).getAllByRole('listitem')).toHaveLength(2));
+    expect(within(monthSection).queryByText('Anh Minh')).toBeNull();
+    expect(calls(`/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`)).toHaveLength(
+      monthFinCallsBefore200 + 1,
+    );
+    expect(calls(`/api/owner/bookings/${B_UNPAID_1.id}/paid`)).toHaveLength(1);
+
+    // Switch back to "Tuần" to verify the row is also gone from the week view when switching back
+    fireEvent.click(screen.getByRole('button', { name: 'Tuần' }));
+    await screen.findByRole('heading', { name: 'Tuần 02/11–08/11/2026' });
+    const weekSectionAfter = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    expect(within(weekSectionAfter).queryByText('Anh Minh')).toBeNull();
+    expect(within(weekSectionAfter).getAllByRole('listitem')).toHaveLength(1);
+
+    // Switch back to "Tháng" for step 6
+    fireEvent.click(screen.getByRole('button', { name: 'Tháng' }));
+    await screen.findByRole('heading', { name: 'Tháng 11/2026' });
+
+    // 6. Stale 400 variant: PATCH started in "Tháng", switch back to "Tuần", then PATCH rejects 400 -> bookings and current view financials are reloaded
+    const monthSectionAgain = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    const remainingMonthRows = within(monthSectionAgain).getAllByRole('listitem');
+    fireEvent.click(within(remainingMonthRows[0]!).getByRole('button', { name: 'Đã thu tiền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tuần' }));
+    await screen.findByRole('heading', { name: 'Tuần 02/11–08/11/2026' });
+    const bookingsCallsBefore400 = calls('/api/owner/bookings?status=CONFIRMED').length;
+    const weekFinCallsBefore400 = calls(
+      `/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`,
+    ).length;
+
+    crossBookings = [B_UNPAID_NEXT_WEEK];
+    await act(async () => {
+      stalePatch400.reject(new ApiError(400, 'Chỉ đánh dấu thu tiền cho booking đã xác nhận'));
     });
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(calls(`/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`)).toHaveLength(
-      monthFinCallsBefore,
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(bookingsCallsBefore400 + 1);
+    expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`)).toHaveLength(
+      weekFinCallsBefore400 + 1,
     );
 
-    const sectionAfterMonth = await screen.findByRole('region', { name: 'Chưa thu tiền' });
-    const rowsAfterMonth = within(sectionAfterMonth).getAllByRole('listitem');
-    fireEvent.click(within(rowsAfterMonth[0]!).getByRole('button', { name: 'Đã thu tiền' }));
+    // 7. Unmount while PATCH is pending -> does not write or reload after unmount
+    fireEvent.click(screen.getByRole('button', { name: 'Tháng' }));
+    const sectionBeforeUnmount = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    const rowsBeforeUnmount = await within(sectionBeforeUnmount).findAllByRole('listitem');
+    fireEvent.click(within(rowsBeforeUnmount[0]!).getByRole('button', { name: 'Đã thu tiền' }));
+    const monthFinCallsAtUnmount = calls(
+      `/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`,
+    ).length;
     unmount2();
     await act(async () => {
-      unmountedPatch.resolve({ id: B_UNPAID_1.id, paidAtVenue: true });
+      unmountedPatch.resolve({ id: B_UNPAID_NEXT_WEEK.id, paidAtVenue: true });
     });
     expect(calls(`/api/owner/venues/${VA}/financials?period=month&date=2026-11-06`)).toHaveLength(
-      monthFinCallsBefore,
+      monthFinCallsAtUnmount,
     );
+
+    // 8. 200 on row B does not cancel an in-flight bookings reload triggered by 400 on row A
+    const patchRowA = deferred<{ id: string; paidAtVenue: boolean }>();
+    const patchRowB = deferred<{ id: string; paidAtVenue: boolean }>();
+    const reloadBookingsFlight = deferred<OwnerBookingView[]>();
+    let bookingsCallCount = 0;
+    mockStandardApi({
+      bookings: () => {
+        bookingsCallCount++;
+        if (bookingsCallCount === 1) return [B_UNPAID_1, B_UNPAID_2];
+        return reloadBookingsFlight.promise;
+      },
+      markPaid: (bookingId) => (bookingId === B_UNPAID_1.id ? patchRowA.promise : patchRowB.promise),
+    });
+    renderScreen(OWNER);
+    const section3 = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    const rows3 = await within(section3).findAllByRole('listitem');
+    fireEvent.click(within(rows3[0]!).getByRole('button', { name: 'Đã thu tiền' }));
+    fireEvent.click(within(rows3[1]!).getByRole('button', { name: 'Đã thu tiền' }));
+
+    await act(async () => {
+      patchRowA.reject(new ApiError(400, 'Chỉ đánh dấu thu tiền cho booking đã xác nhận'));
+    });
+    expect(bookingsCallCount).toBe(2);
+
+    await act(async () => {
+      patchRowB.resolve({ id: B_UNPAID_2.id, paidAtVenue: true });
+    });
+
+    await act(async () => {
+      reloadBookingsFlight.resolve([]);
+    });
+    expect(await within(section3).findByText('Không có booking cần thu tiền')).toBeDefined();
   });
 
   it('AC-9: drops stale financials replies when period, venue, or date changes before the previous request resolves', async () => {
@@ -867,7 +976,7 @@ describe('RevenueScreen', () => {
         throw new ApiError(401, 'Chưa đăng nhập');
       },
     });
-    renderScreen(OWNER);
+    const { unmount: unmountBooking401 } = renderScreen(OWNER);
 
     const bookingLoginDialog = await screen.findByRole('dialog', { name: 'Đăng nhập' });
     expect(
@@ -908,6 +1017,40 @@ describe('RevenueScreen', () => {
     expect(calls(`/api/owner/venues/${VA}/financials?period=week&date=2026-11-06`).length).toBeGreaterThan(
       finCallsBeforePatch,
     );
+    unmountBooking401();
+
+    // 8. Both /api/owner/venues and /api/owner/bookings?status=CONFIRMED return 401 once -> after login, unpaid section shows rows and bookings GET was called twice
+    vi.mocked(clientModule.api).mockClear();
+    let bothVenueCalls = 0;
+    let bothBookingCalls = 0;
+    mockStandardApi({
+      venues: () => {
+        if (++bothVenueCalls === 1) throw new ApiError(401, 'Chưa đăng nhập');
+        return [VENUE_A];
+      },
+      bookings: () => {
+        if (++bothBookingCalls === 1) throw new ApiError(401, 'Chưa đăng nhập');
+        return AC6_BOOKINGS;
+      },
+    });
+    renderScreen(OWNER);
+
+    const bothLoginDialog = await screen.findByRole('dialog', { name: 'Đăng nhập' });
+    fireEvent.change(within(bothLoginDialog).getByLabelText('Số điện thoại'), {
+      target: { value: '0912345678' },
+    });
+    fireEvent.change(within(bothLoginDialog).getByLabelText('Mật khẩu'), {
+      target: { value: 'password123' },
+    });
+    await act(async () => {
+      fireEvent.click(within(bothLoginDialog).getByRole('button', { name: 'Đăng nhập' }));
+    });
+
+    const unpaidAfterBoth = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    expect(await within(unpaidAfterBoth).findByText('Anh Minh')).toBeDefined();
+    expect(within(unpaidAfterBoth).getByText('Chị Lan')).toBeDefined();
+    expect(within(unpaidAfterBoth).getAllByRole('listitem')).toHaveLength(2);
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(2);
   });
 
   it('AC-11: handles venue load error with retry, financials load error with retry while keeping chips usable, bookings load error with retry, and empty venue list', async () => {
