@@ -103,6 +103,15 @@ export default async function mobileOwnerRequests(run) {
           await card().waitFor({ state: 'visible', timeout: WAIT_MS });
         }
 
+        // The court name comes from GET /api/owner/venues, which may answer after the list: the card shows "Sân" until then.
+        await page
+          .waitForFunction(
+            ([id, name]) =>
+              document.querySelector(`[data-booking-id="${id}"] [data-field="court"]`)?.textContent?.trim() === name,
+            [booking.id, courtName],
+            { timeout: WAIT_MS },
+          )
+          .catch(() => {});
         const shownCourt = ((await card().locator('[data-field="court"]').textContent()) ?? '').trim();
         assert(
           shownCourt === courtName,
