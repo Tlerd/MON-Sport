@@ -227,6 +227,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - my-bookings.ts: sortUpcoming, sortHistory, splitMine, joinedByOthers
 - notifications.ts: notificationTarget, unreadBadge
 - owner-requests.ts: CourtLabel, deadlineLeft, courtLabels
+- owner-schedule.ts: ownerStartableMinutes, ownerDurationsAt, bookingsOfDay
 - push.ts: PushPermissionError, pushSupported, getPublicKey, urlBase64ToUint8Array, isPushOn, enablePush, …
 
 ## packages/client/
