@@ -5,4 +5,5 @@ export * from './lobby.ts';
 export * from './my-bookings.ts';
 export * from './notifications.ts';
 export * from './owner-requests.ts';
+export * from './owner-schedule.ts';
 export * from './push.ts';
