@@ -476,12 +476,12 @@ function ScheduleScreenBody({ now: nowProp }: ScheduleScreenProps) {
 
       {sheetTarget && targetCourt && (
         <PhoneBookingSheet
-          open
+          open={!sessionLoginOpen}
           court={targetCourt}
           date={date}
           start={sheetTarget.start}
           free={targetFree}
-          now={now}
+          now={nowProp}
           onClose={() => setSheetTarget(null)}
           onSaved={() => {
             const courtId = targetCourt.id;

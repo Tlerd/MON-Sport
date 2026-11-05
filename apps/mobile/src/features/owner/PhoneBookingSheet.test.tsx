@@ -52,7 +52,6 @@ function renderSheet(overrides: Partial<PhoneBookingSheetProps> = {}) {
     date: DATE,
     start: 960,
     free: FREE_SAN_1,
-    now: NOW,
     onSaved,
     onClose,
     onSessionExpired,
@@ -65,7 +64,13 @@ function renderSheet(overrides: Partial<PhoneBookingSheetProps> = {}) {
       <PhoneBookingSheet {...props} />
     </BarsProvider>,
   );
-  return { onSaved, onClose, onSessionExpired, onCourtGone, onConflict, ...view };
+  const rerenderSheet = (next: Partial<PhoneBookingSheetProps> = {}) =>
+    view.rerender(
+      <BarsProvider>
+        <PhoneBookingSheet {...props} {...next} />
+      </BarsProvider>,
+    );
+  return { onSaved, onClose, onSessionExpired, onCourtGone, onConflict, rerenderSheet, ...view };
 }
 
 describe('PhoneBookingSheet', () => {
@@ -116,7 +121,7 @@ describe('PhoneBookingSheet', () => {
     const post = deferred<unknown>();
     vi.mocked(clientModule.api).mockImplementation((() => post.promise) as never);
 
-    const { onSaved, unmount } = renderSheet();
+    const { onSaved, onClose, unmount } = renderSheet();
     const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
 
     fireEvent.click(within(dialog).getByRole('button', { name: '2 giờ' }));
@@ -138,6 +143,15 @@ describe('PhoneBookingSheet', () => {
         customerPhone: '0901234567',
       },
     });
+
+    // Cannot close while busy (Escape, backdrop, swipe, close button)
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('sheet-backdrop'));
+    const closeBtn = within(dialog).getByRole('button', { name: 'Đóng' });
+    fireEvent.click(closeBtn);
+    fireEvent.touchStart(closeBtn, { touches: [{ clientY: 100 }] });
+    fireEvent.touchEnd(closeBtn, { changedTouches: [{ clientY: 200 }] });
+    expect(onClose).not.toHaveBeenCalled();
 
     await act(async () => {
       post.resolve({ id: 'b1', status: 'CONFIRMED', source: 'PHONE' });
@@ -238,10 +252,24 @@ describe('PhoneBookingSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it('AC-9: on 401 calls onSessionExpired, unlocks button, and preserves entered values', async () => {
+  it('AC-7: when durations becomes empty after the start passes while the sheet is open, shows "Giờ bắt đầu đã qua" alert and disables "Lưu booking"', () => {
+    const { rerenderSheet } = renderSheet();
+    const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
+    expect(within(dialog).queryByRole('alert')).toBeNull();
+    expect((within(dialog).getByRole('button', { name: 'Lưu booking' }) as HTMLButtonElement).disabled).toBe(false);
+
+    vi.setSystemTime(new Date('2026-11-06T16:05:00+07:00'));
+    rerenderSheet();
+
+    expect(within(dialog).queryByRole('group', { name: 'Thời lượng' })).toBeNull();
+    expect(within(dialog).getByRole('alert').textContent).toBe('Giờ bắt đầu đã qua');
+    expect((within(dialog).getByRole('button', { name: 'Lưu booking' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('AC-9: on 401 calls onSessionExpired, unlocks button, and preserves entered values across open=false and open=true', async () => {
     vi.mocked(clientModule.api).mockRejectedValue(new ApiError(401, 'Chưa đăng nhập'));
 
-    const { onSessionExpired, onClose } = renderSheet();
+    const { onSessionExpired, onClose, rerenderSheet } = renderSheet();
     const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
 
     fireEvent.click(within(dialog).getByRole('button', { name: '2 giờ' }));
@@ -256,8 +284,14 @@ describe('PhoneBookingSheet', () => {
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
     expect(submitBtn.disabled).toBe(false);
-    expect((within(dialog).getByLabelText('Tên khách') as HTMLInputElement).value).toBe('Chú Ba');
-    expect((within(dialog).getByLabelText('Số điện thoại') as HTMLInputElement).value).toBe('0901234567');
-    expect(within(dialog).getByRole('button', { name: '2 giờ' }).getAttribute('aria-pressed')).toBe('true');
+
+    rerenderSheet({ open: false });
+    expect(screen.queryByRole('dialog', { name: 'Nhập booking khách gọi' })).toBeNull();
+
+    rerenderSheet({ open: true });
+    const reopened = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
+    expect((within(reopened).getByLabelText('Tên khách') as HTMLInputElement).value).toBe('Chú Ba');
+    expect((within(reopened).getByLabelText('Số điện thoại') as HTMLInputElement).value).toBe('0901234567');
+    expect(within(reopened).getByRole('button', { name: '2 giờ' }).getAttribute('aria-pressed')).toBe('true');
   });
 });

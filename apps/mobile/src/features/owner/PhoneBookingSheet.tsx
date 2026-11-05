@@ -82,6 +82,7 @@ export function PhoneBookingSheet({
   const durations = ownerDurationsAt(date, start, free, now);
   const activeDuration = durations.includes(duration) ? duration : (durations[0] ?? 60);
   const valid = durations.includes(activeDuration);
+  const alertMessage = durations.length === 0 ? 'Giờ bắt đầu đã qua' : error;
 
   const startIso = slotAt(date, start);
   const endIso = slotAt(date, start + activeDuration);
@@ -136,7 +137,10 @@ export function PhoneBookingSheet({
   return (
     <Sheet
       open={open}
-      onClose={() => onClose()}
+      onClose={() => {
+        if (busyRef.current) return;
+        onClose();
+      }}
       title="Nhập booking khách gọi"
       primaryAction={{
         label: 'Lưu booking',
@@ -274,7 +278,7 @@ export function PhoneBookingSheet({
           </strong>
         </div>
 
-        {error && (
+        {alertMessage && (
           <p
             role="alert"
             style={{
@@ -285,7 +289,7 @@ export function PhoneBookingSheet({
               overflowWrap: 'anywhere',
             }}
           >
-            {error}
+            {alertMessage}
           </p>
         )}
       </div>

@@ -152,6 +152,9 @@ function mockStandardApi(options?: {
     if (path === '/api/owner/bookings?status=PENDING') {
       return options?.pending ? options.pending() : [];
     }
+    if (path === '/api/auth/login' && init?.method === 'POST') {
+      return { user: OWNER };
+    }
     if (path === '/api/owner/bookings' && init?.method === 'POST') {
       if (options?.postBooking) return options.postBooking(init.json);
       return mkBooking('b-new', {
@@ -391,6 +394,42 @@ describe('ScheduleScreen', () => {
     expect(await screen.findByText('Chú Ba')).toBeDefined();
   });
 
+  it('AC-5: the sheet cannot close while saving, and the 201 still shows "Đã lưu booking" and reloads', async () => {
+    const post = deferred<OwnerBookingView>();
+    mockStandardApi({
+      postBooking: () => post.promise,
+    });
+    renderScreen(OWNER);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 16:00' }));
+    expect(calls(`/api/courts/${C1}/availability?date=${TODAY}`)).toHaveLength(1);
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(1);
+    expect(calls('/api/owner/bookings?status=PENDING')).toHaveLength(1);
+
+    const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu booking' }));
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('sheet-backdrop'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+    expect(screen.getByRole('dialog', { name: 'Nhập booking khách gọi' })).toBeDefined();
+
+    const created = mkBooking('b-created', {
+      courtId: C1,
+      startAt: '2026-11-06T09:00:00.000Z',
+      endAt: '2026-11-06T10:00:00.000Z',
+    });
+    await act(async () => {
+      post.resolve(created);
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Nhập booking khách gọi' })).toBeNull();
+    expect(screen.getByRole('status').textContent).toBe('Đã lưu booking');
+    await waitFor(() => expect(calls(`/api/courts/${C1}/availability?date=${TODAY}`)).toHaveLength(2));
+    await waitFor(() => expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(2));
+    expect(calls('/api/owner/bookings?status=PENDING')).toHaveLength(2);
+  });
+
   it('AC-6: handles 409 slot taken (close + alert + reload availability), 404 court gone (close + alert + reload venues), and 409 BUSY / 400 / network error inside sheet', async () => {
     let postErr: unknown = new ApiError(409, 'Yêu cầu đang được xử lý, hãy thử lại');
     mockStandardApi({
@@ -461,7 +500,7 @@ describe('ScheduleScreen', () => {
     mockStandardApi({
       availability: () => ({ free: [range(TODAY, '06:00', '22:00')] }),
     });
-    renderScreen(OWNER);
+    const { rerender } = renderScreen(OWNER);
 
     await waitFor(() => expect(buttonMinutes(rowOf('Sân 1'))[0]).toBe(930));
     const row = rowOf('Sân 1');
@@ -470,6 +509,21 @@ describe('ScheduleScreen', () => {
     expect(cell900.tagName).not.toBe('BUTTON');
     expect(cell900.getAttribute('aria-disabled')).toBe('true');
     expect(cell930.tagName).toBe('BUTTON');
+
+    fireEvent.click(cell930);
+    const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
+    vi.setSystemTime(new Date('2026-11-06T15:35:00+07:00'));
+    rerender(
+      <MemoryRouter initialEntries={['/chu-san/lich']}>
+        <Routes>
+          <Route element={<Shell />}>
+            <Route path="*" element={<Probe />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(within(dialog).getByRole('alert').textContent).toBe('Giờ bắt đầu đã qua');
+    expect((within(dialog).getByRole('button', { name: 'Lưu booking' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('AC-8: switching from "Hôm nay" to "T7 07/11" while first replies are pending drops the late replies for 06/11', async () => {
@@ -518,7 +572,7 @@ describe('ScheduleScreen', () => {
     expect(screen.queryByText('Khách Hôm Nay')).toBeNull();
   });
 
-  it('AC-9: guest sees login prompt, USER redirects to /, ADMIN renders nothing (neither calls owner APIs), and 401 on save opens LoginSheet with notice while keeping sheet inputs', async () => {
+  it('AC-9: guest sees login prompt, USER redirects to /, and ADMIN renders nothing (neither calls owner APIs)', async () => {
     vi.mocked(clientModule.api).mockResolvedValue([]);
 
     // 1. Guest
@@ -540,8 +594,9 @@ describe('ScheduleScreen', () => {
     expect(screen.queryByRole('navigation', { name: 'Ngày' })).toBeNull();
     expect(vi.mocked(clientModule.api)).not.toHaveBeenCalled();
     unmountAdmin();
+  });
 
-    // 4. 401 when saving booking
+  it('AC-9: while the login sheet is open the booking sheet is hidden, and its inputs come back after login', async () => {
     mockStandardApi({
       postBooking: () => {
         throw new ApiError(401, 'Chưa đăng nhập');
@@ -559,10 +614,25 @@ describe('ScheduleScreen', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu booking' }));
     });
 
-    expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
-    expect(screen.getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.')).toBeDefined();
-    expect((screen.getByLabelText('Tên khách') as HTMLInputElement).value).toBe('Chú Ba');
-    expect((within(dialog).getByLabelText('Số điện thoại') as HTMLInputElement).value).toBe('0901234567');
+    const loginDialog = await screen.findByRole('dialog', { name: 'Đăng nhập' });
+    expect(within(loginDialog).getByText('Phiên đăng nhập đã hết. Hãy đăng nhập lại.')).toBeDefined();
+    expect(screen.queryByRole('dialog', { name: 'Nhập booking khách gọi' })).toBeNull();
+
+    fireEvent.change(within(loginDialog).getByLabelText('Số điện thoại'), {
+      target: { value: '0912345678' },
+    });
+    fireEvent.change(within(loginDialog).getByLabelText('Mật khẩu'), {
+      target: { value: 'password123' },
+    });
+    await act(async () => {
+      fireEvent.click(within(loginDialog).getByRole('button', { name: 'Đăng nhập' }));
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Đăng nhập' })).toBeNull();
+    const reopened = await screen.findByRole('dialog', { name: 'Nhập booking khách gọi' });
+    expect((within(reopened).getByLabelText('Tên khách') as HTMLInputElement).value).toBe('Chú Ba');
+    expect((within(reopened).getByLabelText('Số điện thoại') as HTMLInputElement).value).toBe('0901234567');
+    expect(within(reopened).getByRole('button', { name: '2 giờ' }).getAttribute('aria-pressed')).toBe('true');
   });
 
   it('AC-10: handles venue load error with retry, single court availability error without blocking other courts, and empty venue list', async () => {
