@@ -54,6 +54,12 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 36 | `VERIFY_VENUE` trên live có phải là đơn vị thử riêng không? Luồng `verify-flow` để lại booking `CANCELLED`, mà tỉ lệ hủy đếm booking này | Có, một đơn vị thử riêng | Không | QA F-025 câu 3 |
 | 37 | Chip ngày của Lịch sân trên app có cần "Hôm qua" và ô chọn ngày xa hơn 7 ngày không? | Không. 7 ngày từ hôm nay | Không | QA F-025 câu 4 |
 | 38 | Lịch sân trên app có cần tự tải lại mỗi 15 giây không? | Không | Không | QA F-025 câu 5 |
+| 39 | Tab Doanh thu của app có cần số giờ đã đặt và tỉ lệ lấp đầy của từng sân không? Cần đổi API, `packages/shared`, web và app | Không. Chỉ tổng của đơn vị | Không | QA F-026 câu 1 |
+| 40 | Chủ sân có 2 đơn vị trở lên có cần mục "Tất cả đơn vị" với tổng doanh thu không? Cần một API mới | Không. Xem từng đơn vị | Không | QA F-026 câu 2 |
+| 41 | Ảnh live của `verify-flow` có cần che số doanh thu và biểu đồ không? Luồng mở đơn vị đầu tiên, có thể là đơn vị thật | Che `[data-testid="metric-grid"]` và biểu đồ trên live | Không | QA F-026 câu 3 |
+| 42 | App có cần thẻ "Giờ cao điểm / thường" như web không? | Không | Không | QA F-026 câu 4 |
+| 43 | Tỉ lệ làm tròn tới số nguyên, hay một chữ số thập phân như web? | Số nguyên, và "<1%" khi lớn hơn 0 và nhỏ hơn 0,5% | Không | QA F-026 câu 5 |
+| 44 | Giá trong "Chưa thu tiền" ghi "120.000đ" hay "120k"? | "120.000đ" | Không | QA F-026 câu 6 |
 
 ## Việc chỉ người dùng làm được
 
