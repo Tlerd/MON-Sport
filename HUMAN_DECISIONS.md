@@ -51,7 +51,7 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 33 | Chủ sân có cần nhập lý do khi từ chối không? Cần đổi schema và thông báo | Không | Không | brief F-024 |
 | 34 | Mục "Booking trong ngày" của Lịch sân trên app có cần API lọc theo ngày và đơn vị không? Hiện app tải mọi booking của chủ sân rồi lọc | Không. App lọc. Cần xem lại khi biết số booking mỗi ngày (mục 3) | Không | QA F-025 câu 1 |
 | 35 | Lưới Lịch sân trên app có cần tách ô đã đặt (có tên khách), ô đã qua và ô trống ngắn hơn 1 giờ không? Cần đổi `SlotRow` | Không tách. Chi tiết ở "Booking trong ngày" | Không | QA F-025 câu 2, brief F-025 |
-| 36 | `VERIFY_VENUE` trên live có phải là đơn vị thử riêng không? Luồng `verify-flow` để lại booking `CANCELLED`, mà tỉ lệ hủy đếm booking này | Có, một đơn vị thử riêng | Chạy `verify-flow` trên live | QA F-025 câu 3 |
+| 36 | `VERIFY_VENUE` trên live có phải là đơn vị thử riêng không? Luồng `verify-flow` để lại booking `CANCELLED`, mà tỉ lệ hủy đếm booking này | Có, một đơn vị thử riêng | Không | QA F-025 câu 3 |
 | 37 | Chip ngày của Lịch sân trên app có cần "Hôm qua" và ô chọn ngày xa hơn 7 ngày không? | Không. 7 ngày từ hôm nay | Không | QA F-025 câu 4 |
 | 38 | Lịch sân trên app có cần tự tải lại mỗi 15 giây không? | Không | Không | QA F-025 câu 5 |
 

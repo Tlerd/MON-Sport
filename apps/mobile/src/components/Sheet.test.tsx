@@ -1,7 +1,33 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { BarsContext, type BarsContextValue } from '../app/bars';
 import { Sheet } from './Sheet';
+
+function createBarsLockHelper() {
+  let held = 0;
+  const lock = vi.fn(() => {
+    held += 1;
+    let released = false;
+    return () => {
+      if (!released) {
+        released = true;
+        held -= 1;
+      }
+    };
+  });
+  const value: BarsContextValue = {
+    topHidden: false,
+    tabHidden: false,
+    hidden: false,
+    setLocked: vi.fn(),
+    lock,
+  };
+  return {
+    value,
+    isHeld: () => held > 0,
+  };
+}
 
 function SheetTestWrapper() {
   const [open, setOpen] = useState(false);
@@ -93,5 +119,85 @@ describe('Sheet', () => {
       </Sheet>,
     );
     expect(container.firstChild).toBeNull();
+  });
+
+  it('AC-16: with closeDisabled, Escape, backdrop, "Đóng", and swipe > 60px do not call onClose and keep the bars lock held; after rerender with closeDisabled=false, each closes again', () => {
+    vi.useFakeTimers();
+    const triggers: Array<{ name: string; fire: (dialog: HTMLElement) => void }> = [
+      {
+        name: 'Escape',
+        fire: () => {
+          fireEvent.keyDown(window, { key: 'Escape' });
+        },
+      },
+      {
+        name: 'backdrop',
+        fire: () => {
+          fireEvent.click(screen.getByTestId('sheet-backdrop'));
+        },
+      },
+      {
+        name: 'Đóng',
+        fire: () => {
+          fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+        },
+      },
+      {
+        name: 'swipe',
+        fire: () => {
+          const closeBtn = screen.getByRole('button', { name: 'Đóng' });
+          fireEvent.touchStart(closeBtn, { touches: [{ clientY: 100 }] });
+          fireEvent.touchEnd(closeBtn, { changedTouches: [{ clientY: 200 }] });
+        },
+      },
+    ];
+
+    for (const trigger of triggers) {
+      const bars = createBarsLockHelper();
+      const onClose = vi.fn();
+      const opener = document.createElement('button');
+      document.body.appendChild(opener);
+      opener.focus();
+
+      const { rerender, unmount } = render(
+        <BarsContext.Provider value={bars.value}>
+          <Sheet open closeDisabled onClose={onClose} title="Tiêu đề sheet">
+            <button type="button">Bên trong</button>
+          </Sheet>
+        </BarsContext.Provider>,
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      const dialog = screen.getByRole('dialog');
+      expect(bars.isHeld()).toBe(true);
+      expect(dialog.contains(document.activeElement)).toBe(true);
+
+      // While closeDisabled is true, none of the four triggers closes or releases the lock or moves focus
+      for (const t of triggers) {
+        t.fire(dialog);
+      }
+      expect(onClose).not.toHaveBeenCalled();
+      expect(bars.isHeld()).toBe(true);
+      expect(dialog.contains(document.activeElement)).toBe(true);
+
+      // Rerender with closeDisabled=false: the current trigger now closes and releases the lock
+      rerender(
+        <BarsContext.Provider value={bars.value}>
+          <Sheet open closeDisabled={false} onClose={onClose} title="Tiêu đề sheet">
+            <button type="button">Bên trong</button>
+          </Sheet>
+        </BarsContext.Provider>,
+      );
+
+      trigger.fire(dialog);
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(bars.isHeld()).toBe(false);
+      expect(document.activeElement).toBe(opener);
+
+      unmount();
+      opener.remove();
+    }
   });
 });

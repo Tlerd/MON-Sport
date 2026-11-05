@@ -4,6 +4,7 @@ import { useBars } from '../app/bars.tsx';
 export interface SheetProps {
   open: boolean;
   onClose: () => void;
+  closeDisabled?: boolean;
   title: string;
   children: ReactNode;
   primaryAction?: {
@@ -14,11 +15,13 @@ export interface SheetProps {
   };
 }
 
-export function Sheet({ open, onClose, title, children, primaryAction }: SheetProps) {
+export function Sheet({ open, onClose, closeDisabled = false, title, children, primaryAction }: SheetProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const releaseRef = useRef<(() => void) | null>(null);
+  const closeDisabledRef = useRef(closeDisabled);
+  closeDisabledRef.current = closeDisabled;
   const { lock } = useBars();
 
   useEffect(() => {
@@ -33,6 +36,7 @@ export function Sheet({ open, onClose, title, children, primaryAction }: SheetPr
   }, [open, lock]);
 
   const handleClose = () => {
+    if (closeDisabledRef.current) return;
     if (releaseRef.current) {
       releaseRef.current();
       releaseRef.current = null;

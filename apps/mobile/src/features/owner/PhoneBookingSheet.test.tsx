@@ -159,12 +159,19 @@ describe('PhoneBookingSheet', () => {
     });
 
     // Cannot close while busy (Escape, backdrop, swipe, close button)
+    const nameInput = within(dialog).getByLabelText('Tên khách');
+    nameInput.focus();
+    expect(dialog.contains(document.activeElement)).toBe(true);
     fireEvent.keyDown(window, { key: 'Escape' });
+    expect(dialog.contains(document.activeElement)).toBe(true);
     fireEvent.click(screen.getByTestId('sheet-backdrop'));
+    expect(dialog.contains(document.activeElement)).toBe(true);
     const closeBtn = within(dialog).getByRole('button', { name: 'Đóng' });
     fireEvent.click(closeBtn);
+    expect(dialog.contains(document.activeElement)).toBe(true);
     fireEvent.touchStart(closeBtn, { touches: [{ clientY: 100 }] });
     fireEvent.touchEnd(closeBtn, { changedTouches: [{ clientY: 200 }] });
+    expect(dialog.contains(document.activeElement)).toBe(true);
     expect(onClose).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -307,5 +314,46 @@ describe('PhoneBookingSheet', () => {
     expect((within(reopened).getByLabelText('Tên khách') as HTMLInputElement).value).toBe('Chú Ba');
     expect((within(reopened).getByLabelText('Số điện thoại') as HTMLInputElement).value).toBe('0901234567');
     expect(within(reopened).getByRole('button', { name: '2 giờ' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('AC-5: while the POST is pending, the dialog close controls do nothing and focus stays in the sheet', async () => {
+    const post = deferred<unknown>();
+    vi.mocked(clientModule.api).mockImplementation((() => post.promise) as never);
+
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+
+    const { onClose, onSaved } = renderSheet();
+    const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
+    const nameInput = within(dialog).getByLabelText('Tên khách');
+    nameInput.focus();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu booking' }));
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.click(screen.getByTestId('sheet-backdrop'));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    const closeBtn = within(dialog).getByRole('button', { name: 'Đóng' });
+    fireEvent.click(closeBtn);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.touchStart(closeBtn, { touches: [{ clientY: 100 }] });
+    fireEvent.touchEnd(closeBtn, { changedTouches: [{ clientY: 200 }] });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    await act(async () => {
+      post.resolve({ id: 'b1', status: 'CONFIRMED', source: 'PHONE' });
+    });
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    opener.remove();
   });
 });

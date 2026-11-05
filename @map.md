@@ -223,7 +223,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## packages/client/src/
 - api.ts: ApiError, api
-- booking.ts: DURATIONS, slotAt, dayChipLabel, dayHeading, priceRangeK, startableMinutes, …
+- booking.ts: DURATIONS, slotAt, dayChipLabel, dayHeading, priceRangeK, rangeHolding, …
 - format.ts: formatVnd, formatTime, formatDay, formatSlot, HALF_HOURS, hhmm
 - index.ts
 - lobby.ts: LobbyFilter, LobbyCard, lobbyMatches, lobbyChips, matchesForDay
