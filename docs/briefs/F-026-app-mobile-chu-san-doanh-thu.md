@@ -18,6 +18,7 @@ Chủ sân mở tab "Doanh thu" trên `/app/chu-san/doanh-thu`. Chủ sân chọ
 |---|---|---|
 | Sửa API hoặc schema | `GET /api/owner/venues/:id/financials`, `PATCH /api/owner/bookings/:id/paid` và `GET /api/owner/bookings` đã đủ (F-015, F-007) | Không cần |
 | Biểu đồ nhiệt giờ cao điểm theo thứ và giờ | API chưa trả dữ liệu theo thứ và giờ. Cần đổi API | Brief sau, khi chủ dự án yêu cầu |
+| Giờ đã đặt và tỉ lệ lấp đầy của từng sân | API chỉ trả tổng của đơn vị. Cần đổi API, shared, web và app (HUMAN_DECISIONS.md, 39) | Khi chủ dự án yêu cầu |
 | Thư viện biểu đồ (`recharts`) | App mobile giữ bundle nhỏ. Cột vẽ bằng CSS | Không có kế hoạch |
 | Xuất file doanh thu | UC-12 không yêu cầu | Không có kế hoạch |
 | Hủy booking, nhập booking, sửa giá | Thuộc tab Lịch sân và web | Không cần |
@@ -48,7 +49,7 @@ Mọi giờ và ngày là giờ `Asia/Ho_Chi_Minh`. Test viết giờ có độ 
 | AC-15 | `shiftPeriodDate(date, period, steps)` | Gọi với `2026-11-06`, `day`, -1. Với `week`, +1. Với `month`, -1. Với `2026-03-31`, `month`, -1 | Trả `2026-11-05`, `2026-11-13`, `2026-10-06`, `2026-02-28` |
 | AC-16 | `periodHeading(view)` | Gọi với `period` `week`, `startDate` `2026-11-01T17:00:00.000Z`, `endDate` `2026-11-08T16:59:59.999Z`. Rồi với `day`, `date` 2026-11-06. Rồi với `month`, `date` 2026-11-06 | Trả "Tuần 02/11–08/11/2026" (không phải "01/11"), "Thứ Sáu, 06/11/2026", "Tháng 11/2026" |
 | AC-17 | `unpaidInPeriod(bookings, startDate, endDate, courtIds)` | Gọi với `startDate` `2026-11-01T17:00:00.000Z`, `endDate` `2026-11-08T16:59:59.999Z`, và các booking: `CONFIRMED` chưa thu lúc `2026-11-01T17:00:00.000Z` (00:00 ngày 02/11 giờ Việt Nam), `CONFIRMED` chưa thu lúc `2026-11-01T16:59:00.000Z` (ngoài kỳ), `CONFIRMED` đã thu, ở sân khác, `PENDING` | Trả chỉ booking `CONFIRMED`, `paidAtVenue` false, `startAt` từ `startDate` tới `endDate` (so mốc thời gian, không so chuỗi ngày), `courtId` trong danh sách, xếp theo `startAt` tăng dần. Không đổi mảng vào |
-| AC-18 | `percent(rate)` | Gọi với 0, 0.25, 0.125, 1 | Trả "0%", "25%", "13%", "100%" |
+| AC-18 | `percent(rate)` | Gọi với 0, 0.004, 0.25, 0.125, 1 | Trả "0%", "<1%" (tỉ lệ lớn hơn 0 và nhỏ hơn 0,005), "25%", "13%", "100%" |
 
 ## Contract
 

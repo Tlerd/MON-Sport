@@ -8,6 +8,19 @@ export interface RevenueChartProps {
   points: FinancialChartPoint[];
 }
 
+/** A label with a space ("T2 02/11") shows the day name above the date, so 7 labels fit at 360px. */
+function LabelLines({ label }: { label: string }) {
+  const space = label.indexOf(' ');
+  if (space < 0) return <>{label}</>;
+  const lineStyle = { display: 'block', whiteSpace: 'nowrap' } as const;
+  return (
+    <>
+      <span style={lineStyle}>{label.slice(0, space)}</span>
+      <span style={lineStyle}>{label.slice(space + 1)}</span>
+    </>
+  );
+}
+
 export function RevenueChart({ points }: RevenueChartProps) {
   const maxRevenue = points.reduce((max, p) => (p.revenue > max ? p.revenue : max), 0);
   const labelStep = points.length > 7 ? Math.ceil(points.length / 7) : 1;
@@ -75,7 +88,7 @@ export function RevenueChart({ points }: RevenueChartProps) {
                   textAlign: 'center',
                 }}
               >
-                {showLabel ? point.label : ' '}
+                {showLabel ? <LabelLines label={point.label} /> : '\u00A0'}
               </span>
             </div>
           );

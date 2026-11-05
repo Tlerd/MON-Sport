@@ -65,6 +65,8 @@ export default async function mobileOwnerRevenue(run) {
         await month.click();
         const res = await responsePromise;
         assert(res.status() === 200, `GET /api/owner/venues/:id/financials?period=month answered ${res.status()} (${size})`);
+        const { revenue } = await res.json();
+        assert(Number.isInteger(revenue), `financials revenue is "${revenue}", not a whole number (${size})`);
         await page
           .getByRole('group', { name: 'Kỳ' })
           .getByRole('button', { name: 'Tháng', exact: true, pressed: true })
@@ -73,6 +75,14 @@ export default async function mobileOwnerRevenue(run) {
         for (const name of CARDS) {
           await page.getByRole('article', { name, exact: true }).waitFor({ state: 'visible', timeout: WAIT_MS });
         }
+
+        // The "Doanh thu" card shows the API revenue, formatted like formatVnd of packages/client/src/format.ts.
+        const expectedRevenue = `${revenue.toLocaleString('vi-VN')}đ`;
+        const revenueText = (await page.getByRole('article', { name: 'Doanh thu', exact: true }).textContent()) ?? '';
+        assert(
+          revenueText.includes(expectedRevenue),
+          `The "Doanh thu" card reads "${revenueText}", not the API revenue "${expectedRevenue}" (${size})`,
+        );
 
         const chart = page.getByRole('region', { name: 'Biểu đồ doanh thu' });
         await chart.waitFor({ state: 'visible', timeout: WAIT_MS });

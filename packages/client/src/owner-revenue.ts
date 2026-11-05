@@ -5,7 +5,7 @@ import {
   vnDateString,
   vnWeekRange,
 } from '@monsport/shared';
-import { dayHeading } from './booking.ts';
+import { dayHeading, slotAt } from './booking.ts';
 
 export interface PeriodHeadingView {
   period: FinancialPeriod;
@@ -69,7 +69,34 @@ export function unpaidInPeriod<
     .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt));
 }
 
-/** Formats a 0..1 rate as a rounded whole percentage string. */
+/** Formats a 0..1 rate as a rounded whole percentage string, "<1%" for a rate above 0 and below 0.005. */
 export function percent(rate: number): string {
+  if (rate > 0 && rate < 0.005) return '<1%';
   return `${Math.round(rate * 100)}%`;
+}
+
+/**
+ * The UTC instants of the VN day, week (Monday to Sunday), or month of `date`, in the shape of the API:
+ * `endDate` is the last millisecond of the last VN day.
+ */
+export function periodRange(
+  period: FinancialPeriod,
+  date: string,
+): { startDate: string; endDate: string } {
+  let first = date;
+  let last = date;
+  if (period === 'week') {
+    const week = vnWeekRange(date);
+    first = week.weekStart;
+    last = week.weekEnd;
+  } else if (period === 'month') {
+    const [y, m] = date.split('-').map(Number);
+    first = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-01`;
+    const lastDay = new Date(Date.UTC(y!, m!, 0)).getUTCDate();
+    last = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  }
+  return {
+    startDate: new Date(slotAt(first, 0)).toISOString(),
+    endDate: new Date(Date.parse(slotAt(last, 1440)) - 1).toISOString(),
+  };
 }
