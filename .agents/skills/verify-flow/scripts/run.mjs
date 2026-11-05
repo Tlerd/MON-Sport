@@ -8,6 +8,7 @@ import mobileHistory from './mobile-history.mjs';
 import mobileLobby from './mobile-lobby.mjs';
 import mobileNotifications from './mobile-notifications.mjs';
 import mobileOwnerRequests from './mobile-owner-requests.mjs';
+import mobileOwnerRevenue from './mobile-owner-revenue.mjs';
 import mobileOwnerSchedule from './mobile-owner-schedule.mjs';
 import mobileShell from './mobile-shell.mjs';
 import ownerDecide from './owner-decide.mjs';
@@ -24,6 +25,7 @@ const MOBILE_FLOWS = {
   'mobile-notifications': mobileNotifications,
   'mobile-owner-requests': mobileOwnerRequests,
   'mobile-owner-schedule': mobileOwnerSchedule,
+  'mobile-owner-revenue': mobileOwnerRevenue,
 };
 const FLOWS = { ...WEB_FLOWS, ...MOBILE_FLOWS };
 
