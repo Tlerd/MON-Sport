@@ -64,8 +64,12 @@ jobs:
         env:
           SERVED: ${{ steps.served.outputs.commit }}
           WANT: ${{ github.event.workflow_run.head_sha || github.sha }}
+          EVENT: ${{ github.event_name }}
+        # A manual run always deploys: it may follow a change outside git, such as a secret.
         run: |
-          if [ -n "$SERVED" ] && git merge-base --is-ancestor "$SERVED" "$WANT"; then
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$SERVED" ] && git merge-base --is-ancestor "$SERVED" "$WANT"; then
             out=$(node scripts/ci-changes.mjs --range "$SERVED..$WANT")
             echo "$out"
             if echo "$out" | grep -q '^deploy=false$'; then
