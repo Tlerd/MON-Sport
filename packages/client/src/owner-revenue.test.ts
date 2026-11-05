@@ -1,6 +1,6 @@
 import type { OwnerBookingView } from '@monsport/shared';
 import { describe, expect, it } from 'vitest';
-import { percent, periodHeading, shiftPeriodDate, unpaidInPeriod } from './owner-revenue.ts';
+import { percent, periodHeading, periodRange, shiftPeriodDate, unpaidInPeriod } from './owner-revenue.ts';
 
 const C1 = '00000000-0000-4000-8000-000000000001';
 const C2 = '00000000-0000-4000-8000-000000000002';
@@ -120,5 +120,34 @@ describe('owner revenue helpers', () => {
     expect(percent(0.25)).toBe('25%');
     expect(percent(0.125)).toBe('13%');
     expect(percent(1)).toBe('100%');
+    expect(percent(0.004)).toBe('<1%');
+    expect(percent(0.005)).toBe('1%');
+  });
+
+  it('QA D-1: periodRange returns the UTC instants of the VN day, week, and month, ending at the last millisecond', () => {
+    expect(periodRange('day', '2026-11-06')).toEqual({
+      startDate: '2026-11-05T17:00:00.000Z',
+      endDate: '2026-11-06T16:59:59.999Z',
+    });
+    expect(periodRange('week', '2026-11-06')).toEqual({
+      startDate: '2026-11-01T17:00:00.000Z',
+      endDate: '2026-11-08T16:59:59.999Z',
+    });
+    expect(periodRange('month', '2026-11-06')).toEqual({
+      startDate: '2026-10-31T17:00:00.000Z',
+      endDate: '2026-11-30T16:59:59.999Z',
+    });
+    expect(periodRange('month', '2026-02-28')).toEqual({
+      startDate: '2026-01-31T17:00:00.000Z',
+      endDate: '2026-02-28T16:59:59.999Z',
+    });
+    expect(periodRange('month', '2026-12-15')).toEqual({
+      startDate: '2026-11-30T17:00:00.000Z',
+      endDate: '2026-12-31T16:59:59.999Z',
+    });
+    expect(periodRange('week', '2026-12-31')).toEqual({
+      startDate: '2026-12-27T17:00:00.000Z',
+      endDate: '2027-01-03T16:59:59.999Z',
+    });
   });
 });

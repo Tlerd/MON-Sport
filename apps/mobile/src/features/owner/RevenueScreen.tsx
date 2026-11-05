@@ -4,6 +4,7 @@ import {
   formatVnd,
   percent,
   periodHeading,
+  periodRange,
   shiftPeriodDate,
   unpaidInPeriod,
 } from '@monsport/client';
@@ -120,6 +121,8 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
   const financialsReqRef = useRef(0);
   const bookingsReqRef = useRef(0);
   const busyRef = useRef(new Set<string>());
+  // Ids that got a 200 during this screen's life: a later bookings reload must not put them back (the `key` remount clears it).
+  const paidIdsRef = useRef(new Set<string>());
 
   const active = user?.role === 'OWNER';
 
@@ -165,7 +168,7 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
       (list) => {
         if (!mountedRef.current || reqId !== bookingsReqRef.current) return;
         setBookingsFailed(false);
-        setBookings(list);
+        setBookings(list.filter((b) => !paidIdsRef.current.has(b.id)));
       },
       (err: unknown) => {
         if (!mountedRef.current || reqId !== bookingsReqRef.current) return;
@@ -332,7 +335,6 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
     setFinancialsFailed(false);
     resetPatchState();
     setPeriod(nextPeriod);
-    setDate((prev) => (prev > today ? today : prev));
   };
 
   const shiftDate = (steps: number) => {
@@ -366,6 +368,7 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
         json: { paidAtVenue: true },
       });
       if (!mountedRef.current) return;
+      paidIdsRef.current.add(booking.id);
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
       const curVenue = venueRef.current;
       if (curVenue) {
@@ -398,14 +401,13 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
     }
   };
 
-  const unpaidItems = currentData
-    ? unpaidInPeriod(
-        bookings,
-        currentData.startDate,
-        currentData.endDate,
-        venue.courts.map((c) => c.id),
-      )
-    : [];
+  const range = periodRange(period, date);
+  const unpaidItems = unpaidInPeriod(
+    bookings,
+    range.startDate,
+    range.endDate,
+    venue.courts.map((c) => c.id),
+  );
 
   return (
     <div style={{ minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}>
@@ -539,7 +541,7 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
             <article aria-label="Giờ đã đặt" style={cardStyle}>
               <span style={labelStyle}>Giờ đã đặt</span>{' '}
               <strong className="tnum" style={valueStyle}>
-                {`${currentData.bookedHours} giờ`}
+                {`${currentData.bookedHours.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} giờ`}
               </strong>
             </article>
 
@@ -573,22 +575,22 @@ function RevenueScreenBody({ now: nowProp }: RevenueScreenProps) {
           </div>
 
           <RevenueChart points={currentData.chartData} />
-
-          <UnpaidList
-            items={unpaidItems}
-            courts={venue.courts}
-            failed={bookingsFailed}
-            onRetry={() => {
-              setUnpaidAlert(null);
-              loadBookings();
-            }}
-            busyIds={busyIds}
-            alertMessage={unpaidAlert}
-            rowErrors={rowErrors}
-            onMarkPaid={markPaid}
-          />
         </>
       )}
+
+      <UnpaidList
+        items={unpaidItems}
+        courts={venue.courts}
+        failed={bookingsFailed}
+        onRetry={() => {
+          setUnpaidAlert(null);
+          loadBookings();
+        }}
+        busyIds={busyIds}
+        alertMessage={unpaidAlert}
+        rowErrors={rowErrors}
+        onMarkPaid={markPaid}
+      />
 
       <LoginSheet
         open={sessionLoginOpen}

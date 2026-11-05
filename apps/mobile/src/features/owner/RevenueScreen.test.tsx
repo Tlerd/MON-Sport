@@ -441,9 +441,18 @@ describe('RevenueScreen', () => {
       expect(bar.style.height).toBe(`${expectedPx}px`);
     });
 
-    for (const point of WEEK_CHART) {
-      expect(within(chart).getByText(point.label)).toBeDefined();
-    }
+    // QA D-3: a week label shows the day name on one line and the date on the next
+    const weekLabelSpans = Array.from(chart.querySelectorAll('span.tnum')) as HTMLElement[];
+    expect(weekLabelSpans).toHaveLength(7);
+    weekLabelSpans.forEach((span, i) => {
+      const [dayName, dateText] = WEEK_CHART[i]!.label.split(' ');
+      const lines = Array.from(span.children) as HTMLElement[];
+      expect(lines.map((l) => l.textContent)).toEqual([dayName, dateText]);
+      for (const line of lines) {
+        expect(line.style.display).toBe('block');
+        expect(line.style.whiteSpace).toBe('nowrap');
+      }
+    });
   });
 
   it('AC-5: sorts venue chips by name, selects the first venue by name, fetches another venue on tap, and hides venue chips when owner has 1 venue', async () => {
@@ -1078,14 +1087,22 @@ describe('RevenueScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
     // 2. Financials error -> metrics block shows "Không tải được" + "Thử lại", period chips still usable
-    expect(await screen.findByText('Không tải được')).toBeDefined();
+    const unpaidSection = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    await waitFor(() => expect(finCalls).toBe(1));
+    await waitFor(() =>
+      expect(
+        screen.getAllByText('Không tải được').filter((el) => !unpaidSection.contains(el)),
+      ).toHaveLength(1),
+    );
     expect(screen.getByRole('group', { name: 'Kỳ' })).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    const financialsRetry = screen
+      .getAllByRole('button', { name: 'Thử lại' })
+      .find((btn) => !unpaidSection.contains(btn))!;
+    fireEvent.click(financialsRetry);
 
     expect(await screen.findByText('960.000đ')).toBeDefined();
 
     // 3. Bookings error -> "Chưa thu tiền" shows "Không tải được" + "Thử lại", and retrying loads the unpaid list
-    const unpaidSection = screen.getByRole('region', { name: 'Chưa thu tiền' });
     expect(within(unpaidSection).getByText('Không tải được')).toBeDefined();
     fireEvent.click(within(unpaidSection).getByRole('button', { name: 'Thử lại' }));
     expect(await within(unpaidSection).findByText('Anh Minh')).toBeDefined();
@@ -1230,5 +1247,84 @@ describe('RevenueScreen', () => {
     }
     const visibleLabels = labelSpans.map((s) => (s.textContent ?? '').replace(/ /g, '')).filter((t) => t !== '');
     expect(visibleLabels).toEqual(['01/11', '06/11', '11/11', '16/11', '21/11', '26/11']);
+    const hiddenLabels = labelSpans.filter((_, i) => i % 5 !== 0);
+    expect(hiddenLabels).toHaveLength(24);
+    for (const span of hiddenLabels) {
+      expect(span.textContent).toBe('\u00a0');
+    }
+  });
+
+  it('AC-11: keeps the "Chưa thu tiền" list and its buttons while financials load or fail', async () => {
+    const pendingFin = deferred<FinancialDashboardView>();
+    mockStandardApi({
+      financials: () => pendingFin.promise,
+      bookings: () => AC6_BOOKINGS,
+    });
+    const { unmount } = renderScreen(OWNER);
+
+    // Financials pending: the list shows the 2 unpaid bookings of the week
+    const pendingSection = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    expect(await within(pendingSection).findAllByRole('listitem')).toHaveLength(2);
+    expect(within(pendingSection).getAllByRole('button', { name: 'Đã thu tiền' })).toHaveLength(2);
+    expect(screen.getByText('Đang tải')).toBeDefined();
+    unmount();
+
+    // Financials failed: the list shows next to "Không tải được"
+    mockStandardApi({
+      financials: () => {
+        throw new ApiError(500, 'Lỗi báo cáo');
+      },
+      bookings: () => AC6_BOOKINGS,
+    });
+    renderScreen(OWNER);
+    const failedSection = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    expect(await within(failedSection).findAllByRole('listitem')).toHaveLength(2);
+    expect(within(failedSection).getAllByRole('button', { name: 'Đã thu tiền' })).toHaveLength(2);
+    expect(await screen.findByText('Không tải được')).toBeDefined();
+    expect(within(failedSection).queryByText('Không tải được')).toBeNull();
+  });
+
+  it('AC-8: a bookings reload that returns after another row got 200 does not put the paid row back (QA D-2)', async () => {
+    const patchRowA = deferred<{ id: string; paidAtVenue: boolean }>();
+    const patchRowB = deferred<{ id: string; paidAtVenue: boolean }>();
+    const reloadFlight = deferred<OwnerBookingView[]>();
+    let bookingsCallCount = 0;
+    mockStandardApi({
+      bookings: () => {
+        bookingsCallCount++;
+        if (bookingsCallCount === 1) return [B_UNPAID_1, B_UNPAID_2];
+        return reloadFlight.promise;
+      },
+      markPaid: (bookingId) => (bookingId === B_UNPAID_1.id ? patchRowA.promise : patchRowB.promise),
+    });
+    renderScreen(OWNER);
+    const section = await screen.findByRole('region', { name: 'Chưa thu tiền' });
+    const rows = await within(section).findAllByRole('listitem');
+    fireEvent.click(within(rows[0]!).getByRole('button', { name: 'Đã thu tiền' }));
+    fireEvent.click(within(rows[1]!).getByRole('button', { name: 'Đã thu tiền' }));
+
+    await act(async () => {
+      patchRowA.reject(new ApiError(400, 'Chỉ đánh dấu thu tiền cho booking đã xác nhận'));
+    });
+    expect(bookingsCallCount).toBe(2);
+    await act(async () => {
+      patchRowB.resolve({ id: B_UNPAID_2.id, paidAtVenue: true });
+    });
+    await waitFor(() => expect(within(section).queryByText('Chị Lan')).toBeNull());
+
+    // The late reload still lists B as unpaid: B stays out, A stays in
+    await act(async () => {
+      reloadFlight.resolve([B_UNPAID_1, B_UNPAID_2]);
+    });
+    expect(within(section).queryByText('Chị Lan')).toBeNull();
+    expect(within(section).getByText('Anh Minh')).toBeDefined();
+    expect(within(section).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('AC-1: shows "Giờ đã đặt" with a Vietnamese decimal comma (QA D-4)', async () => {
+    mockStandardApi({ financials: () => mkFinancials({ bookedHours: 1.5 }) });
+    renderScreen(OWNER);
+    const card = await screen.findByRole('article', { name: 'Giờ đã đặt' });
+    expect(card.textContent).toBe('Giờ đã đặt 1,5 giờ');
   });
 });
