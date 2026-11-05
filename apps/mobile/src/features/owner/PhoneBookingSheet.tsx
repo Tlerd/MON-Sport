@@ -169,7 +169,7 @@ export function PhoneBookingSheet({
               overflowWrap: 'anywhere',
             }}
           >
-            {`${hhmm(start)} ngày ${formatDay(startIso)}`}
+            {`${hhmm(start)}–${hhmm(start + activeDuration)} ngày ${formatDay(startIso)}`}
           </span>
         </div>
 

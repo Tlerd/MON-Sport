@@ -85,12 +85,12 @@ describe('PhoneBookingSheet', () => {
     vi.restoreAllMocks();
   });
 
-  it('AC-4: shows title "Nhập booking khách gọi", court, "16:00 ngày 06/11/2026", duration chips fitting free range, "1 giờ" preselected at "100.000đ", "2 giờ" at "250.000đ", optional inputs with maxLength 100', () => {
+  it('AC-4: shows title "Nhập booking khách gọi", court, "16:00–17:00 ngày 06/11/2026", duration chips fitting free range, "1 giờ" preselected at "100.000đ", "2 giờ" at "250.000đ", optional inputs with maxLength 100', () => {
     const { unmount } = renderSheet();
 
     const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
     expect(within(dialog).getByText('Sân 1')).toBeDefined();
-    expect(within(dialog).getByText('16:00 ngày 06/11/2026')).toBeDefined();
+    expect(within(dialog).getByText('16:00–17:00 ngày 06/11/2026')).toBeDefined();
 
     const group = within(dialog).getByRole('group', { name: 'Thời lượng' });
     const chips = within(group).getAllByRole('button');
@@ -100,6 +100,7 @@ describe('PhoneBookingSheet', () => {
 
     fireEvent.click(within(group).getByRole('button', { name: '2 giờ' }));
     expect(within(group).getByRole('button', { name: '2 giờ' }).getAttribute('aria-pressed')).toBe('true');
+    expect(within(dialog).getByText('16:00–18:00 ngày 06/11/2026')).toBeDefined();
     expect(within(dialog).getByText('250.000đ')).toBeDefined();
 
     const nameInput = within(dialog).getByLabelText('Tên khách') as HTMLInputElement;
@@ -115,6 +116,19 @@ describe('PhoneBookingSheet', () => {
     const dialog2 = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
     const chips2 = within(within(dialog2).getByRole('group', { name: 'Thời lượng' })).getAllByRole('button');
     expect(chips2.map((c) => c.textContent)).toEqual(['1 giờ', '1,5 giờ', '2 giờ']);
+  });
+
+  it('D-7: shows end time 24:00 when chosen duration ends at midnight', () => {
+    renderSheet({
+      start: 1320,
+      free: [{ startAt: '2026-11-06T22:00:00+07:00', endAt: '2026-11-07T00:00:00+07:00' }],
+    });
+
+    const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
+    expect(within(dialog).getByText('22:00–23:00 ngày 06/11/2026')).toBeDefined();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '2 giờ' }));
+    expect(within(dialog).getByText('22:00–24:00 ngày 06/11/2026')).toBeDefined();
   });
 
   it('AC-5: submits POST /api/owner/bookings with ISO instants and trimmed fields, locks button while pending, calls onSaved on 201, and omits empty customer fields', async () => {

@@ -324,7 +324,7 @@ describe('ScheduleScreen', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
     expect(within(dialog).getByText('Sân 1')).toBeDefined();
-    expect(within(dialog).getByText('16:00 ngày 06/11/2026')).toBeDefined();
+    expect(within(dialog).getByText('16:00–17:00 ngày 06/11/2026')).toBeDefined();
     expect(within(dialog).getByText('100.000đ')).toBeDefined();
 
     const chips = within(within(dialog).getByRole('group', { name: 'Thời lượng' })).getAllByRole('button');
@@ -332,6 +332,7 @@ describe('ScheduleScreen', () => {
     expect(chips[0]!.getAttribute('aria-pressed')).toBe('true');
 
     fireEvent.click(within(dialog).getByRole('button', { name: '2 giờ' }));
+    expect(within(dialog).getByText('16:00–18:00 ngày 06/11/2026')).toBeDefined();
     expect(within(dialog).getByText('250.000đ')).toBeDefined();
 
     const nameInput = within(dialog).getByLabelText('Tên khách') as HTMLInputElement;
@@ -476,7 +477,7 @@ describe('ScheduleScreen', () => {
     expect(within(dialog).getByRole('alert').textContent).toBe('Không lưu được booking. Thử lại.');
     expect((within(dialog).getByLabelText('Tên khách') as HTMLInputElement).value).toBe('Chú Ba');
 
-    // 409 slot taken -> closes sheet, shows screen alert, reloads availability
+    // 409 slot taken -> closes sheet, shows screen alert, reloads availability and bookings
     postErr = new ApiError(409, 'Khung giờ này vừa có người đặt');
     await act(async () => {
       fireEvent.click(saveBtn);
@@ -484,6 +485,8 @@ describe('ScheduleScreen', () => {
     expect(screen.queryByRole('dialog', { name: 'Nhập booking khách gọi' })).toBeNull();
     expect(screen.getByRole('alert').textContent).toBe('Khung giờ này vừa có người đặt');
     await waitFor(() => expect(calls(`/api/courts/${C1}/availability?date=${TODAY}`)).toHaveLength(2));
+    await waitFor(() => expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(2));
+    expect(calls('/api/owner/bookings?status=PENDING')).toHaveLength(2);
 
     // Reopen and trigger 404 -> closes sheet, shows screen alert, reloads venues
     fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 16:00' }));
@@ -704,5 +707,98 @@ describe('ScheduleScreen', () => {
     }
     const phoneLink = card.querySelector<HTMLElement>('[data-field="phone"]')!;
     expect(phoneLink.style.minHeight).toBe('44px');
+  });
+
+  it('D-2: shows "Không tải được" and "Thử lại" in "Booking trong ngày" when GET /api/owner/bookings fails with non-401, and clears the error on a successful reload', async () => {
+    let shouldFail = true;
+    const booking = mkBooking('b-ok', {
+      courtId: C1,
+      startAt: '2026-11-06T18:00:00+07:00',
+      endAt: '2026-11-06T19:00:00+07:00',
+      customer: { name: 'Chị Hương', phone: '0909111222' },
+    });
+    mockStandardApi({
+      confirmed: () => {
+        if (shouldFail) throw new ApiError(500, 'Lỗi server');
+        return [booking];
+      },
+    });
+    const { unmount } = renderScreen(OWNER);
+
+    const section = await screen.findByRole('region', { name: 'Booking trong ngày' });
+    expect(await within(section).findByText('Không tải được')).toBeDefined();
+    expect(within(section).queryByText('Chưa có booking trong ngày này')).toBeNull();
+
+    shouldFail = false;
+    fireEvent.click(within(section).getByRole('button', { name: 'Thử lại' }));
+
+    expect(await within(section).findByText('Chị Hương')).toBeDefined();
+    expect(within(section).queryByText('Không tải được')).toBeNull();
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(2);
+    expect(calls('/api/owner/bookings?status=PENDING')).toHaveLength(2);
+
+    unmount();
+
+    // 401 opens login sheet and does not show "Không tải được" in DayBookings
+    mockStandardApi({
+      pending: () => {
+        throw new ApiError(401, 'Chưa đăng nhập');
+      },
+    });
+    renderScreen(OWNER);
+    const section401 = await screen.findByRole('region', { name: 'Booking trong ngày' });
+    expect(await screen.findByRole('dialog', { name: 'Đăng nhập' })).toBeDefined();
+    expect(within(section401).queryByText('Không tải được')).toBeNull();
+  });
+
+  it('D-4: does not render customer name line in DayBookings when customer.name is empty or only spaces', async () => {
+    mockStandardApi({
+      confirmed: () => [
+        mkBooking('b-empty', {
+          courtId: C1,
+          startAt: '2026-11-06T18:00:00+07:00',
+          endAt: '2026-11-06T19:00:00+07:00',
+          customer: { name: '', phone: '0901234567' },
+        }),
+        mkBooking('b-spaces', {
+          courtId: C2,
+          startAt: '2026-11-06T19:00:00+07:00',
+          endAt: '2026-11-06T20:00:00+07:00',
+          customer: { name: '   ', phone: null },
+        }),
+      ],
+    });
+    renderScreen(OWNER);
+
+    const section = await screen.findByRole('region', { name: 'Booking trong ngày' });
+    await waitFor(() => expect(within(section).getAllByRole('listitem')).toHaveLength(2));
+    const emptyCard = section.querySelector<HTMLElement>('[data-booking-id="b-empty"]')!;
+    const spacesCard = section.querySelector<HTMLElement>('[data-booking-id="b-spaces"]')!;
+
+    expect(emptyCard.querySelector('[data-field="customer"]')).toBeNull();
+    expect(within(emptyCard).getByRole('link', { name: '0901234567' })).toBeDefined();
+    expect(spacesCard.querySelector('[data-field="customer"]')).toBeNull();
+  });
+
+  it('D-5: reloads bookings in addition to court availability after 409 "Khung giờ này vừa có người đặt"', async () => {
+    mockStandardApi({
+      postBooking: () => {
+        throw new ApiError(409, 'Khung giờ này vừa có người đặt');
+      },
+    });
+    renderScreen(OWNER);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sân 1 16:00' }));
+    expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(1);
+    expect(calls('/api/owner/bookings?status=PENDING')).toHaveLength(1);
+
+    const dialog = screen.getByRole('dialog', { name: 'Nhập booking khách gọi' });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu booking' }));
+    });
+
+    await waitFor(() => expect(calls(`/api/courts/${C1}/availability?date=${TODAY}`)).toHaveLength(2));
+    await waitFor(() => expect(calls('/api/owner/bookings?status=CONFIRMED')).toHaveLength(2));
+    expect(calls('/api/owner/bookings?status=PENDING')).toHaveLength(2);
   });
 });
