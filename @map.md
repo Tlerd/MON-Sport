@@ -135,6 +135,8 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - RejectSheet.tsx: RejectSheetProps, RejectSheet
 - RequestCard.tsx: RequestCardProps, RequestCard
 - RequestsScreen.tsx: RequestsScreen
+- RevenueChart.tsx: BAR_MAX_HEIGHT_PX, BAR_MIN_HEIGHT_PX, RevenueChartProps, RevenueChart
+- RevenueScreen.tsx: RevenueScreenProps, RevenueScreen
 - ScheduleScreen.tsx: ScheduleScreenProps, ScheduleScreen
 
 ## apps/mobile/src/features/venues/
@@ -230,6 +232,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - my-bookings.ts: sortUpcoming, sortHistory, splitMine, joinedByOthers
 - notifications.ts: notificationTarget, unreadBadge
 - owner-requests.ts: CourtLabel, deadlineLeft, courtLabels
+- owner-revenue.ts: PeriodHeadingView, shiftPeriodDate, periodHeading, percent
 - owner-schedule.ts: ownerStartableMinutes, ownerDurationsAt, bookingsOfDay
 - push.ts: PushPermissionError, pushSupported, getPublicKey, urlBase64ToUint8Array, isPushOn, enablePush, …
 
