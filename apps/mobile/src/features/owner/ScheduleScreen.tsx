@@ -94,6 +94,7 @@ function ScheduleScreenBody({ now: nowProp }: ScheduleScreenProps) {
   const [chosenWindow, setChosenWindow] = useState<{ key: string; id: WindowId; n: number } | null>(null);
   const [courtStates, setCourtStates] = useState<Record<string, CourtState>>({});
   const [bookings, setBookings] = useState<OwnerBookingView[]>([]);
+  const [bookingsFailed, setBookingsFailed] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [sheetTarget, setSheetTarget] = useState<{ court: CourtView; start: number } | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -151,11 +152,16 @@ function ScheduleScreenBody({ now: nowProp }: ScheduleScreenProps) {
     ]).then(
       ([confirmed, pending]) => {
         if (!mountedRef.current || reqId !== bookingsReqRef.current) return;
+        setBookingsFailed(false);
         setBookings([...confirmed, ...pending]);
       },
       (err: unknown) => {
         if (!mountedRef.current || reqId !== bookingsReqRef.current) return;
-        if (err instanceof ApiError && err.status === 401) setSessionLoginOpen(true);
+        if (err instanceof ApiError && err.status === 401) {
+          setSessionLoginOpen(true);
+        } else {
+          setBookingsFailed(true);
+        }
       },
     );
   }, []);
@@ -458,7 +464,13 @@ function ScheduleScreenBody({ now: nowProp }: ScheduleScreenProps) {
           );
         })}
 
-        <DayBookings bookings={bookings} date={date} courts={venue.courts} />
+        <DayBookings
+          bookings={bookings}
+          date={date}
+          courts={venue.courts}
+          failed={bookingsFailed}
+          onRetry={loadBookings}
+        />
       </div>
 
       <LoginSheet
@@ -495,6 +507,7 @@ function ScheduleScreenBody({ now: nowProp }: ScheduleScreenProps) {
             setSheetTarget(null);
             setNotice({ kind: 'alert', text: message });
             loadCourt(courtId, date, venue.id, availGenRef.current);
+            loadBookings();
           }}
           onCourtGone={(message) => {
             setSheetTarget(null);

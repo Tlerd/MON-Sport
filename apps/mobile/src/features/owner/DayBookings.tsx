@@ -8,11 +8,13 @@ export interface DayBookingsProps {
   bookings: OwnerBookingView[];
   date: string;
   courts: CourtView[];
+  failed?: boolean;
+  onRetry?: () => void;
 }
 
 const wrap: CSSProperties = { margin: 0, minWidth: 0, overflowWrap: 'anywhere' };
 
-export function DayBookings({ bookings, date, courts }: DayBookingsProps) {
+export function DayBookings({ bookings, date, courts, failed, onRetry }: DayBookingsProps) {
   const courtIds = courts.map((c) => c.id);
   const courtNames = new Map(courts.map((c) => [c.id, c.name]));
   const items = bookingsOfDay(bookings, date, courtIds);
@@ -32,7 +34,9 @@ export function DayBookings({ bookings, date, courts }: DayBookingsProps) {
       >
         Booking trong ngày
       </h2>
-      {items.length === 0 ? (
+      {failed ? (
+        <EmptyState message="Không tải được" actionLabel="Thử lại" onAction={onRetry} />
+      ) : items.length === 0 ? (
         <EmptyState message="Chưa có booking trong ngày này" />
       ) : (
         <ul
@@ -82,9 +86,11 @@ export function DayBookings({ bookings, date, courts }: DayBookingsProps) {
                 <p data-field="slot" className="tnum" style={{ ...wrap, font: 'var(--font-numeric)' }}>
                   {`${formatTime(b.startAt)}–${formatTime(b.endAt)}`}
                 </p>
-                <p data-field="customer" style={{ ...wrap, font: 'var(--font-body)' }}>
-                  {b.customer.name}
-                </p>
+                {b.customer.name.trim() !== '' && (
+                  <p data-field="customer" style={{ ...wrap, font: 'var(--font-body)' }}>
+                    {b.customer.name}
+                  </p>
+                )}
                 {b.customer.phone !== null && (
                   <a
                     data-field="phone"
