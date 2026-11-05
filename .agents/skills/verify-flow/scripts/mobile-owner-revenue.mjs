@@ -29,10 +29,10 @@ export default async function mobileOwnerRevenue(run) {
     const page = await ownerContext.newPage();
     run.watch(page);
 
-    const paidRequests = [];
+    const writeRequests = [];
     page.on('request', (req) => {
-      if (req.method() === 'PATCH' && /\/api\/owner\/bookings\/[^/]+\/paid/.test(req.url())) {
-        paidRequests.push(req.url());
+      if (req.method() !== 'GET' && /\/api\//.test(req.url())) {
+        writeRequests.push(`${req.method()} ${req.url()}`);
       }
     });
 
@@ -84,15 +84,23 @@ export default async function mobileOwnerRevenue(run) {
         return `${size} ${text}, ${CARDS.length} cards, chart`;
       });
 
-      await run.step(FLOW, `owner sees Chưa thu tiền and sends no paid request (${size})`, page, async () => {
-        await page
-          .getByRole('region', { name: 'Chưa thu tiền' })
+      await run.step(FLOW, `owner sees Chưa thu tiền loaded and sends no write request (${size})`, page, async () => {
+        const section = page.getByRole('region', { name: 'Chưa thu tiền' });
+        await section.waitFor({ state: 'visible', timeout: WAIT_MS });
+        // The section renders before its bookings load: wait for the list or the empty message, and fail on the error text.
+        await section
+          .locator('li, :text("Không có booking cần thu tiền"), :text("Không tải được")')
+          .first()
           .waitFor({ state: 'visible', timeout: WAIT_MS });
         assert(
-          paidRequests.length === 0,
-          `PATCH /api/owner/bookings/:id/paid was sent ${paidRequests.length} time(s) in a read-only flow (${size})`,
+          (await section.getByText('Không tải được').count()) === 0,
+          `Chưa thu tiền shows "Không tải được": GET /api/owner/bookings?status=CONFIRMED failed (${size})`,
         );
-        return `${size} Chưa thu tiền visible, no PATCH paid`;
+        assert(
+          writeRequests.length === 0,
+          `The read-only flow sent ${writeRequests.length} write request(s): ${writeRequests.join(', ')} (${size})`,
+        );
+        return `${size} Chưa thu tiền loaded, no write request`;
       });
 
       await run.step(FLOW, `Doanh thu has no sideways scroll (${size})`, page, async () => {
