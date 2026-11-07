@@ -50,6 +50,8 @@ test('renaming app code into docs still lists the old path and runs every job', 
     execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', ...args], {
       cwd: dir,
       stdio: 'ignore',
+      // A git hook sets GIT_DIR and GIT_INDEX_FILE. The temp repository must not inherit them.
+      env: Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))),
     });
   try {
     git('init');

@@ -10,13 +10,14 @@ Source: `docs/design/ke-hoach-app-mobile.md` (bảng "Tab theo vai trò", cột 
 
 ## Goal
 
-Khách mở tab "Tôi" trên `/app/toi`, đăng ký tài khoản bằng tên, số điện thoại, mật khẩu và ô đồng ý, rồi vào app đã đăng nhập. Người đã đăng nhập thấy tên, số điện thoại và vai trò của mình. Kiểm tra bằng `verify-flow --app mobile` ở 360px và 390px.
+Khách mở tab "Tôi" trên `/app/toi`, đăng ký tài khoản bằng tên, số điện thoại, mật khẩu và ô đồng ý, rồi vào app đã đăng nhập. Người đã đăng nhập thấy tên và vai trò của mình. Kiểm tra bằng `verify-flow --app mobile` ở 360px và 390px.
 
 ## Non-goals
 
 | Non-goal | Why it is out | When it comes back |
 |---|---|---|
 | Đăng nhập Google, OTP SMS, Zalo | Chờ F-004 bước 4 và F-018. `HUMAN_DECISIONS.md` mục 11 | Sau F-004 và F-018 |
+| Hiện số điện thoại trong hồ sơ | `SessionUser` không có số. Thêm số đổi API và `packages/shared`, và là dữ liệu cá nhân (BR-29) | Brief sau |
 | Sửa tên, đổi mật khẩu, xóa tài khoản | Chưa có API. Admin xóa tay (mục 6) | Không có kế hoạch |
 | Nút bật Web Push trên app | `sw.js` của web giữ phạm vi `/`. `HUMAN_DECISIONS.md` mục 15 | Brief sau |
 | Sửa API, schema hoặc `packages/shared` | `POST /api/auth/register` và `GET /api/auth/me` đã đủ (F-003) | Không cần |
@@ -30,10 +31,10 @@ Each criterion has one test. The test name starts with the label, for example `A
 |---|---|---|---|
 | AC-1 | Khách chưa đăng nhập | Mở `/app/toi` | Thấy nút "Đăng nhập" và nút "Tạo tài khoản" |
 | AC-2 | Khách ở tab Tôi | Bấm "Tạo tài khoản" | Sheet "Tạo tài khoản" mở. Sheet có ô "Tên", "Số điện thoại", "Mật khẩu". Sheet có đủ 5 đoạn của `PRIVACY_NOTICE` từ `@monsport/shared`. Ô "Tôi đồng ý với thông báo bảo vệ dữ liệu cá nhân" chưa chọn |
-| AC-3 | Sheet của AC-2 với tên "Lan", số `0912345678`, mật khẩu `Sanbong#2026`, ô đồng ý đã chọn | Bấm "Tạo tài khoản" | App gửi một lần `POST /api/auth/register` với `{ name: "Lan", phone: "0912345678", password: "Sanbong#2026", consent: true }`. Nút khóa trong lúc chờ. Thành công: sheet đóng và app gọi `GET /api/auth/me` |
+| AC-3 | Sheet của AC-2 với tên "Lan", số `0912345678`, mật khẩu `Sanbong#2026`, ô đồng ý đã chọn | Bấm "Tạo tài khoản" | App gửi một lần `POST /api/auth/register` với `{ name: "Lan", phone: "0912345678", password: "Sanbong#2026", consent: true }`. Nút khóa trong lúc chờ. Thành công: sheet đóng và app gọi `refresh()` của `session.tsx`, tức `GET /api/auth/me` |
 | AC-4 | Sheet của AC-2, ô đồng ý chưa chọn | Bấm "Tạo tài khoản" | App không gọi API. Sheet hiện `Messages.consent` ("Bạn cần đồng ý với thông báo bảo vệ dữ liệu cá nhân") |
-| AC-5 | Sheet của AC-3. API trả lần lượt: 409 "Số điện thoại đã có tài khoản". 400 `Messages.weakPassword`. 429 `Messages.tooManyAttempts`. Lỗi mạng | Bấm "Tạo tài khoản" | Sheet ở lại, nút mở lại, dữ liệu đã nhập ở lại. Sheet hiện văn bản của API. Lỗi mạng: "Không kết nối được. Thử lại sau" |
-| AC-6 | Người dùng Lan (`USER`) đã đăng nhập | Mở `/app/toi` | Thấy tên "Lan", số điện thoại, nhãn vai trò "Người chơi", và nút "Đăng xuất". Không thấy nút "Đăng nhập" |
+| AC-5 | Sheet của AC-3. API trả lần lượt: 409 "Số điện thoại này đã có tài khoản". 400 `Messages.weakPassword`. 429 `Messages.tooManyAttempts`. Lỗi mạng | Bấm "Tạo tài khoản" | Sheet ở lại, nút mở lại, dữ liệu đã nhập ở lại. Sheet hiện đúng `ApiError.message`, không phải câu cố định. Một test `it.each` chạy 4 trường hợp. Lỗi mạng: "Không kết nối được. Thử lại sau" |
+| AC-6 | Người dùng Lan (`USER`) đã đăng nhập | Mở `/app/toi` | Thấy tên "Lan", nhãn vai trò "Người chơi", và nút "Đăng xuất". Không thấy nút "Đăng nhập" |
 | AC-7 | Chủ sân Bình (`OWNER`) đã đăng nhập | Mở `/app/toi` | Nhãn vai trò là "Chủ sân" |
 | AC-8 | Người dùng đã đăng nhập ở tab Tôi | Bấm "Đăng xuất" | App gọi `POST /api/auth/logout`, rồi hiện lại nút "Đăng nhập" và "Tạo tài khoản" |
 | AC-9 | Khách mở sheet "Đăng nhập" | Bấm "Tạo tài khoản" trong sheet đăng nhập | Sheet đăng nhập đóng và sheet "Tạo tài khoản" mở. Sheet "Tạo tài khoản" có nút "Đã có tài khoản? Đăng nhập" làm điều ngược lại |
@@ -66,7 +67,7 @@ Không đổi.
 |---|---|---|
 | Dữ liệu cá nhân và đồng ý (BR-29) | `RegisterSheet.tsx` | App chỉ gửi `consent: true` khi người dùng chọn ô. Test AC-4 chặn gửi khi chưa chọn. Reviewer đọc ở phiên mới |
 | Mật khẩu | `RegisterSheet.tsx` | `type="password"`, `autoComplete="new-password"`. App không ghi mật khẩu vào log, URL hay `localStorage` |
-| Ảnh live lộ số điện thoại | luồng `mobile-account` | Che số điện thoại và tên trong ảnh live (như F-025 D-1). Luồng dùng tài khoản thử, không tạo tài khoản mới trên live |
+| Ảnh live lộ số điện thoại | luồng `mobile-account` | Che tên trong ảnh live (như F-025 D-1). Luồng dùng tài khoản thử, không tạo tài khoản mới trên live |
 
 ## Assumptions
 
