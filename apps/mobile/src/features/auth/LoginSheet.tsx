@@ -7,10 +7,11 @@ export interface LoginSheetProps {
   open: boolean;
   onClose: () => void;
   onLoggedIn?: () => void;
+  onSwitchToRegister?: () => void;
   notice?: string;
 }
 
-export function LoginSheet({ open, onClose, onLoggedIn, notice }: LoginSheetProps) {
+export function LoginSheet({ open, onClose, onLoggedIn, onSwitchToRegister, notice }: LoginSheetProps) {
   const { refresh } = useSession();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -115,6 +116,24 @@ export function LoginSheet({ open, onClose, onLoggedIn, notice }: LoginSheetProp
         >
           {busy ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
+
+        {onSwitchToRegister && (
+          <button
+            type="button"
+            onClick={onSwitchToRegister}
+            style={{
+              width: '100%',
+              height: '44px',
+              background: 'transparent',
+              color: 'var(--color-primary)',
+              font: 'var(--font-body-strong)',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Tạo tài khoản
+          </button>
+        )}
       </form>
     </Sheet>
   );
