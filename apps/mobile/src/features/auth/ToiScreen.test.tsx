@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
 import { ApiError } from '@monsport/client';
@@ -166,5 +166,113 @@ describe('Tab Tôi and Login Sheet', () => {
 
     expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
     expect(screen.getByRole('alert').textContent).toBe('Không kết nối được. Thử lại sau');
+  });
+});
+
+type TestUser = { id: string; name: string; role: 'ADMIN' | 'OWNER' | 'USER' };
+
+function mockSession(initial: TestUser | null) {
+  let current = initial;
+  vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
+    if (path === '/api/auth/me') {
+      if (!current) throw new ApiError(401, 'Chưa đăng nhập');
+      return current;
+    }
+    if (path === '/api/auth/logout') {
+      current = null;
+      return { ok: true };
+    }
+    return {};
+  });
+}
+
+function renderToi() {
+  return render(
+    <SessionProvider>
+      <ToiScreen />
+    </SessionProvider>,
+  );
+}
+
+describe('Tab Tôi: profile and sheet switching', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('AC-1: guest sees buttons "Đăng nhập" and "Tạo tài khoản"', async () => {
+    mockSession(null);
+    renderToi();
+    expect(await screen.findByRole('button', { name: 'Đăng nhập' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Tạo tài khoản' })).toBeDefined();
+  });
+
+  it('AC-6: USER Lan sees name, role "Người chơi" and "Đăng xuất", no "Đăng nhập"', async () => {
+    mockSession({ id: 'u1', name: 'Lan', role: 'USER' });
+    renderToi();
+    expect(await screen.findByText('Lan')).toBeDefined();
+    expect(screen.getByText('Người chơi')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Đăng xuất' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Đăng nhập' })).toBeNull();
+  });
+
+  it('AC-7: OWNER Bình sees role "Chủ sân"', async () => {
+    mockSession({ id: 'u2', name: 'Bình', role: 'OWNER' });
+    renderToi();
+    expect(await screen.findByText('Bình')).toBeDefined();
+    expect(screen.getByText('Chủ sân')).toBeDefined();
+  });
+
+  it('AC-8: logout calls POST /api/auth/logout then shows guest buttons', async () => {
+    mockSession({ id: 'u1', name: 'Lan', role: 'USER' });
+    renderToi();
+    fireEvent.click(await screen.findByRole('button', { name: 'Đăng xuất' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeDefined();
+      expect(screen.getByRole('button', { name: 'Tạo tài khoản' })).toBeDefined();
+    });
+    expect(clientModule.api).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
+    expect(screen.queryByRole('button', { name: 'Đăng xuất' })).toBeNull();
+  });
+
+  it('AC-9: login sheet "Tạo tài khoản" switches to register sheet and back', async () => {
+    mockSession(null);
+    renderToi();
+    fireEvent.click(await screen.findByRole('button', { name: 'Đăng nhập' }));
+    const loginDialog = screen.getByRole('dialog');
+    expect(within(loginDialog).getByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
+    fireEvent.click(within(loginDialog).getByRole('button', { name: 'Tạo tài khoản' }));
+
+    expect(screen.queryByRole('heading', { name: 'Đăng nhập' })).toBeNull();
+    const registerDialog = screen.getByRole('dialog');
+    expect(within(registerDialog).getByRole('heading', { name: 'Tạo tài khoản' })).toBeDefined();
+
+    fireEvent.click(within(registerDialog).getByRole('button', { name: 'Đã có tài khoản? Đăng nhập' }));
+    expect(screen.queryByRole('heading', { name: 'Tạo tài khoản' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
+  });
+
+  it('AC-2 (reopen): register sheet resets fields and consent after close and reopen', async () => {
+    mockSession(null);
+    renderToi();
+    const consentLabel = 'Tôi đồng ý với thông báo bảo vệ dữ liệu cá nhân';
+    fireEvent.click(await screen.findByRole('button', { name: 'Tạo tài khoản' }));
+    fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Lan' } });
+    fireEvent.change(screen.getByLabelText('Số điện thoại'), { target: { value: '0912345678' } });
+    fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'Sanbong#2026' } });
+    fireEvent.click(screen.getByLabelText(consentLabel));
+    expect((screen.getByLabelText(consentLabel) as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    expect((screen.getByLabelText('Tên') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Số điện thoại') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Mật khẩu') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText(consentLabel) as HTMLInputElement).checked).toBe(false);
   });
 });
