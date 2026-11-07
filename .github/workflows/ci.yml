@@ -19,6 +19,7 @@ jobs:
   # A push to main always runs every job: deploy.yml compares with the serving revision, so main must be fully tested.
   # The jobs run on the self-hosted runner `monsport-local` (WSL2 Ubuntu with Docker and Chrome) to save GitHub minutes.
   # docs/design/ke-hoach-runner-tu-host.md says how to set it up and how to go back: change runs-on to ubuntu-latest.
+  # The Postgres services use host port 55442: the runner machine runs its own Postgres on 5432.
   changes:
     runs-on: [self-hosted, monsport-local]
     outputs:
@@ -53,14 +54,14 @@ jobs:
           POSTGRES_PASSWORD: monsport
           POSTGRES_DB: monsport_test
         ports:
-          - 5432:5432
+          - 55442:5432
         options: >-
           --health-cmd "pg_isready -U monsport -d monsport_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://monsport:monsport@localhost:5432/monsport_test
+      DATABASE_URL: postgresql://monsport:monsport@localhost:55442/monsport_test
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -85,7 +86,7 @@ jobs:
           POSTGRES_PASSWORD: monsport
           POSTGRES_DB: monsport_prod
         ports:
-          - 5432:5432
+          - 55442:5432
         options: >-
           --health-cmd "pg_isready -U monsport -d monsport_prod"
           --health-interval 5s
@@ -99,7 +100,7 @@ jobs:
       - name: Start the image
         run: >-
           docker run --detach --name app --network host
-          --env DATABASE_URL=postgresql://monsport:monsport@localhost:5432/monsport_prod
+          --env DATABASE_URL=postgresql://monsport:monsport@localhost:55442/monsport_prod
           --env SESSION_SECRET=ci-only-secret-0123456789abcdefghijklmnop
           monsport
       - name: The API and the web app answer
@@ -120,7 +121,7 @@ jobs:
       - name: Seed the image database
         run: pnpm --filter @monsport/api db:seed
         env:
-          DATABASE_URL: postgresql://monsport:monsport@localhost:5432/monsport_prod
+          DATABASE_URL: postgresql://monsport:monsport@localhost:55442/monsport_prod
       - name: The booking flows pass in a browser
         run: node .agents/skills/verify-flow/scripts/run.mjs --base-url http://localhost:8080
         env:
