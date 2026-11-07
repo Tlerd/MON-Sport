@@ -219,6 +219,15 @@ describe('Tab Tôi: profile and sheet switching', () => {
     expect(screen.queryByRole('button', { name: 'Đăng nhập' })).toBeNull();
   });
 
+  it('AC-6 (loading): while the session loads, no guest buttons and no logout show', async () => {
+    vi.mocked(clientModule.api).mockImplementation(() => new Promise(() => undefined));
+    renderToi();
+    expect(screen.getByRole('status', { name: 'Đang tải' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Đăng nhập' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tạo tài khoản' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đăng xuất' })).toBeNull();
+  });
+
   it('AC-7: OWNER Bình sees role "Chủ sân"', async () => {
     mockSession({ id: 'u2', name: 'Bình', role: 'OWNER' });
     renderToi();
@@ -255,7 +264,7 @@ describe('Tab Tôi: profile and sheet switching', () => {
     expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
   });
 
-  it('AC-2 (reopen): register sheet resets fields and consent after close and reopen', async () => {
+  it('AC-2 (close): register sheet resets fields, password and consent after close and reopen', async () => {
     mockSession(null);
     renderToi();
     const consentLabel = 'Tôi đồng ý với thông báo bảo vệ dữ liệu cá nhân';
@@ -270,6 +279,7 @@ describe('Tab Tôi: profile and sheet switching', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    expect((screen.getByLabelText('Mật khẩu') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Tên') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Số điện thoại') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Mật khẩu') as HTMLInputElement).value).toBe('');

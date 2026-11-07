@@ -43,7 +43,21 @@ export function ToiScreen() {
     setSheetKey((k) => k + 1);
     setOpenSheet(sheet);
   };
-  const close = () => setOpenSheet(null);
+  const close = () => {
+    setSheetKey((k) => k + 1);
+    setOpenSheet(null);
+  };
+
+  if (user === undefined) {
+    return (
+      <div
+        role="status"
+        aria-label="Đang tải"
+        aria-busy="true"
+        style={{ padding: 'var(--space-base)', minHeight: '120px' }}
+      />
+    );
+  }
 
   if (!user) {
     return (
@@ -73,7 +87,7 @@ export function ToiScreen() {
   return (
     <div style={{ padding: 'var(--space-base)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       <div>
-        <p style={{ font: 'var(--font-body-strong)', margin: 0 }}>{user.name}</p>
+        <p data-testid="user-name" style={{ font: 'var(--font-body-strong)', margin: 0 }}>{user.name}</p>
         <p style={{ font: 'var(--font-meta)', color: 'var(--color-ink-muted)', margin: 0 }}>
           {ROLE_LABELS[user.role] ?? user.role}
         </p>

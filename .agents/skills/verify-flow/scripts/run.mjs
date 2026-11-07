@@ -3,6 +3,7 @@
 // Exit code: 0 when no step failed, 1 when a step failed, 2 when the input is wrong or the app is not reachable.
 
 import { spawnSync } from 'node:child_process';
+import mobileAccount from './mobile-account.mjs';
 import mobileBook from './mobile-book.mjs';
 import mobileHistory from './mobile-history.mjs';
 import mobileLobby from './mobile-lobby.mjs';
@@ -26,6 +27,7 @@ const MOBILE_FLOWS = {
   'mobile-owner-requests': mobileOwnerRequests,
   'mobile-owner-schedule': mobileOwnerSchedule,
   'mobile-owner-revenue': mobileOwnerRevenue,
+  'mobile-account': mobileAccount,
 };
 const FLOWS = { ...WEB_FLOWS, ...MOBILE_FLOWS };
 
