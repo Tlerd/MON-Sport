@@ -110,6 +110,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/mobile/src/features/auth/
 - LoginSheet.tsx: LoginSheetProps, LoginSheet
+- RegisterSheet.tsx: RegisterSheetProps, RegisterSheet
 - ToiScreen.tsx: ToiScreen
 
 ## apps/mobile/src/features/bookings/
