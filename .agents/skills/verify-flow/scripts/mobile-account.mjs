@@ -70,16 +70,37 @@ export default async function mobileAccount(run) {
         }));
         assert(scrollWidth <= innerWidth, `Sideways scroll on the register sheet (${size}): scrollWidth (${scrollWidth}) > innerWidth (${innerWidth})`);
 
-        // The close button "Đóng" is a known low finding (Sheet.tsx, under 44px). The check skips it.
         const small = await dialog.evaluate((root) =>
           [...root.querySelectorAll('button')]
-            .filter((el) => el.getAttribute('aria-label') !== 'Đóng' && el.textContent?.trim() !== 'Đóng')
             .map((el) => ({ el, box: el.getBoundingClientRect() }))
             .filter(({ box }) => box.width > 0 && box.height > 0 && box.height < 43.5)
             .map(({ el, box }) => `${(el.textContent || el.getAttribute('aria-label') || 'button').trim().slice(0, 30)} ${Math.round(box.height)}px`),
         );
         assert(small.length === 0, `Targets under 44px high in the register sheet (${size}): ${small.join(', ')}`);
         return `${size} 5 paragraphs, consent unticked, scrollWidth ${scrollWidth} <= ${innerWidth}`;
+      });
+
+      const inViewport = (locator) =>
+        locator.evaluate((el) => {
+          const box = el.getBoundingClientRect();
+          return box.top >= 0 && box.bottom <= window.innerHeight && box.width > 0 && box.height > 0;
+        });
+
+      await run.step(FLOW, `guest focuses Mật khẩu and scrolls to the submit button (${size}): the button is in the viewport (D-5)`, page, async () => {
+        await dialog.getByLabel('Mật khẩu', { exact: true }).focus();
+        const submit = dialog.locator('button[type=submit]');
+        await submit.scrollIntoViewIfNeeded();
+        assert(await inViewport(submit), `The submit button is outside the viewport after the scroll (${size})`);
+        return `${size} submit in the viewport`;
+      });
+
+      await run.step(FLOW, `guest submits with consent unticked (${size}): the alert is in the viewport (D-1)`, page, async () => {
+        assert(!(await dialog.getByLabel(CONSENT).isChecked()), 'The consent box is ticked');
+        await dialog.locator('button[type=submit]').click();
+        const alert = dialog.getByRole('alert');
+        await alert.waitFor({ state: 'visible' });
+        assert(await inViewport(alert), `The error alert is outside the viewport (${size})`);
+        return `${size} alert in the viewport`;
       });
 
       await run.step(FLOW, `guest closes the register sheet (${size})`, page, async () => {

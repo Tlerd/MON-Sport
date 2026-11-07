@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
 import { ApiError } from '@monsport/client';
 import { Messages, PRIVACY_NOTICE } from '@monsport/shared';
-import { SessionProvider } from '../../app/session.tsx';
+import { SessionProvider, useSession } from '../../app/session.tsx';
 import { RegisterSheet } from './RegisterSheet.tsx';
 
 vi.mock('@monsport/client', async () => {
@@ -25,9 +25,15 @@ function mockApi(register: (init: unknown) => Promise<unknown>) {
   });
 }
 
+function SessionProbe() {
+  const { user } = useSession();
+  return <p data-testid="probe">{user ? user.name : 'guest'}</p>;
+}
+
 function renderSheet(onClose = vi.fn()) {
   render(
     <SessionProvider>
+      <SessionProbe />
       <RegisterSheet open onClose={onClose} />
     </SessionProvider>,
   );
@@ -160,8 +166,59 @@ describe('RegisterSheet', () => {
     const dialog = screen.getByRole('dialog');
     const scroller = [...dialog.querySelectorAll<HTMLElement>('div')].find((d) => d.style.overflowY === 'auto');
     expect(scroller).toBeDefined();
-    expect(scroller!.style.maxHeight).toBe('90vh');
+    expect(['90vh', '90dvh']).toContain(scroller!.style.maxHeight);
     for (const el of form.querySelectorAll<HTMLElement>('input[type=text], input[type=tel], input[type=password]'))
       expect(el.style.width).toBe('100%');
+  });
+
+  it('D-1: renders the error alert right above the submit button', async () => {
+    mockApi(async () => ({}));
+    renderSheet();
+
+    fillForm(false);
+    await act(async () => {
+      fireEvent.click(submitButton());
+    });
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toBe(Messages.consent);
+    expect(alert.nextElementSibling).toBe(submitButton());
+  });
+
+  it('D-3: phone and password inputs have hints via aria-describedby, tel-national, and password length bounds', () => {
+    mockApi(async () => ({}));
+    renderSheet();
+
+    const phone = screen.getByLabelText('Số điện thoại') as HTMLInputElement;
+    expect(phone.autocomplete).toBe('tel-national');
+    const phoneHintId = phone.getAttribute('aria-describedby');
+    expect(phoneHintId).toBeTruthy();
+    expect(document.getElementById(phoneHintId!)?.textContent).toContain('10 chữ số, bắt đầu bằng 0');
+
+    const password = screen.getByLabelText('Mật khẩu') as HTMLInputElement;
+    expect(password.minLength).toBe(8);
+    expect(password.maxLength).toBe(128);
+    const passwordHintId = password.getAttribute('aria-describedby');
+    expect(passwordHintId).toBeTruthy();
+    expect(document.getElementById(passwordHintId!)?.textContent).toContain('Ít nhất 8 ký tự');
+  });
+
+  it('D-4: calls login(user) with the register SessionUser before refresh(), keeping the user signed in if GET /api/auth/me fails', async () => {
+    vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
+      if (path === '/api/auth/me') throw new ApiError(500, 'Lỗi máy chủ');
+      if (path === '/api/auth/register') return { id: 'u1', name: 'Lan', role: 'USER' };
+      return {};
+    });
+
+    const onClose = renderSheet();
+    await waitFor(() => expect(clientModule.api).toHaveBeenCalledWith('/api/auth/me'));
+
+    fillForm(true);
+    await act(async () => {
+      fireEvent.click(submitButton());
+    });
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('probe').textContent).toBe('Lan');
   });
 });

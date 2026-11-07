@@ -59,7 +59,7 @@ export function LoginSheet({ open, onClose, onLoggedIn, onSwitchToRegister, noti
             id="login-phone"
             type="tel"
             inputMode="tel"
-            autoComplete="tel"
+            autoComplete="tel-national"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required

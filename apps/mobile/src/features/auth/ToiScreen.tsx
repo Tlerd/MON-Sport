@@ -38,6 +38,7 @@ export function ToiScreen() {
   const { user, logout } = useSession();
   const [openSheet, setOpenSheet] = useState<OpenSheet>(null);
   const [sheetKey, setSheetKey] = useState(0);
+  const [logoutError, setLogoutError] = useState('');
 
   const open = (sheet: Exclude<OpenSheet, null>) => {
     setSheetKey((k) => k + 1);
@@ -87,12 +88,24 @@ export function ToiScreen() {
   return (
     <div style={{ padding: 'var(--space-base)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       <div>
-        <p data-testid="user-name" style={{ font: 'var(--font-body-strong)', margin: 0 }}>{user.name}</p>
+        <p data-testid="user-name" style={{ font: 'var(--font-body-strong)', margin: 0, overflowWrap: 'anywhere' }}>{user.name}</p>
         <p style={{ font: 'var(--font-meta)', color: 'var(--color-ink-muted)', margin: 0 }}>
           {ROLE_LABELS[user.role] ?? user.role}
         </p>
       </div>
-      <button type="button" onClick={() => logout()} style={secondaryStyle}>
+      {logoutError && (
+        <p style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">
+          {logoutError}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          setLogoutError('');
+          Promise.resolve(logout()).catch(() => setLogoutError('Không đăng xuất được. Thử lại sau'));
+        }}
+        style={secondaryStyle}
+      >
         Đăng xuất
       </button>
     </div>

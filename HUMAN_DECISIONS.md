@@ -60,6 +60,10 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 42 | App có cần thẻ "Giờ cao điểm / thường" như web không? | Không | Không | QA F-026 câu 4 |
 | 43 | Tỉ lệ làm tròn tới số nguyên, hay một chữ số thập phân như web? | Số nguyên, và "<1%" khi lớn hơn 0 và nhỏ hơn 0,5% | Không | QA F-026 câu 5 |
 | 44 | Giá trong "Chưa thu tiền" ghi "120.000đ" hay "120k"? | "120.000đ" | Không | QA F-026 câu 6 |
+| 45 | Đăng ký bằng số điện thoại và mật khẩu có cần OTP xác minh số không? Cần đổi API, web, app và có phí SMS | Không cần OTP | Không | QA F-027 câu 1 |
+| 46 | Đăng xuất có cần hủy phiên ở server không? Cookie bị chép dùng được 30 ngày. Cần lưu phiên hoặc đặt `sessionsValidFrom`, mọi thiết bị bị đăng xuất | Chỉ xóa cookie | Không | QA F-027 câu 2 |
+| 47 | Tài khoản bị khóa có cần câu chỉ bước tiếp theo không? | Đổi câu thành "Tài khoản đã bị khóa. Liên hệ admin của MONSPORT" (việc của một PR sau, vì đổi câu của API) | Không | QA F-027 câu 3 |
+| 48 | Admin đăng nhập trên app có cần nút "Đăng xuất" không? | Thêm nút "Đăng xuất" dưới link. Đã làm trong PR "fix: QA defects of F-027" | Không | QA F-027 câu 4 |
 
 ## Việc chỉ người dùng làm được
 
