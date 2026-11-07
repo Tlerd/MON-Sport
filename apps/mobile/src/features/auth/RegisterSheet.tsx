@@ -1,5 +1,5 @@
 import { api, ApiError } from '@monsport/client';
-import { Messages, PRIVACY_NOTICE } from '@monsport/shared';
+import { Messages, PRIVACY_NOTICE, type SessionUser } from '@monsport/shared';
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { useSession } from '../../app/session.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
@@ -15,6 +15,8 @@ const NOTICE_PARAGRAPHS = PRIVACY_NOTICE.split('\n');
 
 const labelStyle: CSSProperties = { display: 'block', font: 'var(--font-label)', marginBottom: 'var(--space-xs)' };
 
+const hintStyle: CSSProperties = { margin: 'var(--space-xs) 0 0', font: 'var(--font-meta)', color: 'var(--color-ink-muted)' };
+
 const inputStyle: CSSProperties = {
   width: '100%',
   height: '44px',
@@ -26,7 +28,7 @@ const inputStyle: CSSProperties = {
 };
 
 export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: RegisterSheetProps) {
-  const { refresh } = useSession();
+  const { login, refresh } = useSession();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -44,10 +46,11 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
     setError('');
     setBusy(true);
     try {
-      await api('/api/auth/register', {
+      const registered = await api<SessionUser | undefined>('/api/auth/register', {
         method: 'POST',
         json: { name, phone, password, consent: true },
       });
+      if (registered?.id) login(registered);
       await refresh();
       onClose();
       onRegistered?.();
@@ -61,12 +64,6 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
   return (
     <Sheet open={open} onClose={onClose} title="Tạo tài khoản">
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-        {error && (
-          <p style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">
-            {error}
-          </p>
-        )}
-
         <div>
           <label htmlFor="register-name" style={labelStyle}>
             Tên
@@ -91,12 +88,16 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
             id="register-phone"
             type="tel"
             inputMode="tel"
-            autoComplete="tel"
+            autoComplete="tel-national"
+            aria-describedby="register-phone-hint"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required
             style={inputStyle}
           />
+          <p id="register-phone-hint" style={hintStyle}>
+            10 chữ số, bắt đầu bằng 0
+          </p>
         </div>
 
         <div>
@@ -107,11 +108,17 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
             id="register-password"
             type="password"
             autoComplete="new-password"
+            minLength={8}
+            maxLength={128}
+            aria-describedby="register-password-hint"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             style={inputStyle}
           />
+          <p id="register-password-hint" style={hintStyle}>
+            Ít nhất 8 ký tự
+          </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
@@ -134,6 +141,12 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
             Tôi đồng ý với thông báo bảo vệ dữ liệu cá nhân
           </label>
         </div>
+
+        {error && (
+          <p style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"

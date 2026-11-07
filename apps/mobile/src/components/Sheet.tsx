@@ -15,6 +15,10 @@ export interface SheetProps {
   };
 }
 
+// 90dvh follows the iOS keyboard. Browsers without it keep 90vh (QA D-5).
+const SHEET_MAX_HEIGHT =
+  typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('max-height', '90dvh') ? '90dvh' : '90vh';
+
 export function Sheet({ open, onClose, closeDisabled = false, title, children, primaryAction }: SheetProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -143,7 +147,7 @@ export function Sheet({ open, onClose, closeDisabled = false, title, children, p
           padding: 'var(--space-base)',
           paddingBottom: 'calc(var(--space-base) + env(safe-area-inset-bottom, 0px))',
           boxShadow: 'var(--shadow-float)',
-          maxHeight: '90vh',
+          maxHeight: SHEET_MAX_HEIGHT,
           overflowY: 'auto',
           zIndex: 101,
           animation: 'sheetSlideUp 200ms cubic-bezier(.2,.8,.2,1)',
@@ -183,6 +187,8 @@ export function Sheet({ open, onClose, closeDisabled = false, title, children, p
               font: 'var(--font-body)',
               cursor: 'pointer',
               padding: 'var(--space-xs)',
+              minHeight: '44px',
+              minWidth: '44px',
             }}
           >
             Đóng

@@ -23,7 +23,8 @@ export interface ShellContextType {
 }
 
 export function App() {
-  const { user } = useSession();
+  const { user, logout } = useSession();
+  const [logoutError, setLogoutError] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -217,6 +218,31 @@ export function App() {
         >
           Đến trang quản trị web
         </a>
+        {logoutError && (
+          <p style={{ margin: 'var(--space-md) 0 0', font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">
+            {logoutError}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setLogoutError('');
+            Promise.resolve(logout()).catch(() => setLogoutError('Không đăng xuất được. Thử lại sau'));
+          }}
+          style={{
+            marginTop: 'var(--space-md)',
+            minHeight: '44px',
+            padding: '12px var(--space-base)',
+            backgroundColor: 'var(--color-canvas)',
+            color: 'var(--color-ink)',
+            border: '1px solid var(--color-line)',
+            font: 'var(--font-body-strong)',
+            borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer',
+          }}
+        >
+          Đăng xuất
+        </button>
       </main>
     );
   }

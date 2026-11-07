@@ -140,6 +140,29 @@ describe('App Shell', () => {
     expect(screen.queryByRole('navigation', { name: 'Điều hướng' })).toBeNull();
   });
 
+  it('Q4: admin sees a secondary "Đăng xuất" button, 44px high, that calls logout', () => {
+    const logout = vi.fn();
+    vi.spyOn(sessionModule, 'useSession').mockReturnValue({
+      user: { id: 'a1', name: 'Admin', role: 'ADMIN' },
+      setUser: vi.fn(),
+      login: vi.fn(),
+      logout,
+      refresh: vi.fn(),
+      loading: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Đăng xuất' });
+    expect(button.style.minHeight).toBe('44px');
+    fireEvent.click(button);
+    expect(logout).toHaveBeenCalledTimes(1);
+  });
+
   it('AC-14: render SessionProvider + App at /toi, log in as an OWNER through the sheet, assert the owner tab labels appear', async () => {
     let currentUser: { id: string; name: string; role: 'ADMIN' | 'OWNER' | 'USER' } | null = null;
 

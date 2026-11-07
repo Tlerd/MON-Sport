@@ -112,6 +112,34 @@ describe('Sheet', () => {
     expect(document.activeElement).toBe(openButton);
   });
 
+  it('D-6: the "Đóng" button is at least 44px high and wide', () => {
+    render(
+      <Sheet open onClose={() => undefined} title="T">
+        <p>x</p>
+      </Sheet>,
+    );
+    const close = screen.getByRole('button', { name: 'Đóng' });
+    expect(close.style.minHeight).toBe('44px');
+    expect(close.style.minWidth).toBe('44px');
+  });
+
+  it.each([
+    [true, '90dvh'],
+    [false, '90vh'],
+  ])('D-5: with CSS.supports(90dvh) = %s the scroll area is capped at %s', async (supported, expected) => {
+    vi.stubGlobal('CSS', { supports: () => supported });
+    vi.resetModules();
+    const { Sheet: FreshSheet } = await import('./Sheet');
+    render(
+      <FreshSheet open onClose={() => undefined} title="T">
+        <p>x</p>
+      </FreshSheet>,
+    );
+    const scroller = [...screen.getByRole('dialog').querySelectorAll<HTMLElement>('div')].find((d) => d.style.overflowY === 'auto')!;
+    expect(scroller.style.maxHeight).toBe(expected);
+    vi.unstubAllGlobals();
+  });
+
   it('renders nothing when open is false', () => {
     const { container } = render(
       <Sheet open={false} onClose={vi.fn()} title="Tiêu đề">

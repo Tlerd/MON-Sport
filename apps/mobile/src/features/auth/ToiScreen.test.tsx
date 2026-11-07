@@ -22,7 +22,7 @@ describe('Tab Tôi and Login Sheet', () => {
     cleanup();
   });
 
-  it('guest logs in with 0901234567 and correct password; sheet closes, calls GET /api/auth/me, and shows user', async () => {
+  it('D-7: guest logs in with 0901234567 and correct password; sheet closes, calls GET /api/auth/me, and shows user', async () => {
     let currentUser: { id: string; name: string; role: 'ADMIN' | 'OWNER' | 'USER' } | null = null;
 
     vi.mocked(clientModule.api).mockImplementation(async (path: string, init?: any) => {
@@ -80,7 +80,7 @@ describe('Tab Tôi and Login Sheet', () => {
     expect(clientModule.api).toHaveBeenCalledWith('/api/auth/me');
   });
 
-  it('AC-15: guest logs in with wrong password; sheet stays open and shows "Sai số điện thoại hoặc mật khẩu", also 403 and 429 messages', async () => {
+  it('D-7: guest logs in with wrong password; sheet stays open and shows "Sai số điện thoại hoặc mật khẩu", also 403 and 429 messages', async () => {
     vi.mocked(clientModule.api).mockImplementation(async (path: string, init?: any) => {
       if (path === '/api/auth/me') {
         throw new ApiError(401, 'Chưa đăng nhập');
@@ -91,7 +91,7 @@ describe('Tab Tôi and Login Sheet', () => {
           throw new ApiError(401, 'Sai số điện thoại hoặc mật khẩu');
         }
         if (body.password === 'locked') {
-          throw new ApiError(403, 'Tài khoản đã bị tạm khóa');
+          throw new ApiError(403, 'Tài khoản đã bị khóa');
         }
         if (body.password === 'rate') {
           throw new ApiError(429, 'Quá nhiều yêu cầu, vui lòng thử lại sau 5 phút');
@@ -129,7 +129,7 @@ describe('Tab Tôi and Login Sheet', () => {
       fireEvent.click(submitBtn);
     });
     expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
-    expect(screen.getByRole('alert').textContent).toBe('Tài khoản đã bị tạm khóa');
+    expect(screen.getByRole('alert').textContent).toBe('Tài khoản đã bị khóa');
 
     // 3. 429 Rate limited
     fireEvent.change(passInput, { target: { value: 'rate' } });
@@ -140,7 +140,29 @@ describe('Tab Tôi and Login Sheet', () => {
     expect(screen.getByRole('alert').textContent).toBe('Quá nhiều yêu cầu, vui lòng thử lại sau 5 phút');
   });
 
-  it('shows "Không kết nối được. Thử lại sau" when login throws a non-ApiError', async () => {
+  it('D-4 (login): keeps the SessionUser of POST /api/auth/login when GET /api/auth/me fails', async () => {
+    vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
+      if (path === '/api/auth/me') throw new ApiError(500, 'Lỗi máy chủ');
+      if (path === '/api/auth/login') return { id: 'u1', name: 'Lan', role: 'USER' };
+      return {};
+    });
+    render(
+      <SessionProvider>
+        <ToiScreen />
+      </SessionProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Đăng nhập' }));
+    fireEvent.change(screen.getByLabelText('Số điện thoại'), { target: { value: '0901234567' } });
+    fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'matkhau123' } });
+    const submitBtn = screen.getAllByRole('button', { name: 'Đăng nhập' }).find((btn) => btn.getAttribute('type') === 'submit')!;
+    await act(async () => {
+      fireEvent.click(submitBtn);
+    });
+    expect(await screen.findByText('Lan')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Đăng xuất' })).toBeDefined();
+  });
+
+  it('D-7: shows "Không kết nối được. Thử lại sau" when login throws a non-ApiError', async () => {
     vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
       if (path === '/api/auth/me') throw new ApiError(401, 'Chưa đăng nhập');
       if (path === '/api/auth/login') throw new Error('Network failure');
@@ -247,6 +269,30 @@ describe('Tab Tôi: profile and sheet switching', () => {
     expect(screen.queryByRole('button', { name: 'Đăng xuất' })).toBeNull();
   });
 
+  it('AC-8: a failing logout (network or 5xx) keeps the user and shows "Không đăng xuất được. Thử lại sau"', async () => {
+    for (const failure of [new Error('Network failure'), new ApiError(500, 'Lỗi máy chủ')]) {
+      cleanup();
+      vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
+        if (path === '/api/auth/me') return { id: 'u1', name: 'Lan', role: 'USER' };
+        if (path === '/api/auth/logout') throw failure;
+        return {};
+      });
+      renderToi();
+      fireEvent.click(await screen.findByRole('button', { name: 'Đăng xuất' }));
+      const alert = await screen.findByRole('alert');
+      expect(alert.textContent).toBe('Không đăng xuất được. Thử lại sau');
+      expect(screen.getByText('Lan')).toBeDefined();
+      expect(screen.queryByRole('button', { name: 'Đăng nhập' })).toBeNull();
+    }
+  });
+
+  it('D-8: a long name without spaces wraps instead of overflowing', async () => {
+    mockSession({ id: 'u1', name: 'A'.repeat(80), role: 'USER' });
+    renderToi();
+    const name = await screen.findByTestId('user-name');
+    expect(name.style.overflowWrap).toBe('anywhere');
+  });
+
   it('AC-9: login sheet "Tạo tài khoản" switches to register sheet and back', async () => {
     mockSession(null);
     renderToi();
@@ -279,7 +325,6 @@ describe('Tab Tôi: profile and sheet switching', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
-    expect((screen.getByLabelText('Mật khẩu') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Tên') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Số điện thoại') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Mật khẩu') as HTMLInputElement).value).toBe('');
