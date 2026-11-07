@@ -1,4 +1,5 @@
 import { api, ApiError } from '@monsport/client';
+import type { SessionUser } from '@monsport/shared';
 import { useState, type FormEvent } from 'react';
 import { useSession } from '../../app/session.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
@@ -12,7 +13,7 @@ export interface LoginSheetProps {
 }
 
 export function LoginSheet({ open, onClose, onLoggedIn, onSwitchToRegister, notice }: LoginSheetProps) {
-  const { refresh } = useSession();
+  const { login, refresh } = useSession();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,10 +24,11 @@ export function LoginSheet({ open, onClose, onLoggedIn, onSwitchToRegister, noti
     setError('');
     setBusy(true);
     try {
-      await api('/api/auth/login', {
+      const loggedIn = await api<SessionUser | undefined>('/api/auth/login', {
         method: 'POST',
         json: { phone, password },
       });
+      if (loggedIn?.id) login(loggedIn);
       await refresh();
       onClose();
       onLoggedIn?.();

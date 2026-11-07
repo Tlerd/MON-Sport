@@ -1,6 +1,7 @@
 // Flow mobile-account (brief F-027, AC-1, AC-2, AC-6, AC-8 and AC-10): the "Tôi" tab at 390x812 and 360x800.
 // A guest sees both buttons and reads the register sheet. The seed player sees the name and the role, then logs out.
-// The flow never submits the register form: a sign-up on live would create a real account (BR-29).
+// The flow never creates an account: a sign-up on live would create a real one (BR-29). The D-1 step clicks submit
+// with consent unticked and with POST /api/auth/register aborted in the browser, so a regression cannot reach the API.
 
 import { assert } from './lib.mjs';
 
@@ -86,7 +87,7 @@ export default async function mobileAccount(run) {
           return box.top >= 0 && box.bottom <= window.innerHeight && box.width > 0 && box.height > 0;
         });
 
-      await run.step(FLOW, `guest focuses Mật khẩu and scrolls to the submit button (${size}): the button is in the viewport (D-5)`, page, async () => {
+      await run.step(FLOW, `guest focuses Mật khẩu: submit reachable after focus (${size})`, page, async () => {
         await dialog.getByLabel('Mật khẩu', { exact: true }).focus();
         const submit = dialog.locator('button[type=submit]');
         await submit.scrollIntoViewIfNeeded();
@@ -95,6 +96,10 @@ export default async function mobileAccount(run) {
       });
 
       await run.step(FLOW, `guest submits with consent unticked (${size}): the alert is in the viewport (D-1)`, page, async () => {
+        await page.route('**/api/auth/register', (r) => r.abort());
+        await dialog.getByLabel('Tên', { exact: true }).fill('Kiểm tra');
+        await dialog.getByLabel('Số điện thoại', { exact: true }).fill('0900000000');
+        await dialog.getByLabel('Mật khẩu', { exact: true }).fill('KiemTra#2026');
         assert(!(await dialog.getByLabel(CONSENT).isChecked()), 'The consent box is ticked');
         await dialog.locator('button[type=submit]').click();
         const alert = dialog.getByRole('alert');

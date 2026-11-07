@@ -123,14 +123,21 @@ describe('Sheet', () => {
     expect(close.style.minWidth).toBe('44px');
   });
 
-  it('D-5: the scroll area is capped at 90dvh, with 90vh as the fallback', () => {
+  it.each([
+    [true, '90dvh'],
+    [false, '90vh'],
+  ])('D-5: with CSS.supports(90dvh) = %s the scroll area is capped at %s', async (supported, expected) => {
+    vi.stubGlobal('CSS', { supports: () => supported });
+    vi.resetModules();
+    const { Sheet: FreshSheet } = await import('./Sheet');
     render(
-      <Sheet open onClose={() => undefined} title="T">
+      <FreshSheet open onClose={() => undefined} title="T">
         <p>x</p>
-      </Sheet>,
+      </FreshSheet>,
     );
     const scroller = [...screen.getByRole('dialog').querySelectorAll<HTMLElement>('div')].find((d) => d.style.overflowY === 'auto')!;
-    expect(['90vh', '90dvh']).toContain(scroller.style.maxHeight);
+    expect(scroller.style.maxHeight).toBe(expected);
+    vi.unstubAllGlobals();
   });
 
   it('renders nothing when open is false', () => {

@@ -140,6 +140,28 @@ describe('Tab Tôi and Login Sheet', () => {
     expect(screen.getByRole('alert').textContent).toBe('Quá nhiều yêu cầu, vui lòng thử lại sau 5 phút');
   });
 
+  it('D-4 (login): keeps the SessionUser of POST /api/auth/login when GET /api/auth/me fails', async () => {
+    vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
+      if (path === '/api/auth/me') throw new ApiError(500, 'Lỗi máy chủ');
+      if (path === '/api/auth/login') return { id: 'u1', name: 'Lan', role: 'USER' };
+      return {};
+    });
+    render(
+      <SessionProvider>
+        <ToiScreen />
+      </SessionProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Đăng nhập' }));
+    fireEvent.change(screen.getByLabelText('Số điện thoại'), { target: { value: '0901234567' } });
+    fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'matkhau123' } });
+    const submitBtn = screen.getAllByRole('button', { name: 'Đăng nhập' }).find((btn) => btn.getAttribute('type') === 'submit')!;
+    await act(async () => {
+      fireEvent.click(submitBtn);
+    });
+    expect(await screen.findByText('Lan')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Đăng xuất' })).toBeDefined();
+  });
+
   it('D-7: shows "Không kết nối được. Thử lại sau" when login throws a non-ApiError', async () => {
     vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
       if (path === '/api/auth/me') throw new ApiError(401, 'Chưa đăng nhập');
@@ -305,6 +327,7 @@ describe('Tab Tôi: profile and sheet switching', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
     expect((screen.getByLabelText('Tên') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Số điện thoại') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Mật khẩu') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText(consentLabel) as HTMLInputElement).checked).toBe(false);
   });
 });

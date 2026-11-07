@@ -140,7 +140,7 @@ describe('App Shell', () => {
     expect(screen.queryByRole('navigation', { name: 'Điều hướng' })).toBeNull();
   });
 
-  it('AC-13: admin sees a secondary "Đăng xuất" button, 44px high, that calls logout', () => {
+  it('Q4: admin sees a secondary "Đăng xuất" button, 44px high, that calls logout', () => {
     const logout = vi.fn();
     vi.spyOn(sessionModule, 'useSession').mockReturnValue({
       user: { id: 'a1', name: 'Admin', role: 'ADMIN' },
