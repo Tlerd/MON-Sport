@@ -17,8 +17,10 @@ permissions:
 jobs:
   # A skipped job counts as passed for scripts/merge.mjs (SKIPPED is in PASSED of scripts/ci-autofix.mjs).
   # A push to main always runs every job: deploy.yml compares with the serving revision, so main must be fully tested.
+  # The jobs run on the self-hosted runner `monsport-local` (WSL2 Ubuntu with Docker and Chrome) to save GitHub minutes.
+  # docs/design/ke-hoach-runner-tu-host.md says how to set it up and how to go back: change runs-on to ubuntu-latest.
   changes:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, monsport-local]
     outputs:
       check: ${{ steps.filter.outputs.check }}
       image: ${{ steps.filter.outputs.image }}
@@ -41,7 +43,7 @@ jobs:
   check:
     needs: changes
     if: needs.changes.outputs.check == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, monsport-local]
     timeout-minutes: 15
     services:
       postgres:
@@ -73,7 +75,7 @@ jobs:
   image:
     needs: changes
     if: needs.changes.outputs.image == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, monsport-local]
     timeout-minutes: 20
     services:
       postgres:
@@ -92,6 +94,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker build --tag monsport .
+      # A self-hosted runner keeps the container and port 8080 when a run is cancelled.
+      - run: docker rm --force app || true
       - name: Start the image
         run: >-
           docker run --detach --name app --network host
@@ -131,3 +135,6 @@ jobs:
           name: verify-flow
           path: verify-output/
           if-no-files-found: ignore
+      - name: Remove the container
+        if: always()
+        run: docker rm --force app || true

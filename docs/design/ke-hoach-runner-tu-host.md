@@ -5,7 +5,7 @@ lang: vi
 
 # Kế hoạch: GitHub Actions runner tự host
 
-Status: draft. Chưa làm. Người dùng sẽ nói khi nào làm.
+Status: runner `monsport-wsl` cài ngày 2026-11-07 (Ubuntu trong WSL2, ổ D, service, online). Workflow đổi trong PR `chore/runner-tu-host`. Chờ lần chạy thử đầu.
 Source: người dùng, 2026-11-06. Tài liệu GitHub: [Adding self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/adding-self-hosted-runners) và [chạy runner như service](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/configuring-the-self-hosted-runner-application-as-a-service).
 
 ## Mục tiêu
