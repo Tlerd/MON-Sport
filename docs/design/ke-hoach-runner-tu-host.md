@@ -5,7 +5,8 @@ lang: vi
 
 # Kế hoạch: GitHub Actions runner tự host
 
-Status: runner `monsport-wsl` cài ngày 2026-11-07 (Ubuntu trong WSL2, ổ D, service, online). Workflow đổi trong PR `chore/runner-tu-host`. Chờ lần chạy thử đầu.
+Status: runner `monsport-wsl` cài ngày 2026-11-07 (Ubuntu trong WSL2, ổ D, service, online). Workflow đổi trong PR `chore/runner-tu-host`. Lần chạy đầu pass cả bốn job. Runner dùng Docker Engine trong Ubuntu, không dùng Docker Desktop. Ubuntu không nhận PATH của Windows (`/etc/wsl.conf`). Bước 8 chưa kiểm chứng.
+
 Source: người dùng, 2026-11-06. Tài liệu GitHub: [Adding self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/adding-self-hosted-runners) và [chạy runner như service](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/configuring-the-self-hosted-runner-application-as-a-service).
 
 ## Mục tiêu
@@ -24,7 +25,7 @@ CI không tốn phút Actions của GitHub. Ngày 2026-11-06 repo đã dùng $6,
 | Job chuyển sang runner mới | `changes`, `check`, `image`, `gates` |
 | Job giữ trên `ubuntu-latest` | `deploy` (giữ secret GCP) |
 
-## Việc người dùng làm trên máy (chưa làm)
+## Việc người dùng làm trên máy (đã làm ngày 2026-11-07, trừ bước 8 chưa kiểm chứng)
 
 1. Cài Ubuntu trong WSL2: `wsl --install -d Ubuntu` (PowerShell, quyền Admin). Khởi động lại máy nếu được yêu cầu.
 2. Mở Docker Desktop, vào Settings, Resources, WSL integration, bật cho `Ubuntu`. Kiểm tra trong Ubuntu: `docker run --rm hello-world`.
@@ -57,5 +58,4 @@ CI không tốn phút Actions của GitHub. Ngày 2026-11-06 repo đã dùng $6,
 
 | Câu hỏi | Chủ | Chặn |
 |---|---|---|
-| Khi nào làm kế hoạch này | Chủ dự án | Mọi việc ở trên |
-| Dùng cách ưu tiên (Ubuntu trong WSL2) hay cách container | Chủ dự án | Bước 1 của người dùng |
+| Khởi động lại máy: runner có `online` khi chưa mở Ubuntu không | Chủ dự án | Bước 8 |
