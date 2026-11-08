@@ -31,6 +31,7 @@ export function NotificationsScreen() {
 
   // A reply is applied only when no newer request or write started after it began.
   const reqCounter = useRef(0);
+  const mountedRef = useRef(true);
   const dataRef = useRef(data);
   dataRef.current = data;
   const sessionLoginOpenRef = useRef(false);
@@ -39,17 +40,30 @@ export function NotificationsScreen() {
   const readAllPending = useRef(false);
 
   const active = Boolean(user) && user?.role !== 'ADMIN';
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  const userIdRef = useRef(user?.id);
+  userIdRef.current = user?.id;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      reqCounter.current++;
+    };
+  }, []);
 
   const load = useCallback(() => {
+    if (!activeRef.current) return;
     const reqId = ++reqCounter.current;
     api<NotificationsListResponse>('/api/notifications').then(
       (res) => {
-        if (reqId !== reqCounter.current) return;
+        if (!mountedRef.current || reqId !== reqCounter.current) return;
         setFailed(false);
         setData(res);
       },
       (err: unknown) => {
-        if (reqId !== reqCounter.current) return;
+        if (!mountedRef.current || reqId !== reqCounter.current) return;
         if (err instanceof ApiError && err.status === 401) setSessionLoginOpen(true);
         // A failed reload keeps the old list. Only an empty screen shows the error.
         if (!dataRef.current) setFailed(true);
@@ -64,6 +78,9 @@ export function NotificationsScreen() {
 
   useEffect(() => {
     reqCounter.current++;
+    pendingReads.current.clear();
+    readAllPending.current = false;
+    setReadAllBusy(false);
     setData(undefined);
     setFailed(false);
     setReadAllError('');
@@ -86,7 +103,7 @@ export function NotificationsScreen() {
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        load();
+        if (!sessionLoginOpenRef.current) load();
         start();
       } else {
         stop();
@@ -109,6 +126,7 @@ export function NotificationsScreen() {
   const openItem = async (item: NotificationItemView) => {
     const target = notificationTarget(user?.role, item);
     if (target === null) return;
+    const startUserId = userIdRef.current;
 
     const current = dataRef.current?.items.find((i) => i.id === item.id) ?? item;
     if (current.readAt === null) {
@@ -118,6 +136,7 @@ export function NotificationsScreen() {
       try {
         const res = await api<NotificationReadResponse>(`/api/notifications/${item.id}/read`, { method: 'POST' });
         reqCounter.current++;
+        if (!mountedRef.current || userIdRef.current !== startUserId) return;
         setData((prev) => {
           if (!prev) return prev;
           const wasUnread = prev.items.some((i) => i.id === item.id && i.readAt === null);
@@ -127,6 +146,7 @@ export function NotificationsScreen() {
           };
         });
       } catch (err) {
+        if (!mountedRef.current || userIdRef.current !== startUserId) return;
         if (err instanceof ApiError && err.status === 401) {
           setSessionLoginOpen(true);
           return;
@@ -136,11 +156,13 @@ export function NotificationsScreen() {
         pendingReads.current.delete(item.id);
       }
     }
+    if (!mountedRef.current || userIdRef.current !== startUserId) return;
     navigate(target);
   };
 
   const readAll = async () => {
     if (readAllPending.current || !data || data.unreadCount === 0) return;
+    const startUserId = userIdRef.current;
     readAllPending.current = true;
     setReadAllBusy(true);
     setReadAllError('');
@@ -148,6 +170,7 @@ export function NotificationsScreen() {
     try {
       await api<NotificationReadAllResponse>('/api/notifications/read-all', { method: 'POST' });
       reqCounter.current++;
+      if (!mountedRef.current || userIdRef.current !== startUserId) return;
       const readAt = new Date().toISOString();
       setData((prev) =>
         prev
@@ -155,6 +178,7 @@ export function NotificationsScreen() {
           : prev,
       );
     } catch (err) {
+      if (!mountedRef.current || userIdRef.current !== startUserId) return;
       if (err instanceof ApiError && err.status === 401) {
         setSessionLoginOpen(true);
       } else {
@@ -162,7 +186,9 @@ export function NotificationsScreen() {
       }
     } finally {
       readAllPending.current = false;
-      setReadAllBusy(false);
+      if (mountedRef.current && userIdRef.current === startUserId) {
+        setReadAllBusy(false);
+      }
     }
   };
 

@@ -392,17 +392,31 @@ function ScheduleScreenBody({ now: nowProp }: ScheduleScreenProps) {
               scrollbarWidth: 'none',
             }}
           >
-            {windows.map((w) => (
-              <Chip
-                key={w.id}
-                selected={w.id === activeWindow?.id}
-                onClick={() =>
-                  setChosenWindow({ key: windowKey, id: w.id, n: (chosenWindow?.n ?? 0) + 1 })
-                }
-              >
-                {`${w.name} ${shortTime(w.from)}–${shortTime(w.to)}`}
-              </Chip>
-            ))}
+            {windows.map((w) => {
+              const courtIds = new Set(venue.courts.map((c) => c.id));
+              const pendingInWindow = bookings.filter((b) => {
+                if (b.status !== 'PENDING' || !courtIds.has(b.courtId)) return false;
+                const d = new Date(b.startAt);
+                if (vnDateString(d) !== date) return false;
+                const m = minuteOfDayVN(d);
+                return m >= w.from && m < w.to;
+              }).length;
+              const baseLabel = `${w.name} ${shortTime(w.from)}–${shortTime(w.to)}`;
+              const pendingSuffix = pendingInWindow > 0 ? ` (${pendingInWindow} chờ)` : '';
+              return (
+                <Chip
+                  key={w.id}
+                  selected={w.id === activeWindow?.id}
+                  aria-label={`${baseLabel}${pendingSuffix}`}
+                  title={pendingInWindow > 0 ? `${pendingInWindow} yêu cầu đang chờ` : undefined}
+                  onClick={() =>
+                    setChosenWindow({ key: windowKey, id: w.id, n: (chosenWindow?.n ?? 0) + 1 })
+                  }
+                >
+                  {baseLabel}
+                </Chip>
+              );
+            })}
           </div>
         )}
 

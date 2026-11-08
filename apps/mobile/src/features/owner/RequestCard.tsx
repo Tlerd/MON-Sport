@@ -8,6 +8,7 @@ export interface RequestCardProps {
   venueName: string | undefined;
   now: Date;
   busy: boolean;
+  error?: string;
   onConfirm: (request: OwnerBookingView) => void;
   onReject: (request: OwnerBookingView) => void;
 }
@@ -30,7 +31,7 @@ function buttonStyle(primary: boolean, busy: boolean): CSSProperties {
   };
 }
 
-export function RequestCard({ request, courtName, venueName, now, busy, onConfirm, onReject }: RequestCardProps) {
+export function RequestCard({ request, courtName, venueName, now, busy, error, onConfirm, onReject }: RequestCardProps) {
   const { customer } = request;
   const left = deadlineLeft(request.confirmDeadline, now);
 
@@ -88,6 +89,11 @@ export function RequestCard({ request, courtName, venueName, now, busy, onConfir
       {left && (
         <p data-field="deadline" style={{ ...wrap, font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
           {left}
+        </p>
+      )}
+      {error && (
+        <p role="alert" style={{ ...wrap, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}>
+          {error}
         </p>
       )}
       <div style={{ display: 'flex', gap: 'var(--space-md)', minWidth: 0, marginTop: 'var(--space-xs)' }}>

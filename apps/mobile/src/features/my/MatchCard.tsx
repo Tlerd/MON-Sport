@@ -1,3 +1,4 @@
+import { CheckCircle2, Clock, Users } from 'lucide-react';
 import { dayHeading, hhmm } from '@monsport/client';
 import { minuteOfDayVN, vnDateString, type MatchView } from '@monsport/shared';
 import { SPORT_LABEL, SportIcon } from '../../components/SportIcon.tsx';
@@ -14,6 +15,7 @@ export function MatchCard({ match }: MatchCardProps) {
   const sportName = SPORT_LABEL[match.sport] ?? match.sport;
   const isConfirmed = match.bookingStatus === 'CONFIRMED';
   const statusLabel = isConfirmed ? 'Đã xác nhận' : 'Chưa xác nhận';
+  const StatusIcon = isConfirmed ? CheckCircle2 : Clock;
   const slotsLabel = `${match.joinedCount}/${match.capacity} suất`;
 
   return (
@@ -48,6 +50,7 @@ export function MatchCard({ match }: MatchCardProps) {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
+                gap: 'var(--space-xs)',
                 height: '24px',
                 padding: '0 var(--space-sm)',
                 borderRadius: 'var(--radius-full)',
@@ -56,6 +59,7 @@ export function MatchCard({ match }: MatchCardProps) {
                 backgroundColor: 'var(--color-status-off-bg)',
               }}
             >
+              <Users size={12} aria-hidden="true" />
               Đầy
             </span>
           )}
@@ -64,6 +68,7 @@ export function MatchCard({ match }: MatchCardProps) {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              gap: 'var(--space-xs)',
               height: '24px',
               padding: '0 var(--space-sm)',
               borderRadius: 'var(--radius-full)',
@@ -72,6 +77,7 @@ export function MatchCard({ match }: MatchCardProps) {
               backgroundColor: isConfirmed ? 'var(--color-status-ok-bg)' : 'var(--color-status-wait-bg)',
             }}
           >
+            <StatusIcon size={12} aria-hidden="true" />
             {statusLabel}
           </span>
         </div>

@@ -33,7 +33,8 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
   const [tab, setTab] = useState<Tab>('UPCOMING');
   const [bookings, setBookings] = useState<MyBookingView[] | undefined>(undefined);
   const [matches, setMatches] = useState<MatchView[] | undefined>(undefined);
-  const [failed, setFailed] = useState(false);
+  const [bookingsFailed, setBookingsFailed] = useState(false);
+  const [joinedFailed, setJoinedFailed] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
 
   const [cancelTarget, setCancelTarget] = useState<MyBookingView | null>(null);
@@ -49,24 +50,25 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
   const reqCounter = useRef(0);
 
   const load = useCallback(() => {
-    setFailed(false);
+    setBookingsFailed(false);
+    setJoinedFailed(false);
     const reqId = ++reqCounter.current;
-    Promise.all([
+    Promise.allSettled([
       api<MyBookingView[]>('/api/bookings/mine'),
       api<MatchView[]>('/api/matches/joined'),
-    ]).then(
-      ([b, m]) => {
-        if (reqId === reqCounter.current) {
-          setBookings(b);
-          setMatches(m);
-        }
-      },
-      () => {
-        if (reqId === reqCounter.current) {
-          setFailed(true);
-        }
-      },
-    );
+    ]).then(([bRes, mRes]) => {
+      if (reqId !== reqCounter.current) return;
+      if (bRes.status === 'fulfilled') {
+        setBookings(bRes.value);
+      } else {
+        setBookingsFailed(true);
+      }
+      if (mRes.status === 'fulfilled') {
+        setMatches(mRes.value);
+      } else {
+        setJoinedFailed(true);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -237,9 +239,35 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
       </ContextBar>
 
       <div style={{ paddingTop: '61px', minWidth: 0 }}>
-        {failed ? (
+        {tab === 'JOINED' ? (
+          joinedFailed ? (
+            <EmptyState message="Không tải được" actionLabel="Thử lại" onAction={load} />
+          ) : !joinedMatches ? (
+            <EmptyState message="Đang tải" />
+          ) : joinedMatches.length === 0 ? (
+            <EmptyState message="Bạn chưa vào trận nào" />
+          ) : (
+            <ul
+              style={{
+                listStyle: 'none',
+                margin: 0,
+                padding: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1px',
+                minWidth: 0,
+              }}
+            >
+              {joinedMatches.map((match) => (
+                <li key={match.id} style={{ minWidth: 0 }}>
+                  <MatchCard match={match} />
+                </li>
+              ))}
+            </ul>
+          )
+        ) : bookingsFailed ? (
           <EmptyState message="Không tải được" actionLabel="Thử lại" onAction={load} />
-        ) : !bookings || !matches || !split || !joinedMatches ? (
+        ) : !split ? (
           <EmptyState message="Đang tải" />
         ) : tab === 'UPCOMING' ? (
           split.upcoming.length === 0 ? (
@@ -268,28 +296,6 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
                     onCancel={openCancel}
                     onOpenMatch={openMatch}
                   />
-                </li>
-              ))}
-            </ul>
-          )
-        ) : tab === 'JOINED' ? (
-          joinedMatches.length === 0 ? (
-            <EmptyState message="Bạn chưa vào trận nào" />
-          ) : (
-            <ul
-              style={{
-                listStyle: 'none',
-                margin: 0,
-                padding: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1px',
-                minWidth: 0,
-              }}
-            >
-              {joinedMatches.map((match) => (
-                <li key={match.id} style={{ minWidth: 0 }}>
-                  <MatchCard match={match} />
                 </li>
               ))}
             </ul>

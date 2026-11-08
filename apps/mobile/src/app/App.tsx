@@ -140,7 +140,11 @@ export function App() {
           if (reqId !== notificationsReq.current) return;
           if (typeof res?.unreadCount === 'number') setUnreadNotifications(res.unreadCount);
         },
-        () => {
+        (err: unknown) => {
+          if (reqId !== notificationsReq.current) return;
+          if (err && typeof err === 'object' && 'status' in err && (err as { status?: unknown }).status === 401) {
+            stop();
+          }
           // A failed fetch keeps the old count.
         },
       );

@@ -120,8 +120,8 @@ function cardOf(title: string) {
 
 describe('NotificationsScreen', () => {
   afterEach(() => {
-    vi.useRealTimers();
     cleanup();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
   });
@@ -263,21 +263,27 @@ describe('NotificationsScreen', () => {
     expect(vi.mocked(clientModule.api).mock.calls.filter((c) => (c[1] as { method?: string } | undefined)?.method === 'POST')).toHaveLength(0);
   });
 
-  it('AC-5: OWNER taps an unread BOOKING_REQUESTED card: POST read, then /chu-san/yeu-cau, never /lich-cua-toi', async () => {
+  it('AC-5: OWNER taps an unread BOOKING_REQUESTED card: POST read before navigating to /chu-san/yeu-cau, never /lich-cua-toi', async () => {
+    const post = deferred<{ id: string; readAt: string }>();
     const paths: string[] = [];
     vi.mocked(clientModule.api).mockImplementation(async (p: string) => {
       if (p === '/api/notifications') {
         return { unreadCount: 1, items: [item(1, { type: 'BOOKING_REQUESTED', title: 'Yêu cầu đặt sân mới' })] };
       }
-      return { id: id(1), readAt: READ_AT };
+      return post.promise;
     });
     renderScreen(OWNER);
     await screen.findByText('Yêu cầu đặt sân mới');
 
     fireEvent.click(cardOf('Yêu cầu đặt sân mới'));
+    expect(clientModule.api).toHaveBeenCalledWith(`/api/notifications/${id(1)}/read`, { method: 'POST' });
+    expect(path()).toBe('/thong-bao');
+
+    await act(async () => {
+      post.resolve({ id: id(1), readAt: READ_AT });
+    });
     await waitFor(() => expect(path()).toBe('/chu-san/yeu-cau'));
     paths.push(path()!);
-    expect(clientModule.api).toHaveBeenCalledWith(`/api/notifications/${id(1)}/read`, { method: 'POST' });
     expect(paths).not.toContain('/lich-cua-toi');
   });
 
@@ -446,7 +452,7 @@ describe('NotificationsScreen', () => {
     expect(gets).toBe(2);
   });
 
-  it('AC-10: a 401 on a reload keeps the list; a 401 on tap opens the sheet and does not navigate', async () => {
+  it('AC-10: a 401 on a reload keeps the list and opens the login sheet', async () => {
     let gets = 0;
     vi.mocked(clientModule.api).mockImplementation(async (p: string) => {
       if (p === '/api/notifications') {
@@ -463,6 +469,25 @@ describe('NotificationsScreen', () => {
     expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
     expect(screen.getByText('Tiêu đề 1')).toBeDefined();
     expect(screen.getByText('Tiêu đề 3')).toBeDefined();
+  });
+
+  it('D-6: unmounting while POST .../read is pending does not navigate', async () => {
+    const post = deferred<{ id: string; readAt: string }>();
+    vi.mocked(clientModule.api).mockImplementation(async (p: string) => {
+      if (p === '/api/notifications') return threeItems();
+      return post.promise;
+    });
+    const { unmount } = renderScreen(USER);
+    await screen.findByText('Tiêu đề 1');
+
+    fireEvent.click(cardOf('Tiêu đề 1'));
+    expect(clientModule.api).toHaveBeenCalledWith(`/api/notifications/${id(1)}/read`, { method: 'POST' });
+    unmount();
+
+    await act(async () => {
+      post.resolve({ id: id(1), readAt: READ_AT });
+    });
+    expect(screen.queryByTestId('path')).toBeNull();
   });
 
   it('AC-10: a 401 on tapping a card opens the login sheet, keeps the list, and stays on /thong-bao', async () => {

@@ -138,8 +138,8 @@ const btn = (card: HTMLElement, name: string) => within(card).getByRole('button'
 
 describe('RequestsScreen', () => {
   afterEach(() => {
-    vi.useRealTimers();
     cleanup();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
   });
@@ -355,7 +355,7 @@ describe('RequestsScreen', () => {
     await screen.findByText('Nguyễn Văn A');
 
     fireEvent.click(btn(cardOf(1)!, 'Xác nhận'));
-    expect((await screen.findByRole('alert')).textContent).toBe(text);
+    expect((await within(cardOf(1)!).findByRole('alert')).textContent).toBe(text);
     await waitFor(() => expect(btn(cardOf(1)!, 'Xác nhận').disabled).toBe(false));
     expect(btn(cardOf(1)!, 'Từ chối').disabled).toBe(false);
     expect(refreshCounts).not.toHaveBeenCalled();
@@ -421,7 +421,7 @@ describe('RequestsScreen', () => {
     await screen.findByText('Nguyễn Văn A');
 
     fireEvent.click(btn(cardOf(1)!, 'Xác nhận'));
-    expect((await screen.findByRole('alert')).textContent).toBe('Không lưu được quyết định. Thử lại.');
+    expect((await within(cardOf(1)!).findByRole('alert')).textContent).toBe('Không lưu được quyết định. Thử lại.');
     await waitFor(() => expect(btn(cardOf(1)!, 'Xác nhận').disabled).toBe(false));
     expect(btn(cardOf(1)!, 'Từ chối').disabled).toBe(false);
     expect(refreshCounts).not.toHaveBeenCalled();

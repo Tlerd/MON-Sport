@@ -1,3 +1,4 @@
+import { CheckCircle2, Clock, Users } from 'lucide-react';
 import { dayHeading, formatVnd, hhmm, type LobbyCard } from '@monsport/client';
 import { minuteOfDayVN, userCancelDecision, vnDateString, type MatchView } from '@monsport/shared';
 import { SPORT_LABEL, SportIcon } from '../../components/SportIcon.tsx';
@@ -38,6 +39,7 @@ const secondaryStyle = {
 const badgeStyle = {
   display: 'inline-flex',
   alignItems: 'center',
+  gap: 'var(--space-xs)',
   minHeight: '24px',
   padding: '0 var(--space-sm)',
   borderRadius: 'var(--radius-full)',
@@ -109,6 +111,7 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
                 backgroundColor: 'var(--color-status-off-bg)',
               }}
             >
+              <Users size={12} aria-hidden="true" />
               Đầy
             </span>
           )}
@@ -120,6 +123,11 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
               backgroundColor: isConfirmed ? 'var(--color-status-ok-bg)' : 'var(--color-status-wait-bg)',
             }}
           >
+            {isConfirmed ? (
+              <CheckCircle2 size={12} aria-hidden="true" />
+            ) : (
+              <Clock size={12} aria-hidden="true" />
+            )}
             {isConfirmed ? 'Đã xác nhận' : 'Chưa xác nhận'}
           </span>
         </div>
@@ -239,7 +247,6 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
             style={{
               ...actionStyle,
               ...secondaryStyle,
-              color: 'var(--color-status-no)',
               cursor: 'pointer',
             }}
           >
@@ -248,6 +255,7 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
         )}
         <button
           type="button"
+          aria-label={`Chi tiết ${match.venueName} ${timeRange}`}
           onClick={(event) => {
             event.stopPropagation();
             onOpen?.(match);

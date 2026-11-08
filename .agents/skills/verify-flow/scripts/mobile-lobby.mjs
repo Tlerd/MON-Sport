@@ -140,7 +140,7 @@ export default async function mobileLobby(run) {
       });
 
       await run.step(FLOW, `open Chi tiết and cancel the match (${size}): card leaves the feed`, page, async () => {
-        await matchCards.getByRole('button', { name: 'Chi tiết', exact: true }).click();
+        await matchCards.getByRole('button', { name: /^Chi tiết/ }).click();
 
         const detailSheet = page.getByRole('dialog', { name: 'Chi tiết trận' });
         await detailSheet.waitFor({ state: 'visible' });

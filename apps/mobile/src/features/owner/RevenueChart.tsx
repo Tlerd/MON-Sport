@@ -11,7 +11,7 @@ export interface RevenueChartProps {
 /** A label with a space ("T2 02/11") shows the day name above the date, so 7 labels fit at 360px. */
 function LabelLines({ label }: { label: string }) {
   const space = label.indexOf(' ');
-  if (space < 0) return <>{label}</>;
+  if (space <= 0) return <>{label}</>;
   const lineStyle = { display: 'block', whiteSpace: 'nowrap' } as const;
   return (
     <>
@@ -80,6 +80,7 @@ export function RevenueChart({ points }: RevenueChartProps) {
                 }}
               />
               <span
+                aria-hidden="true"
                 className="tnum"
                 style={{
                   font: 'var(--font-meta)',

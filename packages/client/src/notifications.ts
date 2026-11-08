@@ -12,6 +12,7 @@ export function notificationTarget(role: Role | null | undefined, _item: Notific
 
 /** Text of the tab badge: empty for no unread, the count up to 99, then "99+". */
 export function unreadBadge(count: number): string {
-  if (!Number.isFinite(count) || count < 1) return '';
-  return count > 99 ? '99+' : String(Math.floor(count));
+  const n = Math.floor(count);
+  if (!Number.isFinite(n) || n < 1) return '';
+  return n > 99 ? '99+' : String(n);
 }

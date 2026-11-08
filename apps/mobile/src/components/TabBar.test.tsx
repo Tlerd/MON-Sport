@@ -53,8 +53,12 @@ describe('TabBar', () => {
     const tab = screen.getByRole('button', { name: 'Thông báo' });
     if (text === null) {
       expect(tab.querySelector('span')).toBeNull();
+      expect(tab.getAttribute('aria-describedby')).toBeNull();
     } else {
-      expect(within(tab).getByText(text)).toBeDefined();
+      const badge = within(tab).getByText(text);
+      expect(badge).toBeDefined();
+      expect(tab.getAttribute('aria-describedby')).toBe(badge.id);
+      expect(badge.style.font).toBe('var(--font-label)');
     }
   });
 

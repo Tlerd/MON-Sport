@@ -127,8 +127,8 @@ export function BookingCard({ booking, now, onCancel, onOpenMatch }: BookingCard
                 padding: '0 var(--space-base)',
                 border: '1px solid var(--color-line)',
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'transparent',
-                color: 'var(--color-status-no)',
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-ink)',
                 font: 'var(--font-body-strong)',
                 cursor: 'pointer',
               }}

@@ -26,7 +26,7 @@ export function NotificationCard({ item, onOpen }: NotificationCardProps) {
         padding: 'var(--space-md) var(--space-base)',
         border: 'none',
         borderBottom: '1px solid var(--color-line)',
-        backgroundColor: unread ? 'var(--color-status-ok-bg)' : 'var(--color-surface)',
+        backgroundColor: unread ? 'var(--color-surface)' : 'var(--color-canvas)',
         color: 'var(--color-ink)',
         textAlign: 'left',
         cursor: 'pointer',
