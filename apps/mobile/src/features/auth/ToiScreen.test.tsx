@@ -91,7 +91,7 @@ describe('Tab Tôi and Login Sheet', () => {
           throw new ApiError(401, 'Sai số điện thoại hoặc mật khẩu');
         }
         if (body.password === 'locked') {
-          throw new ApiError(403, 'Tài khoản đã bị khóa');
+          throw new ApiError(403, 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
         }
         if (body.password === 'rate') {
           throw new ApiError(429, 'Quá nhiều yêu cầu, vui lòng thử lại sau 5 phút');
@@ -129,7 +129,7 @@ describe('Tab Tôi and Login Sheet', () => {
       fireEvent.click(submitBtn);
     });
     expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
-    expect(screen.getByRole('alert').textContent).toBe('Tài khoản đã bị khóa');
+    expect(screen.getByRole('alert').textContent).toBe('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
 
     // 3. 429 Rate limited
     fireEvent.change(passInput, { target: { value: 'rate' } });

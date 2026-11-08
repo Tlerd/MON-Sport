@@ -47,6 +47,7 @@ describe('Sheet', () => {
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('renders title, content, and primary action when open is true', () => {
@@ -137,7 +138,6 @@ describe('Sheet', () => {
     );
     const scroller = [...screen.getByRole('dialog').querySelectorAll<HTMLElement>('div')].find((d) => d.style.overflowY === 'auto')!;
     expect(scroller.style.maxHeight).toBe(expected);
-    vi.unstubAllGlobals();
   });
 
   it('renders nothing when open is false', () => {

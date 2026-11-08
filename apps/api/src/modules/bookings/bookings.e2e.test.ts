@@ -201,7 +201,7 @@ describe('POST /api/auth/login', () => {
   it('refuses a locked account with 403 (BR-28)', async () => {
     await db.user.update({ where: { id: ids.an }, data: { lockedAt: clock.now() } });
     const res = await http().post('/api/auth/login').send({ phone: '0901234567', password: PASSWORD }).expect(403);
-    expect(res.body.message).toBe('Tài khoản đã bị khóa');
+    expect(res.body.message).toBe('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
   });
 
   it('answers 401 to a forged, expired, or malformed cookie', async () => {

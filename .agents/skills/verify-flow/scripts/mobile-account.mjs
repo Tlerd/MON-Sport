@@ -104,6 +104,11 @@ export default async function mobileAccount(run) {
         await dialog.locator('button[type=submit]').click();
         const alert = dialog.getByRole('alert');
         await alert.waitFor({ state: 'visible' });
+        const alertText = (await alert.textContent())?.trim();
+        assert(
+          alertText === 'Bạn cần đồng ý với thông báo bảo vệ dữ liệu cá nhân',
+          `The error alert text is "${alertText}" (${size})`,
+        );
         assert(await inViewport(alert), `The error alert is outside the viewport (${size})`);
         return `${size} alert in the viewport`;
       });

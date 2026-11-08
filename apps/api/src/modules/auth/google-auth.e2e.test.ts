@@ -1715,7 +1715,7 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
       .send({ code })
       .expect(403);
 
-    expect(verifyRes.body.message).toBe('Tài khoản đã bị khóa');
+    expect(verifyRes.body.message).toBe('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
     expect(getCookie(verifyRes, SESSION_COOKIE)).toBeUndefined();
 
     const freshAn = await db.user.findUniqueOrThrow({ where: { id: an.id } });
@@ -1729,7 +1729,7 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
       .send({ purpose: 'google_verify' })
       .expect(403);
 
-    expect(otpRes.body.message).toBe('Tài khoản đã bị khóa');
+    expect(otpRes.body.message).toBe('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
     expect(fakeOtpSender.send).not.toHaveBeenCalled();
   });
 

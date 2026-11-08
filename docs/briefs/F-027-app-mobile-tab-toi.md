@@ -54,7 +54,7 @@ Không đổi.
 |---|---|---|---|
 | 1 | Sheet "Tạo tài khoản" | `apps/mobile/src/features/auth/RegisterSheet.tsx`, `apps/mobile/src/features/auth/RegisterSheet.test.tsx` | AC-2 đến AC-5, AC-10 |
 | 2 | Tab Tôi: hồ sơ, nút đăng ký, chuyển giữa hai sheet | `apps/mobile/src/features/auth/ToiScreen.tsx`, `apps/mobile/src/features/auth/ToiScreen.test.tsx`, `apps/mobile/src/features/auth/LoginSheet.tsx` | AC-1, AC-6 đến AC-9 |
-| 3 | Luồng live `mobile-account` (đăng nhập, xem hồ sơ, đăng xuất) và `PROGRESS.md` | `scripts/verify-flow/**` | Luồng chạy trong CI `image` |
+| 3 | Luồng live `mobile-account` (đăng nhập, xem hồ sơ, đăng xuất) và `PROGRESS.md` | `.agents/skills/verify-flow/**` | Luồng chạy trong CI `image` |
 
 ## Edit boundaries
 
