@@ -4,7 +4,7 @@ export const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   token: 'Không xác thực được thông tin từ Google. Hãy thử lại.',
   taken: 'Tài khoản Google này đã được liên kết với một tài khoản khác.',
   session: 'Phiên đăng nhập đã thay đổi khi liên kết. Hãy thử lại.',
-  locked: 'Tài khoản đã bị khóa',
+  locked: 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT',
   config: 'Đăng nhập bằng Google chưa được cấu hình.',
   unknown: 'Đã có lỗi xảy ra khi đăng nhập bằng Google. Hãy thử lại.',
 };

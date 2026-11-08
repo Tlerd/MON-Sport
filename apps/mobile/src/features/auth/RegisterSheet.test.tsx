@@ -90,6 +90,10 @@ describe('RegisterSheet', () => {
     await act(async () => {
       fireEvent.click(submitButton());
     });
+    const form = screen.getByLabelText('Tên').closest('form')!;
+    await act(async () => {
+      fireEvent.submit(form);
+    });
 
     const posts = vi.mocked(clientModule.api).mock.calls.filter(([p]) => p === '/api/auth/register');
     expect(posts).toHaveLength(1);

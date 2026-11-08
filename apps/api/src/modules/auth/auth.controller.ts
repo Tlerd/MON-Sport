@@ -140,7 +140,7 @@ export class AuthController {
     if (!user || user.deletedAt || !passwordOk)
       throw new UnauthorizedException('Sai số điện thoại hoặc mật khẩu');
     await this.throttle.loginSucceeded(input.data.phone);
-    if (user.lockedAt) throw new ForbiddenException('Tài khoản đã bị khóa'); // BR-28
+    if (user.lockedAt) throw new ForbiddenException('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT'); // BR-28
     this.startSession(res, user.id);
     return { id: user.id, name: user.name, role: user.role };
   }
@@ -217,7 +217,7 @@ export class AuthController {
     }
     const user = await this.prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user || user.deletedAt) throw new UnauthorizedException();
-    if (user.lockedAt) throw new ForbiddenException('Tài khoản đã bị khóa');
+    if (user.lockedAt) throw new ForbiddenException('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
 
     refuseWhenThrottled(res, await this.throttle.consumeLogin(user.phone, req.ip));
 
@@ -477,7 +477,7 @@ export class AuthController {
         },
       });
       if (!user) {
-        throw new ForbiddenException('Tài khoản đã bị khóa');
+        throw new ForbiddenException('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
       }
 
       // (3) Issue OTP
@@ -595,7 +595,7 @@ export class AuthController {
       },
     });
     if (!user) {
-      throw new ForbiddenException('Tài khoản đã bị khóa');
+      throw new ForbiddenException('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
     }
 
     const codeHash = await this.otpService.verifyCode(user.phone, 'google_verify', input.data.code);
@@ -612,7 +612,7 @@ export class AuthController {
         RETURNING *
       `;
       if (rows.length === 0) {
-        throw new ForbiddenException('Tài khoản đã bị khóa');
+        throw new ForbiddenException('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
       }
       return rows[0];
     });
@@ -629,7 +629,7 @@ export class AuthController {
     if (!this.googleConfig.enabled) throw new NotFoundException();
     const user = await this.prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user || user.deletedAt) throw new UnauthorizedException();
-    if (user.lockedAt) throw new ForbiddenException('Tài khoản đã bị khóa');
+    if (user.lockedAt) throw new ForbiddenException('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
     if (!user.passwordHash) {
       throw new BadRequestException('Hãy đặt mật khẩu trước khi gỡ Google');
     }

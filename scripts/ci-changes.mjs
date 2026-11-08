@@ -46,7 +46,8 @@ export function changedFiles(args = [], cwd) {
   const head = arg(args, '--head') || 'HEAD';
   const spec = range || (base ? `${base}...${head}` : '');
   if (!spec) return [];
-  const res = spawnSync('git', ['diff', '--name-only', '--no-renames', spec], { cwd, encoding: 'utf8' });
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+  const res = spawnSync('git', ['diff', '--name-only', '--no-renames', spec], { cwd, env, encoding: 'utf8' });
   if (res.status !== 0 || res.error) {
     console.error(`ci-changes: git diff ${spec} failed, running all jobs: ${(res.stderr || res.error?.message || '').trim()}`);
     return [];

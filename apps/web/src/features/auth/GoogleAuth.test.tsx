@@ -228,7 +228,7 @@ describe('Google Auth Web Screens (F-004)', () => {
     ]);
   });
 
-  it('verify screen 403 shows "Tài khoản đã bị khóa"', async () => {
+  it('verify screen 403 shows "Tài khoản đã bị khóa. Liên hệ admin của MONSPORT"', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string) => {
@@ -239,7 +239,7 @@ describe('Google Auth Web Screens (F-004)', () => {
           return Promise.resolve({
             ok: false,
             status: 403,
-            json: () => Promise.resolve({ message: 'Tài khoản đã bị khóa' }),
+            json: () => Promise.resolve({ message: 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT' }),
           });
         }
         return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
@@ -252,7 +252,7 @@ describe('Google Auth Web Screens (F-004)', () => {
     fireEvent.change(codeInput, { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: 'Xác minh' }));
 
-    expect((await screen.findByRole('alert')).textContent).toBe('Tài khoản đã bị khóa');
+    expect((await screen.findByRole('alert')).textContent).toBe('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
   });
 
   it('shows clear Vietnamese error message for google_error query parameter', async () => {

@@ -74,7 +74,7 @@ describe('admin accounts', () => {
   it('AC-9: a locked account cannot sign in', async () => {
     const res = await as('admin').post(`/api/admin/users/${ids.An}/lock`).expect(200);
     expect(res.body.lockedAt).toBe(NOW.toISOString());
-    expect((await login('0901234567').expect(403)).body.message).toBe('Tài khoản đã bị khóa');
+    expect((await login('0901234567').expect(403)).body.message).toBe('Tài khoản đã bị khóa. Liên hệ admin của MONSPORT');
   });
 
   it('AC-10: the old session of a locked account gets 401', async () => {

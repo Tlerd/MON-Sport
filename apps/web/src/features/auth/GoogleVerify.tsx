@@ -14,7 +14,7 @@ async function sendVerifyOtpApi() {
   if (!res.ok) {
     const error = new Error(
       res.status === 403
-        ? 'Tài khoản đã bị khóa'
+        ? 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT'
         : typeof data.message === 'string'
           ? data.message
           : 'Có lỗi, hãy thử lại',
@@ -37,7 +37,7 @@ async function verifyOtpApi(code: string) {
   if (!res.ok) {
     const error = new Error(
       res.status === 403
-        ? 'Tài khoản đã bị khóa'
+        ? 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT'
         : typeof data.message === 'string'
           ? data.message
           : 'Có lỗi, hãy thử lại',
@@ -77,7 +77,7 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
         setExpired(true);
         return;
       }
-      setError(err?.status === 403 ? 'Tài khoản đã bị khóa' : (err?.message ?? 'Không gửi được mã'));
+      setError(err?.status === 403 ? 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT' : (err?.message ?? 'Không gửi được mã'));
       if (typeof err?.retryAfter === 'number') {
         setCountdown(err.retryAfter);
       }
@@ -102,7 +102,7 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
         setExpired(true);
         return;
       }
-      setError(err?.status === 403 ? 'Tài khoản đã bị khóa' : (err?.message ?? 'Xác minh không thành công'));
+      setError(err?.status === 403 ? 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT' : (err?.message ?? 'Xác minh không thành công'));
       setBusy(false);
     }
   }
