@@ -13,10 +13,15 @@ const proc = (globalThis as unknown as { process: { env: Record<string, string |
 describe('booking helpers', () => {
   it('AC-1: formats days and prices, whatever the TZ of the machine', () => {
     const before = proc.env.TZ;
-    proc.env.TZ = 'America/New_York';
     try {
-      expect(dayChipLabel('2026-10-30')).toBe('T6 30/10');
-      expect(dayHeading('2026-10-30')).toBe('Thứ Sáu, 30/10/2026');
+      for (const tz of ['America/New_York', 'Pacific/Kiritimati', 'EST5EDT', 'KRT-14']) {
+        proc.env.TZ = tz;
+        expect(dayChipLabel('2026-10-30')).toBe('T6 30/10');
+        expect(dayHeading('2026-10-30')).toBe('Thứ Sáu, 30/10/2026');
+        expect(
+          startableMinutes('2026-10-29', [range('2026-10-29', '08:00', '10:00')], new Date('2026-10-29T00:30:00Z')),
+        ).toEqual([540]);
+      }
       expect(priceRangeK([court(80000, 120000), court(70000, 100000)])).toBe('70k–120k');
       expect(priceRangeK([court(100000, 100000)])).toBe('100k');
       expect(priceRangeK([])).toBe('—');

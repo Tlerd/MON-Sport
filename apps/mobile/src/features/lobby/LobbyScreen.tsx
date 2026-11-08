@@ -78,8 +78,16 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const [loginTick, setLoginTick] = useState(0);
   const [guestLoginTick, setGuestLoginTick] = useState(0);
   const roleRef = useRef(role);
+  const userIdRef = useRef(userId);
+  const detailTargetIdRef = useRef<string | null>(null);
+  const leaveTargetIdRef = useRef<string | null>(null);
+  const cancelTargetIdRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     roleRef.current = role;
+    userIdRef.current = userId;
+    detailTargetIdRef.current = detailTarget?.id ?? null;
+    leaveTargetIdRef.current = leaveTarget?.id ?? null;
+    cancelTargetIdRef.current = cancelTarget?.id ?? null;
   });
 
   const openSessionLogin = useCallback(() => {
@@ -216,16 +224,13 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
 
   const joinMatch = useCallback(
     async (id: string) => {
+      const startUserId = userIdRef.current;
       setJoiningIds((prev) => ({ ...prev, [id]: true }));
-      setCardErrors((prev) => {
-        if (!(id in prev)) return prev;
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      setDetailError('');
+      setCardErrors({});
+      if (detailTargetIdRef.current === id) setDetailError('');
       try {
         const res = await api<MatchDetailView>(`/api/matches/${id}/join`, { method: 'POST' });
+        if (userIdRef.current !== startUserId) return;
         if (res && typeof res === 'object' && 'id' in res) {
           setJoinedRows((prev) => [...prev.filter((m) => m.id !== res.id), res]);
           setRows((prev) => prev?.map((m) => (m.id === res.id ? res : m)));
@@ -233,17 +238,18 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         }
         reload();
       } catch (err) {
+        if (userIdRef.current !== startUserId) return;
         if (err instanceof ApiError && err.status === 401) {
-          closeDetail();
+          if (detailTargetIdRef.current === id) closeDetail();
           openSessionLogin();
         } else if (err instanceof ApiError) {
           setCardErrors((prev) => ({ ...prev, [id]: err.message }));
-          setDetailError(err.message);
+          if (detailTargetIdRef.current === id) setDetailError(err.message);
           if (err.status === 409) reload();
         } else {
           const msg = 'Không kết nối được. Thử lại sau';
           setCardErrors((prev) => ({ ...prev, [id]: msg }));
-          setDetailError(msg);
+          if (detailTargetIdRef.current === id) setDetailError(msg);
         }
       } finally {
         setJoiningIds((prev) => {
@@ -271,6 +277,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   useLobbyStream(reload, user !== undefined);
 
   const handleOpen = (match: MatchView) => {
+    setCardErrors({});
     if (role === 'OWNER' || role === 'ADMIN') {
       setPlayerSheetOpen(true);
       return;
@@ -322,6 +329,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   };
 
   const openLeave = (match: MatchView) => {
+    setCardErrors({});
     setLeaveError('');
     setLeaveTarget(match);
   };
@@ -334,10 +342,12 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const confirmLeave = async () => {
     if (!leaveTarget || leaveBusy) return;
     const target = leaveTarget;
+    const startUserId = userIdRef.current;
     setLeaveBusy(true);
     setLeaveError('');
     try {
       const res = await api<MatchDetailView>(`/api/matches/${target.id}/leave`, { method: 'POST' });
+      if (userIdRef.current !== startUserId) return;
       const updated: MatchView =
         res && typeof res === 'object' && 'id' in res
           ? res
@@ -349,18 +359,20 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
           ? prev.map((m) => (m.id === target.id ? updated : m))
           : [...prev, updated];
       });
-      setLeaveTarget(null);
-      closeDetail();
+      if (leaveTargetIdRef.current === target.id) setLeaveTarget(null);
+      if (detailTargetIdRef.current === target.id) closeDetail();
       reload();
     } catch (err) {
+      if (userIdRef.current !== startUserId) return;
+      const sameLeave = leaveTargetIdRef.current === target.id;
       if (err instanceof ApiError && err.status === 401) {
-        setLeaveTarget(null);
-        closeDetail();
+        if (sameLeave) setLeaveTarget(null);
+        if (detailTargetIdRef.current === target.id) closeDetail();
         openSessionLogin();
       } else if (err instanceof ApiError) {
-        setLeaveError(err.message);
+        if (sameLeave) setLeaveError(err.message);
         if (err.status === 409) reload();
-      } else {
+      } else if (sameLeave) {
         setLeaveError('Không kết nối được. Thử lại sau');
       }
     } finally {
@@ -369,6 +381,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   };
 
   const openCancel = (match: MatchView) => {
+    setCardErrors({});
     setCancelError('');
     setCancelTarget(match);
   };
@@ -381,24 +394,28 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const confirmCancel = async () => {
     if (!cancelTarget || cancelBusy) return;
     const target = cancelTarget;
+    const startUserId = userIdRef.current;
     setCancelBusy(true);
     setCancelError('');
     try {
       await api(`/api/matches/${target.id}/cancel`, { method: 'POST' });
+      if (userIdRef.current !== startUserId) return;
       setRows((prev) => prev?.filter((m) => m.id !== target.id));
       setJoinedRows((prev) => prev.filter((m) => m.id !== target.id));
-      setCancelTarget(null);
-      closeDetail();
+      if (cancelTargetIdRef.current === target.id) setCancelTarget(null);
+      if (detailTargetIdRef.current === target.id) closeDetail();
       reload();
     } catch (err) {
+      if (userIdRef.current !== startUserId) return;
+      const sameCancel = cancelTargetIdRef.current === target.id;
       if (err instanceof ApiError && err.status === 401) {
-        setCancelTarget(null);
-        closeDetail();
+        if (sameCancel) setCancelTarget(null);
+        if (detailTargetIdRef.current === target.id) closeDetail();
         openSessionLogin();
       } else if (err instanceof ApiError) {
-        setCancelError(err.message);
+        if (sameCancel) setCancelError(err.message);
         if (err.status === 409) reload();
-      } else {
+      } else if (sameCancel) {
         setCancelError('Không kết nối được. Thử lại sau');
       }
     } finally {
@@ -424,31 +441,52 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   return (
     <div style={{ minWidth: 0 }}>
       <ContextBar aria-label="Bộ lọc phòng chờ">
-        <Chip selected={sport === undefined} onClick={() => setSport(undefined)}>
+        <Chip
+          selected={sport === undefined}
+          onClick={() => {
+            setCardErrors({});
+            setSport(undefined);
+          }}
+        >
           Tất cả
         </Chip>
         <Chip
           selected={sport === 'BADMINTON'}
           icon={<IconBadminton size={18} />}
-          onClick={() => setSport(sport === 'BADMINTON' ? undefined : 'BADMINTON')}
+          onClick={() => {
+            setCardErrors({});
+            setSport(sport === 'BADMINTON' ? undefined : 'BADMINTON');
+          }}
         >
           {SPORT_LABEL.BADMINTON}
         </Chip>
         <Chip
           selected={sport === 'FOOTBALL'}
           icon={<IconFootball size={18} />}
-          onClick={() => setSport(sport === 'FOOTBALL' ? undefined : 'FOOTBALL')}
+          onClick={() => {
+            setCardErrors({});
+            setSport(sport === 'FOOTBALL' ? undefined : 'FOOTBALL');
+          }}
         >
           {SPORT_LABEL.FOOTBALL}
         </Chip>
-        <Chip selected={date === undefined} onClick={() => setDate(undefined)}>
+        <Chip
+          selected={date === undefined}
+          onClick={() => {
+            setCardErrors({});
+            setDate(undefined);
+          }}
+        >
           Tất cả ngày
         </Chip>
         {chips.map((chip) => (
           <Chip
             key={chip.ymd}
             selected={date === chip.ymd}
-            onClick={() => setDate(date === chip.ymd ? undefined : chip.ymd)}
+            onClick={() => {
+              setCardErrors({});
+              setDate(date === chip.ymd ? undefined : chip.ymd);
+            }}
           >
             {chip.label}
           </Chip>
@@ -464,6 +502,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
           <>
             {joinedFailed && isPlayer && (
               <div
+                role="status"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -682,7 +721,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                         ...sheetBtnStyle,
                         border: '1px solid var(--color-line)',
                         backgroundColor: 'var(--color-surface)',
-                        color: 'var(--color-status-no)',
+                        color: 'var(--color-ink)',
                         alignSelf: 'flex-start',
                       }}
                     >
@@ -751,7 +790,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
               {`${hhmm(minuteOfDayVN(new Date(cancelTarget.startAt)))}–${hhmm(minuteOfDayVN(new Date(cancelTarget.endAt)))}`}
             </div>
             <p style={{ margin: 0, font: 'var(--font-body)', color: 'var(--color-ink)' }}>
-              Trận và booking của trận sẽ bị hủy.
+              Trận và booking của trận sẽ bị hủy. Người trong trận sẽ nhận thông báo.
             </p>
             {cancelError && (
               <p

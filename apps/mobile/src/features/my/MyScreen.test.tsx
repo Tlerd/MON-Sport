@@ -554,6 +554,7 @@ describe('MyScreen', () => {
     // T2 shows "4/10 suất" and "Đã xác nhận"
     expect(articles[0].textContent).toContain('4/10 suất');
     expect(articles[0].textContent).toContain('Đã xác nhận');
+    expect(articles[0].querySelector('.badge svg[aria-hidden="true"]')).not.toBeNull();
     expect(articles[0].textContent).toContain('Host T2 Minh');
     expect(articles[0].textContent).toContain('Sân T2 Cầu Lông');
     expect(articles[0].textContent).toContain('20:00–21:00');
@@ -565,6 +566,7 @@ describe('MyScreen', () => {
     expect(articles[1].textContent).toContain('10/10 suất');
     expect(articles[1].textContent).toContain('Đầy');
     expect(articles[1].textContent).toContain('Chưa xác nhận');
+    expect(articles[1].querySelectorAll('.badge svg[aria-hidden="true"]').length).toBe(2);
 
     // T1, T4, T5 do not show
     expect(screen.queryByText('Cụm sân T1')).toBeNull();
@@ -594,6 +596,48 @@ describe('MyScreen', () => {
     await screen.findByRole('navigation', { name: 'Lịch của tôi' });
     fireEvent.click(screen.getByRole('button', { name: 'Trận đã vào' }));
     expect(await screen.findByText('Bạn chưa vào trận nào')).toBeDefined();
+  });
+
+  it('AC-12: when /api/matches/joined fails, the 3 chips and upcoming bookings stay visible, and only "Trận đã vào" shows "Không tải được"', async () => {
+    const upcomingBooking: MyBookingView = {
+      id: '00000000-0000-4000-8000-000000000077',
+      courtId: '00000000-0000-4000-8000-000000000002',
+      courtName: 'Sân Sắp Tới 77',
+      venueName: 'Cầu lông An Phú',
+      venuePhone: '0912345678',
+      sport: 'BADMINTON',
+      startAt: '2026-11-03T20:00:00+07:00',
+      endAt: '2026-11-03T21:00:00+07:00',
+      status: 'PENDING',
+      source: 'APP',
+      priceTotal: 100000,
+      confirmDeadline: null,
+      confirmedAt: null,
+      cancelledAt: null,
+      createdAt: '2026-11-02T08:00:00+07:00',
+      match: null,
+    };
+    vi.mocked(clientModule.api).mockImplementation(async (path: string) => {
+      if (path === '/api/bookings/mine') return [upcomingBooking];
+      if (path === '/api/matches/joined') throw new ApiError(500, 'Lỗi server');
+      return [];
+    });
+
+    const now = new Date('2026-11-02T10:00:00+07:00');
+    renderScreen(
+      ['/lich-cua-toi'],
+      { id: '00000000-0000-4000-8000-000000000001', name: 'User 1', role: 'USER' },
+      now,
+    );
+
+    expect(await screen.findByText('Sân Sắp Tới 77')).toBeDefined();
+    expect(screen.getByRole('navigation', { name: 'Lịch của tôi' })).toBeDefined();
+    const cancelBtn = screen.getByRole('button', { name: 'Hủy' });
+    expect(cancelBtn.style.color).toBe('var(--color-ink)');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trận đã vào' }));
+    expect(await screen.findByText('Không tải được')).toBeDefined();
+    expect(screen.getByRole('navigation', { name: 'Lịch của tôi' })).toBeDefined();
   });
 
   it('fix-race: the session user changes from A to B while A\'s request is still pending; A\'s late response never shows, and B\'s list shows', async () => {

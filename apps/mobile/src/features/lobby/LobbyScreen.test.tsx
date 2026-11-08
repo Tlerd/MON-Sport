@@ -141,10 +141,13 @@ describe('LobbyScreen', () => {
     }
     expect(c1.textContent).toContain(clientModule.dayHeading('2026-11-03'));
     expect(c1.querySelector('button')?.textContent).toBe('Vào trận');
+    expect(c1.querySelector('button[aria-label="Chi tiết Đơn vị 1 20:00–21:00"]')).not.toBeNull();
+    expect(c1.querySelector('.badge svg[aria-hidden="true"]')).not.toBeNull();
     expect(card(container, m2).textContent).toContain('Chưa xác nhận');
 
     const c4 = card(container, m4);
     expect(c4.textContent).toContain('Đầy');
+    expect(c4.querySelectorAll('.badge svg[aria-hidden="true"]').length).toBe(2);
     expect(c4.textContent).toContain('Bạn đã vào');
     expect(c4.textContent).not.toContain('Vào trận');
     expect(c4.querySelector('button')?.textContent).toBe('Rời trận');
@@ -218,6 +221,7 @@ describe('LobbyScreen', () => {
     mockApi([m1], new ApiError(500, 'Lỗi'));
     const { container } = renderScreen(player);
     const retry = await screen.findByRole('button', { name: 'Thử lại' });
+    expect(screen.getByRole('status').textContent).toContain('Không tải được trận bạn đã vào');
     expect(cardIds(container)).toEqual([m1.id]);
     const feedBefore = api().mock.calls.filter(([p]) => p === '/api/matches').length;
 
@@ -750,7 +754,7 @@ describe('LobbyScreen', () => {
     fireEvent.click(Array.from(detailDialog.querySelectorAll('button')).find((b) => b.textContent === 'Hủy trận')!);
 
     const cancelDialog = await screen.findByRole('dialog', { name: 'Hủy trận này?' });
-    expect(cancelDialog.textContent).toContain('Trận và booking của trận sẽ bị hủy');
+    expect(cancelDialog.textContent).toContain('Trận và booking của trận sẽ bị hủy. Người trong trận sẽ nhận thông báo.');
 
     // 409 shows message and reloads
     const feedBefore = callsTo('/api/matches').length;

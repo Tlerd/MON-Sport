@@ -402,6 +402,31 @@ describe('App Shell', () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(badgeOf().getByText('7')).toBeDefined();
     });
+
+    it('D-5 / D-10: stops polling after a 401 or when the user logs out', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      vi.mocked(clientModule.api).mockRejectedValueOnce(new ApiError(401, 'Chưa đăng nhập'));
+      asUser('USER');
+      const { rerender } = renderApp('/');
+      await waitFor(() => expect(getsOf()).toHaveLength(1));
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(getsOf()).toHaveLength(1);
+
+      vi.mocked(clientModule.api).mockResolvedValue({ unreadCount: 2, items: [] });
+      asUser(null);
+      rerender(
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route path="/" element={<App />}>
+              <Route index element={<p>Trang đặt sân</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(getsOf()).toHaveLength(1);
+    });
   });
 
   describe('D-1 shell pending request count', () => {

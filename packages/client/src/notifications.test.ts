@@ -47,8 +47,10 @@ describe('unreadBadge', () => {
     expect(unreadBadge(100)).toBe('99+');
   });
 
-  it('AC-15: treats a negative or non-integer count as no badge', () => {
+  it('AC-15: treats a negative or non-integer count as no badge, and rounds before comparing', () => {
     expect(unreadBadge(-3)).toBe('');
     expect(unreadBadge(Number.NaN)).toBe('');
+    expect(unreadBadge(0.9)).toBe('');
+    expect(unreadBadge(99.5)).toBe('99');
   });
 });

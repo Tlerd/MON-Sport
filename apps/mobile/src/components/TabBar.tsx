@@ -187,12 +187,15 @@ export function TabBar({
     >
       {tabs.map((tab) => {
         const isActive = currentNorm === tab.path || (tab.path !== '/' && currentNorm.startsWith(tab.path));
+        const badge = unreadBadge(tab.badgeCount ?? 0);
+        const badgeId = `tab-badge-${tab.id}`;
         return (
           <button
             key={tab.id}
             type="button"
             onClick={() => onSelect(tab.path)}
             aria-label={tab.name}
+            aria-describedby={badge !== '' ? badgeId : undefined}
             style={{
               flex: 1,
               height: '48px',
@@ -208,8 +211,10 @@ export function TabBar({
             }}
           >
             {tab.icon}
-            {unreadBadge(tab.badgeCount ?? 0) !== '' && (
+            {badge !== '' && (
               <span
+                id={badgeId}
+                data-badge
                 style={{
                   position: 'absolute',
                   top: '6px',
@@ -219,15 +224,14 @@ export function TabBar({
                   borderRadius: 'var(--radius-full)',
                   backgroundColor: 'var(--color-status-no)',
                   color: 'var(--color-on-primary)',
-                  fontSize: '10px',
-                  fontWeight: 700,
+                  font: 'var(--font-label)',
                   display: 'grid',
                   placeItems: 'center',
                   padding: '0 4px',
                   lineHeight: 1,
                 }}
               >
-                {unreadBadge(tab.badgeCount ?? 0)}
+                {badge}
               </span>
             )}
           </button>

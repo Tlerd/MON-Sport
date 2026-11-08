@@ -116,13 +116,18 @@ export default async function mobileNotifications(run) {
       });
 
       await run.step(FLOW, `badge increases without opening Thông báo (${size})`, page, async () => {
-        await page.waitForFunction(
-          ([label, expected]) =>
-            document.querySelector(`nav button[aria-label="${label}"]`)?.textContent?.trim() === expected,
-          ['Thông báo', badgeText(before + 1)],
-          { timeout: BADGE_WAIT_MS },
-        );
-        return `${size} badge ${badgeText(before)} -> ${badgeText(before + 1)}`;
+        if (before < 99) {
+          await page.waitForFunction(
+            ([label, expected]) =>
+              (document.querySelector(`nav button[aria-label="${label}"] [data-badge]`)?.textContent?.trim() ?? '') === expected,
+            ['Thông báo', badgeText(before + 1)],
+            { timeout: BADGE_WAIT_MS },
+          );
+          return `${size} badge ${badgeText(before)} -> ${badgeText(before + 1)}`;
+        }
+        const after = (await unreadCountOf(run, ownerContext.request)).unreadCount;
+        assert(after >= before + 1, `unreadCount is ${after}, expected >= ${before + 1} (${size})`);
+        return `${size} unreadCount ${before} -> ${after} (badge 99+)`;
       });
 
       await run.step(FLOW, `open Thông báo (${size}): card, no sideways scroll, targets 44px`, page, async () => {

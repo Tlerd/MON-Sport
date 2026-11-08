@@ -41,6 +41,8 @@ function RequestsScreenBody() {
   const [labels, setLabels] = useState<Map<string, CourtLabel>>(() => new Map());
   const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(() => new Set());
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
+  const [, setNowTick] = useState(0);
   const [rejectTarget, setRejectTarget] = useState<OwnerBookingView | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [sessionLoginOpen, setSessionLoginOpen] = useState(false);
@@ -98,6 +100,7 @@ function RequestsScreenBody() {
     setFailed(false);
     setLabels(new Map());
     setNotice(null);
+    setCardErrors({});
     setRejectTarget(null);
     busyRef.current = new Set();
     setBusyIds(new Set());
@@ -132,11 +135,13 @@ function RequestsScreenBody() {
     const start = () => {
       stop();
       timer = setInterval(() => {
+        setNowTick((t) => t + 1);
         if (!sessionLoginOpenRef.current) load();
       }, RELOAD_MS);
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        setNowTick((t) => t + 1);
         if (!sessionLoginOpenRef.current) load();
         start();
       } else {
@@ -171,6 +176,12 @@ function RequestsScreenBody() {
     busyRef.current.add(request.id);
     setBusyIds(new Set(busyRef.current));
     setNotice(null);
+    setCardErrors((prev) => {
+      if (!(request.id in prev)) return prev;
+      const next = { ...prev };
+      delete next[request.id];
+      return next;
+    });
     reqCounter.current++;
     try {
       await api(`/api/owner/bookings/${request.id}/${action}`, { method: 'POST' });
@@ -188,8 +199,10 @@ function RequestsScreenBody() {
       if (err instanceof ApiError && err.status === 409) {
         if (FINAL_409.includes(err.message)) {
           reportCount(removeCard(request.id));
+          setNotice({ kind: 'alert', text: err.message });
+        } else {
+          setCardErrors((prev) => ({ ...prev, [request.id]: err.message }));
         }
-        setNotice({ kind: 'alert', text: err.message });
       } else if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
         reportCount(removeCard(request.id));
         setNotice({ kind: 'alert', text: 'Yêu cầu này không còn trong danh sách của bạn' });
@@ -197,7 +210,10 @@ function RequestsScreenBody() {
       } else if (err instanceof ApiError && err.status === 401) {
         setSessionLoginOpen(true);
       } else {
-        setNotice({ kind: 'alert', text: 'Không lưu được quyết định. Thử lại.' });
+        setCardErrors((prev) => ({
+          ...prev,
+          [request.id]: 'Không lưu được quyết định. Thử lại.',
+        }));
       }
     } finally {
       busyRef.current.delete(request.id);
@@ -294,6 +310,7 @@ function RequestsScreenBody() {
                       venueName={label?.venueName}
                       now={now}
                       busy={busyIds.has(r.id)}
+                      error={cardErrors[r.id]}
                       onConfirm={(req) => decide(req, 'confirm')}
                       onReject={setRejectTarget}
                     />

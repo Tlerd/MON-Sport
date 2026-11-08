@@ -7,4 +7,4 @@
 - `mobile-account` never submits the register form, so it creates no account. Logout only clears its own cookie.
 - Live screenshots mask the names and phones of customers and of the signed-in user, because the evidence goes to a public pull request. The report writes an account phone as `<role phone>`.
 - The same env vars override the local defaults. `VERIFY_BROWSER` picks a Playwright channel.
-- The run deletes nothing. Each run leaves its bookings: one PENDING per `player-request` run, one CONFIRMED and one REJECTED per `owner-decide` run, and one CANCELLED phone booking per `phone-booking` or `mobile-owner-schedule` run (CONFIRMED when the run stops before the cancel). A PENDING booking expires 2 hours later (BR-7, BR-8).
+- The run deletes nothing. Each run leaves its bookings: one PENDING per `player-request` run, one CONFIRMED and one REJECTED per `owner-decide` run, one CANCELLED phone booking per `phone-booking` run, and one CANCELLED phone booking per viewport (two per run: 390x812 and 360x800) in `mobile-owner-schedule` (CONFIRMED when the run stops before the cancel). A PENDING booking expires 2 hours later (BR-7, BR-8).
