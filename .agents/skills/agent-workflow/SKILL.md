@@ -18,6 +18,27 @@ Each tool maps these roles to its own models. In Claude Code, the session model 
 
 Coder order: run `node scripts/agy-run.mjs --check-usage`, then `node scripts/agy-run.mjs --mode accept-edits -p "<plan>"`. Exit code 4 means every agy model is out of quota. Then use the subagent `backend` or `frontend` (Sonnet). When Sonnet is out of quota, run it with `model: haiku`.
 
+## Fix ladder
+
+Use this when `pnpm check` fails after the coder says the step is done. It also fixes the findings of medium or higher from a Reviewer round. The Planner and the Reviewer stay on Opus.
+
+| Rung | Coder | Attempts | Climb when |
+|---|---|---|---|
+| 0 | agy, the coder of the step | 1 | The check still fails |
+| 1 | Subagent `backend` or `frontend` (Sonnet) | 2 | The check still fails |
+| 2 | The same subagent with `model: opus` | 2 | The check still fails, or the failure is hard |
+| 3 | The same subagent with `model: fable` | 1 | Stop: see the last rule |
+
+- One attempt is one fix and one run of `pnpm check`.
+- A hard failure is a deadlock (`40P01`), a race, a flaky test with no known cause, or a failure across several modules. It climbs to rung 3 after one attempt on rung 2.
+- A step on money, concurrency, the schema, or personal data skips rung 1.
+- A failure only in a test known to be flaky (`PROGRESS.md`) gets one rerun before rung 0.
+- Each rung continues on the same branch. Give it the plan, the failing lines, the diff, and one line on each earlier attempt.
+- A coder that finds the plan wrong (a test that conflicts with the brief) stops. The Planner rewrites the plan. The ladder does not climb.
+- An Opus or Fable coder is a Coder. The Reviewer is still a fresh session.
+- After rung 3, or when the check still fails: choose the safest fix, record the failure in the pull request and `PROGRESS.md`, and go on with other work.
+- Log each attempt in the pull request: rung, model, result, tokens, and minutes.
+
 Claude Code runs a subagent on the `model` in its `.claude/agents/` file, or on the session model when the file sets none. One coder does a step. Run `backend` and `frontend` together only when the contract in `packages/shared` is on the branch and their paths do not overlap. Then run `tester`, then `reviewer`. The `qa` agent lists questions for the owner after the last step. `deployer` checks a deploy.
 
 A Reviewer round is a `reviewer` subagent, or `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."`.
