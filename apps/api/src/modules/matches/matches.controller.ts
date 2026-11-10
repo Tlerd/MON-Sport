@@ -13,7 +13,7 @@ import {
   Sse,
   UseGuards,
 } from '@nestjs/common';
-import { CreateMatchRequest, type MatchDetailView, matchErrorMessage, MatchLobbyQuery, type MatchView, Messages } from '@monsport/shared';
+import { CreateMatchRequest, type MatchDetailView, matchErrorMessage, MatchLobbyQuery, type MatchRequestView, type MatchView, Messages } from '@monsport/shared';
 import type { Observable } from 'rxjs';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { LobbyEvents } from './lobby-events.service.js';
@@ -56,6 +56,14 @@ export class MatchesController {
   @Roles('USER')
   detail(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<MatchDetailView> {
     return this.matches.detail(req.user.id, id);
+  }
+
+  /** Brief F-028 (UC-15, BR-20): the host reads the waiting requests with phone numbers. */
+  @Get(':id/requests')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  requests(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<MatchRequestView[]> {
+    return this.matches.listRequests(req.user.id, id);
   }
 
   /** UC-7 (brief F-011): a user opens a match on their own app booking. BR-22: OWNER and ADMIN get 403. */

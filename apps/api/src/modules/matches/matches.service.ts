@@ -1,13 +1,15 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   ALREADY_IN_MATCH_MESSAGE,
   CALL_OWNER_MESSAGE,
   type CreateMatchRequest,
   HOST_CANNOT_LEAVE_MESSAGE,
+  JOIN_REJECTED_MESSAGE,
   LEAVE_STARTED_MESSAGE,
   MATCH_FULL_MESSAGE,
   type MatchDetailView,
   type MatchLobbyQuery,
+  type MatchRequestView,
   type MatchView,
   type MatchViewerRole,
   NOT_IN_MATCH_MESSAGE,
@@ -27,6 +29,7 @@ const NOT_OPENABLE = 'Chỉ mở được trận trên booking đang chờ xác 
 const BOOKING_NOT_FOUND = 'Không tìm thấy booking';
 const MATCH_NOT_FOUND = 'Không tìm thấy trận';
 const NOT_CANCELLABLE = 'Trận này không hủy được nữa';
+const NOT_HOST = 'Bạn không có quyền làm việc này';
 const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại';
 const DAY_MS = 24 * 60 * 60_000;
 
@@ -55,6 +58,20 @@ const WITH_DETAIL_RELATIONS = {
 
 type MatchRow = Prisma.MatchGetPayload<{ include: typeof WITH_RELATIONS }>;
 type MatchDetailRow = Prisma.MatchGetPayload<{ include: typeof WITH_DETAIL_RELATIONS }>;
+/** A non-ACTIVE MatchPlayer row that matters to the detail: any PENDING row, and the REJECTED row of the viewer. */
+type RequestRow = { userId: string; status: 'PENDING' | 'REJECTED' };
+
+async function loadRequests(
+  client: Pick<Prisma.TransactionClient, 'matchPlayer'>,
+  matchId: string,
+  viewerId: string,
+): Promise<RequestRow[]> {
+  const rows = await client.matchPlayer.findMany({
+    where: { matchId, OR: [{ status: 'PENDING' }, { status: 'REJECTED', userId: viewerId }] },
+    select: { userId: true, status: true },
+  });
+  return rows as RequestRow[];
+}
 
 export function toMatchView(m: MatchRow): MatchView {
   return {
@@ -74,19 +91,27 @@ export function toMatchView(m: MatchRow): MatchView {
     venueName: m.booking.court.venue.name,
     venueAddress: m.booking.court.venue.address,
     createdAt: m.createdAt.toISOString(),
+    joinMode: m.joinMode,
   };
 }
 
-export function toMatchDetailView(m: MatchDetailRow, viewerId: string): MatchDetailView {
+export function toMatchDetailView(m: MatchDetailRow, viewerId: string, now: Date, requests: RequestRow[] = []): MatchDetailView {
   const viewerRole: MatchViewerRole =
     m.hostId === viewerId
       ? 'HOST'
       : m.players.some((p) => p.userId === viewerId)
         ? 'PLAYER'
         : 'NONE';
+  // BR-52: a PENDING request is expired when the match is not OPEN or FULL, or the booking has started.
+  const requestsLive = (m.status === 'OPEN' || m.status === 'FULL') && m.booking.startAt > now;
+  const mine = requests.find((r) => r.userId === viewerId);
+  const myRequest = mine && (mine.status === 'REJECTED' || requestsLive) ? mine.status : null;
+  const pending = requestsLive ? requests.filter((r) => r.status === 'PENDING').length : 0;
   return {
     ...toMatchView(m),
     viewerRole,
+    myRequest,
+    ...(viewerRole === 'HOST' ? { pendingCount: pending } : {}),
     // BR-20: only the host of the match sees the phone numbers of players.
     players: m.players.map((p) => ({
       userId: p.userId,
@@ -163,6 +188,7 @@ export class MatchesService {
             hostId: userId,
             sport: booking.court.sport,
             capacity: input.capacity,
+            joinMode: input.joinMode ?? 'INSTANT',
             pricePerSlot: input.pricePerSlot,
             status: 'OPEN',
             joinedCount: 1,
@@ -290,7 +316,7 @@ export class MatchesService {
     if (!row) {
       throw new NotFoundException(MATCH_NOT_FOUND);
     }
-    return toMatchDetailView(row, userId);
+    return toMatchDetailView(row, userId, now, await loadRequests(this.prisma, matchId, userId));
   }
 
   /** UC-8 step 4 (brief F-012): a user joins an OPEN match. */
@@ -307,7 +333,8 @@ export class MatchesService {
       | { kind: 'not_joinable' }
       | { kind: 'already_in_match' }
       | { kind: 'match_full' }
-      | { kind: 'joined'; match: MatchDetailRow };
+      | { kind: 'join_rejected' }
+      | { kind: 'joined'; match: MatchDetailRow; requests: RequestRow[] };
     try {
       outcome = await this.prisma.$transaction(async (tx) => {
         await lockVenueOf(tx, found.booking.courtId);
@@ -335,6 +362,23 @@ export class MatchesService {
         if (current.players[0]?.status === 'ACTIVE') {
           return { kind: 'already_in_match' };
         }
+        if (current.joinMode === 'APPROVAL') {
+          // BR-50: a request takes no slot, so a FULL match still takes requests.
+          const mine = current.players[0]?.status;
+          if (mine === 'REJECTED') {
+            return { kind: 'join_rejected' };
+          }
+          if (mine !== 'PENDING') {
+            await tx.matchPlayer.upsert({
+              where: { matchId_userId: { matchId, userId } },
+              create: { matchId, userId, status: 'PENDING', joinedAt: now, leftAt: null },
+              update: { status: 'PENDING', joinedAt: now, leftAt: null },
+            });
+            await tx.$executeRaw`SELECT pg_notify('lobby', ${matchId})`;
+          }
+          const unchanged = await tx.match.findUniqueOrThrow({ where: { id: matchId }, include: WITH_DETAIL_RELATIONS });
+          return { kind: 'joined', match: unchanged, requests: await loadRequests(tx, matchId, userId) };
+        }
         if (current.joinedCount >= current.capacity || current.status === 'FULL') {
           return { kind: 'match_full' };
         }
@@ -352,7 +396,7 @@ export class MatchesService {
           },
           include: WITH_DETAIL_RELATIONS,
         });
-        return { kind: 'joined', match: updated };
+        return { kind: 'joined', match: updated, requests: await loadRequests(tx, matchId, userId) };
       });
     } catch (error) {
       if (isDeadlock(error)) throw new ConflictException(BUSY);
@@ -362,7 +406,8 @@ export class MatchesService {
     if (outcome.kind === 'not_joinable') throw new ConflictException(NOT_JOINABLE_MESSAGE);
     if (outcome.kind === 'already_in_match') throw new ConflictException(ALREADY_IN_MATCH_MESSAGE);
     if (outcome.kind === 'match_full') throw new ConflictException(MATCH_FULL_MESSAGE);
-    return toMatchDetailView(outcome.match, userId);
+    if (outcome.kind === 'join_rejected') throw new ConflictException(JOIN_REJECTED_MESSAGE);
+    return toMatchDetailView(outcome.match, userId, now, outcome.requests);
   }
 
   /** UC-8 flow 8.1 (brief F-012): a non-host ACTIVE player leaves a match before startAt (BR-18). */
@@ -380,7 +425,7 @@ export class MatchesService {
       | { kind: 'not_in_match' }
       | { kind: 'not_leavable' }
       | { kind: 'leave_started' }
-      | { kind: 'left'; match: MatchDetailRow };
+      | { kind: 'left'; match: MatchDetailRow; requests: RequestRow[] };
     try {
       outcome = await this.prisma.$transaction(async (tx) => {
         await lockVenueOf(tx, found.booking.courtId);
@@ -400,6 +445,13 @@ export class MatchesService {
         });
         if (current.hostId === userId) {
           return { kind: 'host_cannot_leave' };
+        }
+        if (current.players[0]?.status === 'PENDING') {
+          // AC-9: cancel the request. The row is deleted so a new request starts clean.
+          await tx.matchPlayer.delete({ where: { matchId_userId: { matchId, userId } } });
+          await tx.$executeRaw`SELECT pg_notify('lobby', ${matchId})`;
+          const unchanged = await tx.match.findUniqueOrThrow({ where: { id: matchId }, include: WITH_DETAIL_RELATIONS });
+          return { kind: 'left', match: unchanged, requests: await loadRequests(tx, matchId, userId) };
         }
         if (current.players[0]?.status !== 'ACTIVE') {
           return { kind: 'not_in_match' };
@@ -423,7 +475,7 @@ export class MatchesService {
           },
           include: WITH_DETAIL_RELATIONS,
         });
-        return { kind: 'left', match: updated };
+        return { kind: 'left', match: updated, requests: await loadRequests(tx, matchId, userId) };
       });
     } catch (error) {
       if (isDeadlock(error)) throw new ConflictException(BUSY);
@@ -434,7 +486,31 @@ export class MatchesService {
     if (outcome.kind === 'not_in_match') throw new ConflictException(NOT_IN_MATCH_MESSAGE);
     if (outcome.kind === 'not_leavable') throw new ConflictException(NOT_LEAVABLE_MESSAGE);
     if (outcome.kind === 'leave_started') throw new ConflictException(LEAVE_STARTED_MESSAGE);
-    return toMatchDetailView(outcome.match, userId);
+    return toMatchDetailView(outcome.match, userId, now, outcome.requests);
+  }
+
+  /** Brief F-028 (UC-15, BR-20): the host reads the waiting requests, oldest first. Read only, so no locks. */
+  async listRequests(userId: string, matchId: string): Promise<MatchRequestView[]> {
+    const found = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      select: { hostId: true, status: true, booking: { select: { startAt: true } } },
+    });
+    if (!found) {
+      throw new NotFoundException(MATCH_NOT_FOUND);
+    }
+    if (found.hostId !== userId) {
+      throw new ForbiddenException(NOT_HOST);
+    }
+    // BR-52: requests of a closed or started match are expired.
+    if ((found.status !== 'OPEN' && found.status !== 'FULL') || found.booking.startAt <= this.clock.now()) {
+      return [];
+    }
+    const rows = await this.prisma.matchPlayer.findMany({
+      where: { matchId, status: 'PENDING' },
+      orderBy: [{ joinedAt: 'asc' }, { userId: 'asc' }],
+      include: { user: { select: { name: true, phone: true } } },
+    });
+    return rows.map((r) => ({ userId: r.userId, name: r.user.name, phone: r.user.phone, requestedAt: r.joinedAt.toISOString() }));
   }
 
   /** UC-9 (brief F-011): the host cancels their match, which also cancels the underlying booking (BR-17). */

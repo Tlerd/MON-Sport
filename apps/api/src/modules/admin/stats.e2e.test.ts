@@ -183,6 +183,23 @@ describe('Admin stats API (F-016 / UC-13)', () => {
     expect(res.body.activeUsers).toBe(3);
   });
 
+  it('AC-16: PENDING and REJECTED rows and a cancelled request do not make an active user, ACTIVE and LEFT rows do', async () => {
+    // Dũng is an owner, so hosting does not count. His match and bookings are outside the week.
+    const m = await match({ bookingId: await booking({ who: 'Bình', source: 'PHONE' }), host: 'Dũng' });
+    const row = (who: string, status: 'PENDING' | 'REJECTED' | 'ACTIVE' | 'LEFT') =>
+      db.matchPlayer.create({ data: { matchId: m, userId: ids[who], status, joinedAt: vn('2026-11-18') } });
+    await row('An', 'PENDING');
+    await row('Chi', 'REJECTED');
+    // Lan sent a request and cancelled it: no row exists.
+    let res = await getStats('Quản trị', '2026-11-20').expect(200);
+    expect(res.body.activeUsers).toBe(0);
+
+    await row('Mai', 'ACTIVE');
+    await row('Lan', 'LEFT');
+    res = await getStats('Quản trị', '2026-11-20').expect(200);
+    expect(res.body.activeUsers).toBe(2);
+  });
+
   it('AC-4: counts confirmed bookings and live matches of each venue, sorted by name, overdue pending excluded', async () => {
     const day = '2026-11-17';
     const confirmed: string[] = [];
