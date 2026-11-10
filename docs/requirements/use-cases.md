@@ -154,13 +154,13 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Trigger | Người ghép trận thấy một trận trong phòng chờ |
 | Description | Người ghép trận lọc phòng chờ theo môn và ngày, xem chi tiết trận, rồi bấm xác nhận để vào trận. Trong trận "Vào ngay" host không duyệt. Trong trận "Host duyệt" người ghép trận gửi yêu cầu và host quyết định (UC-15) |
 | Preconditions | PRE-8: người ghép trận đã đăng nhập |
-| Postconditions | POST-8: người ghép trận có một suất trong trận |
+| Postconditions | POST-8: người ghép trận có một suất trong trận "Vào ngay", hoặc một yêu cầu "Chờ duyệt" trong trận "Host duyệt" |
 | Normal Flow | 8.0<br>1. Người ghép trận lọc phòng chờ theo môn và ngày.<br>2. Hệ thống hiện các trận "Mở".<br>3. Người ghép trận mở chi tiết: sân, giờ, host, số suất trống và giá.<br>4. Người ghép trận bấm xác nhận.<br>5. Hệ thống thêm người đó vào trận. Khi hết suất, trận chuyển sang "Đầy" (BR-15) |
-| Alternative Flows | 8.1 Rời trận: người ghép trận rời một trận đã vào. Hệ thống bỏ người đó khỏi trận, và trận "Đầy" về "Mở" (BR-15, BR-18)<br>8.2 Xem các trận đã vào: hệ thống hiện các trận của người đó |
-| Exceptions | 8.0.E1 Hai người cùng bấm vào suất cuối: một người vào được, người kia nhận "Trận đã đủ người"<br>8.1.E1 Đã tới giờ bắt đầu: hệ thống không cho rời (BR-18) |
+| Alternative Flows | 8.1 Rời trận: người ghép trận rời một trận đã vào. Hệ thống bỏ người đó khỏi trận, và trận "Đầy" về "Mở" (BR-15, BR-18)<br>8.2 Xem các trận đã vào: hệ thống hiện các trận của người đó<br>8.3 Hủy yêu cầu: người ghép trận hủy yêu cầu "Chờ duyệt" của mình. Hệ thống xóa yêu cầu, và người đó gửi lại được |
+| Exceptions | 8.0.E1 Hai người cùng bấm vào suất cuối: một người vào được, người kia nhận "Trận đã đủ người"<br>8.0.E2 Bị host từ chối: hệ thống từ chối yêu cầu gửi lại và hiện "Host đã từ chối yêu cầu của bạn" (BR-51)<br>8.1.E1 Đã tới giờ bắt đầu: hệ thống không cho rời (BR-18) |
 | Priority | High |
 | Frequency of Use | Khoảng 40 lần vào trận mỗi ngày |
-| Business Rules | BR-15, BR-18, BR-20, BR-49, BR-50 |
+| Business Rules | BR-15, BR-18, BR-20, BR-49, BR-50, BR-51, BR-52 |
 | Other Information | App chỉ hiện giá mỗi suất. Host tự thu tiền tại sân |
 | Assumptions | Người đã rời vào lại được khi trận còn "Mở" |
 
@@ -259,7 +259,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Row | Content |
 |---|---|
 | Primary Actor, Secondary Actors | Hệ thống · Chủ sân, Người dùng |
-| Trigger | Có yêu cầu đặt sân mới, booking được xác nhận hoặc bị từ chối, hoặc trận bị hủy |
+| Trigger | Có yêu cầu đặt sân mới, booking được xác nhận hoặc bị từ chối, hoặc trận bị hủy, có yêu cầu vào trận mới, yêu cầu được duyệt hoặc bị từ chối |
 | Description | Hệ thống gửi Web Push và thêm một dòng vào danh sách thông báo trong app |
 | Preconditions | PRE-14: người nhận đã đăng ký Web Push, nếu muốn nhận push |
 | Postconditions | POST-14: người nhận có một thông báo trong app |
@@ -281,7 +281,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Description | Host xem hàng chờ của trận và duyệt hoặc từ chối từng yêu cầu. Yêu cầu không giữ suất |
 | Preconditions | PRE-15: trận có chế độ "Host duyệt" và có yêu cầu "Chờ duyệt" |
 | Postconditions | POST-15: người được duyệt có suất. Người bị từ chối không có suất |
-| Normal Flow | 15.0<br>1. Host mở hàng chờ của trận.<br>2. Hệ thống hiện các yêu cầu "Chờ duyệt" theo thời gian gửi (BR-52).<br>3. Host duyệt một yêu cầu.<br>4. Hệ thống thêm người đó vào trận khi còn suất. Khi hết suất, trận chuyển sang "Đầy" (BR-15, BR-50).<br>5. Hệ thống báo người xin (UC-14) |
+| Normal Flow | 15.0<br>1. Host mở hàng chờ của trận.<br>2. Hệ thống hiện các yêu cầu "Chờ duyệt" chưa hết hạn (BR-52), theo thời gian gửi.<br>3. Host duyệt một yêu cầu.<br>4. Hệ thống thêm người đó vào trận khi còn suất. Khi hết suất, trận chuyển sang "Đầy" (BR-15, BR-50).<br>5. Hệ thống báo người xin (UC-14) |
 | Alternative Flows | 15.1 Từ chối: host từ chối một yêu cầu. Hệ thống đánh dấu "Bị từ chối" và báo người xin (BR-51, UC-14) |
 | Exceptions | 15.0.E1 Trận đã đủ người: hệ thống từ chối duyệt và báo "Trận đã đủ người"<br>15.0.E2 Yêu cầu đã hết hạn: hệ thống báo yêu cầu hết hạn và không thêm người (BR-52) |
 | Priority | High |

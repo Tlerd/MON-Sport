@@ -54,11 +54,11 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | Match.pricePerSlot | Giá mỗi suất, chỉ để hiển thị | money | — | 0 trở lên |
 | Match.sport | Môn của trận | Sport | — | Bằng `Court.sport` của sân |
 | Match.status | Trạng thái trận | MatchStatus | — | Mặc định `OPEN` |
-| MatchPlayer | Một người trong một trận | matchId + userId + status + joinedAt + (leftAt) | — | Duy nhất theo (`matchId`, `userId`). Vào lại thì cập nhật dòng cũ |
+| MatchPlayer | Một người trong một trận | matchId + userId + status + joinedAt + (leftAt) | — | Duy nhất theo (`matchId`, `userId`). Vào lại thì cập nhật dòng cũ. Hủy yêu cầu xóa dòng `PENDING` |
 | MatchPlayer.joinedAt | Lúc vào trận gần nhất, hoặc lúc gửi yêu cầu gần nhất khi `status` là `PENDING` | timestamptz(3) | — | Duyệt yêu cầu đặt `status` là `ACTIVE` và `joinedAt` là lúc duyệt. Người xin hủy yêu cầu thì dòng `PENDING` bị xóa |
 | MatchPlayer.leftAt | Lúc rời trận | timestamptz(3) | — | Có khi `status` = `LEFT` |
 | MatchPlayer.matchId | Trận | id của Match | 36 | — |
-| MatchPlayer.status | Người đó còn suất hay không | MatchPlayerStatus | — | — |
+| MatchPlayer.status | Trạng thái của người đó trong trận: có suất, đã rời, chờ duyệt hoặc bị từ chối | MatchPlayerStatus | — | — |
 | MatchPlayer.userId | Người trong trận | id của User | 36 | — |
 | MatchPlayerStatus | Trạng thái của một người trong trận | enum | — | `ACTIVE` còn suất · `LEFT` đã rời · `PENDING` Chờ duyệt (chưa có suất, BR-50) · `REJECTED` Bị từ chối (BR-51) |
 | MatchStatus | Trạng thái của trận | enum | — | `OPEN` Mở · `FULL` Đầy · `CANCELLED` Đã hủy · `FINISHED` Đã đá xong |

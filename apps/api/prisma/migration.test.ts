@@ -384,3 +384,58 @@ describe('migration f004_google_otp', () => {
   });
 });
 
+
+describe('migration 20261110000000_f028_match_join_approval', () => {
+  const setup = async () => {
+    const bookingId = randomUUID();
+    const matchId = randomUUID();
+    const joinerIds = [randomUUID(), randomUUID()];
+    await db.query(
+      `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+       VALUES ($1, $2, '2026-11-25T16:00:00+07:00', '2026-11-25T17:00:00+07:00', 'PENDING', 'APP', $3, 80000)`,
+      [bookingId, courtId, userId],
+    );
+    await db.query(
+      `INSERT INTO "Match" (id, "bookingId", "hostId", sport, capacity, "pricePerSlot", status, "joinedCount")
+       VALUES ($1, $2, $3, 'BADMINTON', 4, 50000, 'OPEN', 1)`,
+      [matchId, bookingId, userId],
+    );
+    for (const id of joinerIds) {
+      await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'Joiner', $2, 'x')`, [
+        id,
+        `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+      ]);
+    }
+    return { matchId, joinerIds };
+  };
+  const cleanup = async (matchId: string, joinerIds: string[]) => {
+    await db.query('DELETE FROM "MatchPlayer" WHERE "matchId" = $1', [matchId]);
+    await db.query('DELETE FROM "Match" WHERE id = $1', [matchId]);
+    await db.query(`DELETE FROM "Booking" WHERE "courtId" = $1 AND "startAt" = '2026-11-25T16:00:00+07:00'`, [courtId]);
+    await db.query('DELETE FROM "User" WHERE id = ANY($1::uuid[])', [joinerIds]);
+  };
+
+  it('AC-1: a Match row inserted without joinMode reads back INSTANT', async () => {
+    const { matchId, joinerIds } = await setup();
+    try {
+      const { rows } = await db.query('SELECT "joinMode" FROM "Match" WHERE id = $1', [matchId]);
+      expect(rows).toEqual([{ joinMode: 'INSTANT' }]);
+    } finally {
+      await cleanup(matchId, joinerIds);
+    }
+  });
+
+  it('AC-1: the database accepts a MatchPlayer row with status PENDING and one with status REJECTED', async () => {
+    const { matchId, joinerIds } = await setup();
+    try {
+      const player = (uId: string, status: string) =>
+        db.query(`INSERT INTO "MatchPlayer" ("matchId", "userId", status, "joinedAt") VALUES ($1, $2, $3::"MatchPlayerStatus", now())`, [matchId, uId, status]);
+      expect(await sqlState(player(joinerIds[0]!, 'PENDING'))).toBe('ok');
+      expect(await sqlState(player(joinerIds[1]!, 'REJECTED'))).toBe('ok');
+      const { rows } = await db.query('SELECT status FROM "MatchPlayer" WHERE "matchId" = $1 ORDER BY status', [matchId]);
+      expect(rows).toEqual([{ status: 'PENDING' }, { status: 'REJECTED' }]);
+    } finally {
+      await cleanup(matchId, joinerIds);
+    }
+  });
+});
