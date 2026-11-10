@@ -5,7 +5,7 @@ lang: vi
 
 # Kế hoạch: giai đoạn Maintain (vòng giám sát tự chạy)
 
-Status: draft, 2026-11-10. Chờ Reviewer và chủ dự án. Agent chưa code phần nào của kế hoạch này tới khi chủ dự án duyệt.
+Status: đã duyệt, 2026-11-10. Chủ dự án duyệt kế hoạch và thứ tự 4 pha ("Duyệt, merge"). Pha 1 bắt đầu sau khi chuỗi PR F-028 merge.
 
 Source: người dùng, 2026-11-10 ("Lập kế hoạch"), sau khi so repo với 6 giai đoạn của playbook. Tài liệu: [The AI-native SDLC playbook](https://claude.com/blog/the-ai-native-sdlc-playbook), mục "Stage 6 – Maintain" và "Recurring codebase scans".
 
@@ -147,7 +147,7 @@ Khi chủ dự án đóng issue với nhãn `maintain-dismissed`, agent xem lạ
 
 | Câu hỏi | Chủ | Chặn |
 |---|---|---|
-| Duyệt kế hoạch này và thứ tự 4 pha | Chủ dự án | Pha 1 |
+| Duyệt kế hoạch này và thứ tự 4 pha. Đã chốt ngày 2026-11-10: "Duyệt, merge" | Chủ dự án | Không |
 | Cài tác vụ Task Scheduler `MONSPORT-Maintain` sau khi pha 1 merge. Chọn "Run only when user is logged on", vì token của `gh` nằm trong keyring của người dùng | Chủ dự án | Pha 1 chạy thật |
 | Thêm `ANTHROPIC_API_KEY` vào GitHub để chạy trên cloud | Chủ dự án | Không. Mặc định chạy trên máy dev |
 | Ngoài email của GitHub, có cần báo qua Telegram không | Chủ dự án | Không |
