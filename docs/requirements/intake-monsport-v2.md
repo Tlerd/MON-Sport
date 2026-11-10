@@ -53,16 +53,19 @@ Thanh toán trong app (W6) và MCP (W7) chưa vào V2 cho tới khi bạn duyệ
 6. "Từ chối": yêu cầu thành "Bị từ chối". Người đó không xin lại trận này.
 7. Người xin hủy được yêu cầu "Chờ duyệt" của mình, và xin lại sau đó.
 8. Người đã có suất rời trận như V1 (BR-18). Có suất trống thì host duyệt tiếp được.
-9. Yêu cầu "Chờ duyệt" hết hạn khi trận bắt đầu hoặc bị hủy.
+9. Yêu cầu "Chờ duyệt" hết hạn khi trận bị hủy hoặc bắt đầu (BR-52). Hết hạn thì host không thấy yêu cầu và người xin không thấy "Chờ duyệt".
+10. Trận "Host duyệt" đã "Đầy" vẫn nhận yêu cầu mới. Đó là hàng chờ.
 
 ### Luật mới (đề xuất)
 
 | # | Luật |
 |---|---|
-| BR-33 | Trận có một chế độ vào trận: "Vào ngay" hoặc "Host duyệt". Host chọn lúc mở trận và không đổi sau đó |
-| BR-34 | Yêu cầu vào trận không giữ suất. Chỉ khi host duyệt, người đó mới có suất, và chỉ khi trận còn suất. Kiểm tra và thêm người dưới cùng một khóa với BR-15 |
-| BR-35 | Người bị host từ chối không gửi lại yêu cầu vào trận đó |
-| BR-36 | Yêu cầu "Chờ duyệt" hết hạn khi trận bắt đầu hoặc bị hủy. Trận "Đầy" không làm yêu cầu hết hạn |
+| BR-49 | Trận có một chế độ vào trận: "Vào ngay" hoặc "Host duyệt". Host chọn lúc mở trận và không đổi sau đó |
+| BR-50 | Yêu cầu vào trận không giữ suất. Chỉ khi host duyệt, người đó mới có suất, và chỉ khi trận còn suất. Kiểm tra và thêm người dưới cùng một khóa với BR-15 |
+| BR-51 | Người bị host từ chối không gửi lại yêu cầu vào trận đó |
+| BR-52 | Yêu cầu "Chờ duyệt" hết hạn khi trận không còn "Mở" hoặc "Đầy", hoặc khi đã qua giờ bắt đầu. Trận "Đầy" không làm yêu cầu hết hạn. Mọi chỗ đọc yêu cầu áp dụng cùng quy tắc này |
+
+BR-33 đến BR-48 đã có trong `business-rules.md` (đăng nhập Google và OTP). Các luật mới của V2 bắt đầu từ BR-49.
 
 BR-20 áp dụng cho yêu cầu: host thấy số điện thoại của người xin.
 
