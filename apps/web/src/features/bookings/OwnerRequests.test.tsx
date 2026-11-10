@@ -68,6 +68,8 @@ describe('OwnerRequests', () => {
       expect.objectContaining({
         method: 'PATCH',
         body: JSON.stringify({ paidAtVenue: true }),
+        // Without this header the body goes out as text/plain and the API answers 400.
+        headers: expect.objectContaining({ 'content-type': 'application/json' }),
       }),
     );
   });
