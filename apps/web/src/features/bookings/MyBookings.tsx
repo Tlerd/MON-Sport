@@ -1,4 +1,4 @@
-import { CALL_OWNER_MESSAGE, type MatchStatus, type MatchView, type MyBookingView, userCancelDecision } from '@monsport/shared';
+import { CALL_OWNER_MESSAGE, type JoinMode, type MatchStatus, type MatchView, type MyBookingView, userCancelDecision } from '@monsport/shared';
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { api, ApiError, formatDay, formatSlot, formatTime, formatVnd } from '@monsport/client';
 import { EmptyState } from '../../components/EmptyState.tsx';
@@ -22,6 +22,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
   const [openingId, setOpeningId] = useState('');
   const [capacity, setCapacity] = useState('4');
   const [pricePerSlot, setPricePerSlot] = useState('50000');
+  const [joinMode, setJoinMode] = useState<JoinMode>('INSTANT');
   const [cancelMatchId, setCancelMatchId] = useState('');
   const [matchBusy, setMatchBusy] = useState(false);
   const [matchError, setMatchError] = useState('');
@@ -44,6 +45,12 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
     setOpeningId(bookingId);
     setCapacity('4');
     setPricePerSlot('50000');
+    setJoinMode('INSTANT');
+  }
+
+  function closeOpenMatch() {
+    setOpeningId('');
+    setJoinMode('INSTANT');
   }
 
   async function submitMatch(e: FormEvent, bookingId: string) {
@@ -58,6 +65,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
           bookingId,
           capacity: Number(capacity),
           pricePerSlot: Number(pricePerSlot),
+          joinMode,
         }),
       });
       setRows((all) =>
@@ -76,7 +84,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
             : r,
         ) ?? null,
       );
-      setOpeningId('');
+      closeOpenMatch();
       onMatchChanged?.();
     } catch (err) {
       setMatchError(err instanceof ApiError ? err.message : 'Không mở được trận');
@@ -171,9 +179,34 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
                           <input type="number" min={0} max={10_000_000} required value={pricePerSlot} onChange={(e) => setPricePerSlot(e.target.value)} />
                         </label>
                       </div>
+                      <fieldset className="join-mode-fieldset">
+                        <legend>Cách vào trận</legend>
+                        <div className="join-mode-options">
+                          <label className="join-mode-option">
+                            <input
+                              type="radio"
+                              name={`joinMode-${b.id}`}
+                              value="INSTANT"
+                              checked={joinMode === 'INSTANT'}
+                              onChange={() => setJoinMode('INSTANT')}
+                            />
+                            <span>Vào ngay</span>
+                          </label>
+                          <label className="join-mode-option">
+                            <input
+                              type="radio"
+                              name={`joinMode-${b.id}`}
+                              value="APPROVAL"
+                              checked={joinMode === 'APPROVAL'}
+                              onChange={() => setJoinMode('APPROVAL')}
+                            />
+                            <span>Host duyệt</span>
+                          </label>
+                        </div>
+                      </fieldset>
                       <span className="actions">
                         <button type="submit" disabled={matchBusy}>Tạo trận</button>
-                        <button type="button" className="keep" onClick={() => setOpeningId('')}>Đóng</button>
+                        <button type="button" className="keep" onClick={closeOpenMatch}>Đóng</button>
                       </span>
                     </form>
                   )}

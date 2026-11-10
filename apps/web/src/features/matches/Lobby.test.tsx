@@ -318,4 +318,212 @@ describe('Lobby (F-011 and F-012)', () => {
     expect(Boolean(filterRow!.compareDocumentPosition(listPane!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
     expect(Boolean(filterRow!.compareDocumentPosition(detailPane!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   });
+
+  it('AC-12: shows "Host duyệt" badge on APPROVAL match, lets player request and cancel request, and shows rejected state without join button', async () => {
+    const lanUser: SessionUser = { id: '0199a1b2-0000-7000-8000-000000000105', name: 'Lan', role: 'USER' };
+    const mInstant = { ...m1, joinMode: 'INSTANT' as const };
+    const mApproval = {
+      ...m2,
+      joinMode: 'APPROVAL' as const,
+      capacity: 4,
+      joinedCount: 1,
+    };
+
+    const detailInstant: MatchDetailView = {
+      ...mInstant,
+      viewerRole: 'NONE',
+      players: [{ userId: mInstant.hostId, name: mInstant.hostName, phone: null, joinedAt: '2026-11-20T03:00:00.000Z' }],
+      myRequest: null,
+    };
+
+    let currentApprovalDetail: MatchDetailView = {
+      ...mApproval,
+      viewerRole: 'NONE',
+      players: [{ userId: mApproval.hostId, name: mApproval.hostName, phone: null, joinedAt: '2026-11-20T03:00:00.000Z' }],
+      myRequest: null,
+    };
+
+    const fetch = vi.fn((url: string, options?: RequestInit) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mInstant, mApproval]) });
+      }
+      if (url === `/api/matches/${mInstant.id}`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detailInstant) });
+      }
+      if (url === `/api/matches/${mApproval.id}`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(currentApprovalDetail) });
+      }
+      if (url === `/api/matches/${mApproval.id}/join` && options?.method === 'POST') {
+        currentApprovalDetail = { ...currentApprovalDetail, myRequest: 'PENDING' };
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(currentApprovalDetail) });
+      }
+      if (url === `/api/matches/${mApproval.id}/leave` && options?.method === 'POST') {
+        currentApprovalDetail = { ...currentApprovalDetail, myRequest: null };
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(currentApprovalDetail) });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby user={lanUser} />);
+    expect(await screen.findByText('Cầu lông A · Sân 1')).toBeTruthy();
+    expect(screen.getByText('Cầu lông A · Sân 2')).toBeTruthy();
+
+    const tickets = screen.getAllByRole('listitem');
+    expect(within(tickets[0]).queryByText('Host duyệt')).toBeNull();
+    expect(within(tickets[1]).getByText('Host duyệt')).toBeTruthy();
+
+    // Open INSTANT match detail -> keeps "Vào trận"
+    fireEvent.click(within(tickets[0]).getByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByRole('button', { name: 'Vào trận' })).toBeTruthy();
+
+    // Open APPROVAL match detail -> shows "Xin vào" and not "Vào trận"
+    fireEvent.click(within(tickets[1]).getByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByRole('button', { name: 'Xin vào' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Vào trận' })).toBeNull();
+
+    // Click "Xin vào" -> calls POST /api/matches/:id/join, shows pending status and "Hủy yêu cầu"
+    fireEvent.click(screen.getByRole('button', { name: 'Xin vào' }));
+    await vi.waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(`/api/matches/${mApproval.id}/join`, expect.objectContaining({ method: 'POST' })),
+    );
+    expect(await screen.findByText('Đã gửi yêu cầu. Chờ host duyệt')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Hủy yêu cầu' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Xin vào' })).toBeNull();
+
+    // Click "Hủy yêu cầu" -> calls POST /api/matches/:id/leave, brings "Xin vào" back
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy yêu cầu' }));
+    await vi.waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(`/api/matches/${mApproval.id}/leave`, expect.objectContaining({ method: 'POST' })),
+    );
+    expect(await screen.findByRole('button', { name: 'Xin vào' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Hủy yêu cầu' })).toBeNull();
+
+    // Re-open when myRequest is REJECTED -> shows rejected text and no join button
+    currentApprovalDetail = { ...currentApprovalDetail, myRequest: 'REJECTED' };
+    fireEvent.click(within(tickets[1]).getByRole('button', { name: 'Đóng chi tiết' }));
+    fireEvent.click(within(tickets[1]).getByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByText('Host đã từ chối yêu cầu của bạn')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Xin vào' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Vào trận' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hủy yêu cầu' })).toBeNull();
+  });
+
+  it('AC-13: host sees pending queue, reloads on SSE match event, approves and rejects requests, and shows 409 alert on full match', async () => {
+    const hostUser: SessionUser = { id: m1.hostId, name: 'An', role: 'USER' };
+    const lanId = '0199a1b2-0000-7000-8000-000000000105';
+    const minhId = '0199a1b2-0000-7000-8000-000000000106';
+
+    let matchListener: ((e: MessageEvent) => void) | null = null;
+    class MockEventSource {
+      constructor(public url: string) {}
+      addEventListener(type: string, listener: (e: MessageEvent) => void) {
+        if (type === 'match') matchListener = listener;
+      }
+      close() {}
+    }
+    vi.stubGlobal('EventSource', MockEventSource);
+
+    const mApproval = { ...m1, joinMode: 'APPROVAL' as const, capacity: 4, joinedCount: 1 };
+    let currentDetail: MatchDetailView = {
+      ...mApproval,
+      viewerRole: 'HOST',
+      pendingCount: 1,
+      players: [{ userId: m1.hostId, name: 'An', phone: '0901234567', joinedAt: '2026-11-20T03:00:00.000Z' }],
+    };
+    let currentRequests = [
+      { userId: lanId, name: 'Lan', phone: '0901234568', requestedAt: '2026-11-20T03:05:00.000Z' },
+    ];
+    let failApprove = false;
+
+    const fetch = vi.fn((url: string, options?: RequestInit) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mApproval]) });
+      }
+      if (url === `/api/matches/${mApproval.id}`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(currentDetail) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(currentRequests) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests/${lanId}/approve` && options?.method === 'POST') {
+        if (failApprove) {
+          return Promise.resolve({ ok: false, status: 409, json: () => Promise.resolve({ message: 'Trận đã đủ người' }) });
+        }
+        currentDetail = {
+          ...currentDetail,
+          joinedCount: 2,
+          pendingCount: 1,
+          players: [
+            ...currentDetail.players,
+            { userId: lanId, name: 'Lan', phone: '0901234568', joinedAt: '2026-11-20T03:10:00.000Z' },
+          ],
+        };
+        currentRequests = currentRequests.filter((r) => r.userId !== lanId);
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(currentDetail) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests/${minhId}/reject` && options?.method === 'POST') {
+        currentDetail = { ...currentDetail, pendingCount: 0 };
+        currentRequests = currentRequests.filter((r) => r.userId !== minhId);
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(currentDetail) });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby user={hostUser} />);
+    expect(await screen.findByText('Cầu lông A · Sân 1')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết' }));
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith(`/api/matches/${mApproval.id}/requests`, expect.anything()));
+
+    expect(await screen.findByText('Hàng chờ (1)')).toBeTruthy();
+    expect(screen.getByText('Lan')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Duyệt' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Từ chối' })).toBeTruthy();
+
+    // SSE match event arrives -> reloads detail and requests (now 2 entries)
+    currentDetail = { ...currentDetail, pendingCount: 2 };
+    currentRequests = [
+      { userId: lanId, name: 'Lan', phone: '0901234568', requestedAt: '2026-11-20T03:05:00.000Z' },
+      { userId: minhId, name: 'Minh', phone: '0901234569', requestedAt: '2026-11-20T03:06:00.000Z' },
+    ];
+    expect(matchListener).not.toBeNull();
+    matchListener!({ data: JSON.stringify({ id: mApproval.id }) } as MessageEvent);
+
+    expect(await screen.findByText('Hàng chờ (2)')).toBeTruthy();
+    expect(screen.getByText('Minh')).toBeTruthy();
+
+    // Approve fails with 409 "Trận đã đủ người" -> shows alert and keeps the row
+    failApprove = true;
+    const approveButtonsBefore = screen.getAllByRole('button', { name: 'Duyệt' });
+    fireEvent.click(approveButtonsBefore[0]);
+    expect((await screen.findByRole('alert')).textContent).toContain('Trận đã đủ người');
+    expect(screen.getByText('Hàng chờ (2)')).toBeTruthy();
+    expect(screen.getByText('Lan')).toBeTruthy();
+
+    // Approve succeeds -> Lan moves to "Người tham gia" and queue count drops to 1
+    failApprove = false;
+    fireEvent.click(screen.getAllByRole('button', { name: 'Duyệt' })[0]);
+    await vi.waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        `/api/matches/${mApproval.id}/requests/${lanId}/approve`,
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    expect(await screen.findByText('Hàng chờ (1)')).toBeTruthy();
+    const playersSection = screen.getByText('Người tham gia:').closest('.players-section')!;
+    expect(within(playersSection as HTMLElement).getByText(/Lan/)).toBeTruthy();
+
+    // Clicking "Từ chối" on Minh calls .../reject and queue becomes empty
+    fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
+    await vi.waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        `/api/matches/${mApproval.id}/requests/${minhId}/reject`,
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    expect(await screen.findByText('Hàng chờ (0)')).toBeTruthy();
+    expect(screen.getByText('Chưa có yêu cầu')).toBeTruthy();
+  });
 });

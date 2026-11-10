@@ -1,13 +1,15 @@
 import {
   addDaysYmd,
   vnDateString,
+  type JoinMode,
   type MatchDetailView,
+  type MatchRequestView,
   type MatchView,
   type SessionUser,
   type Sport,
 } from '@monsport/shared';
 import { CalendarDays } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Chip } from '../../components/Chip.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { SportIcon } from '../../components/icons.tsx';
@@ -56,6 +58,8 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MatchDetailView | null>(null);
+  const [requests, setRequests] = useState<MatchRequestView[]>([]);
+  const [busyRequestUserId, setBusyRequestUserId] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string>('');
   const [actionError, setActionError] = useState<string>('');
   const [loadingAction, setLoadingAction] = useState(false);
@@ -74,17 +78,53 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
 
   const isOtherDate = date !== '' && !dateOptions.some((d) => d.ymd === date);
 
-  // AC-12: listen to SSE /api/matches/stream and reload when a match event arrives.
+  const selectedMatch = matches?.find((m) => m.id === expandedId) ?? null;
+
+  const loadDetail = useCallback(async (matchId: string, matchJoinMode?: JoinMode) => {
+    try {
+      const data = await api<MatchDetailView>(`/api/matches/${matchId}`);
+      setDetail(data);
+      if (data.viewerRole === 'HOST' && (data.joinMode === 'APPROVAL' || matchJoinMode === 'APPROVAL')) {
+        const reqs = await api<MatchRequestView[]>(`/api/matches/${matchId}/requests`);
+        setRequests(reqs);
+      } else {
+        setRequests([]);
+      }
+    } catch (e) {
+      setDetailError((e as { message?: string })?.message ?? 'Không tải được chi tiết trận');
+    }
+  }, []);
+
+  const liveStateRef = useRef<{
+    expandedId: string | null;
+    user: SessionUser | null | undefined;
+    joinMode: JoinMode | undefined;
+  }>({
+    expandedId: null,
+    user: null,
+    joinMode: undefined,
+  });
+  liveStateRef.current = {
+    expandedId,
+    user,
+    joinMode: detail?.joinMode ?? selectedMatch?.joinMode,
+  };
+
+  // AC-12 & AC-13: listen to SSE /api/matches/stream and reload list, open detail, and host requests when a match event arrives.
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
     const es = new EventSource('/api/matches/stream');
     es.addEventListener('match', () => {
       setStreamTick((t) => t + 1);
+      const { expandedId: currentId, user: currentUser, joinMode } = liveStateRef.current;
+      if (currentId && currentUser) {
+        void loadDetail(currentId, joinMode);
+      }
     });
     return () => {
       es.close();
     };
-  }, []);
+  }, [loadDetail]);
 
   useEffect(() => {
     let current = true;
@@ -113,24 +153,23 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     if (expandedId === m.id) {
       setExpandedId(null);
       setDetail(null);
+      setRequests([]);
+      setBusyRequestUserId(null);
       setDetailError('');
       setActionError('');
       return;
     }
     setExpandedId(m.id);
     setDetail(null);
+    setRequests([]);
+    setBusyRequestUserId(null);
     setDetailError('');
     setActionError('');
 
     // AC-11: unauthenticated guests see login prompt and web does not call GET /api/matches/<id>.
     if (!user) return;
 
-    try {
-      const data = await api<MatchDetailView>(`/api/matches/${m.id}`);
-      setDetail(data);
-    } catch (e) {
-      setDetailError((e as { message?: string })?.message ?? 'Không tải được chi tiết trận');
-    }
+    await loadDetail(m.id, m.joinMode);
   }
 
   async function handleJoin(id: string) {
@@ -163,8 +202,33 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     }
   }
 
-  const selectedMatch = matches?.find((m) => m.id === expandedId) ?? null;
+  async function handleRequestDecision(matchId: string, requestUserId: string, action: 'approve' | 'reject') {
+    setActionError('');
+    setBusyRequestUserId(requestUserId);
+    try {
+      const updated = await api<MatchDetailView>(
+        `/api/matches/${matchId}/requests/${requestUserId}/${action}`,
+        { method: 'POST' },
+      );
+      setDetail(updated);
+      setMatches(
+        (prev) =>
+          prev?.map((m) =>
+            m.id === matchId ? { ...m, joinedCount: updated.joinedCount, status: updated.status } : m,
+          ) ?? null,
+      );
+      const reqs = await api<MatchRequestView[]>(`/api/matches/${matchId}/requests`);
+      setRequests(reqs);
+      onMatchChanged?.();
+    } catch (e) {
+      setActionError((e as { message?: string })?.message ?? 'Không thể xử lý yêu cầu');
+    } finally {
+      setBusyRequestUserId(null);
+    }
+  }
+
   const remaining = selectedMatch ? selectedMatch.capacity - selectedMatch.joinedCount : 0;
+  const selectedIsApproval = ((detail?.joinMode ?? selectedMatch?.joinMode) ?? 'INSTANT') === 'APPROVAL';
 
   return (
     <section className="panel lobby-panel" aria-labelledby={heading}>
@@ -254,6 +318,9 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                         {(m.status === 'FULL' || m.joinedCount >= m.capacity) && (
                           <StatusBadge className="status" status="FULL" />
                         )}
+                        {(m.joinMode ?? 'INSTANT') === 'APPROVAL' && (
+                          <StatusBadge className="status" status="APPROVAL" label="Host duyệt" />
+                        )}
                         <button
                           type="button"
                           className="link detail-toggle"
@@ -307,6 +374,45 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                     </ul>
                   </div>
 
+                  {detail.viewerRole === 'HOST' && selectedIsApproval && (
+                    <div className="queue-section">
+                      <strong className="queue-heading">{`Hàng chờ (${requests.length})`}</strong>
+                      {requests.length === 0 ? (
+                        <p className="hint">Chưa có yêu cầu</p>
+                      ) : (
+                        <ul className="queue-list">
+                          {requests.map((r) => {
+                            const rowBusy = busyRequestUserId === r.userId;
+                            return (
+                              <li key={r.userId} className="queue-row">
+                                <a href={`tel:${r.phone}`}>
+                                  <span>{r.name}</span> <span>({r.phone})</span>
+                                </a>
+                                <div className="queue-actions">
+                                  <button
+                                    type="button"
+                                    disabled={rowBusy}
+                                    onClick={() => void handleRequestDecision(selectedMatch.id, r.userId, 'approve')}
+                                  >
+                                    Duyệt
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="secondary"
+                                    disabled={rowBusy}
+                                    onClick={() => void handleRequestDecision(selectedMatch.id, r.userId, 'reject')}
+                                  >
+                                    Từ chối
+                                  </button>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+
                   <div className="actions match-actions">
                     {detail.viewerRole === 'PLAYER' && (
                       <button
@@ -319,13 +425,29 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                       </button>
                     )}
                     {detail.viewerRole === 'NONE' && (
-                      <button
-                        type="button"
-                        disabled={loadingAction}
-                        onClick={() => handleJoin(selectedMatch.id)}
-                      >
-                        Vào trận
-                      </button>
+                      detail.myRequest === 'REJECTED' ? (
+                        <p className="hint">Host đã từ chối yêu cầu của bạn</p>
+                      ) : selectedIsApproval && detail.myRequest === 'PENDING' ? (
+                        <>
+                          <p className="hint" role="status">Đã gửi yêu cầu. Chờ host duyệt</p>
+                          <button
+                            type="button"
+                            className="secondary"
+                            disabled={loadingAction}
+                            onClick={() => handleLeave(selectedMatch.id)}
+                          >
+                            Hủy yêu cầu
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={loadingAction}
+                          onClick={() => handleJoin(selectedMatch.id)}
+                        >
+                          {selectedIsApproval ? 'Xin vào' : 'Vào trận'}
+                        </button>
+                      )
                     )}
                   </div>
                 </>

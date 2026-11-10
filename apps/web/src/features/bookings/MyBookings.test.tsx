@@ -164,7 +164,7 @@ describe('MyBookings', () => {
       '/api/matches',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ bookingId: first.id, capacity: 4, pricePerSlot: 50_000 }),
+        body: JSON.stringify({ bookingId: first.id, capacity: 4, pricePerSlot: 50_000, joinMode: 'INSTANT' }),
       }),
     );
 
@@ -175,5 +175,75 @@ describe('MyBookings', () => {
     await vi.waitFor(() => expect(secondItem.querySelector('.status')?.textContent).toBe('Đã hủy'));
     expect(within(secondItem).getByText('Trận đã hủy · 1/4 suất · 50.000đ/suất')).toBeTruthy();
     expect(fetch).toHaveBeenCalledWith(`/api/matches/${matchId}/cancel`, expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('AC-17: open-match form defaults to "Vào ngay" (INSTANT) and sends joinMode "APPROVAL" when "Host duyệt" is chosen', async () => {
+    const b1 = row(1, 'CONFIRMED', '2026-11-20T05:00:00.000Z', '2026-11-20T06:00:00.000Z', { sport: 'BADMINTON', match: null });
+    const b2 = row(2, 'CONFIRMED', '2026-11-20T10:00:00.000Z', '2026-11-20T11:00:00.000Z', { sport: 'BADMINTON', match: null });
+    const fetch = stubApi([[b1, b2]], () => [
+      201,
+      {
+        id: '0199a1b2-0000-7000-8000-000000000301',
+        bookingId: b1.id,
+        hostId: '0199a1b2-0000-7000-8000-000000000101',
+        hostName: 'An',
+        sport: 'BADMINTON',
+        capacity: 4,
+        joinedCount: 1,
+        pricePerSlot: 50_000,
+        status: 'OPEN',
+        bookingStatus: 'CONFIRMED',
+        startAt: b1.startAt,
+        endAt: b1.endAt,
+        courtName: 'Sân 1',
+        venueName: 'Cầu lông A',
+        venueAddress: '10 Nguyễn Huệ',
+        createdAt: '2026-11-20T03:00:00.000Z',
+        joinMode: 'APPROVAL',
+      },
+    ]);
+
+    render(<MyBookings />);
+    await screen.findAllByText('Cầu lông A · Sân 1');
+
+    // 1. Open form on first booking -> "Vào ngay" is checked by default, submit sends joinMode: "INSTANT"
+    const firstItem = rowOf('12:00');
+    fireEvent.click(within(firstItem).getByRole('button', { name: /^Mở trận/ }));
+    const instantRadio1 = within(firstItem).getByRole('radio', { name: 'Vào ngay' }) as HTMLInputElement;
+    const approvalRadio1 = within(firstItem).getByRole('radio', { name: 'Host duyệt' }) as HTMLInputElement;
+    expect(instantRadio1.checked).toBe(true);
+    expect(approvalRadio1.checked).toBe(false);
+
+    fireEvent.click(within(firstItem).getByRole('button', { name: 'Tạo trận' }));
+    await vi.waitFor(() => expect(within(firstItem).getByText('Trận đang mở · 1/4 suất · 50.000đ/suất')).toBeTruthy());
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/matches',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ bookingId: b1.id, capacity: 4, pricePerSlot: 50_000, joinMode: 'INSTANT' }),
+      }),
+    );
+
+    // 2. Open form on second booking -> choose "Host duyệt", close and reopen resets to "Vào ngay", then choose "Host duyệt" and submit -> sends joinMode: "APPROVAL"
+    const secondItem = rowOf('17:00');
+    fireEvent.click(within(secondItem).getByRole('button', { name: /^Mở trận/ }));
+    fireEvent.click(within(secondItem).getByRole('radio', { name: 'Host duyệt' }));
+    expect((within(secondItem).getByRole('radio', { name: 'Host duyệt' }) as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(within(secondItem).getByRole('button', { name: 'Đóng' }));
+    fireEvent.click(within(secondItem).getByRole('button', { name: /^Mở trận/ }));
+    expect((within(secondItem).getByRole('radio', { name: 'Vào ngay' }) as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(within(secondItem).getByRole('radio', { name: 'Host duyệt' }));
+    fireEvent.click(within(secondItem).getByRole('button', { name: 'Tạo trận' }));
+    await vi.waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/matches',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ bookingId: b2.id, capacity: 4, pricePerSlot: 50_000, joinMode: 'APPROVAL' }),
+        }),
+      ),
+    );
   });
 });
