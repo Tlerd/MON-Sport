@@ -235,12 +235,19 @@ describe('host approves and rejects join requests (F-028 step 3)', () => {
     await joinMatch('Chi', matchId).expect(200);
     const [approved, cancelled] = await Promise.all([approve('An', matchId, 'Chi'), cancelMatch('An', matchId)]);
     expect([200, 409]).toContain(approved.status);
-    if (approved.status === 409) expect(approved.body.message).toBe(REQUEST_EXPIRED_MESSAGE);
+    if (approved.status === 409) {
+      expect(approved.body.message).toBe(REQUEST_EXPIRED_MESSAGE);
+      expect(await row(matchId, 'Chi')).toMatchObject({ status: 'PENDING' });
+    } else {
+      // The approve won the race: Chi holds a slot, and the cancel told Chi.
+      expect(await row(matchId, 'Chi')).toMatchObject({ status: 'ACTIVE' });
+      expect(await db.notification.count({ where: { type: 'MATCH_CANCELLED', userId: ids['Chi'], matchId } })).toBe(1);
+    }
     expect(cancelled.status).toBe(200);
     expect((await matchOf(matchId)).status).toBe('CANCELLED');
   });
 
-  it('a player and a stranger get 403 on approve and reject', async () => {
+  it('AC-8: a player and a stranger get 403 on approve and reject', async () => {
     const { matchId } = await openApproval();
     await joinMatch('Chi', matchId).expect(200);
     await addActive(matchId, ['Em']);

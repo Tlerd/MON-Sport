@@ -616,7 +616,7 @@ export class MatchesService {
           const unchanged = await tx.match.findUniqueOrThrow({ where: { id: matchId }, include: WITH_DETAIL_RELATIONS });
           return { kind: 'done', match: unchanged, requests: await loadRequests(tx, matchId, hostId) };
         }
-        if (current.joinedCount >= current.capacity) {
+        if (current.joinedCount >= current.capacity || current.status === 'FULL') {
           return { kind: 'match_full' };
         }
         await tx.matchPlayer.update({ where: key, data: { status: 'ACTIVE', joinedAt: now, leftAt: null } });
