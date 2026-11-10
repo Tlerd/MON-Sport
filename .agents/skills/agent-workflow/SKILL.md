@@ -18,7 +18,32 @@ Each tool maps these roles to its own models. In Claude Code, the session model 
 
 Coder order: run `node scripts/agy-run.mjs --check-usage`, then `node scripts/agy-run.mjs --mode accept-edits -p "<plan>"`. Exit code 4 means every agy model is out of quota. Then use the subagent `backend` or `frontend` (Sonnet). When Sonnet is out of quota, run it with `model: haiku`.
 
-Claude Code runs a subagent on the `model` in its `.claude/agents/` file, or on the session model when the file sets none. One coder does a step. Run `backend` and `frontend` together only when the contract in `packages/shared` is on the branch and their paths do not overlap. Then run `tester`, then `reviewer`. The `qa` agent lists questions for the owner after the last step. `deployer` checks a deploy.
+## Fix ladder
+
+This section is for Claude Code sessions. Use it when `pnpm check` fails after the coder says the step is done. The Planner and the Reviewer stay on the session model.
+
+| Rung | Coder | Attempts | Climb when |
+|---|---|---|---|
+| 0 | The model that coded the step (agy, or Sonnet after exit 4) | 1 | The check still fails |
+| 1 | Subagent `backend` or `frontend` (Sonnet) | 2 | The check still fails |
+| 2 | The same subagent with `model: opus` | 2 | The check still fails, or the failure is hard |
+| 3 | The same subagent with `model: fable` | 1 | Stop: see the last rule |
+
+- One attempt is one fix and one run of `pnpm check`.
+- `agy-run.mjs` exit 3 is the weekly stop line: commit, write the next step in `PROGRESS.md`, and stop. Never climb past it. Exit 4 (agy out of quota) skips rung 0.
+- A hard failure is a deadlock (`40P01`), a race, a flaky test with no known cause, or a failure across several modules. It climbs to rung 3 after one attempt on rung 2.
+- A step on money, concurrency, the schema, or personal data skips rung 1.
+- A failure only in a test known to be flaky (`PROGRESS.md`) gets one rerun before rung 0.
+- When a rung's model is out of quota, go to the next rung. Rung 1 uses `model: haiku` only when no higher rung has quota.
+- Each rung continues on the same branch. Give it the plan, the failing lines, the diff, and one line on each earlier attempt.
+- A coder that finds the plan wrong (a test that conflicts with the brief) stops. The Planner rewrites the plan. The ladder does not climb.
+- An Opus or Fable coder is a Coder. The Reviewer is still a fresh session.
+- After rung 3, the check still fails: leave the pull request open and unmerged. Record the failure in the pull request and `PROGRESS.md`, and go on with other work. Never skip or weaken a test, and never post `review-accepted` for a red check.
+- Log each attempt in the pull request: rung, model, result, tokens, and minutes.
+
+Findings of medium or higher from a Reviewer round use the same rungs. One attempt there is one fix, `pnpm check`, and a new Reviewer round on the new head. Start at rung 0, or at rung 2 for money, concurrency, the schema, or personal data. The 2-round rule of "Autonomy details" still caps it: after 2 rounds, follow that rule.
+
+Claude Code runs a subagent on the `model` in its `.claude/agents/` file, unless the call sets `model`, or on the session model when neither sets one. One coder does a step. Run `backend` and `frontend` together only when the contract in `packages/shared` is on the branch and their paths do not overlap. Then run `tester`, then `reviewer`. The `qa` agent lists questions for the owner after the last step. `deployer` checks a deploy.
 
 A Reviewer round is a `reviewer` subagent, or `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."`.
 
