@@ -1929,3 +1929,6 @@ a.google-btn:hover { background: var(--court-soft); }
   accent-color: var(--color-primary);
 }
 
+
+/* A grid item has min-width: auto, so the date chip row made the lobby page 829px wide in a 390px window and the queue buttons fell outside it (brief F-028, AC-14). */
+.player-main > * { min-width: 0; }

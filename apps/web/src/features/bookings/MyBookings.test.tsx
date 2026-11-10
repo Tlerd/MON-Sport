@@ -221,6 +221,8 @@ describe('MyBookings', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ bookingId: b1.id, capacity: 4, pricePerSlot: 50_000, joinMode: 'INSTANT' }),
+        // Without this header the body goes out as text/plain and the API answers 400.
+        headers: expect.objectContaining({ 'content-type': 'application/json' }),
       }),
     );
 

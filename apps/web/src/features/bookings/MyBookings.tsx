@@ -61,12 +61,13 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
     try {
       const created = await api<MatchView>('/api/matches', {
         method: 'POST',
-        body: JSON.stringify({
+        // `json` makes the shared client set content-type: application/json. A plain `body` went out as text/plain, and the API answered 400.
+        json: {
           bookingId,
           capacity: Number(capacity),
           pricePerSlot: Number(pricePerSlot),
           joinMode,
-        }),
+        },
       });
       setRows((all) =>
         all?.map((r) =>
