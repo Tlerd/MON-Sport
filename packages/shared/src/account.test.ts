@@ -121,6 +121,6 @@ describe('player skill level, brief F-029', () => {
 
   it('AC-10: PRIVACY_NOTICE states skill level is collected and public in the lobby', () => {
     expect(PRIVACY_NOTICE).toContain('trình độ');
-    expect(PRIVACY_NOTICE).toContain('phòng chờ');
+    expect(PRIVACY_NOTICE).toContain('Mọi người, kể cả người chưa đăng nhập, thấy tên và trình độ của host trong phòng chờ.');
   });
 });

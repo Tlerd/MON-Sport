@@ -441,6 +441,13 @@ describe('migration 20261110000000_f028_match_join_approval', () => {
 });
 
 describe('migration 20261110100000_f029_skill_level', () => {
+  it('AC-6: migration only adds: contains no DROP, no SET NOT NULL, and no DEFAULT', () => {
+    const sql = readFileSync(new URL('./migrations/20261110100000_f029_skill_level/migration.sql', import.meta.url), 'utf8');
+    expect(sql.toUpperCase()).not.toContain('DROP');
+    expect(sql.toUpperCase()).not.toContain('SET NOT NULL');
+    expect(sql.toUpperCase()).not.toContain('DEFAULT');
+  });
+
   it('AC-6: a User row inserted without skillLevel reads back null', async () => {
     const testUserId = randomUUID();
     await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'SkillTest', $2, 'x')`, [
