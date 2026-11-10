@@ -88,7 +88,7 @@ Mỗi pha là một PR `chore/<slug>` riêng, có Reviewer. Viết test trước
 | `scripts/maintain.mjs` | Script mới. Cờ `--dry-run` và `--once`. Lần chạy đầu tạo nhãn `maintain`, `maintain-dismissed` và `maintain-fix` bằng `gh label create <nhãn> --force`. Đọc 4 chỉ số, so với ngưỡng, ghi log, mở hoặc comment issue |
 | `scripts/maintain-bands.json` | File mới, nội dung ở trên |
 | `harness/check-log.test.mjs` | Test mới cho `scripts/check-log.mjs`: dòng log đúng, khóa là hash của cây code, không ghi khi `CI` có giá trị, lỗi ghi file không đổi kết quả |
-| `scripts/check-log.mjs` | Module mới. Tạo và ghi một dòng JSON: thời gian, hash cây code, bước fail, tên test fail. Không ghi khi `CI` có giá trị. Đường dẫn: biến `MONSPORT_CHECK_LOG`, nếu không có thì `LOCALAPPDATA`, rồi `HOME`, như `ci-autofix.mjs`. Mọi lỗi ghi file nằm trong try/catch |
+| `scripts/check-log.mjs` | Module mới. Tạo và ghi một dòng JSON: thời gian, hash cây code, bước fail, tên test fail. Không ghi khi `CI` có giá trị. Đường dẫn: biến `MONSPORT_CHECK_LOG`, nếu không có thì `LOCALAPPDATA`, rồi `HOME`, như `ci-autofix.mjs`. Mọi lỗi ghi file nằm trong try/catch. Trong `pre-commit`, git đặt `GIT_INDEX_FILE`, nên module dùng index tạm riêng để tính hash. Lấy tên test fail từ output của vitest: kiểm định dạng này trước khi viết parser |
 | `scripts/check.mjs` | Gọi `check-log.mjs` một lần ở cuối. Kết quả và mã thoát của check không đổi |
 | `.github/ISSUE_TEMPLATE/maintain-finding.md` | Mẫu mới, 6 mục |
 | `package.json` | Thêm `"maintain": "node scripts/maintain.mjs"` |
@@ -139,6 +139,7 @@ Khi chủ dự án đóng issue với nhãn `maintain-dismissed`, agent xem lạ
 | Báo động sai nhiều | Ngưỡng tuyệt đối, khóa chống trùng, nhãn `maintain-dismissed` |
 | Log Cloud Run có dữ liệu cá nhân | Issue chỉ ghi mã trạng thái, đường dẫn không có query string, và số lần. Không ghi body. Test của pha 1 kiểm điều này |
 | Agent làm yếu check để "sửa" test chập chờn | `CHEATS` và `PROTECTED` của `ci-autofix.mjs`, cộng với Reviewer |
+| Token của `gcloud auth print-access-token` lọt vào log | Script giữ token trong bộ nhớ. Không ghi token vào `maintain.jsonl`, issue hay output |
 | Chi phí model | Không có model ở mức log. Chẩn đoán tối đa một lần mỗi khóa mỗi ngày |
 | Xung đột với các PR F-028 chưa merge | Thứ tự: merge chuỗi PR F-028 trước, rồi mới bắt đầu pha 1 |
 
