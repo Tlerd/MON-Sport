@@ -872,4 +872,60 @@ describe('Lobby (F-011 and F-012)', () => {
     expect(screen.getByText('Chưa có yêu cầu')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('AC-8: the "Trình độ" group shows "Tất cả trình độ" selected and the first request has no level; clicking "Khá" requests /api/matches?level=ADVANCED; after a stream event the reload URL still has level=ADVANCED', async () => {
+    let matchListener: ((e: MessageEvent) => void) | null = null;
+    class MockEventSource {
+      constructor(public url: string) {}
+      addEventListener(type: string, listener: (e: MessageEvent) => void) {
+        if (type === 'match') matchListener = listener;
+      }
+      close() {}
+    }
+    vi.stubGlobal('EventSource', MockEventSource);
+
+    const fetch = vi.fn((url: string) => {
+      const body = url === '/api/matches?level=ADVANCED' ? [m1] : [];
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const { unmount } = render(<Lobby />);
+    const levelGroup = screen.getByRole('group', { name: 'Trình độ' });
+    expect(levelGroup).toBeTruthy();
+    expect(within(levelGroup).getByRole('button', { name: 'Tất cả trình độ' }).className).toContain('selected');
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches', expect.anything()));
+    fetch.mockClear();
+
+    fireEvent.click(within(levelGroup).getByRole('button', { name: 'Khá' }));
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches?level=ADVANCED', expect.anything()));
+    fetch.mockClear();
+
+    // Trigger SSE event.
+    expect(matchListener).not.toBeNull();
+    matchListener!({ data: JSON.stringify({ id: m1.id }) } as MessageEvent);
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches?level=ADVANCED', expect.anything()));
+    unmount();
+  });
+
+  it('AC-9: each match card in lobby displays host skill level label or none when null', async () => {
+    const withLevel = { ...m1, hostSkillLevel: 'BEGINNER' as const };
+    const withoutLevel = { ...m2, hostSkillLevel: null };
+    const fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([withLevel, withoutLevel]) }));
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby />);
+    expect(await screen.findByText('Cầu lông A · Sân 1')).toBeTruthy();
+    expect(screen.getByText('Cầu lông A · Sân 2')).toBeTruthy();
+
+    const items = screen.getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(within(items[0]).getByText('Mới chơi')).toBeTruthy();
+    expect(within(items[1]).queryByText('Mới chơi')).toBeNull();
+    expect(within(items[1]).queryByText('Trung bình')).toBeNull();
+    expect(within(items[1]).queryByText('Khá')).toBeNull();
+  });
 });

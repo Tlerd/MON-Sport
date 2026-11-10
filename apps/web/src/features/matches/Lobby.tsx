@@ -1,11 +1,13 @@
 import {
   addDaysYmd,
+  SKILL_LEVEL_LABELS,
   vnDateString,
   type JoinMode,
   type MatchDetailView,
   type MatchRequestView,
   type MatchView,
   type SessionUser,
+  type SkillLevel,
   type Sport,
 } from '@monsport/shared';
 import { CalendarDays } from 'lucide-react';
@@ -51,6 +53,7 @@ interface LobbyProps {
 export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
   const heading = useId();
   const [sport, setSport] = useState('');
+  const [level, setLevel] = useState<SkillLevel | ''>('');
   const [date, setDate] = useState('');
   const [matches, setMatches] = useState<MatchView[] | null>(null);
   const [error, setError] = useState('');
@@ -141,6 +144,7 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     setError('');
     const params = new URLSearchParams();
     if (sport) params.set('sport', sport);
+    if (level) params.set('level', level);
     if (date) params.set('date', date);
     const qs = params.toString();
     const url = qs ? `/api/matches?${qs}` : '/api/matches';
@@ -157,7 +161,7 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     return () => {
       current = false;
     };
-  }, [sport, date, refresh, streamTick]);
+  }, [sport, level, date, refresh, streamTick]);
 
   async function toggleDetail(m: MatchView) {
     loadSeqRef.current += 1;
@@ -293,6 +297,21 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
           </Chip>
         </div>
 
+        <div role="group" aria-label="Trình độ" className="chips level-chips">
+          <Chip selected={level === ''} onClick={() => setLevel('')}>
+            Tất cả trình độ
+          </Chip>
+          {(Object.entries(SKILL_LEVEL_LABELS) as [SkillLevel, string][]).map(([key, label]) => (
+            <Chip
+              key={key}
+              selected={level === key}
+              onClick={() => setLevel(key)}
+            >
+              {label}
+            </Chip>
+          ))}
+        </div>
+
         <div role="group" aria-label="Ngày chơi" className="chips date-chips">
           <Chip selected={date === ''} onClick={() => setDate('')}>
             Tất cả ngày
@@ -350,6 +369,7 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                       <div className="match-line-2">
                         <span>{`${SPORT_LABEL[m.sport]} · Ngày ${formatDay(m.startAt)}`}</span>
                         <span>Host: {m.hostName}</span>
+                        {m.hostSkillLevel && <span className="level-badge">{SKILL_LEVEL_LABELS[m.hostSkillLevel]}</span>}
                       </div>
                       <div className="match-line-2">
                         <span className="match-slots">{`${m.joinedCount}/${m.capacity} suất · ${formatVnd(m.pricePerSlot)}/suất`}</span>
