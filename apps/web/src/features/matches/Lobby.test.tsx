@@ -872,4 +872,72 @@ describe('Lobby (F-011 and F-012)', () => {
     expect(screen.getByText('Chưa có yêu cầu')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('AC-8: skill level filter defaults to all levels, sends level on click, and preserves level on SSE reload', async () => {
+    let matchListener: ((e: MessageEvent) => void) | null = null;
+    const closeMock = vi.fn();
+
+    class MockEventSource {
+      constructor(public url: string) {}
+      addEventListener(type: string, listener: (e: MessageEvent) => void) {
+        if (type === 'match') matchListener = listener;
+      }
+      close() {
+        closeMock();
+      }
+    }
+    vi.stubGlobal('EventSource', MockEventSource);
+
+    const fetch = vi.fn((url: string) => {
+      const body = url.includes('level=ADVANCED') ? [{ ...m1, hostSkillLevel: 'ADVANCED' as const }] : [m1];
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const { unmount } = render(<Lobby />);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches', expect.anything()));
+
+    const levelGroup = screen.getByRole('group', { name: 'Trình độ' });
+    expect(levelGroup).toBeTruthy();
+    const allChip = within(levelGroup).getByRole('button', { name: 'Tất cả trình độ' });
+    expect(allChip.getAttribute('aria-pressed')).toBe('true');
+
+    fetch.mockClear();
+
+    fireEvent.click(within(levelGroup).getByRole('button', { name: 'Khá' }));
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches?level=ADVANCED', expect.anything()));
+    fetch.mockClear();
+
+    expect(matchListener).not.toBeNull();
+    act(() => {
+      matchListener!({ data: JSON.stringify({ id: m1.id }) } as MessageEvent);
+    });
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(fetch).toHaveBeenCalledWith('/api/matches?level=ADVANCED', expect.anything());
+
+    unmount();
+    expect(closeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC-9: match card renders host skill level badge when present, and no badge when hostSkillLevel is null', async () => {
+    const matchWithLevel = { ...m1, id: '0199a1b2-0000-7000-8000-000000000391', hostName: 'Bình', hostSkillLevel: 'BEGINNER' as const };
+    const matchWithoutLevel = { ...m1, id: '0199a1b2-0000-7000-8000-000000000392', hostName: 'Cường', hostSkillLevel: null };
+    const fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([matchWithLevel, matchWithoutLevel]) }));
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby />);
+    expect(await screen.findByText('Host: Bình')).toBeTruthy();
+    expect(screen.getByText('Host: Cường')).toBeTruthy();
+
+    const items = screen.getAllByRole('listitem');
+    expect(within(items[0]).getByText('Mới chơi')).toBeTruthy();
+    expect(items[0].querySelector('.level-badge')?.textContent).toBe('Mới chơi');
+
+    expect(within(items[1]).queryByText('Mới chơi')).toBeNull();
+    expect(within(items[1]).queryByText('Trung bình')).toBeNull();
+    expect(within(items[1]).queryByText('Khá')).toBeNull();
+    expect(items[1].querySelector('.level-badge')).toBeNull();
+  });
 });

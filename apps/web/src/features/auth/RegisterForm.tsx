@@ -1,4 +1,10 @@
-import { PRIVACY_NOTICE, type SessionUser } from '@monsport/shared';
+import {
+  PRIVACY_NOTICE,
+  SKILL_LEVEL_LABELS,
+  SKILL_LEVEL_REQUIRED_MESSAGE,
+  type SessionUser,
+  type SkillLevel,
+} from '@monsport/shared';
 import { type FormEvent, useState } from 'react';
 import { api, ApiError } from '@monsport/client';
 import { GoogleButton } from './GoogleButton.tsx';
@@ -10,6 +16,7 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [skillLevel, setSkillLevel] = useState<SkillLevel | ''>('');
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -17,9 +24,13 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    if (skillLevel === '') {
+      setError(SKILL_LEVEL_REQUIRED_MESSAGE);
+      return;
+    }
     setBusy(true);
     try {
-      onLogin(await api<SessionUser>('/api/auth/register', { method: 'POST', json: { name, phone, password, consent } }));
+      onLogin(await api<SessionUser>('/api/auth/register', { method: 'POST', json: { name, phone, password, consent, skillLevel } }));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tạo được tài khoản');
       setBusy(false);
@@ -49,6 +60,15 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
           </label>
           <p id="password-hint" className="hint">Ít nhất 8 ký tự.</p>
         </div>
+        <label>
+          Trình độ
+          <select value={skillLevel} onChange={(e) => setSkillLevel(e.target.value as SkillLevel | '')}>
+            <option value="">Chọn trình độ</option>
+            {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
+              <option key={level} value={level}>{SKILL_LEVEL_LABELS[level]}</option>
+            ))}
+          </select>
+        </label>
         <div id="privacy-notice" className="privacy" role="region" aria-label="Thông báo bảo vệ dữ liệu cá nhân" tabIndex={0}>
           {PRIVACY_NOTICE.split('\n').map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
         </div>

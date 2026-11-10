@@ -36,12 +36,13 @@ describe('AuthPanel', () => {
     type('Tên của bạn', 'Lan');
     type('Số điện thoại', '0901112233');
     type('Mật khẩu', 'matkhau123');
+    fireEvent.change(screen.getByLabelText('Trình độ'), { target: { value: 'INTERMEDIATE' } });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
 
     await vi.waitFor(() => expect(onLogin).toHaveBeenCalledWith(lan));
     const registerCall = fetch.mock.calls.find((call) => call[0] === '/api/auth/register')!;
-    expect(JSON.parse(registerCall[1].body)).toEqual({ name: 'Lan', phone: '0901112233', password: 'matkhau123', consent: true });
+    expect(JSON.parse(registerCall[1].body)).toEqual({ name: 'Lan', phone: '0901112233', password: 'matkhau123', consent: true, skillLevel: 'INTERMEDIATE' });
     expect(fetch).toHaveBeenCalledWith('/api/auth/register', expect.objectContaining({ method: 'POST' }));
   });
 
@@ -52,9 +53,46 @@ describe('AuthPanel', () => {
     type('Tên của bạn', 'Lan');
     type('Số điện thoại', '0901234567');
     type('Mật khẩu', 'matkhau123');
+    fireEvent.change(screen.getByLabelText('Trình độ'), { target: { value: 'INTERMEDIATE' } });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
     expect((await screen.findByRole('alert')).textContent).toBe('Số điện thoại này đã có tài khoản');
+  });
+
+  it('AC-7: registration shows skill level options, requires selection before submit, and sends skillLevel', async () => {
+    const lan = { id: '0199a1b2-0000-7000-8000-000000000009', name: 'Lan', role: 'USER' };
+    const fetch = vi.fn().mockResolvedValue({ ok: true, status: 201, json: () => Promise.resolve(lan) });
+    vi.stubGlobal('fetch', fetch);
+    const onLogin = vi.fn();
+    render(<AuthPanel onLogin={onLogin} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+
+    const select = screen.getByLabelText('Trình độ') as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    const optionLabels = Array.from(select.querySelectorAll('option')).map((o) => o.textContent);
+    expect(optionLabels).toEqual(['Chọn trình độ', 'Mới chơi', 'Trung bình', 'Khá']);
+
+    type('Tên của bạn', 'Lan');
+    type('Số điện thoại', '0901112233');
+    type('Mật khẩu', 'matkhau123');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe('Chọn trình độ');
+    expect(fetch).not.toHaveBeenCalledWith('/api/auth/register', expect.anything());
+
+    fireEvent.change(select, { target: { value: 'INTERMEDIATE' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+
+    await vi.waitFor(() => expect(onLogin).toHaveBeenCalledWith(lan));
+    const registerCall = fetch.mock.calls.find((call) => call[0] === '/api/auth/register')!;
+    expect(JSON.parse(registerCall[1].body)).toEqual({
+      name: 'Lan',
+      phone: '0901112233',
+      password: 'matkhau123',
+      consent: true,
+      skillLevel: 'INTERMEDIATE',
+    });
   });
 
   it('goes back to the login form, and moves focus to its heading', () => {
