@@ -1,5 +1,5 @@
 import type { MatchDetailView, SessionUser } from '@monsport/shared';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Lobby } from './Lobby.tsx';
 
@@ -407,6 +407,40 @@ describe('Lobby (F-011 and F-012)', () => {
     expect(screen.queryByRole('button', { name: 'Xin vào' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Vào trận' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Hủy yêu cầu' })).toBeNull();
+    expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('/requests'), expect.anything());
+  });
+
+  it('AC-12: an SSE match event as a guest triggers no GET /api/matches/<id> and no /requests call', async () => {
+    let matchListener: ((e: MessageEvent) => void) | null = null;
+    class MockEventSource {
+      constructor(public url: string) {}
+      addEventListener(type: string, listener: (e: MessageEvent) => void) {
+        if (type === 'match') matchListener = listener;
+      }
+      close() {}
+    }
+    vi.stubGlobal('EventSource', MockEventSource);
+
+    const mApproval = { ...m1, joinMode: 'APPROVAL' as const };
+    const fetch = vi.fn((url: string) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mApproval]) });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby user={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByText('Đăng nhập để vào trận')).toBeTruthy();
+
+    fetch.mockClear();
+    expect(matchListener).not.toBeNull();
+    matchListener!({ data: JSON.stringify({ id: mApproval.id }) } as MessageEvent);
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches', expect.anything()));
+    expect(fetch).not.toHaveBeenCalledWith(`/api/matches/${mApproval.id}`, expect.anything());
+    expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('/requests'), expect.anything());
   });
 
   it('AC-13: host sees pending queue, reloads on SSE match event, approves and rejects requests, and shows 409 alert on full match', async () => {
@@ -525,5 +559,317 @@ describe('Lobby (F-011 and F-012)', () => {
     );
     expect(await screen.findByText('Hàng chờ (0)')).toBeTruthy();
     expect(screen.getByText('Chưa có yêu cầu')).toBeTruthy();
+  });
+
+  it("AC-13: when the host opens match A then match B and A's detail and requests resolve last, B's panel shows B's queue and not A's requesters", async () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>((res) => {
+        resolve = res;
+      });
+      return { promise, resolve };
+    }
+
+    const hostUser: SessionUser = { id: m1.hostId, name: 'An', role: 'USER' };
+    const lanId = '0199a1b2-0000-7000-8000-000000000105';
+    const minhId = '0199a1b2-0000-7000-8000-000000000106';
+
+    const mA = { ...m1, joinMode: 'APPROVAL' as const, capacity: 4, joinedCount: 1 };
+    const mB = { ...m2, hostId: m1.hostId, hostName: 'An', joinMode: 'APPROVAL' as const, capacity: 4, joinedCount: 1 };
+
+    const detailA: MatchDetailView = {
+      ...mA,
+      viewerRole: 'HOST',
+      pendingCount: 1,
+      players: [{ userId: m1.hostId, name: 'An', phone: '0901234567', joinedAt: '2026-11-20T03:00:00.000Z' }],
+    };
+    const detailB: MatchDetailView = {
+      ...mB,
+      viewerRole: 'HOST',
+      pendingCount: 1,
+      players: [{ userId: m1.hostId, name: 'An', phone: '0901234567', joinedAt: '2026-11-20T03:00:00.000Z' }],
+    };
+    const requestsA = [{ userId: lanId, name: 'Lan', phone: '0901234568', requestedAt: '2026-11-20T03:05:00.000Z' }];
+    const requestsB = [{ userId: minhId, name: 'Minh', phone: '0901234569', requestedAt: '2026-11-20T03:06:00.000Z' }];
+
+    const detailADeferred = deferred<MatchDetailView>();
+    const requestsADeferred = deferred<typeof requestsA>();
+    let currentRequestsADeferred = requestsADeferred;
+    let aDetailMode: 'deferred' | 'immediate' = 'deferred';
+
+    const fetch = vi.fn((url: string) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mA, mB]) });
+      }
+      if (url === `/api/matches/${mA.id}`) {
+        if (aDetailMode === 'deferred') {
+          return detailADeferred.promise.then((body) => ({ ok: true, status: 200, json: () => Promise.resolve(body) }));
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detailA) });
+      }
+      if (url === `/api/matches/${mA.id}/requests`) {
+        return currentRequestsADeferred.promise.then((body) => ({ ok: true, status: 200, json: () => Promise.resolve(body) }));
+      }
+      if (url === `/api/matches/${mB.id}`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detailB) });
+      }
+      if (url === `/api/matches/${mB.id}/requests`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(requestsB) });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby user={hostUser} />);
+    expect(await screen.findByText('Cầu lông A · Sân 1')).toBeTruthy();
+
+    const tickets = screen.getAllByRole('listitem');
+    // Host opens A (where detailA is slow), then opens B.
+    fireEvent.click(within(tickets[0]).getByRole('button', { name: 'Xem chi tiết' }));
+    fireEvent.click(within(tickets[1]).getByRole('button', { name: 'Xem chi tiết' }));
+
+    expect(await screen.findByText('Hàng chờ (1)')).toBeTruthy();
+    expect(screen.getByText('Minh')).toBeTruthy();
+
+    // Now A's detail and requests resolve last.
+    await act(async () => {
+      detailADeferred.resolve(detailA);
+      requestsADeferred.resolve(requestsA);
+    });
+
+    expect(screen.getByText('Hàng chờ (1)')).toBeTruthy();
+    expect(screen.getByText('Minh')).toBeTruthy();
+    expect(screen.queryByText('Lan')).toBeNull();
+
+    // Also test when A's detail resolves while A is open, A's /requests is slow, host opens B, and A's /requests resolves last.
+    const requestsA2Deferred = deferred<typeof requestsA>();
+    currentRequestsADeferred = requestsA2Deferred;
+    aDetailMode = 'immediate';
+
+    fireEvent.click(within(tickets[0]).getByRole('button', { name: 'Xem chi tiết' }));
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith(`/api/matches/${mA.id}/requests`, expect.anything()));
+
+    fireEvent.click(within(tickets[1]).getByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByText('Minh')).toBeTruthy();
+
+    await act(async () => {
+      requestsA2Deferred.resolve(requestsA);
+    });
+
+    expect(screen.getByText('Hàng chờ (1)')).toBeTruthy();
+    expect(screen.getByText('Minh')).toBeTruthy();
+    expect(screen.queryByText('Lan')).toBeNull();
+  });
+
+  it('AC-13: when an SSE reload is slow and the host approves Lan, the old reload resolving last does not put Lan back in Hàng chờ', async () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>((res) => {
+        resolve = res;
+      });
+      return { promise, resolve };
+    }
+
+    let matchListener: ((e: MessageEvent) => void) | null = null;
+    class MockEventSource {
+      constructor(public url: string) {}
+      addEventListener(type: string, listener: (e: MessageEvent) => void) {
+        if (type === 'match') matchListener = listener;
+      }
+      close() {}
+    }
+    vi.stubGlobal('EventSource', MockEventSource);
+
+    const hostUser: SessionUser = { id: m1.hostId, name: 'An', role: 'USER' };
+    const lanId = '0199a1b2-0000-7000-8000-000000000105';
+    const mApproval = { ...m1, joinMode: 'APPROVAL' as const, capacity: 4, joinedCount: 1 };
+
+    const detailBeforeApprove: MatchDetailView = {
+      ...mApproval,
+      viewerRole: 'HOST',
+      pendingCount: 1,
+      players: [{ userId: m1.hostId, name: 'An', phone: '0901234567', joinedAt: '2026-11-20T03:00:00.000Z' }],
+    };
+    const detailAfterApprove: MatchDetailView = {
+      ...mApproval,
+      joinedCount: 2,
+      viewerRole: 'HOST',
+      pendingCount: 0,
+      players: [
+        { userId: m1.hostId, name: 'An', phone: '0901234567', joinedAt: '2026-11-20T03:00:00.000Z' },
+        { userId: lanId, name: 'Lan', phone: '0901234568', joinedAt: '2026-11-20T03:10:00.000Z' },
+      ],
+    };
+    const requestsWithLan = [
+      { userId: lanId, name: 'Lan', phone: '0901234568', requestedAt: '2026-11-20T03:05:00.000Z' },
+    ];
+
+    const slowSseRequests = deferred<typeof requestsWithLan>();
+    let requestsCallCount = 0;
+    let failNextDetail = false;
+
+    const fetch = vi.fn((url: string, options?: RequestInit) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mApproval]) });
+      }
+      if (url === `/api/matches/${mApproval.id}`) {
+        if (failNextDetail) {
+          failNextDetail = false;
+          return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ message: 'Lỗi mạng tạm thời' }) });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detailBeforeApprove) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests`) {
+        requestsCallCount++;
+        // Call 1: initial open. Call 2: slow SSE reload. Call 3: post-approve reload.
+        if (requestsCallCount === 1) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(requestsWithLan) });
+        }
+        if (requestsCallCount === 2) {
+          return slowSseRequests.promise.then((body) => ({ ok: true, status: 200, json: () => Promise.resolve(body) }));
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests/${lanId}/approve` && options?.method === 'POST') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detailAfterApprove) });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby user={hostUser} />);
+    expect(await screen.findByText('Cầu lông A · Sân 1')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByText('Hàng chờ (1)')).toBeTruthy();
+    expect(screen.getByText('Lan')).toBeTruthy();
+
+    // A failed reload sets detailError, and a later success clears it.
+    failNextDetail = true;
+    matchListener!({ data: JSON.stringify({ id: mApproval.id }) } as MessageEvent);
+    expect((await screen.findByRole('alert')).textContent).toContain('Lỗi mạng tạm thời');
+
+    // Now trigger the slow SSE reload (requestsCallCount === 2).
+    matchListener!({ data: JSON.stringify({ id: mApproval.id }) } as MessageEvent);
+    await vi.waitFor(() => expect(requestsCallCount).toBe(2));
+
+    // Host approves Lan while the SSE reload is still in flight.
+    fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
+    expect(await screen.findByText('Hàng chờ (0)')).toBeTruthy();
+    expect(screen.getByText('Chưa có yêu cầu')).toBeTruthy();
+
+    // Now the older SSE GET /requests resolves last with Lan still in the list.
+    await act(async () => {
+      slowSseRequests.resolve(requestsWithLan);
+    });
+
+    expect(screen.getByText('Hàng chờ (0)')).toBeTruthy();
+    expect(screen.getByText('Chưa có yêu cầu')).toBeTruthy();
+    const queueSection = screen.getByText('Hàng chờ (0)').closest('.queue-section')!;
+    expect(within(queueSection as HTMLElement).queryByText('Lan')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('AC-13: with two rows and two clicks, when the first call ends first the second row buttons stay disabled until its own call ends', async () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>((res) => {
+        resolve = res;
+      });
+      return { promise, resolve };
+    }
+
+    const hostUser: SessionUser = { id: m1.hostId, name: 'An', role: 'USER' };
+    const lanId = '0199a1b2-0000-7000-8000-000000000105';
+    const minhId = '0199a1b2-0000-7000-8000-000000000106';
+    const mApproval = { ...m1, joinMode: 'APPROVAL' as const, capacity: 4, joinedCount: 1 };
+
+    let currentDetail: MatchDetailView = {
+      ...mApproval,
+      viewerRole: 'HOST',
+      pendingCount: 2,
+      players: [{ userId: m1.hostId, name: 'An', phone: '0901234567', joinedAt: '2026-11-20T03:00:00.000Z' }],
+    };
+    const initialRequests = [
+      { userId: lanId, name: 'Lan', phone: '0901234568', requestedAt: '2026-11-20T03:05:00.000Z' },
+      { userId: minhId, name: 'Minh', phone: '0901234569', requestedAt: '2026-11-20T03:06:00.000Z' },
+    ];
+
+    const approveLanDeferred = deferred<MatchDetailView>();
+    const rejectMinhDeferred = deferred<MatchDetailView>();
+    let requestsCalls = 0;
+
+    const fetch = vi.fn((url: string, options?: RequestInit) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mApproval]) });
+      }
+      if (url === `/api/matches/${mApproval.id}`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(currentDetail) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests`) {
+        requestsCalls++;
+        if (requestsCalls === 1) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(initialRequests) });
+        }
+        if (requestsCalls === 2) {
+          // After Lan is approved, Minh is still in the queue.
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([initialRequests[1]]) });
+        }
+        // After Minh is rejected, simulate reload failure to also verify local row removal without decision alert.
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ message: 'Reload failed' }) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests/${lanId}/approve` && options?.method === 'POST') {
+        return approveLanDeferred.promise.then((body) => ({ ok: true, status: 200, json: () => Promise.resolve(body) }));
+      }
+      if (url === `/api/matches/${mApproval.id}/requests/${minhId}/reject` && options?.method === 'POST') {
+        return rejectMinhDeferred.promise.then((body) => ({ ok: true, status: 200, json: () => Promise.resolve(body) }));
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby user={hostUser} />);
+    expect(await screen.findByText('Cầu lông A · Sân 1')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByText('Hàng chờ (2)')).toBeTruthy();
+
+    const approveBtns = screen.getAllByRole('button', { name: 'Duyệt' }) as HTMLButtonElement[];
+    const rejectBtns = screen.getAllByRole('button', { name: 'Từ chối' }) as HTMLButtonElement[];
+
+    // Click "Duyệt" on Lan (row 0), then "Từ chối" on Minh (row 1).
+    fireEvent.click(approveBtns[0]);
+    fireEvent.click(rejectBtns[1]);
+
+    expect(approveBtns[0].disabled).toBe(true);
+    expect(rejectBtns[0].disabled).toBe(true);
+    expect(approveBtns[1].disabled).toBe(true);
+    expect(rejectBtns[1].disabled).toBe(true);
+
+    // Lan's call ends first.
+    currentDetail = {
+      ...currentDetail,
+      joinedCount: 2,
+      pendingCount: 1,
+      players: [
+        ...currentDetail.players,
+        { userId: lanId, name: 'Lan', phone: '0901234568', joinedAt: '2026-11-20T03:10:00.000Z' },
+      ],
+    };
+    approveLanDeferred.resolve(currentDetail);
+    expect(await screen.findByText('Hàng chờ (1)')).toBeTruthy();
+
+    // Minh's buttons must stay disabled while Minh's call is still running.
+    const minhApproveBtn = screen.getByRole('button', { name: 'Duyệt' }) as HTMLButtonElement;
+    const minhRejectBtn = screen.getByRole('button', { name: 'Từ chối' }) as HTMLButtonElement;
+    expect(minhApproveBtn.disabled).toBe(true);
+    expect(minhRejectBtn.disabled).toBe(true);
+
+    // Now Minh's call ends (and its subsequent /requests reload fails).
+    currentDetail = { ...currentDetail, pendingCount: 0 };
+    rejectMinhDeferred.resolve(currentDetail);
+    expect(await screen.findByText('Hàng chờ (0)')).toBeTruthy();
+    expect(screen.getByText('Chưa có yêu cầu')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

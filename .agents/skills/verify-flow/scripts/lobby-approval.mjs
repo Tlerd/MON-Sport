@@ -11,10 +11,15 @@ const FLOW = 'lobby-approval';
 export default async function lobbyApproval(run) {
   // Cancelling the match at the end cancels its booking too (BR-17). A run that stops earlier cleans up in `finally`.
   await requireTestCourt(run, FLOW);
+  if (run.opts.target === 'live' && (!process.env.VERIFY_PLAYER2_PHONE || !process.env.VERIFY_PLAYER2_PASSWORD)) {
+    await run.step(FLOW, 'sign in a second player', null, () => {
+      throw new SkipFlow(`${FLOW} on live needs a second player: set VERIFY_PLAYER2_PHONE and VERIFY_PLAYER2_PASSWORD`);
+    });
+  }
   const booking = await requestBooking(run, FLOW, 'host sends a request');
   const host = await run.session('player');
   const { venue: venueName, court: courtName } = run.accounts;
-  const requesterName = `test-${run.stamp}`;
+  let requesterName = `test-${run.stamp}`;
 
   let matchId;
   let matchCancelled = false;
@@ -50,29 +55,58 @@ export default async function lobbyApproval(run) {
     const secondPage = await secondContext.newPage();
     run.watch(secondPage);
 
-    await run.step(FLOW, 'register a second player', secondPage, async () => {
-      const letters = Array.from(randomBytes(16), (b) => String.fromCharCode(97 + (b % 26))).join('');
-      const password = `Verify!${letters}`;
-      for (let attempt = 1; attempt <= 5; attempt++) {
-        const phone = `09${String(randomInt(0, 100_000_000)).padStart(8, '0')}`;
-        if (phone === host.account.phone || phone === run.accounts.owner.phone) continue;
-        // Mask the test phone in Run.step if any Playwright timeout quotes a tel: link.
+    await run.step(
+      FLOW,
+      run.opts.target === 'local' ? 'register a second player' : 'sign in a second player',
+      secondPage,
+      async () => {
+        if (run.opts.target === 'local') {
+          const letters = Array.from(randomBytes(16), (b) => String.fromCharCode(97 + (b % 26))).join('');
+          const password = `Verify!${letters}`;
+          for (let attempt = 1; attempt <= 5; attempt++) {
+            const phone = `09${String(randomInt(0, 100_000_000)).padStart(8, '0')}`;
+            if (phone === host.account.phone || phone === run.accounts.owner.phone) continue;
+            // Mask the test phone in Run.step if any Playwright timeout quotes a tel: link.
+            run.accounts.requester = { phone };
+            const res = await secondContext.request.post(`${run.base}/api/auth/register`, {
+              data: { name: requesterName, phone, password, consent: true },
+            });
+            const status = res.status();
+            if (status === 429) {
+              throw new SkipFlow('BR-30 blocked POST /api/auth/register: wait 15 minutes. See .agents/skills/verify-flow/references/gotchas.md');
+            }
+            if (status === 409) continue;
+            const body = await res.json().catch(() => ({}));
+            assert(status === 201 || status === 200, `POST /api/auth/register answered ${status}: ${body.message ?? ''}`);
+            assert(body.name === requesterName, `registered name is "${body.name}", expected "${requesterName}"`);
+            return requesterName;
+          }
+          throw new Error('5 random phones were already taken (409)');
+        }
+
+        const phone = process.env.VERIFY_PLAYER2_PHONE;
+        const password = process.env.VERIFY_PLAYER2_PASSWORD;
+        if (!phone || !password) {
+          throw new SkipFlow(`${FLOW} on live needs a second player: set VERIFY_PLAYER2_PHONE and VERIFY_PLAYER2_PASSWORD`);
+        }
+        assert(phone !== host.account.phone, 'VERIFY_PLAYER2_PHONE must differ from VERIFY_PLAYER_PHONE');
+        // Mask the requester phone in Run.step if any Playwright timeout quotes a tel: link.
         run.accounts.requester = { phone };
-        const res = await secondContext.request.post(`${run.base}/api/auth/register`, {
-          data: { name: requesterName, phone, password, consent: true },
+        const res = await secondContext.request.post(`${run.base}/api/auth/login`, {
+          data: { phone, password },
         });
         const status = res.status();
         if (status === 429) {
-          throw new SkipFlow('BR-30 blocked POST /api/auth/register: wait 15 minutes. See .agents/skills/verify-flow/references/gotchas.md');
+          throw new SkipFlow('BR-30 blocked POST /api/auth/login: wait 15 minutes. See .agents/skills/verify-flow/references/gotchas.md');
         }
-        if (status === 409) continue;
         const body = await res.json().catch(() => ({}));
-        assert(status === 201 || status === 200, `POST /api/auth/register answered ${status}: ${body.message ?? ''}`);
-        assert(body.name === requesterName, `registered name is "${body.name}", expected "${requesterName}"`);
-        return requesterName;
-      }
-      throw new Error('5 random phones were already taken (409)');
-    });
+        assert(status === 200, `POST /api/auth/login answered ${status}: ${body.message ?? ''}`);
+        assert(body.role === 'USER', `the second player has role ${body.role}, the flow needs USER`);
+        assert(body.name, 'POST /api/auth/login returned no name');
+        requesterName = body.name;
+        return `role ${body.role}`;
+      },
+    );
 
     await run.step(FLOW, 'second player sees Host duyệt in Phòng chờ', secondPage, async () => {
       const list = await (await secondPage.request.get(`${run.base}/api/matches`)).json();
@@ -138,9 +172,32 @@ export default async function lobbyApproval(run) {
           // body has overflow-x: hidden, so scrollWidth stays small even when content is clipped. The buttons must sit inside the window.
           assert(box.x >= 0 && box.x + box.width <= innerWidth, `"${label}" button at ${width}px is outside the window: x ${Math.round(box.x)}, right edge ${Math.round(box.x + box.width)}, window ${innerWidth}`);
         }
-        const pageWidth = await host.page.evaluate(() => Math.round(document.querySelector('.lobby-page')?.getBoundingClientRect().width ?? 0));
+        const { pageWidth, maxRight } = await host.page.evaluate(() => {
+          const page = document.querySelector('.lobby-page');
+          if (!page) return { pageWidth: 0, maxRight: 0 };
+          const isScrollContainer = (el) => {
+            const ox = window.getComputedStyle(el).overflowX;
+            return ox === 'auto' || ox === 'scroll';
+          };
+          const insideScrollContainer = (el) => {
+            for (let cur = el.parentElement; cur && cur !== page; cur = cur.parentElement) {
+              if (isScrollContainer(cur)) return true;
+            }
+            return false;
+          };
+          let right = Math.round(page.getBoundingClientRect().right);
+          for (const el of page.querySelectorAll('*')) {
+            if (insideScrollContainer(el)) continue;
+            right = Math.max(right, Math.round(el.getBoundingClientRect().right));
+          }
+          return {
+            pageWidth: Math.round(page.getBoundingClientRect().width),
+            maxRight: right,
+          };
+        });
         assert(pageWidth <= innerWidth, `The lobby page is ${pageWidth}px wide in a ${innerWidth}px window`);
-        return `${width}px: scrollWidth ${scrollWidth} <= ${innerWidth}, lobby page ${pageWidth}px, buttons inside the window and >= 44px`;
+        assert(maxRight <= innerWidth, `Lobby content reaches right edge ${maxRight}px in a ${innerWidth}px window`);
+        return `${width}px: scrollWidth ${scrollWidth} <= ${innerWidth}, lobby page ${pageWidth}px, maxRight ${maxRight}px, buttons inside the window and >= 44px`;
       });
     }
     await host.page.setViewportSize({ width: 1280, height: 900 });

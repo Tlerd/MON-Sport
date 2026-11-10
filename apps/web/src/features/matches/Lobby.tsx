@@ -58,12 +58,16 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MatchDetailView | null>(null);
-  const [requests, setRequests] = useState<MatchRequestView[]>([]);
-  const [busyRequestUserId, setBusyRequestUserId] = useState<string | null>(null);
+  const [requestsState, setRequestsState] = useState<{ matchId: string | null; items: MatchRequestView[] }>({
+    matchId: null,
+    items: [],
+  });
+  const [busyRequestUserIds, setBusyRequestUserIds] = useState<Set<string>>(() => new Set());
   const [detailError, setDetailError] = useState<string>('');
   const [actionError, setActionError] = useState<string>('');
   const [loadingAction, setLoadingAction] = useState(false);
 
+  const loadSeqRef = useRef(0);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const todayStr = useMemo(() => vnDateString(new Date()), []);
   const dateOptions = useMemo(() => {
@@ -79,21 +83,7 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
   const isOtherDate = date !== '' && !dateOptions.some((d) => d.ymd === date);
 
   const selectedMatch = matches?.find((m) => m.id === expandedId) ?? null;
-
-  const loadDetail = useCallback(async (matchId: string, matchJoinMode?: JoinMode) => {
-    try {
-      const data = await api<MatchDetailView>(`/api/matches/${matchId}`);
-      setDetail(data);
-      if (data.viewerRole === 'HOST' && (data.joinMode === 'APPROVAL' || matchJoinMode === 'APPROVAL')) {
-        const reqs = await api<MatchRequestView[]>(`/api/matches/${matchId}/requests`);
-        setRequests(reqs);
-      } else {
-        setRequests([]);
-      }
-    } catch (e) {
-      setDetailError((e as { message?: string })?.message ?? 'Không tải được chi tiết trận');
-    }
-  }, []);
+  const requests = selectedMatch && requestsState.matchId === selectedMatch.id ? requestsState.items : [];
 
   const liveStateRef = useRef<{
     expandedId: string | null;
@@ -109,6 +99,26 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     user,
     joinMode: detail?.joinMode ?? selectedMatch?.joinMode,
   };
+
+  const loadDetail = useCallback(async (matchId: string, matchJoinMode?: JoinMode) => {
+    const seq = ++loadSeqRef.current;
+    try {
+      const data = await api<MatchDetailView>(`/api/matches/${matchId}`);
+      if (seq !== loadSeqRef.current || liveStateRef.current.expandedId !== matchId) return;
+      setDetail(data);
+      setDetailError('');
+      if (data.viewerRole === 'HOST' && (data.joinMode === 'APPROVAL' || matchJoinMode === 'APPROVAL')) {
+        const reqs = await api<MatchRequestView[]>(`/api/matches/${matchId}/requests`);
+        if (seq !== loadSeqRef.current || liveStateRef.current.expandedId !== matchId) return;
+        setRequestsState({ matchId, items: reqs });
+      } else {
+        setRequestsState({ matchId, items: [] });
+      }
+    } catch (e) {
+      if (seq !== loadSeqRef.current || liveStateRef.current.expandedId !== matchId) return;
+      setDetailError((e as { message?: string })?.message ?? 'Không tải được chi tiết trận');
+    }
+  }, []);
 
   // AC-12 & AC-13: listen to SSE /api/matches/stream and reload list, open detail, and host requests when a match event arrives.
   useEffect(() => {
@@ -150,19 +160,22 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
   }, [sport, date, refresh, streamTick]);
 
   async function toggleDetail(m: MatchView) {
+    loadSeqRef.current += 1;
     if (expandedId === m.id) {
+      liveStateRef.current.expandedId = null;
       setExpandedId(null);
       setDetail(null);
-      setRequests([]);
-      setBusyRequestUserId(null);
+      setRequestsState({ matchId: null, items: [] });
+      setBusyRequestUserIds(new Set());
       setDetailError('');
       setActionError('');
       return;
     }
+    liveStateRef.current.expandedId = m.id;
     setExpandedId(m.id);
     setDetail(null);
-    setRequests([]);
-    setBusyRequestUserId(null);
+    setRequestsState({ matchId: null, items: [] });
+    setBusyRequestUserIds(new Set());
     setDetailError('');
     setActionError('');
 
@@ -177,7 +190,9 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     setLoadingAction(true);
     try {
       const updated = await api<MatchDetailView>(`/api/matches/${id}/join`, { method: 'POST' });
-      setDetail(updated);
+      if (liveStateRef.current.expandedId === id) {
+        setDetail(updated);
+      }
       setMatches((prev) => prev?.map((m) => (m.id === id ? { ...m, joinedCount: updated.joinedCount, status: updated.status } : m)) ?? null);
       onMatchChanged?.();
     } catch (e) {
@@ -192,7 +207,9 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     setLoadingAction(true);
     try {
       const updated = await api<MatchDetailView>(`/api/matches/${id}/leave`, { method: 'POST' });
-      setDetail(updated);
+      if (liveStateRef.current.expandedId === id) {
+        setDetail(updated);
+      }
       setMatches((prev) => prev?.map((m) => (m.id === id ? { ...m, joinedCount: updated.joinedCount, status: updated.status } : m)) ?? null);
       onMatchChanged?.();
     } catch (e) {
@@ -204,26 +221,48 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
 
   async function handleRequestDecision(matchId: string, requestUserId: string, action: 'approve' | 'reject') {
     setActionError('');
-    setBusyRequestUserId(requestUserId);
+    setBusyRequestUserIds((prev) => new Set(prev).add(requestUserId));
+    loadSeqRef.current += 1;
     try {
       const updated = await api<MatchDetailView>(
         `/api/matches/${matchId}/requests/${requestUserId}/${action}`,
         { method: 'POST' },
       );
-      setDetail(updated);
       setMatches(
         (prev) =>
           prev?.map((m) =>
             m.id === matchId ? { ...m, joinedCount: updated.joinedCount, status: updated.status } : m,
           ) ?? null,
       );
-      const reqs = await api<MatchRequestView[]>(`/api/matches/${matchId}/requests`);
-      setRequests(reqs);
+      if (liveStateRef.current.expandedId === matchId) {
+        setDetail(updated);
+        setDetailError('');
+        const reloadSeq = ++loadSeqRef.current;
+        try {
+          const reqs = await api<MatchRequestView[]>(`/api/matches/${matchId}/requests`);
+          if (reloadSeq === loadSeqRef.current && liveStateRef.current.expandedId === matchId) {
+            setRequestsState({ matchId, items: reqs });
+          }
+        } catch {
+          if (liveStateRef.current.expandedId === matchId) {
+            setRequestsState((prev) => ({
+              matchId,
+              items: prev.matchId === matchId ? prev.items.filter((r) => r.userId !== requestUserId) : [],
+            }));
+          }
+        }
+      }
       onMatchChanged?.();
     } catch (e) {
-      setActionError((e as { message?: string })?.message ?? 'Không thể xử lý yêu cầu');
+      if (liveStateRef.current.expandedId === matchId) {
+        setActionError((e as { message?: string })?.message ?? 'Không thể xử lý yêu cầu');
+      }
     } finally {
-      setBusyRequestUserId(null);
+      setBusyRequestUserIds((prev) => {
+        const next = new Set(prev);
+        next.delete(requestUserId);
+        return next;
+      });
     }
   }
 
@@ -382,7 +421,7 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                       ) : (
                         <ul className="queue-list">
                           {requests.map((r) => {
-                            const rowBusy = busyRequestUserId === r.userId;
+                            const rowBusy = busyRequestUserIds.has(r.userId);
                             return (
                               <li key={r.userId} className="queue-row">
                                 <a href={`tel:${r.phone}`}>
