@@ -8,6 +8,7 @@ import {
   OwnerCourtUpdate,
   OwnerVenueUpdate,
   RegisterRequest,
+  PRIVACY_NOTICE,
   UserSearchRequest,
   VenueInput,
   VenueUpdate,
@@ -106,5 +107,20 @@ describe('owner edits, brief F-005', () => {
       expect(messageOf(OwnerVenueUpdate.safeParse(body)), JSON.stringify(body)).toBe(Messages.invalid);
     for (const body of [{ name: 'Sân 9' }, { sport: 'FOOTBALL' }, {}])
       expect(messageOf(OwnerCourtUpdate.safeParse(body)), JSON.stringify(body)).toBe(Messages.invalid);
+  });
+});
+
+describe('player skill level, brief F-029', () => {
+  it('AC-1: RegisterRequest accepts each of the 3 levels and accepts no skillLevel; rejects EXPERT', () => {
+    for (const level of ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const) {
+      expect(RegisterRequest.parse({ ...lan, skillLevel: level }).skillLevel).toBe(level);
+    }
+    expect(RegisterRequest.parse(lan).skillLevel).toBeUndefined();
+    expect(RegisterRequest.safeParse({ ...lan, skillLevel: 'EXPERT' }).success).toBe(false);
+  });
+
+  it('AC-10: PRIVACY_NOTICE states skill level is collected and public in the lobby', () => {
+    expect(PRIVACY_NOTICE).toContain('trình độ');
+    expect(PRIVACY_NOTICE).toContain('phòng chờ');
   });
 });

@@ -16,12 +16,12 @@ const SEED_PASSWORD = process.env.SEED_PASSWORD ?? 'monsport123';
 const passwordHash = await hash(SEED_PASSWORD);
 
 const users = [
-  { name: 'Admin', phone: '0900000000', role: 'ADMIN' },
-  { name: 'Bình', phone: '0912345678', role: 'OWNER' },
-  { name: 'Dũng', phone: '0912345679', role: 'OWNER' },
-  { name: 'Hà', phone: '0912345680', role: 'OWNER' },
-  { name: 'An', phone: '0901234567', role: 'USER' },
-  { name: 'Chi', phone: '0901234568', role: 'USER' },
+  { name: 'Admin', phone: '0900000000', role: 'ADMIN', skillLevel: null },
+  { name: 'Bình', phone: '0912345678', role: 'OWNER', skillLevel: null },
+  { name: 'Dũng', phone: '0912345679', role: 'OWNER', skillLevel: null },
+  { name: 'Hà', phone: '0912345680', role: 'OWNER', skillLevel: null },
+  { name: 'An', phone: '0901234567', role: 'USER', skillLevel: 'INTERMEDIATE' },
+  { name: 'Chi', phone: '0901234568', role: 'USER', skillLevel: 'BEGINNER' },
 ].map((u) => ({ ...u, id: randomUUID() }));
 const owner = (phone: string) => users.find((u) => u.phone === phone)!.id;
 
@@ -38,7 +38,7 @@ try {
   await db.query('BEGIN');
   await db.query('TRUNCATE "Booking", "Court", "Venue", "User" CASCADE');
   for (const u of users)
-    await db.query('INSERT INTO "User" (id, name, phone, "passwordHash", role) VALUES ($1, $2, $3, $4, $5)', [u.id, u.name, u.phone, passwordHash, u.role]);
+    await db.query('INSERT INTO "User" (id, name, phone, "passwordHash", role, "skillLevel") VALUES ($1, $2, $3, $4, $5, $6)', [u.id, u.name, u.phone, passwordHash, u.role, u.skillLevel]);
   for (const v of venues) {
     const venueId = randomUUID();
     await db.query(

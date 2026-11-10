@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Messages, PRICE_MAX } from './account.ts';
+import { Messages, PRICE_MAX, SkillLevel } from './account.ts';
 import { BookingStatus, MatchStatus, MatchSummary, Phone, Sport } from './booking.ts';
 
 // Brief F-011 and F-012 (UC-7, UC-8, UC-9): matches in the lobby. Names follow docs/requirements/data-dictionary.md.
@@ -54,6 +54,7 @@ export const MatchLobbyQuery = z
   .object({
     sport: Sport.optional(),
     date: z.iso.date().optional(),
+    level: SkillLevel.optional(),
   })
   .strict();
 export type MatchLobbyQuery = z.infer<typeof MatchLobbyQuery>;
@@ -80,6 +81,7 @@ export const MatchView = z.object({
   venueAddress: z.string(),
   createdAt: Instant,
   joinMode: JoinMode.optional(),
+  hostSkillLevel: SkillLevel.nullable().optional(),
 });
 export type MatchView = z.infer<typeof MatchView>;
 

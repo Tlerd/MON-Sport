@@ -87,4 +87,23 @@ describe('POST /api/auth/register', () => {
     expect(res.body.role).toBe('USER');
     expect((await db.user.findUniqueOrThrow({ where: { phone: lan.phone } })).role).toBe('USER');
   });
+
+  it('AC-2: POST /api/auth/register with skillLevel stores it in User.skillLevel, and leaves it null when absent', async () => {
+    await register({ ...lan, phone: '0901112234', skillLevel: 'INTERMEDIATE' }).expect(201);
+    const userWith = await db.user.findUniqueOrThrow({ where: { phone: '0901112234' } });
+    expect(userWith.skillLevel).toBe('INTERMEDIATE');
+
+    await register({ ...lan, phone: '0901112235' }).expect(201);
+    const userWithout = await db.user.findUniqueOrThrow({ where: { phone: '0901112235' } });
+    expect(userWithout.skillLevel).toBeNull();
+  });
+
+  it('AC-6: a user created without skillLevel has null and can still log in', async () => {
+    await register({ ...lan, phone: '0901112236' }).expect(201);
+    const stored = await db.user.findUniqueOrThrow({ where: { phone: '0901112236' } });
+    expect(stored.skillLevel).toBeNull();
+
+    const loginRes = await http().post('/api/auth/login').send({ phone: '0901112236', password: lan.password }).expect(200);
+    expect(loginRes.body.role).toBe('USER');
+  });
 });

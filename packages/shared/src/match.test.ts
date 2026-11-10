@@ -287,3 +287,13 @@ describe('match contract, brief F-028', () => {
     expect(REQUEST_NOT_PENDING_MESSAGE).toBe('Yêu cầu này không còn chờ duyệt');
   });
 });
+
+describe('match contract, brief F-029', () => {
+  it('AC-1: MatchLobbyQuery accepts level BEGINNER, INTERMEDIATE, ADVANCED and rejects EXPERT', () => {
+    for (const level of ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const) {
+      expect(MatchLobbyQuery.parse({ level }).level).toBe(level);
+    }
+    expect(MatchLobbyQuery.parse({}).level).toBeUndefined();
+    expect(MatchLobbyQuery.safeParse({ level: 'EXPERT' }).success).toBe(false);
+  });
+});

@@ -3,7 +3,7 @@ import { ConflictException } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { hash } from '@node-rs/argon2';
-import { CALL_OWNER_MESSAGE, MatchView, MyBookingView } from '@monsport/shared';
+import { CALL_OWNER_MESSAGE, MatchView, Messages, MyBookingView } from '@monsport/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../../app.module.js';
@@ -401,6 +401,71 @@ describe('matches API (F-011)', () => {
         expect(finalBooking.status).toBe('CONFIRMED');
         expect(finalMatch.status).toBe('OPEN');
       }
+    });
+  });
+
+  describe('skill level in match lobby (F-029)', () => {
+    let beginnerMatchId: string;
+    let intermediateMatchId: string;
+    let noLevelMatchId: string;
+
+    beforeEach(async () => {
+      const passwordHash = await hash('test-password');
+      await db.user.update({ where: { id: ids['An'] }, data: { skillLevel: 'BEGINNER' } });
+      await db.user.update({ where: { id: ids['Chi'] }, data: { skillLevel: 'INTERMEDIATE' } });
+      const em = await db.user.create({ data: { name: 'Em', phone: '0901119999', role: 'USER', passwordHash } });
+      ids['Em'] = em.id;
+
+      const b1 = await book('An', 'A1', '14:00', '15:00', 'CONFIRMED');
+      const res1 = await openMatch('An', { bookingId: b1, capacity: 4, pricePerSlot: 50_000 }).expect(201);
+      beginnerMatchId = res1.body.id;
+
+      const b2 = await book('Chi', 'A2', '16:00', '17:00', 'CONFIRMED');
+      const res2 = await openMatch('Chi', { bookingId: b2, capacity: 4, pricePerSlot: 60_000 }).expect(201);
+      intermediateMatchId = res2.body.id;
+
+      const b3 = await book('Em', 'B1', '18:00', '19:00', 'CONFIRMED');
+      const res3 = await openMatch('Em', { bookingId: b3, capacity: 4, pricePerSlot: 70_000 }).expect(201);
+      noLevelMatchId = res3.body.id;
+    });
+
+    it('AC-3: GET /api/matches?level=<level> returns only matches whose host has that level; without level returns all', async () => {
+      const beginnerRes = await lobby('?level=BEGINNER').expect(200);
+      expect(beginnerRes.body).toHaveLength(1);
+      expect(beginnerRes.body[0].id).toBe(beginnerMatchId);
+
+      const intermediateRes = await lobby('?level=INTERMEDIATE').expect(200);
+      expect(intermediateRes.body).toHaveLength(1);
+      expect(intermediateRes.body[0].id).toBe(intermediateMatchId);
+
+      const advancedRes = await lobby('?level=ADVANCED').expect(200);
+      expect(advancedRes.body).toHaveLength(0);
+
+      const allRes = await lobby().expect(200);
+      expect(allRes.body).toHaveLength(3);
+      const allIds = allRes.body.map((m: { id: string }) => m.id);
+      expect(allIds).toContain(beginnerMatchId);
+      expect(allIds).toContain(intermediateMatchId);
+      expect(allIds).toContain(noLevelMatchId);
+    });
+
+    it('AC-4: MatchView in lobby and match detail includes hostSkillLevel; null when host has no level', async () => {
+      const listRes = await lobby().expect(200);
+      const mBeginner = listRes.body.find((m: { id: string }) => m.id === beginnerMatchId);
+      expect(mBeginner.hostSkillLevel).toBe('BEGINNER');
+      const mNoLevel = listRes.body.find((m: { id: string }) => m.id === noLevelMatchId);
+      expect(mNoLevel.hostSkillLevel).toBeNull();
+
+      const detailBeginner = await as('An')(http().get(`/api/matches/${beginnerMatchId}`)).expect(200);
+      expect(detailBeginner.body.hostSkillLevel).toBe('BEGINNER');
+
+      const detailNoLevel = await as('An')(http().get(`/api/matches/${noLevelMatchId}`)).expect(200);
+      expect(detailNoLevel.body.hostSkillLevel).toBeNull();
+    });
+
+    it('AC-5: GET /api/matches?level=EXPERT returns 400 with Messages.invalid', async () => {
+      const res = await lobby('?level=EXPERT').expect(400);
+      expect(res.body.message).toBe(Messages.invalid);
     });
   });
 });

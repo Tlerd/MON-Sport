@@ -68,6 +68,12 @@ enum JoinMode {
   APPROVAL
 }
 
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
 model User {
   id              String    @id @default(uuid(7)) @db.Uuid
   name            String    @db.VarChar(100)
@@ -81,6 +87,8 @@ model User {
   deletedAt       DateTime? @db.Timestamptz(3)
   /// When the user agreed to the privacy notice at sign-up. Null for accounts that an admin or the seed created.
   consentAt       DateTime? @db.Timestamptz(3)
+  /// Brief F-029: chosen at web sign-up. Null for app, Google, admin, and seed accounts.
+  skillLevel      SkillLevel?
   /// The session guard refuses a cookie issued before this time. The admin unlock sets it. Null: no limit.
   sessionsValidFrom DateTime? @db.Timestamptz(3)
   createdAt       DateTime      @default(now()) @db.Timestamptz(3)
