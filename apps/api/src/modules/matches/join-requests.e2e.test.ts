@@ -129,6 +129,16 @@ describe('match join requests (F-028 step 2)', () => {
     expect((await row(open, 'Chi'))?.joinedAt).toEqual(new Date(vn('10:01')));
   });
 
+  it('AC-3: a player who left an APPROVAL match can send a request again', async () => {
+    const matchId = await openT('APPROVAL');
+    await db.matchPlayer.create({ data: { matchId, userId: ids['Chi'], status: 'LEFT', joinedAt: new Date(vn('09:00')) } });
+    clock.at = new Date(vn('10:01'));
+    const res = await joinMatch('Chi', matchId).expect(200);
+    expect(MatchDetailView.parse(res.body)).toMatchObject({ myRequest: 'PENDING', joinedCount: 1 });
+    expect(await row(matchId, 'Chi')).toMatchObject({ status: 'PENDING' });
+    expect((await db.match.findUniqueOrThrow({ where: { id: matchId } })).joinedCount).toBe(1);
+  });
+
   it('AC-4: the host gets the requests oldest first with phone numbers, and a requester or a stranger gets 403', async () => {
     const matchId = await openT('APPROVAL');
     clock.at = new Date(vn('10:01'));
@@ -175,6 +185,8 @@ describe('match join requests (F-028 step 2)', () => {
     await cancelMatch('An', cancelled).expect(200);
     expect((await requestsOf('An', cancelled).expect(200)).body).toEqual([]);
     expect((await detailMatch('Chi', cancelled).expect(200)).body.myRequest).toBeNull();
+    expect((await detailMatch('Chi', cancelled).expect(200)).body.viewerRole).toBe('NONE');
+    expect(await row(cancelled, 'Chi')).toMatchObject({ status: 'PENDING' });
 
     const started = await openT('APPROVAL', '20:00', '21:00');
     await joinMatch('Em', started).expect(200);
@@ -183,7 +195,35 @@ describe('match join requests (F-028 step 2)', () => {
     expect((await requestsOf('An', started).expect(200)).body).toEqual([]);
     const detail = await detailMatch('Em', started).expect(200);
     expect(detail.body.myRequest).toBeNull();
+    expect(detail.body.viewerRole).toBe('NONE');
+    expect(await row(started, 'Em')).toMatchObject({ status: 'PENDING' });
     const host = await detailMatch('An', started).expect(200);
+    expect(host.body.pendingCount).toBe(0);
+  });
+
+  it('AC-10: the request list is empty after the confirm deadline of an unconfirmed booking passes', async () => {
+    const bookingId = (
+      await db.booking.create({
+        data: {
+          courtId: ids.A1,
+          startAt: new Date(vn('20:00')),
+          endAt: new Date(vn('21:00')),
+          status: 'PENDING',
+          source: 'APP',
+          createdById: ids['An'],
+          priceTotal: 80_000,
+          confirmDeadline: new Date(vn('10:30')),
+          createdAt: new Date(vn('08:00')),
+        },
+      })
+    ).id;
+    const matchId = (await openMatch('An', { bookingId, capacity: 4, pricePerSlot: 50_000, joinMode: 'APPROVAL' }).expect(201)).body.id as string;
+    clock.at = new Date(vn('10:01'));
+    const joined = await joinMatch('Chi', matchId).expect(200);
+    expect(joined.body.myRequest).toBe('PENDING');
+    clock.at = new Date(vn('10:31'));
+    expect((await requestsOf('An', matchId).expect(200)).body).toEqual([]);
+    const host = await detailMatch('An', matchId).expect(200);
     expect(host.body.pendingCount).toBe(0);
   });
 

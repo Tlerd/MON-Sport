@@ -489,11 +489,11 @@ export class MatchesService {
     return toMatchDetailView(outcome.match, userId, now, outcome.requests);
   }
 
-  /** Brief F-028 (UC-15, BR-20): the host reads the waiting requests, oldest first. Read only, so no locks. */
+  /** Brief F-028 (UC-15, BR-20): the host reads the waiting requests, oldest first. It runs the same lazy sync as `detail` first (BR-52), so it can write expired states. */
   async listRequests(userId: string, matchId: string): Promise<MatchRequestView[]> {
     const found = await this.prisma.match.findUnique({
       where: { id: matchId },
-      select: { hostId: true, status: true, booking: { select: { startAt: true } } },
+      select: { hostId: true, bookingId: true },
     });
     if (!found) {
       throw new NotFoundException(MATCH_NOT_FOUND);
@@ -501,8 +501,23 @@ export class MatchesService {
     if (found.hostId !== userId) {
       throw new ForbiddenException(NOT_HOST);
     }
+    const now = this.clock.now();
+    const syncMatch = async () => {
+      await expireBookings(this.prisma, Prisma.sql`id = ${found.bookingId}::uuid`, now);
+      await finishPastMatches(this.prisma, Prisma.sql`b.id = ${found.bookingId}::uuid`, now);
+    };
+    await syncMatch().catch((error: unknown) => {
+      if (!isDeadlock(error)) throw error;
+      return syncMatch().catch((again: unknown) => {
+        throw isDeadlock(again) ? new ConflictException(BUSY) : again;
+      });
+    });
+    const fresh = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      select: { status: true, booking: { select: { startAt: true } } },
+    });
     // BR-52: requests of a closed or started match are expired.
-    if ((found.status !== 'OPEN' && found.status !== 'FULL') || found.booking.startAt <= this.clock.now()) {
+    if (!fresh || (fresh.status !== 'OPEN' && fresh.status !== 'FULL') || fresh.booking.startAt <= now) {
       return [];
     }
     const rows = await this.prisma.matchPlayer.findMany({
