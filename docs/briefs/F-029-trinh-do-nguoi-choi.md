@@ -31,7 +31,7 @@ Each criterion has one test. The test name starts with the label, for example `A
 - AC-4: Mỗi `MatchView` của phòng chờ và của chi tiết trận có `hostSkillLevel`. Giá trị là `null` khi host chưa chọn mức.
 - AC-5: `GET /api/matches?level=EXPERT` trả 400 với `Messages.invalid`.
 - AC-6: Migration chỉ thêm. Người dùng đã có giữ `skillLevel` là `null`, và đăng nhập vẫn chạy.
-- AC-10: `PRIVACY_NOTICE` nêu "trình độ" trong dữ liệu thu thập, và nói rằng mọi người dùng thấy trình độ của host trong phòng chờ (Luật 91/2025).
+- AC-10: `PRIVACY_NOTICE` nêu "trình độ" trong dữ liệu thu thập, và nói rằng mọi người, kể cả người chưa đăng nhập, thấy tên và trình độ của host trong phòng chờ (Luật 91/2025).
 - AC-7: Form đăng ký web có ô chọn "Trình độ" với ba mức "Mới chơi", "Trung bình", "Khá". Gửi form khi chưa chọn hiện "Chọn trình độ" và không gửi request. Khi đã chọn, request có `skillLevel`.
 - AC-8: Phòng chờ web có bộ lọc "Trình độ" với "Tất cả" và ba mức. "Tất cả" là mặc định và không gửi `level`. Chọn một mức thì gửi `level` của mức đó. Khi phòng chờ tải lại vì một sự kiện SSE, request vẫn giữ `level`.
 - AC-9: Mỗi thẻ trận trong phòng chờ web hiện nhãn trình độ của host. Thẻ không hiện nhãn khi `hostSkillLevel` là `null`.
@@ -71,7 +71,7 @@ One pull request for each row. Each pull request passes the check command on its
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
 | 1 | Contract, schema, server | `packages/shared/src/account.ts`, `packages/shared/src/account.test.ts`, `packages/shared/src/match.ts`, `packages/shared/src/match.test.ts`, `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/`, `apps/api/prisma/migration.test.ts`, `apps/api/prisma/seed.ts`, `apps/api/src/modules/auth/`, `apps/api/src/modules/matches/`, `docs/requirements/data-dictionary.md`, `docs/requirements/business-rules.md`, `HUMAN_DECISIONS.md`, `PROGRESS.md` | AC-1 đến AC-6, AC-10 |
-| 2 | Screen | `apps/web/src/features/auth/RegisterForm.tsx`, `apps/web/src/features/auth/RegisterForm.test.tsx`, `apps/web/src/features/matches/` | AC-7 đến AC-9 |
+| 2 | Screen | `apps/web/src/features/auth/RegisterForm.tsx`, `apps/web/src/features/auth/RegisterForm.test.tsx`, `apps/web/src/app/App.test.tsx`, `apps/web/src/features/matches/` | AC-7 đến AC-9 |
 
 ## Edit boundaries
 
