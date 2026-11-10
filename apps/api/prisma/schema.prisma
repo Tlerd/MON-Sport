@@ -26,6 +26,9 @@ enum NotificationType {
   BOOKING_CONFIRMED
   BOOKING_REJECTED
   MATCH_CANCELLED
+  MATCH_JOIN_REQUESTED
+  MATCH_JOIN_APPROVED
+  MATCH_JOIN_REJECTED
 }
 
 enum Sport {
@@ -56,6 +59,13 @@ enum MatchStatus {
 enum MatchPlayerStatus {
   ACTIVE
   LEFT
+  PENDING
+  REJECTED
+}
+
+enum JoinMode {
+  INSTANT
+  APPROVAL
 }
 
 model User {
@@ -144,6 +154,7 @@ model Match {
   pricePerSlot Int
   status       MatchStatus   @default(OPEN)
   joinedCount  Int
+  joinMode     JoinMode      @default(INSTANT)
   createdAt    DateTime      @default(now()) @db.Timestamptz(3)
   booking      Booking       @relation(fields: [bookingId], references: [id])
   host         User          @relation(fields: [hostId], references: [id])

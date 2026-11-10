@@ -44,21 +44,23 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | DevOtpOutbox.id | Khóa của bản ghi | uuid | 36 | Do hệ thống sinh |
 | DevOtpOutbox.phone | Số điện thoại nhận mã | phone | 10 | — |
 | id | Khóa của một bản ghi | uuid | 36 | Do hệ thống sinh |
-| Match | Một trận trong phòng chờ | id + bookingId + hostId + sport + capacity + pricePerSlot + status + joinedCount + createdAt | — | — |
+| JoinMode | Chế độ vào trận (BR-49) | enum | — | `INSTANT` Vào ngay (mặc định) · `APPROVAL` Host duyệt |
+| Match | Một trận trong phòng chờ | id + bookingId + hostId + sport + capacity + pricePerSlot + status + joinedCount + joinMode + createdAt | — | — |
 | Match.bookingId | Booking của trận | id của Booking | 36 | Duy nhất (BR-13) |
 | Match.capacity | Số suất, gồm cả host | integer | — | 2–30 |
 | Match.hostId | Host của trận | id của User | 36 | Bằng `Booking.createdById` (BR-13) |
 | Match.joinedCount | Số người đang có suất | integer | — | 0 tới `capacity`. Bằng số MatchPlayer `ACTIVE` |
+| Match.joinMode | Chế độ vào trận. Host chọn lúc mở trận và không đổi sau đó (BR-49) | JoinMode | — | Mặc định `INSTANT` |
 | Match.pricePerSlot | Giá mỗi suất, chỉ để hiển thị | money | — | 0 trở lên |
 | Match.sport | Môn của trận | Sport | — | Bằng `Court.sport` của sân |
 | Match.status | Trạng thái trận | MatchStatus | — | Mặc định `OPEN` |
 | MatchPlayer | Một người trong một trận | matchId + userId + status + joinedAt + (leftAt) | — | Duy nhất theo (`matchId`, `userId`). Vào lại thì cập nhật dòng cũ |
-| MatchPlayer.joinedAt | Lúc vào trận gần nhất | timestamptz(3) | — | — |
+| MatchPlayer.joinedAt | Lúc vào trận gần nhất, hoặc lúc gửi yêu cầu gần nhất khi `status` là `PENDING` | timestamptz(3) | — | Duyệt yêu cầu đặt `status` là `ACTIVE` và `joinedAt` là lúc duyệt. Người xin hủy yêu cầu thì dòng `PENDING` bị xóa |
 | MatchPlayer.leftAt | Lúc rời trận | timestamptz(3) | — | Có khi `status` = `LEFT` |
 | MatchPlayer.matchId | Trận | id của Match | 36 | — |
 | MatchPlayer.status | Người đó còn suất hay không | MatchPlayerStatus | — | — |
 | MatchPlayer.userId | Người trong trận | id của User | 36 | — |
-| MatchPlayerStatus | Trạng thái của một người trong trận | enum | — | `ACTIVE` còn suất · `LEFT` đã rời |
+| MatchPlayerStatus | Trạng thái của một người trong trận | enum | — | `ACTIVE` còn suất · `LEFT` đã rời · `PENDING` Chờ duyệt (chưa có suất, BR-50) · `REJECTED` Bị từ chối (BR-51) |
 | MatchStatus | Trạng thái của trận | enum | — | `OPEN` Mở · `FULL` Đầy · `CANCELLED` Đã hủy · `FINISHED` Đã đá xong |
 | money | Số tiền | integer | — | Đơn vị VND, số nguyên (BR-25) |
 | Notification | Một thông báo trong app | id + userId + type + bookingId + (matchId) + (readAt) + (pushedAt) + createdAt | — | — |
@@ -68,7 +70,7 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | Notification.readAt | Lúc người nhận đọc | timestamptz(3) | — | — |
 | Notification.type | Loại sự kiện | NotificationType | — | — |
 | Notification.userId | Người nhận | id của User | 36 | — |
-| NotificationType | Loại thông báo | enum | — | `BOOKING_REQUESTED` · `BOOKING_CONFIRMED` · `BOOKING_REJECTED` · `MATCH_CANCELLED` |
+| NotificationType | Loại thông báo | enum | — | `BOOKING_REQUESTED` · `BOOKING_CONFIRMED` · `BOOKING_REJECTED` · `MATCH_CANCELLED` · `MATCH_JOIN_REQUESTED` · `MATCH_JOIN_APPROVED` · `MATCH_JOIN_REJECTED` |
 | phone | Số điện thoại Việt Nam | text | 10 | 10 chữ số, bắt đầu bằng `0` |
 | PhoneOtp | Một mã OTP đang chờ xác minh số điện thoại (brief F-004) | phoneKey + purpose + codeHash + attempts + sentAt + expiresAt | — | Khóa chính (`phoneKey`, `purpose`). Index trên `expiresAt` cho O10 |
 | PhoneOtp.attempts | Số lần nhập sai | integer | — | 0–5 |

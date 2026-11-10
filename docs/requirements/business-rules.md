@@ -59,6 +59,10 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-46 | Gỡ liên kết Google chỉ được phép khi tài khoản có mật khẩu. Tài khoản chỉ có Google nhận 400 "Hãy đặt mật khẩu trước khi gỡ Google" | constraint | static | Brief F-004, R6 |
 | BR-47 | Mỗi mã OTP gắn với một mục đích (`purpose`). Mã của mục đích này không được dùng cho mục đích khác | constraint | static | Brief F-004, O7 |
 | BR-48 | Khi nhà cung cấp tin nhắn lỗi, hệ thống trả về 503 "Không gửi được mã. Thử lại sau". Server xóa mã mới theo `codeHash`, và trừ 1 ở hai bộ đếm `otp-phone` và `otp-day` đã tăng, không xuống dưới 0 | action enabler | dynamic | Brief F-004, O8 |
+| BR-49 | Trận có một chế độ vào trận: "Vào ngay" hoặc "Host duyệt". Host chọn lúc mở trận và không đổi sau đó | constraint | static | Intake V2, W1, brief F-028 |
+| BR-50 | Yêu cầu vào trận không giữ suất. Chỉ khi host duyệt, người đó mới có suất, và chỉ khi trận còn suất. Kiểm tra và thêm người dưới cùng một khóa với BR-15 | constraint | dynamic | Intake V2, W1, brief F-028 |
+| BR-51 | Người bị host từ chối không gửi lại yêu cầu vào trận đó | constraint | dynamic | Intake V2, W1, brief F-028 |
+| BR-52 | Yêu cầu "Chờ duyệt" hết hạn khi trận không còn "Mở" hoặc "Đầy", hoặc khi đã qua giờ bắt đầu. Trận "Đầy" không làm yêu cầu hết hạn. Mọi chỗ đọc yêu cầu áp dụng cùng quy tắc này | computation | dynamic | Intake V2, W1, brief F-028 |
 
 ## Assumptions
 

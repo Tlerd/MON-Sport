@@ -15,7 +15,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 |---|---|
 | Người dùng | UC-1 Đăng ký và đăng nhập · UC-2 Chọn sân và xem giờ trống · UC-3 Gửi yêu cầu đặt sân · UC-6 Xem và hủy booking |
 | Chủ sân | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-11 Sửa giá và giờ mở cửa · UC-12 Xem dashboard tài chính |
-| Host | UC-7 Mở trận · UC-9 Hủy trận |
+| Host | UC-7 Mở trận · UC-9 Hủy trận · UC-15 Host duyệt yêu cầu vào trận |
 | Người ghép trận | UC-8 Vào và rời trận |
 | Admin | UC-10 Quản lý tài khoản và đơn vị · UC-13 Xem dashboard toàn trang |
 | Hệ thống | UC-14 Gửi thông báo |
@@ -137,12 +137,12 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Description | Host mở trận trên một booking của mình. Trận hiện trong phòng chờ, kể cả khi chủ sân chưa xác nhận booking |
 | Preconditions | PRE-7: host có một booking "Chờ xác nhận" hoặc "Đã xác nhận" chưa có trận |
 | Postconditions | POST-7: có một trận "Mở" trong phòng chờ, host chiếm 1 suất |
-| Normal Flow | 7.0<br>1. Host chọn booking.<br>2. Host nhập môn, số suất và giá mỗi suất.<br>3. Hệ thống tạo trận "Mở" và thêm host vào trận (BR-14).<br>4. Hệ thống hiện trận trong phòng chờ với nhãn "Đã xác nhận" hoặc "Chưa xác nhận" |
+| Normal Flow | 7.0<br>1. Host chọn booking.<br>2. Host nhập môn, số suất và giá mỗi suất.<br>3. Host chọn chế độ vào trận (mặc định Vào ngay).<br>4. Hệ thống tạo trận "Mở" và thêm host vào trận (BR-14).<br>5. Hệ thống hiện trận trong phòng chờ với nhãn "Đã xác nhận" hoặc "Chưa xác nhận" |
 | Alternative Flows | — |
 | Exceptions | 7.0.E1 Booking đã có trận: hệ thống từ chối (BR-13) |
 | Priority | High |
 | Frequency of Use | Khoảng 15 lần mỗi ngày |
-| Business Rules | BR-13, BR-14, BR-25 |
+| Business Rules | BR-13, BR-14, BR-25, BR-49 |
 | Other Information | Phòng chờ của mọi người dùng thấy trận mới trong vòng 2 giây |
 | Assumptions | Số suất ít nhất là 2 |
 
@@ -152,7 +152,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 |---|---|
 | Primary Actor, Secondary Actors | Người ghép trận · Host |
 | Trigger | Người ghép trận thấy một trận trong phòng chờ |
-| Description | Người ghép trận lọc phòng chờ theo môn và ngày, xem chi tiết trận, rồi bấm xác nhận để vào trận. Host không duyệt |
+| Description | Người ghép trận lọc phòng chờ theo môn và ngày, xem chi tiết trận, rồi bấm xác nhận để vào trận. Trong trận "Vào ngay" host không duyệt. Trong trận "Host duyệt" người ghép trận gửi yêu cầu và host quyết định (UC-15) |
 | Preconditions | PRE-8: người ghép trận đã đăng nhập |
 | Postconditions | POST-8: người ghép trận có một suất trong trận |
 | Normal Flow | 8.0<br>1. Người ghép trận lọc phòng chờ theo môn và ngày.<br>2. Hệ thống hiện các trận "Mở".<br>3. Người ghép trận mở chi tiết: sân, giờ, host, số suất trống và giá.<br>4. Người ghép trận bấm xác nhận.<br>5. Hệ thống thêm người đó vào trận. Khi hết suất, trận chuyển sang "Đầy" (BR-15) |
@@ -160,7 +160,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Exceptions | 8.0.E1 Hai người cùng bấm vào suất cuối: một người vào được, người kia nhận "Trận đã đủ người"<br>8.1.E1 Đã tới giờ bắt đầu: hệ thống không cho rời (BR-18) |
 | Priority | High |
 | Frequency of Use | Khoảng 40 lần vào trận mỗi ngày |
-| Business Rules | BR-15, BR-18, BR-20 |
+| Business Rules | BR-15, BR-18, BR-20, BR-49, BR-50 |
 | Other Information | App chỉ hiện giá mỗi suất. Host tự thu tiền tại sân |
 | Assumptions | Người đã rời vào lại được khi trận còn "Mở" |
 
@@ -271,3 +271,21 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Business Rules | — |
 | Other Information | Push tới trong vòng 30 giây. Thông báo trong app vẫn còn khi push lỗi |
 | Assumptions | — |
+
+## UC-15 Host duyệt yêu cầu vào trận
+
+| Row | Content |
+|---|---|
+| Primary Actor, Secondary Actors | Host · Người ghép trận |
+| Trigger | Người ghép trận xin vào một trận "Host duyệt" |
+| Description | Host xem hàng chờ của trận và duyệt hoặc từ chối từng yêu cầu. Yêu cầu không giữ suất |
+| Preconditions | PRE-15: trận có chế độ "Host duyệt" và có yêu cầu "Chờ duyệt" |
+| Postconditions | POST-15: người được duyệt có suất. Người bị từ chối không có suất |
+| Normal Flow | 15.0<br>1. Host mở hàng chờ của trận.<br>2. Hệ thống hiện các yêu cầu "Chờ duyệt" theo thời gian gửi (BR-52).<br>3. Host duyệt một yêu cầu.<br>4. Hệ thống thêm người đó vào trận khi còn suất. Khi hết suất, trận chuyển sang "Đầy" (BR-15, BR-50).<br>5. Hệ thống báo người xin (UC-14) |
+| Alternative Flows | 15.1 Từ chối: host từ chối một yêu cầu. Hệ thống đánh dấu "Bị từ chối" và báo người xin (BR-51, UC-14) |
+| Exceptions | 15.0.E1 Trận đã đủ người: hệ thống từ chối duyệt và báo "Trận đã đủ người"<br>15.0.E2 Yêu cầu đã hết hạn: hệ thống báo yêu cầu hết hạn và không thêm người (BR-52) |
+| Priority | High |
+| Frequency of Use | Khoảng 20 lần mỗi ngày |
+| Business Rules | BR-15, BR-20, BR-50, BR-51, BR-52 |
+| Other Information | Chỉ host thấy số điện thoại của người xin (BR-20). Hai lệnh duyệt cùng lúc vào suất cuối: một lệnh thành công |
+| Assumptions | Host không đổi được chế độ vào trận sau khi mở trận (BR-49) |

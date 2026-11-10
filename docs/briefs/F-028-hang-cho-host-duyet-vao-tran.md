@@ -56,7 +56,7 @@ Hợp đồng nằm ở `packages/shared/src/match.ts` và `packages/shared/src/
 |---|---|---|---|
 | `JoinMode` | new | — | `z.enum(['INSTANT', 'APPROVAL'])` |
 | `MatchPlayerStatus` | add values | — | `ACTIVE`, `LEFT`, `PENDING`, `REJECTED` |
-| `CreateMatchRequest` | add field | `joinMode` (mặc định `INSTANT`) | 400 `matchErrorMessage` |
+| `CreateMatchRequest` | add field | `joinMode` (optional. Vắng nghĩa là `INSTANT`, và server đặt giá trị này. Không dùng `.default()`, vì kiểu suy ra làm hỏng các nơi gọi có sẵn) | 400 `matchErrorMessage` |
 | `MatchView` | add field | — | `joinMode` (optional. Vắng nghĩa là `INSTANT`) |
 | `MatchDetailView` | add fields | — | `myRequest`: `PENDING`, `REJECTED` hoặc `null` (optional) · `pendingCount` chỉ có khi người xem là host (optional) |
 | `POST /api/matches/:id/join` | change | — | Luôn 200 `MatchDetailView`. Trận `APPROVAL`: `myRequest: "PENDING"` và người xin chưa có suất. Lỗi: 409 "Host đã từ chối yêu cầu của bạn" · 409 `ALREADY_IN_MATCH_MESSAGE` · 409 `NOT_JOINABLE_MESSAGE`. Trận `INSTANT` "Đầy": 409 `MATCH_FULL_MESSAGE` như V1 |
