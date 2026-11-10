@@ -7,7 +7,11 @@ import {
   Messages,
   OwnerCourtUpdate,
   OwnerVenueUpdate,
+  PRIVACY_NOTICE,
   RegisterRequest,
+  SKILL_LEVEL_LABELS,
+  SKILL_LEVEL_REQUIRED_MESSAGE,
+  SkillLevel,
   UserSearchRequest,
   VenueInput,
   VenueUpdate,
@@ -106,5 +110,30 @@ describe('owner edits, brief F-005', () => {
       expect(messageOf(OwnerVenueUpdate.safeParse(body)), JSON.stringify(body)).toBe(Messages.invalid);
     for (const body of [{ name: 'Sân 9' }, { sport: 'FOOTBALL' }, {}])
       expect(messageOf(OwnerCourtUpdate.safeParse(body)), JSON.stringify(body)).toBe(Messages.invalid);
+  });
+});
+
+describe('skill level, brief F-029', () => {
+  it('AC-1: RegisterRequest accepts BEGINNER, INTERMEDIATE, ADVANCED, and missing skillLevel, and rejects EXPERT', () => {
+    for (const level of ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const) {
+      expect(RegisterRequest.parse({ ...lan, skillLevel: level })).toEqual({ ...lan, name: 'Lan', skillLevel: level });
+    }
+    expect(RegisterRequest.parse(lan).skillLevel).toBeUndefined();
+    expect(RegisterRequest.safeParse({ ...lan, skillLevel: 'EXPERT' }).success).toBe(false);
+  });
+
+  it('AC-1: exports SkillLevel enum, SKILL_LEVEL_LABELS, and SKILL_LEVEL_REQUIRED_MESSAGE', () => {
+    expect(SkillLevel.options).toEqual(['BEGINNER', 'INTERMEDIATE', 'ADVANCED']);
+    expect(SKILL_LEVEL_LABELS).toEqual({
+      BEGINNER: 'Mới chơi',
+      INTERMEDIATE: 'Trung bình',
+      ADVANCED: 'Khá',
+    });
+    expect(SKILL_LEVEL_REQUIRED_MESSAGE).toBe('Chọn trình độ');
+  });
+
+  it('AC-10: PRIVACY_NOTICE contains trình độ and phòng chờ', () => {
+    expect(PRIVACY_NOTICE).toContain('trình độ');
+    expect(PRIVACY_NOTICE).toContain('phòng chờ');
   });
 });

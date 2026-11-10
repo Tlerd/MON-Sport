@@ -63,6 +63,7 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-50 | Yêu cầu vào trận không giữ suất. Chỉ khi host duyệt, người đó mới có suất, và chỉ khi trận còn suất. Kiểm tra và thêm người dưới cùng một khóa với BR-15 | constraint | dynamic | Intake V2, W1, brief F-028 |
 | BR-51 | Người bị host từ chối không gửi lại yêu cầu vào trận đó | constraint | dynamic | Intake V2, W1, brief F-028 |
 | BR-52 | Yêu cầu "Chờ duyệt" hết hạn khi trận không còn "Mở" hoặc "Đầy", hoặc khi đã qua giờ bắt đầu. Trận "Đầy" không làm yêu cầu hết hạn. Mọi chỗ đọc yêu cầu áp dụng cùng quy tắc này | computation | dynamic | Intake V2, W1, brief F-028 |
+| BR-53 | Trình độ của trận là trình độ của host. Phòng chờ lọc trận theo trình độ của host. Host chưa chọn trình độ chỉ hiện khi không lọc | constraint | static | Intake V2, W4, brief F-029 |
 
 ## Assumptions
 

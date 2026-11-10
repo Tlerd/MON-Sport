@@ -439,3 +439,33 @@ describe('migration 20261110000000_f028_match_join_approval', () => {
     }
   });
 });
+
+describe('migration 20261110100000_f029_skill_level', () => {
+  it('AC-6: a User row inserted without skillLevel reads back null, so existing accounts stay valid', async () => {
+    const testId = randomUUID();
+    const phone = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+    try {
+      await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'Old User', $2, 'x')`, [testId, phone]);
+      const { rows } = await db.query('SELECT "skillLevel" FROM "User" WHERE id = $1', [testId]);
+      expect(rows).toEqual([{ skillLevel: null }]);
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id = $1', [testId]);
+    }
+  });
+
+  it('AC-6: the database accepts each of the 3 enum values and rejects another value', async () => {
+    const testId = randomUUID();
+    const phone = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+    try {
+      await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'Level User', $2, 'x')`, [testId, phone]);
+      for (const level of ['BEGINNER', 'INTERMEDIATE', 'ADVANCED']) {
+        expect(await sqlState(db.query(`UPDATE "User" SET "skillLevel" = $1::"SkillLevel" WHERE id = $2`, [level, testId]))).toBe('ok');
+        const { rows } = await db.query('SELECT "skillLevel" FROM "User" WHERE id = $1', [testId]);
+        expect(rows).toEqual([{ skillLevel: level }]);
+      }
+      expect(await sqlState(db.query(`UPDATE "User" SET "skillLevel" = 'EXPERT'::"SkillLevel" WHERE id = $1`, [testId]))).not.toBe('ok');
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id = $1', [testId]);
+    }
+  });
+});

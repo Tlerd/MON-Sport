@@ -291,6 +291,63 @@ describe('matches API (F-011)', () => {
         [bPending, 'CANCELLED', 'CANCELLED'],
       ]);
     });
+
+    it('AC-3: lobby filters by host skillLevel, and without level returns all matches including null', async () => {
+      await db.user.update({ where: { id: ids['An'] }, data: { skillLevel: 'BEGINNER' } });
+      await db.user.update({ where: { id: ids['Chi'] }, data: { skillLevel: 'ADVANCED' } });
+      const passwordHash = await hash('test-password');
+      const hai = await db.user.create({ data: { name: 'Hải', phone: '0901234599', role: 'USER', passwordHash } });
+      ids['Hải'] = hai.id;
+
+      const bAn = await book('An', 'A1', '18:00', '19:00', 'CONFIRMED');
+      const bChi = await book('Chi', 'A2', '19:00', '20:00', 'CONFIRMED');
+      const bHai = await book('Hải', 'B1', '20:00', '21:00', 'CONFIRMED');
+
+      const mAn = (await openMatch('An', { bookingId: bAn, capacity: 4, pricePerSlot: 50_000 }).expect(201)).body.id as string;
+      const mChi = (await openMatch('Chi', { bookingId: bChi, capacity: 6, pricePerSlot: 60_000 }).expect(201)).body.id as string;
+      const mHai = (await openMatch('Hải', { bookingId: bHai, capacity: 4, pricePerSlot: 40_000 }).expect(201)).body.id as string;
+
+      const beginnerRes = await lobby('?level=BEGINNER').expect(200);
+      expect(beginnerRes.body.map((m: { id: string }) => m.id)).toEqual([mAn]);
+
+      const advancedRes = await lobby('?level=ADVANCED').expect(200);
+      expect(advancedRes.body.map((m: { id: string }) => m.id)).toEqual([mChi]);
+
+      const intermediateRes = await lobby('?level=INTERMEDIATE').expect(200);
+      expect(intermediateRes.body).toEqual([]);
+
+      const allRes = await lobby().expect(200);
+      expect(allRes.body.map((m: { id: string }) => m.id)).toEqual([mAn, mChi, mHai]);
+    });
+
+    it('AC-4: MatchView in lobby and in detail carries hostSkillLevel, null when host has no level', async () => {
+      await db.user.update({ where: { id: ids['An'] }, data: { skillLevel: 'BEGINNER' } });
+      const passwordHash = await hash('test-password');
+      const hai = await db.user.create({ data: { name: 'Hải', phone: '0901234599', role: 'USER', passwordHash } });
+      ids['Hải'] = hai.id;
+
+      const bAn = await book('An', 'A1', '18:00', '19:00', 'CONFIRMED');
+      const bHai = await book('Hải', 'B1', '20:00', '21:00', 'CONFIRMED');
+
+      const mAn = (await openMatch('An', { bookingId: bAn, capacity: 4, pricePerSlot: 50_000 }).expect(201)).body.id as string;
+      const mHai = (await openMatch('Hải', { bookingId: bHai, capacity: 4, pricePerSlot: 40_000 }).expect(201)).body.id as string;
+
+      const listRes = await lobby().expect(200);
+      const matchAn = listRes.body.find((m: { id: string }) => m.id === mAn);
+      const matchHai = listRes.body.find((m: { id: string }) => m.id === mHai);
+      expect(matchAn.hostSkillLevel).toBe('BEGINNER');
+      expect(matchHai.hostSkillLevel).toBeNull();
+
+      const detailAn = (await as('An')(http().get(`/api/matches/${mAn}`)).expect(200)).body;
+      const detailHai = (await as('An')(http().get(`/api/matches/${mHai}`)).expect(200)).body;
+      expect(detailAn.hostSkillLevel).toBe('BEGINNER');
+      expect(detailHai.hostSkillLevel).toBeNull();
+    });
+
+    it('AC-5: GET /api/matches?level=EXPERT returns 400 with Messages.invalid', async () => {
+      const res = await lobby('?level=EXPERT').expect(400);
+      expect(res.body.message).toBe('Dữ liệu không hợp lệ');
+    });
   });
 
   describe('POST /api/matches/:id/cancel', () => {

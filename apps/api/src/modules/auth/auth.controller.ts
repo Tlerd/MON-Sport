@@ -123,7 +123,7 @@ export class AuthController {
     const now = this.clock.now();
     const { consent: _consent, ...account } = input.data;
     // The role is fixed here. A role field in the body is ignored, because Zod strips unknown keys.
-    const user = await this.accounts.create({ ...account, role: 'USER', consentAt: now, createdAt: now });
+    const user = await this.accounts.create({ ...account, role: 'USER', consentAt: now, createdAt: now, skillLevel: input.data.skillLevel ?? null });
     this.startSession(res, user.id);
     return { id: user.id, name: user.name, role: user.role };
   }

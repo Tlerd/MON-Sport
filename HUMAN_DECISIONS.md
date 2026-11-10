@@ -68,6 +68,8 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 50 | Trận "Host duyệt" có tự duyệt người đã đá cùng host trước đó không? | Không | Không | F-028 |
 | 51 | Phòng chờ của app có ẩn trận "Host duyệt" tới khi có brief app không? Hiện bấm "Vào trận" trên app gửi yêu cầu, nhưng app chưa hiện "Chờ duyệt" | Không ẩn | Không | F-028 |
 | 52 | Duyệt intake V2 (`proposed`) và thứ tự W1 đến W7 của `docs/design/ke-hoach-v2.md`. W6 (thanh toán) và W7 (MCP) chưa làm khi bạn chưa duyệt | Agent làm W1 (F-028) trước, theo yêu cầu "bắt đầu làm" ngày 10/11/2026 | Không | V2 |
+| 53 | Tên ba mức trình độ (F-029) | Mới chơi, Trung bình, Khá | Không | F-029 |
+| 54 | Luồng Google có bắt chọn trình độ khi đăng ký không? | Không | Không | F-029 |
 
 ## Việc chỉ người dùng làm được
 

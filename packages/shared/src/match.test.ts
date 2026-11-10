@@ -287,3 +287,37 @@ describe('match contract, brief F-028', () => {
     expect(REQUEST_NOT_PENDING_MESSAGE).toBe('Yêu cầu này không còn chờ duyệt');
   });
 });
+
+describe('match contract, brief F-029', () => {
+  it('AC-1: MatchLobbyQuery accepts valid level and rejects EXPERT', () => {
+    expect(MatchLobbyQuery.parse({ level: 'BEGINNER' })).toEqual({ level: 'BEGINNER' });
+    expect(MatchLobbyQuery.parse({ level: 'INTERMEDIATE' })).toEqual({ level: 'INTERMEDIATE' });
+    expect(MatchLobbyQuery.parse({ level: 'ADVANCED' })).toEqual({ level: 'ADVANCED' });
+    expect(MatchLobbyQuery.safeParse({ level: 'EXPERT' }).success).toBe(false);
+  });
+
+  it('AC-4: MatchView parses hostSkillLevel with SkillLevel values, null, and absent', () => {
+    const base = {
+      id: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c',
+      bookingId,
+      hostId: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5d',
+      hostName: 'An',
+      sport: 'BADMINTON' as const,
+      capacity: 4,
+      joinedCount: 1,
+      pricePerSlot: 50_000,
+      status: 'OPEN' as const,
+      bookingStatus: 'CONFIRMED' as const,
+      startAt: '2026-11-20T13:00:00.000Z',
+      endAt: '2026-11-20T14:00:00.000Z',
+      courtName: 'Sân 1',
+      venueName: 'Cầu lông A',
+      venueAddress: '10 Nguyễn Huệ',
+      createdAt: '2026-11-20T03:00:00.000Z',
+    };
+    expect(MatchView.parse({ ...base, hostSkillLevel: 'BEGINNER' }).hostSkillLevel).toBe('BEGINNER');
+    expect(MatchView.parse({ ...base, hostSkillLevel: null }).hostSkillLevel).toBeNull();
+    expect(MatchView.parse(base).hostSkillLevel).toBeUndefined();
+    expect(MatchView.safeParse({ ...base, hostSkillLevel: 'EXPERT' }).success).toBe(false);
+  });
+});

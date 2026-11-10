@@ -38,7 +38,7 @@ const DAY_MS = 24 * 60 * 60_000;
 
 const WITH_RELATIONS = {
   // BR-20: select only the host name so no phone number reaches the lobby response.
-  host: { select: { name: true } },
+  host: { select: { name: true, skillLevel: true } },
   booking: {
     include: {
       court: {
@@ -82,6 +82,7 @@ export function toMatchView(m: MatchRow): MatchView {
     bookingId: m.bookingId,
     hostId: m.hostId,
     hostName: m.host.name,
+    hostSkillLevel: m.host.skillLevel ?? null,
     sport: m.sport,
     capacity: m.capacity,
     joinedCount: m.joinedCount,
@@ -248,6 +249,7 @@ export class MatchesService {
       where: {
         status: 'OPEN',
         ...(query.sport ? { sport: query.sport } : {}),
+        ...(query.level ? { host: { skillLevel: query.level } } : {}),
         booking: {
           status: { in: ['PENDING', 'CONFIRMED'] },
           startAt: startAtFilter,
