@@ -94,6 +94,32 @@ export class MatchesController {
     return this.matches.leave(req.user.id, id);
   }
 
+  /** Brief F-028 (UC-15): the host approves a waiting request. */
+  @Post(':id/requests/:userId/approve')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  @HttpCode(200)
+  approveRequest(
+    @Req() req: AuthedRequest,
+    @Param('id', Id) id: string,
+    @Param('userId', Id) userId: string,
+  ): Promise<MatchDetailView> {
+    return this.matches.approveRequest(req.user.id, id, userId);
+  }
+
+  /** Brief F-028 (UC-15): the host rejects a waiting request. */
+  @Post(':id/requests/:userId/reject')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  @HttpCode(200)
+  rejectRequest(
+    @Req() req: AuthedRequest,
+    @Param('id', Id) id: string,
+    @Param('userId', Id) userId: string,
+  ): Promise<MatchDetailView> {
+    return this.matches.rejectRequest(req.user.id, id, userId);
+  }
+
   /** UC-9 (brief F-011): the host cancels their match and its underlying booking (BR-17). */
   @Post(':id/cancel')
   @UseGuards(SessionGuard)
