@@ -25,6 +25,24 @@ Refs #
 
 <!-- Evidence: the test names, the command output, or a screenshot for a screen change. -->
 
+## Chạy thử local
+
+<!-- The user runs these before the merge. Agents never merge. Keep the commands, set <n>, and list the screens and flows to check. -->
+
+```
+gh pr checkout <n>
+pnpm install
+pnpm db:start
+pnpm --filter @monsport/api exec prisma migrate deploy
+pnpm --filter @monsport/api db:seed
+pnpm dev:api
+pnpm dev:web
+```
+
+Run `pnpm dev:api` and `pnpm dev:web` in two terminals. Open http://localhost:5173 and check:
+
+-
+
 ## Risk
 
 <!-- low, medium, or high, and why. For example: medium, because it changes the booking lock order. -->

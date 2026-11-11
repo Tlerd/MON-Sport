@@ -20,7 +20,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 - `docs/requirements/intake-monsport-v1.md` is the source of truth (ADR 0002).
 - The stack: NestJS 12, React 19 + Vite 8, PostgreSQL (18 locally and in CI), Prisma 7 from pull request 1, Zod 4, SSE for real-time updates.
 - The API is ESM and builds with SWC, because Nest needs decorator metadata. `packages/shared` ships TypeScript source.
-- Agents work without asking, under "Autonomy" in `AGENTS.md`. Since 2026-10-23 (PR #99): Opus in Claude Code plans, reviews, checks, and merges. agy codes through `node scripts/agy-run.mjs` (every model, flash included). Exit 4 (agy out of quota) sends the step to `backend` or `frontend` on Sonnet, then Haiku. Antigravity: `.agents/rules/model-routing.md`.
+- Agents work without asking, under "Autonomy" in `AGENTS.md`. Since 2026-10-23 (PR #99): Opus in Claude Code plans, reviews, and checks. Since 2026-11-12 (`HUMAN_DECISIONS.md` row 49): agents stop at a ready pull request with a "Chạy thử local" section; the user runs it locally and merges. agy codes through `node scripts/agy-run.mjs` (every model, flash included). Exit 4 (agy out of quota) sends the step to `backend` or `frontend` on Sonnet, then Haiku. Antigravity: `.agents/rules/model-routing.md`.
 
 ## Open decisions
 

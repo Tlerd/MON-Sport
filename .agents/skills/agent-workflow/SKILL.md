@@ -1,9 +1,9 @@
 ---
 name: agent-workflow
-description: Roles, branch names, review rounds, merge and deploy steps of the MONSPORT agent workflow. Use before you plan a brief step, pick a coder, open or review a pull request, handle a finding still open after 2 rounds, merge, or check a deploy.
+description: Roles, branch names, review rounds, the hand-off to the user for the merge, and the deploy check of the MONSPORT agent workflow. Use before you plan a brief step, pick a coder, open or review a pull request, handle a finding still open after 2 rounds, hand a pull request to the user, or check a deploy.
 ---
 
-Read this before you plan a step, open a pull request, review, or merge.
+Read this before you plan a step, open a pull request, review, or hand a pull request to the user.
 
 ## Roles
 
@@ -51,12 +51,27 @@ A Reviewer round is a `reviewer` subagent, or `claude -p --permission-mode plan 
 
 1. Run skill `brief-questions` on the concept. Write the brief with skill `feature-brief`. A Reviewer checks it. It is accepted when no finding of medium or higher is open.
 2. Open one issue from `.github/ISSUE_TEMPLATE/feature.md`, label `enhancement`, linking the brief.
-3. One branch per step from `main`: `feat/<issue>-<step>-<slug>`, for example `feat/12-1-booking-schema`.
-4. One pull request per step with `gh pr create`, using `.github/pull_request_template.md` and the step paths under "Allowed paths". Write `Refs #<issue>`. Write `Closes #<issue>` on the last step only.
+3. One branch per step from `main`: `feat/<issue>-<step>-<slug>`, for example `feat/12-1-booking-schema`. When the step needs an earlier step that is not merged yet, branch from that step's branch instead.
+4. One pull request per step with `gh pr create`, using `.github/pull_request_template.md` and the step paths under "Allowed paths". Write `Refs #<issue>`. Write `Closes #<issue>` on the last step only. A step branched from an earlier step uses that branch as `--base`, so the diff and `pr-gates` show this step only. When the earlier pull request merges, set the base to `main` with `gh pr edit <n> --base main`, if GitHub did not do it.
 5. After the last step, run `qa`. Put its questions in the end report and in `docs/qa/`.
 6. A Reviewer reviews each pull request. Post findings as a pull request comment that ends with the marker line of `REVIEW.md`. Fix each finding of medium or higher. Run a new Reviewer on the new head, on the diff since the last reviewed head. A finding is closed only when that Reviewer says so. Each run is one round. A pull request on money, concurrency, schema, or personal data also runs skill `rule-review` and posts its comment.
-7. Wait for checks in the background: `gh pr checks <n> --watch --fail-fast`. Merge only with `node scripts/merge.mjs <n>` after it exits 0. It merges when all checks pass and the latest marker for the current head shows no finding of medium or higher. A finding tagged pre-existing does not count. `gh pr merge` is on the deny list, but the repository has no branch protection, so the rule holds only while agents follow it. The check `pr-gates` fails a pull request that changes a path outside its allowed list, or lists an AC with no test.
-8. After the merge to `main`, `.github/workflows/deploy.yml` deploys. Check that the run passes and `/api/health` answers on the service URL.
+7. Wait for checks in the background: `gh pr checks <n> --watch --fail-fast`. The pull request is ready when all checks pass and the latest marker for the current head shows no finding of medium or higher. A finding tagged pre-existing does not count. The check `pr-gates` fails a pull request that changes a path outside its allowed list, or lists an AC with no test.
+8. Stop at the ready pull request. Agents never merge: no `node scripts/merge.mjs`, no `gh pr merge` (`HUMAN_DECISIONS.md`, row 49). Add a section "Chạy thử local" to the pull request body with the commands below. Put the pull request in the end report, in merge order. Go on with the next step.
+9. The user runs the branch locally and merges with `node scripts/merge.mjs <n>`. Then `.github/workflows/deploy.yml` deploys. In the next run, check that the deploy run passed and `/api/health` answers on the service URL. Run `verify-flow` on the live service. Fix a failure in a new pull request.
+
+The section "Chạy thử local" of a pull request body:
+
+```
+gh pr checkout <n>
+pnpm install
+pnpm db:start
+pnpm --filter @monsport/api exec prisma migrate deploy
+pnpm --filter @monsport/api db:seed
+pnpm dev:api
+pnpm dev:web
+```
+
+Run `pnpm dev:api` and `pnpm dev:web` in two terminals, then open http://localhost:5173. Add the screens and flows to check, one per line.
 
 A fix, chore, or docs change with no brief needs no issue. Branch: `fix/<slug>`, `chore/<slug>`, or `docs/<slug>`. It still gets a pull request and changes only the files its description lists.
 
