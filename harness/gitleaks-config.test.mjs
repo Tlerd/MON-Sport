@@ -82,6 +82,25 @@ test('a header in another spelling, or with a comment after it, fails', () => {
   }
 });
 
+test('a quote in a description or a value fails, so no line opens a TOML multi-line string', () => {
+  fails(swap(/description = .*\n/, 'description = """\n'));
+  fails(swap(/description = .*\n/, 'description = "a" #"\n'));
+  fails(swap("'''^tBHItJI5svbpez7KI4CCXg$'''", "'''^\"\"\"#$'''"));
+  // The Reviewer's case: a """ opener hid targetRules from gitleaks, so the value was allowed for every rule.
+  fails(`[extend]
+useDefault = true
+
+[[allowlists]]
+regexes = ['''^abc$''']
+description = """
+targetRules = ["generic-api-key"]
+[[allowlists]]
+description = "b"
+targetRules = ["generic-api-key"]
+regexes = ['''^"""#$''']
+`);
+});
+
 test('an inline allowlist before [extend], or a regexes array over two lines, fails', () => {
   fails(`allowlists = [{ description = "x", targetRules = ["github-pat"], paths = ['''.*'''] }]\n${good}`);
   fails(swap("regexes = ['''^tBHItJI5svbpez7KI4CCXg$''']", "regexes = ['''^tBHItJI5svbpez7KI4CCXg$''', # \n'''.*''']"));

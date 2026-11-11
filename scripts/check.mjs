@@ -111,10 +111,12 @@ if (!process.env.GITHUB_ACTIONS) {
   if (status === 'missing') {
     warnings.push(`WARN secrets: gitleaks is not installed, so no secret scan ran. CI still scans. ${INSTALL_HINT}`);
   } else if (status !== 'ok') {
-    failures.push(
-      `FAIL secrets: gitleaks (${status})\n${output}\n` +
-        'Fix: remove the secret and read it from an environment variable. For public test data, add an allowlist entry with a reason to .gitleaks.toml.',
-    );
+    // Only a leak gets the secret hint. An error (a policy break, a git failure, a config gitleaks cannot load) says its own cause.
+    const hint =
+      status === 'leak'
+        ? '\nFix: remove the secret and read it from an environment variable. For public test data, add an allowlist entry with a reason to .gitleaks.toml.'
+        : '';
+    failures.push(`FAIL secrets: gitleaks (${status})\n${output}${hint}`);
   }
 }
 

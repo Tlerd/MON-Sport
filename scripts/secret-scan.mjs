@@ -63,9 +63,11 @@ const POLICY_LINES = {
   extend: /^\[extend\]$/,
   useDefault: /^useDefault = true$/,
   allowlist: /^\[\[allowlists\]\]$/,
-  description: /^description = "[^"\\]*\S[^"\\]*"$/,
+  // No quote or backslash inside a description or a value: `description = """` would open a TOML multi-line
+  // string, and gitleaks would read the next lines as text while this check reads them as keys.
+  description: /^description = "[^"\\]*[^"\\\s][^"\\]*"$/,
   targetRules: /^targetRules = \["[a-z0-9-]+"(?:, "[a-z0-9-]+")*\]$/,
-  regexes: /^regexes = \['''[^']*'''(?:, '''[^']*''')*\]$/,
+  regexes: /^regexes = \['''[^'"]*'''(?:, '''[^'"]*''')*\]$/,
 };
 
 /**
@@ -103,7 +105,7 @@ export function allowlistProblems(toml) {
         problems.push(`${where}: ${kind} belongs in [[allowlists]]`);
       } else {
         section[kind] += 1;
-        if (kind === 'regexes') section.values.push(...[...line.matchAll(/'''([^']*)'''/g)].map((m) => m[1]));
+            if (kind === 'regexes') section.values.push(...[...line.matchAll(/'''([^'"]*)'''/g)].map((m) => m[1]));
       }
     });
   if (extendCount !== 1) problems.push('[extend] must appear once');
