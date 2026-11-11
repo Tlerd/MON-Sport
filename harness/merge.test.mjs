@@ -91,20 +91,26 @@ test('the merge command pins the head that was checked and never touches the loc
   expect(mergeArgs('95', pr())).toEqual(['pr', 'merge', '95', '--merge', '--match-head-commit', HEAD]);
 });
 
-test('the remote head branch is deleted with git push, and a fork branch is left alone', () => {
-  expect(deleteBranchArgs(pr())).toEqual(['push', 'origin', '--delete', 'feat/1-1-x']);
+test('the remote head branch is deleted through the GitHub API, as gh did, and a fork branch is left alone', () => {
+  expect(deleteBranchArgs(pr())).toEqual(['api', '-X', 'DELETE', 'repos/{owner}/{repo}/git/refs/heads/feat/1-1-x']);
   expect(deleteBranchArgs(pr({ isCrossRepository: true }))).toBeNull();
 });
 
 test('the state on GitHub after the merge decides the result, not the exit code of gh', () => {
-  expect(mergeResult({ status: 0, state: 'MERGED' })).toEqual({ merged: true, warning: null });
+  expect(mergeResult({ status: 0, state: 'MERGED' })).toEqual({ merged: true, unknown: false, warning: null });
   // gh merged on GitHub, then failed on a local step.
   const late = mergeResult({ status: 1, state: 'MERGED', stderr: "fatal: 'main' is already used by worktree" });
   expect(late.merged).toBe(true);
   expect(late.warning).toContain('already used by worktree');
-  expect(mergeResult({ status: 1, state: 'OPEN', stderr: 'boom' })).toEqual({ merged: false, warning: null });
+  expect(mergeResult({ status: 1, state: 'OPEN', stderr: 'boom' })).toEqual({ merged: false, unknown: false, warning: null });
   // gh said yes, but GitHub did not merge (for example, the head moved).
-  expect(mergeResult({ status: 0, state: 'OPEN' })).toEqual({ merged: false, warning: null });
+  expect(mergeResult({ status: 0, state: 'OPEN' })).toEqual({ merged: false, unknown: false, warning: null });
+});
+
+test('a state that could not be read is unknown, never reported as not merged', () => {
+  for (const state of ['', undefined, null]) {
+    expect(mergeResult({ status: 0, state })).toEqual({ merged: false, unknown: true, warning: null });
+  }
 });
 
 test('reviewMarker reads the numbers and ignores text that is not a marker', () => {
