@@ -94,6 +94,8 @@ test('the merge command pins the head that was checked and never touches the loc
 test('the remote head branch is deleted through the GitHub API, as gh did, and a fork branch is left alone', () => {
   expect(deleteBranchArgs(pr())).toEqual(['api', '-X', 'DELETE', 'repos/{owner}/{repo}/git/refs/heads/feat/1-1-x']);
   expect(deleteBranchArgs(pr({ isCrossRepository: true }))).toBeNull();
+  // An unencoded "#" would end the URL at "feat/a" and delete that branch instead.
+  expect(deleteBranchArgs(pr({ headRefName: 'feat/a#b%c' }))).toEqual(['api', '-X', 'DELETE', 'repos/{owner}/{repo}/git/refs/heads/feat/a%23b%25c']);
 });
 
 test('the state on GitHub after the merge decides the result, not the exit code of gh', () => {

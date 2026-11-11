@@ -66,7 +66,8 @@ export const mergeArgs = (number, pr) => ['pr', 'merge', number, '--merge', '--m
  * The gh command that deletes the head branch on GitHub: the same API, repository, and token as the merge,
  * and no git credential prompt. A branch of a fork is not ours to delete.
  */
-export const deleteBranchArgs = (pr) => (pr.isCrossRepository ? null : ['api', '-X', 'DELETE', `repos/{owner}/{repo}/git/refs/heads/${pr.headRefName}`]);
+export const deleteBranchArgs = (pr) =>
+  pr.isCrossRepository ? null : ['api', '-X', 'DELETE', `repos/{owner}/{repo}/git/refs/heads/${pr.headRefName.split('/').map(encodeURIComponent).join('/')}`];
 
 /**
  * The state on GitHub after the merge decides. gh can merge and then fail on a later step.
