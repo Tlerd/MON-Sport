@@ -3,6 +3,7 @@ import {
   ApiError,
   dayChipLabel,
   dayHeading,
+  durationLabel,
   durationsAt,
   formatVnd,
   hhmm,
@@ -21,8 +22,6 @@ import { useEffect, useState } from 'react';
 import { Chip } from '../../components/Chip.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
-
-const durationLabel = (minutes: number) => `${String(minutes / 60).replace('.', ',')} giờ`;
 
 function deadlineHint(deadline: Date, now: Date): string {
   const dayWord = vnDateString(deadline) === vnDateString(now) ? 'hôm nay' : dayChipLabel(vnDateString(deadline));

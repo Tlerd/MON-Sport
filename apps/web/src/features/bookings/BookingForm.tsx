@@ -1,7 +1,6 @@
 import { bookingPrice, type BookingView, type VenueView } from '@monsport/shared';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiError, formatSlot, formatTime, formatVnd, hhmm } from '@monsport/client';
-import { DURATIONS, slotAt as at } from './slot.ts';
+import { api, ApiError, DURATIONS, durationLabel, formatSlot, formatTime, formatVnd, hhmm, slotAt as at } from '@monsport/client';
 import { STATUS_LABEL } from './status.ts';
 
 const PEAK = [17 * 60, 22 * 60]; // BR-4
@@ -100,7 +99,7 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
               <label>
                 Thời lượng
                 <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                  {DURATIONS.filter((d) => start + d <= venue.closesAt).map((d) => <option key={d} value={d}>{(d / 60).toLocaleString('vi-VN')} giờ</option>)}
+                  {DURATIONS.filter((d) => start + d <= venue.closesAt).map((d) => <option key={d} value={d}>{durationLabel(d)}</option>)}
                 </select>
               </label>
             </div>

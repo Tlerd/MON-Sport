@@ -3,6 +3,11 @@ import { hhmm } from './format.ts';
 
 export const DURATIONS = [60, 90, 120, 150, 180];
 
+/** True when at least one booking duration fits between startMinute and closesAt. */
+export function fitsAnyDuration(startMinute: number, closesAt: number): boolean {
+  return DURATIONS.some((d) => startMinute + d <= closesAt);
+}
+
 const SHORT_DAY = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const LONG_DAY = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 

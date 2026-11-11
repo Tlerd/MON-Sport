@@ -1,5 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { minuteOfDayVN, vnDateString } from '@monsport/shared';
+import { hhmm } from '@monsport/client';
 import { Chip } from './Chip.tsx';
 
 export type SlotCellStatus = 'free' | 'taken' | 'mine' | 'pending' | 'confirmed';
@@ -69,12 +70,6 @@ export function firstWindow(windows: TimeWindow[], date: string | undefined, now
   }
   return (windows.find((w) => w.id === 'toi') ?? windows[0])?.id;
 }
-
-export const hhmm = (m: number) => {
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-};
 
 export const isPeakMinute = (m: number) => m >= 17 * 60 && m < 22 * 60;
 
