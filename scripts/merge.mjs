@@ -9,6 +9,8 @@
 // The marker is the last line of the Reviewer comment, see REVIEW.md:
 //   <!-- review head=<sha> high=<n> medium=<n> -->
 // It guards against a forgotten review. It does not stop an agent that writes a marker without a review.
+// After the merge it reads the state on GitHub, deletes the head branch on the remote, and leaves the local
+// checkout as it is. Exit 0 means merged, even when a later step only warns.
 
 import { spawnSync } from 'node:child_process';
 import { ciState } from './ci-autofix.mjs';
@@ -53,8 +55,20 @@ export function latestChecks(rollup = []) {
   return [...newest.values()];
 }
 
-/** The merge command. `--match-head-commit` refuses a head that moved after the check. */
-export const mergeArgs = (number, pr) => ['pr', 'merge', number, '--merge', '--delete-branch', '--match-head-commit', pr.headRefOid];
+/**
+ * The merge command. `--match-head-commit` refuses a head that moved after the check.
+ * No `--delete-branch`: it also switches the local checkout to main, which fails when another worktree holds main.
+ */
+export const mergeArgs = (number, pr) => ['pr', 'merge', number, '--merge', '--match-head-commit', pr.headRefOid];
+
+/** The git command that deletes the head branch on the remote. A branch of a fork is not ours to delete. */
+export const deleteBranchArgs = (pr) => (pr.isCrossRepository ? null : ['push', 'origin', '--delete', pr.headRefName]);
+
+/** The state on GitHub after the merge decides. gh can merge and then fail on a later step. */
+export function mergeResult({ status, state, stderr = '' }) {
+  const merged = state === 'MERGED';
+  return { merged, warning: merged && status !== 0 ? `gh exited ${status} after the merge: ${stderr.trim()}` : null };
+}
 
 /** Reasons not to merge. An empty list means merge. */
 export function mergeBlockers(pr) {
@@ -80,7 +94,7 @@ if (import.meta.main) {
     console.error('Usage: node scripts/merge.mjs <pull request number> [--dry-run]');
     process.exit(2);
   }
-  const view = spawnSync('gh', ['pr', 'view', number, '--json', 'state,isDraft,baseRefName,headRefName,headRefOid,statusCheckRollup,comments'], { encoding: 'utf8' });
+  const view = spawnSync('gh', ['pr', 'view', number, '--json', 'state,isDraft,isCrossRepository,baseRefName,headRefName,headRefOid,statusCheckRollup,comments'], { encoding: 'utf8' });
   if (view.status !== 0) {
     console.error(`FAIL merge: gh pr view ${number} failed\n${view.stderr}`);
     process.exit(1);
@@ -97,6 +111,20 @@ if (import.meta.main) {
   }
   const merge = spawnSync('gh', mergeArgs(number, pr), { encoding: 'utf8' });
   process.stdout.write(merge.stdout ?? '');
-  process.stderr.write(merge.stderr ?? '');
-  process.exit(merge.status ?? 1);
+  const after = spawnSync('gh', ['pr', 'view', number, '--json', 'state', '-q', '.state'], { encoding: 'utf8' });
+  const result = mergeResult({ status: merge.status ?? 1, state: after.stdout.trim(), stderr: merge.stderr ?? '' });
+  if (!result.merged) {
+    process.stderr.write(merge.stderr ?? '');
+    console.error(`FAIL merge #${number}: the pull request is ${after.stdout.trim() || 'unknown'} on GitHub, not merged`);
+    process.exit(1);
+  }
+  if (result.warning) console.warn(`WARN merge #${number}: ${result.warning}`);
+  console.log(`merged #${number} into main`);
+  const del = deleteBranchArgs(pr);
+  if (del) {
+    const out = spawnSync('git', del, { encoding: 'utf8' });
+    if (out.status === 0) console.log(`deleted the remote branch ${pr.headRefName}`);
+    else console.warn(`WARN merge #${number}: the remote branch ${pr.headRefName} was not deleted: ${(out.stderr || '').trim()}`);
+  }
+  process.exit(0);
 }
