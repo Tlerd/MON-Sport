@@ -7,6 +7,7 @@ AGENTS.md defines the roles. This file maps them to Antigravity models.
 - A step that changes money, concurrency, the schema, or personal data: get the plan from `node scripts/agy-run.mjs --strong-only --mode plan -p "<task>. Plan only: list each file to change and each test to write. Do not edit."` before you code.
 - Reader: `invoke_subagent` with TypeName `research` and Model `flash`.
 - Tester: `invoke_subagent` with Model `flash` (`gemini-3.8-flash-high`). It runs `pnpm check` and verify-flow, and reports. It never writes code. Code always runs on the session model.
+- Swarm: `/swarm` runs only on `gemini-3.8-flash-high`, for every worker and the verifier, and only as "Swarm step (agy 3.8)" in `.agents/skills/agent-workflow/SKILL.md` says.
 - Coders: one coder does a step by default. Run a backend and a frontend subagent at the same time only when the contract in `packages/shared` is already on the branch and their paths do not overlap. Then the tester, then the Reviewer.
 - Usage: run `node scripts/agy-run.mjs --check-usage` at the start of each task, and before each new branch. Exit 3 means the weekly Claude limit passed 94%: commit, write the next step in `PROGRESS.md`, and stop. `agy-run.mjs` refuses every other run past that line too.
 - Reviewer: a fresh session on a strong model (`--strong-only`: Opus or Argon, never a weaker one), read only:

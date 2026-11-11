@@ -18,6 +18,26 @@ Each tool maps these roles to its own models. In Claude Code, the session model 
 
 Coder order: run `node scripts/agy-run.mjs --check-usage`, then `node scripts/agy-run.mjs --mode accept-edits -p "<plan>"`. Exit code 4 means every agy model is out of quota. Then use the subagent `backend` or `frontend` (Sonnet). When Sonnet is out of quota, run it with `model: haiku`.
 
+## Swarm step (agy 3.8)
+
+Use it when a change to a shared part (`packages/shared`, `packages/client`, a shared component or hook) needs edits at many call sites. A swarm runs only on agy with `gemini-3.8-flash-high`, never on another model.
+
+1. One coder changes the shared part and its tests first, by the coder order above. Commit it on the step branch.
+2. List the call sites: the plan names them, or run `pnpm -r --if-present run typecheck` and read the failing files.
+3. Choose the coder for the call sites:
+   - 3 or more feature folders or modules, and each needs more than an import change (new logic, new tests): run a swarm.
+   - Otherwise: one coder, by the coder order above.
+4. Run the swarm: `AGY_MODELS=gemini-3.8-flash-high node scripts/agy-run.mjs --mode accept-edits -p "/swarm <task>"`. The task says:
+   - Every worker and the verifier run on `gemini-3.8-flash-high`.
+   - One worker for each feature folder or module, with the files it owns. No two workers own one file.
+   - A worker checks its own files with `pnpm --filter <package> typecheck` and its tests only.
+   - Only the `@verifier` runs `pnpm map` and `pnpm check`, once all workers report done. It sends each failure to the worker that owns the file.
+   - No member commits, pushes, or merges. The allowed paths of the step.
+5. Read the diff, commit, and go on with the tester and the Reviewer as usual.
+
+- Exit 4 (3.8 out of quota): one coder does the call sites. Never start a swarm on another model.
+- A swarm costs about 8 to 10 minutes of coordination and the quota of every worker. In the trial of 2026-11-12, 8 call sites with import changes only took 13.2 minutes with one coder, and 4.5 + 12.9 = 17.4 minutes with the shared step and a swarm. The diffs were the same.
+
 ## Fix ladder
 
 This section is for Claude Code sessions. Use it when `pnpm check` fails after the coder says the step is done. The Planner and the Reviewer stay on the session model.
