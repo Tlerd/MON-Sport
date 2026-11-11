@@ -12,8 +12,8 @@ Two sources give the rules:
 | ID | Rule | Picks it when the diff |
 |---|---|---|
 | AG-SCOPE | The pull request changes only the paths that its brief or its description allows. | Always. |
-| AG-SECRET | No secret or password appears in code, a log line, a fixture, a commit, or a comment. Test values from seed or example files are allowed. | Adds config, env handling, logging, seed data, or auth code. |
-| AG-WEAKEN | No change weakens a check: `pnpm check`, `scripts/check.mjs`, CI workflows, git hooks, `.dependency-cruiser.cjs`, `AGENTS.md`, test assertions, or a skipped test. | Touches any of those files, or removes or skips a test. |
+| AG-SECRET | No secret or password appears in code, a log line, a fixture, a commit, or a comment. Test values from seed or example files are allowed. Each value that `.gitleaks.toml` allows is public test data, found where it occurs, never a working credential. | Adds config, env handling, logging, seed data, or auth code, or touches `.gitleaks.toml`. |
+| AG-WEAKEN | No change weakens a check: `pnpm check`, `scripts/check.mjs`, `scripts/secret-scan.mjs`, `.gitleaks.toml`, CI workflows, git hooks, `.dependency-cruiser.cjs`, `AGENTS.md`, test assertions, or a skipped test. A `.gitleaksignore` file or a `gitleaks:allow` comment is a weakening. | Touches any of those files, or removes or skips a test. |
 | AG-DELETE | No migration or script deletes data, a column, or a table that this work did not create. | Adds a migration, a seed change, or a script that runs SQL. |
 | AG-LOCKS | Two transactions that write or lock the same rows take them in one order. Concurrent requests never end in a deadlock (Postgres 40P01), a serialization error, or a 500 where the API promises a 4xx. | Adds or changes a transaction, a `FOR UPDATE` or `FOR SHARE` lock, or an `updateMany` on rows that another route also writes. |
 

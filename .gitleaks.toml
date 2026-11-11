@@ -1,6 +1,10 @@
 # Gitleaks rules for this repository: the default rules plus the allowlist below.
 # scripts/secret-scan.mjs loads this file in `pnpm check` and in the CI job "secrets".
 # Allow a value only when it is public test data. Write the reason in the description.
+# scripts/secret-scan.mjs (POLICY_LINES) allows only the line forms below, exactly as written: [extend],
+# useDefault = true, [[allowlists]], description, targetRules, and regexes of one exact value each (^value$).
+# Any other line fails pnpm check and the CI job "secrets": no [[rules]], paths, commits, stopwords, or other key.
+# A "gitleaks:allow" comment in code has no effect, and a .gitleaksignore file fails the scan.
 
 [extend]
 useDefault = true

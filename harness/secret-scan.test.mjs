@@ -37,17 +37,22 @@ test('no gitleaks gives null', () => {
   expect(findGitleaks({ env: {}, platform: 'linux', onPath: () => null })).toBeNull();
 });
 
+test('a "gitleaks:allow" comment in code does not hide a finding', () => {
+  for (const run of scanArgs({ config: 'c' })) expect(run).toContain('--ignore-gitleaks-allow');
+  expect(scanArgs({ config: 'c', range: 'a..b' })[0]).toContain('--ignore-gitleaks-allow');
+});
+
 test('a local scan covers the staged and the unstaged changes, with the repository config and redaction', () => {
   const runs = scanArgs({ config: 'C:/r/.gitleaks.toml' });
   expect(runs).toEqual([
-    ['git', '--pre-commit', '--staged', '--config', 'C:/r/.gitleaks.toml', '--redact', '--verbose', '--no-banner', '.'],
-    ['git', '--pre-commit', '--config', 'C:/r/.gitleaks.toml', '--redact', '--verbose', '--no-banner', '.'],
+    ['git', '--pre-commit', '--staged', '--config', 'C:/r/.gitleaks.toml', '--redact', '--verbose', '--ignore-gitleaks-allow', '--no-banner', '.'],
+    ['git', '--pre-commit', '--config', 'C:/r/.gitleaks.toml', '--redact', '--verbose', '--ignore-gitleaks-allow', '--no-banner', '.'],
   ]);
 });
 
 test('a range scan reads the commits of that range', () => {
   expect(scanArgs({ config: '.gitleaks.toml', range: 'origin/main..HEAD' })).toEqual([
-    ['git', '--log-opts=origin/main..HEAD', '--config', '.gitleaks.toml', '--redact', '--verbose', '--no-banner', '.'],
+    ['git', '--log-opts=origin/main..HEAD', '--config', '.gitleaks.toml', '--redact', '--verbose', '--ignore-gitleaks-allow', '--no-banner', '.'],
   ]);
 });
 
@@ -84,6 +89,44 @@ test.skipIf(!bin)('a staged GitHub token stops the scan, and the output does not
     const result = scan({ cwd: dir, config, bin, env });
     expect(result.status).toBe('leak');
     expect(result.output).not.toContain(token);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a config that breaks the policy, or a .gitleaksignore file, is an error before gitleaks runs', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'secret-scan-policy-'));
+  try {
+    const loose = join(dir, 'loose.toml');
+    writeFileSync(loose, "[extend]\nuseDefault = true\n\n[[allowlists]]\npaths = ['''.*''']\n");
+    const broken = scan({ cwd: dir, config: loose, bin: null });
+    expect(broken.status).toBe('error');
+    expect(broken.output).toContain('allowlist policy');
+    writeFileSync(join(dir, '.gitleaksignore'), 'abc:file:rule:1\n');
+    expect(scan({ cwd: dir, config, bin: null }).output).toContain('.gitleaksignore');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test.skipIf(!bin)('a config that gitleaks cannot load is an error, not a leak', () => {
+  const dir = repoWith('a.txt', 'x\n');
+  try {
+    const odd = join(dir, 'odd.toml');
+    writeFileSync(odd, "[extend]\nuseDefault = true\n\n[[allowlists]]\ndescription = \"x\"\ntargetRules = [\"no-such-rule\"]\nregexes = ['''^a$''']\n");
+    const result = scan({ cwd: dir, config: odd, bin, env });
+    expect(result.status, result.output).toBe('error');
+    expect(result.output).toContain('FTL');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test.skipIf(!bin)('a staged token with a "gitleaks:allow" comment still stops the scan', () => {
+  const token = ['ghp', 'R8x2Lq9VtZ4mK7bN1wC5yH3jD6fG0sPeUaXo'].join('_');
+  const dir = repoWith('config.ts', `export const token = '${token}'; // gitleaks:allow\n`);
+  try {
+    expect(scan({ cwd: dir, config, bin, env }).status).toBe('leak');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

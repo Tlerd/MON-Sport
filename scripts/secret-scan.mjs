@@ -4,7 +4,7 @@
 // CI:    node scripts/secret-scan.mjs --range <base>..<head>   scans those commits. Without gitleaks it fails.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -47,12 +47,90 @@ export function findGitleaks({
 /** The gitleaks argument lists: a range scan reads commits, a local scan reads the staged and the unstaged diff. */
 export function scanArgs({ config, range }) {
   // --verbose names the file and the line of each finding. --redact hides the value.
-  const common = ['--config', config, '--redact', '--verbose', '--no-banner', '.'];
+  // --ignore-gitleaks-allow: a "gitleaks:allow" comment in code would skip a finding with no review. Use .gitleaks.toml.
+  const common = ['--config', config, '--redact', '--verbose', '--ignore-gitleaks-allow', '--no-banner', '.'];
   if (range) return [['git', `--log-opts=${range}`, ...common]];
   return [
     ['git', '--pre-commit', '--staged', ...common],
     ['git', '--pre-commit', ...common],
   ];
+}
+
+// The only lines .gitleaks.toml may hold, besides blank lines and full-line comments that start with "#".
+// gitleaks reads the file with a full TOML parser and case-insensitive keys, so a check that looks for bad keys
+// misses other spellings. This list fails closed: any other line, in any spelling, is a problem.
+const POLICY_LINES = {
+  extend: /^\[extend\]$/,
+  useDefault: /^useDefault = true$/,
+  allowlist: /^\[\[allowlists\]\]$/,
+  // No quote or backslash inside a description or a value: `description = """` would open a TOML multi-line
+  // string, and gitleaks would read the next lines as text while this check reads them as keys.
+  description: /^description = "[^"\\]*[^"\\\s][^"\\]*"$/,
+  targetRules: /^targetRules = \["[a-z0-9-]+"(?:, "[a-z0-9-]+")*\]$/,
+  regexes: /^regexes = \['''[^'"]*'''(?:, '''[^'"]*''')*\]$/,
+};
+
+/**
+ * The allowlist policy of .gitleaks.toml. It returns one line for each problem, and an empty list when the file is fine.
+ * - The default rules stay on: `[extend]` once, first, with `useDefault = true`. No `[[rules]]` table may change them.
+ * - Each `[[allowlists]]` has one `description` (the reason), one `targetRules`, and one `regexes`.
+ * - Each value in `regexes` is one exact value, `^value$`, with no regex operator inside.
+ * - Every other key (paths, commits, stopwords, regexTarget, condition, disabledRules, ...) fails, because it is not in POLICY_LINES.
+ */
+export function allowlistProblems(toml) {
+  const problems = [];
+  const allowlists = [];
+  let section = null;
+  let extendCount = 0;
+  let useDefault = false;
+  toml
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .forEach((line, i) => {
+      if (line.trim() === '' || line.startsWith('#')) return;
+      const kind = Object.keys(POLICY_LINES).find((key) => POLICY_LINES[key].test(line));
+      const where = `line ${i + 1}`;
+      if (!kind) return problems.push(`${where}: not allowed: ${line}`);
+      if (kind === 'extend') {
+        extendCount += 1;
+        if (allowlists.length) problems.push(`${where}: [extend] must come before the allowlists`);
+        section = 'extend';
+      } else if (kind === 'allowlist') {
+        section = { description: 0, targetRules: 0, regexes: 0, values: [] };
+        allowlists.push(section);
+      } else if (kind === 'useDefault') {
+        if (section === 'extend') useDefault = true;
+        else problems.push(`${where}: useDefault belongs in [extend]`);
+      } else if (section === null || section === 'extend') {
+        problems.push(`${where}: ${kind} belongs in [[allowlists]]`);
+      } else {
+        section[kind] += 1;
+            if (kind === 'regexes') section.values.push(...[...line.matchAll(/'''([^'"]*)'''/g)].map((m) => m[1]));
+      }
+    });
+  if (extendCount !== 1) problems.push('[extend] must appear once');
+  else if (!useDefault) problems.push('[extend] must set useDefault = true');
+  allowlists.forEach((allowlist, index) => {
+    const name = `allowlist ${index + 1}`;
+    for (const key of ['description', 'targetRules', 'regexes']) {
+      if (allowlist[key] !== 1) problems.push(`${name}: needs one ${key}`);
+    }
+    allowlist.values.forEach((value, i) => {
+      const inner = value.startsWith('^') && value.endsWith('$') ? value.slice(1, -1) : null;
+      // An escaped punctuation mark (\. or \-) is a literal. Any other operator, or \d and the like, is a pattern.
+      if (inner === null || /[.*+?()[\]{}|^$\\]/.test(inner.replace(/\\[^A-Za-z0-9]/g, ''))) {
+        problems.push(`${name}: regex ${i + 1} is not one exact value (^...$)`);
+      }
+    });
+  });
+  return problems;
+}
+
+/** The policy problems of the scan setup: the config file, and a .gitleaksignore file that would skip findings. */
+export function setupProblems({ cwd, config }) {
+  const problems = existsSync(config) ? allowlistProblems(readFileSync(config, 'utf8')) : [`${config} is missing`];
+  if (existsSync(join(cwd, '.gitleaksignore'))) problems.push('.gitleaksignore skips findings with no review: delete it and use .gitleaks.toml');
+  return problems;
 }
 
 /**
@@ -79,6 +157,9 @@ function withoutCrlfWarning(env) {
  * env is the environment of gitleaks and its git calls. A test passes one without GIT_* for its temporary repository.
  */
 export function scan({ cwd, config, range, bin = findGitleaks(), env = process.env }) {
+  // The policy runs before gitleaks, so CI checks it too: a pull request that loosens .gitleaks.toml fails here.
+  const problems = setupProblems({ cwd, config });
+  if (problems.length) return { status: 'error', output: `.gitleaks.toml breaks the allowlist policy:\n${problems.join('\n')}` };
   if (!bin) return { status: 'missing', output: INSTALL_HINT };
   if (range) {
     // A pull request or a push always has a commit, so an empty range means a wrong range. Git counts the commits:
@@ -93,6 +174,8 @@ export function scan({ cwd, config, range, bin = findGitleaks(), env = process.e
     const res = spawnSync(bin, args, { cwd, encoding: 'utf8', env: { ...withoutCrlfWarning(env), NO_COLOR: '1' } });
     // gitleaks colors REDACTED even with NO_COLOR, so strip the ANSI codes.
     const output = `${res.stdout ?? ''}${res.stderr ?? ''}`.replace(/\x1b\[[0-9;]*m/g, '').trim();
+    // gitleaks also exits 1 when it cannot load the config. That is an error to fix, not a secret to remove.
+    if (/^\S+ FTL /m.test(output)) return { status: 'error', output };
     if (res.status === 1) return { status: 'leak', output };
     if (res.status !== 0) return { status: 'error', output: output || res.error?.message || `gitleaks exited ${res.status}` };
     if (gitFailed(output)) return { status: 'error', output };
