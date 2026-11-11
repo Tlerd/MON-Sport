@@ -1,6 +1,6 @@
 // Proves scripts/secret-scan.mjs: where it finds gitleaks, what it scans, and that it stops a staged secret.
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -55,12 +55,20 @@ test('a missing gitleaks reports "missing" and runs nothing', () => {
   expect(scan({ cwd: root, config, bin: null }).status).toBe('missing');
 });
 
+test('--range without a value fails instead of falling back to the local scan', () => {
+  const res = spawnSync(process.execPath, [join(root, 'scripts', 'secret-scan.mjs'), '--range'], { encoding: 'utf8' });
+  expect(res.status).toBe(1);
+  expect(res.stderr).toContain('--range needs a value');
+});
+
 // The real binary runs only where it is installed. CI runs the scan in its own job.
 const bin = findGitleaks();
 
+// The git hook exports GIT_INDEX_FILE and other GIT_* variables. A temporary repository must not read them.
+const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
 function repoWith(file, text) {
   const dir = mkdtempSync(join(tmpdir(), 'secret-scan-'));
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
   const git = (...args) => execFileSync('git', args, { cwd: dir, env, stdio: 'pipe' });
   git('init', '--quiet');
   writeFileSync(join(dir, file), text);
@@ -73,7 +81,7 @@ test.skipIf(!bin)('a staged GitHub token stops the scan, and the output does not
   const token = ['ghp', 'R8x2Lq9VtZ4mK7bN1wC5yH3jD6fG0sPeUaXo'].join('_');
   const dir = repoWith('config.ts', `export const token = '${token}';\n`);
   try {
-    const result = scan({ cwd: dir, config, bin });
+    const result = scan({ cwd: dir, config, bin, env });
     expect(result.status).toBe('leak');
     expect(result.output).not.toContain(token);
   } finally {
@@ -85,7 +93,30 @@ test.skipIf(!bin)('the public Web Push sample keys of the push tests pass', () =
   const keys = "const KEYS = { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' };\n";
   const dir = repoWith('push.test.ts', keys);
   try {
-    expect(scan({ cwd: dir, config, bin }).status).toBe('ok');
+    const result = scan({ cwd: dir, config, bin, env });
+    expect(result.status).toBe('ok');
+    // "ok" must mean scanned and allowed, not skipped: the staged file was read.
+    expect(result.output).toMatch(/scanned ~[1-9]/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test.skipIf(!bin)('a git error is an error, not a clean scan, because gitleaks then exits 0', () => {
+  const dir = repoWith('a.txt', 'x\n');
+  try {
+    expect(scan({ cwd: dir, config, bin, env, range: '0000000000000000000000000000000000000000..HEAD' }).status).toBe('error');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test.skipIf(!bin)('a range with no commits is an error, because a pull request or a push always has one', () => {
+  const dir = repoWith('a.txt', 'x\n');
+  try {
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '--quiet', '-m', 'one'], { cwd: dir, env, stdio: 'pipe' });
+    expect(scan({ cwd: dir, config, bin, env, range: 'HEAD..HEAD' }).status).toBe('error');
+    expect(scan({ cwd: dir, config, bin, env, range: 'HEAD' }).status).toBe('ok');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

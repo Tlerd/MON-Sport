@@ -71,7 +71,14 @@ jobs:
           echo "GITLEAKS_BIN=$dir/gitleaks" >> "$GITHUB_ENV"
       - name: No secret in the new commits
         run: |
-          if [ "$EVENT" = "pull_request" ]; then range="origin/$BASE_REF..HEAD"; else range="$BEFORE..$GITHUB_SHA"; fi
+          # A push whose "before" is empty, all zeros, or not in the clone (first push, rewritten history) scans all history.
+          if [ "$EVENT" = "pull_request" ]; then
+            range="origin/$BASE_REF..HEAD"
+          elif [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            range="$BEFORE..$GITHUB_SHA"
+          else
+            range="$GITHUB_SHA"
+          fi
           node scripts/secret-scan.mjs --range "$range"
 
   check:

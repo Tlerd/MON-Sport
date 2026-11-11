@@ -55,17 +55,24 @@ export function scanArgs({ config, range }) {
   ];
 }
 
-/** Runs the scan. status is "ok", "leak", "missing" (no binary), or "error" (gitleaks failed for another reason). */
-export function scan({ cwd, config, range, bin = findGitleaks() }) {
+/**
+ * Runs the scan. status is "ok", "leak", "missing" (no binary), or "error" (gitleaks or git failed).
+ * env is the environment of gitleaks and its git calls. A test passes one without GIT_* for its temporary repository.
+ */
+export function scan({ cwd, config, range, bin = findGitleaks(), env = process.env }) {
   if (!bin) return { status: 'missing', output: INSTALL_HINT };
   const outputs = [];
   for (const args of scanArgs({ config, range })) {
     // Exit 1 means leaks (the default --exit-code). Any other non-zero code is an error.
-    const res = spawnSync(bin, args, { cwd, encoding: 'utf8', env: { ...process.env, NO_COLOR: '1' } });
+    const res = spawnSync(bin, args, { cwd, encoding: 'utf8', env: { ...env, NO_COLOR: '1' } });
     // gitleaks colors REDACTED even with NO_COLOR, so strip the ANSI codes.
     const output = `${res.stdout ?? ''}${res.stderr ?? ''}`.replace(/\x1b\[[0-9;]*m/g, '').trim();
     if (res.status === 1) return { status: 'leak', output };
     if (res.status !== 0) return { status: 'error', output: output || res.error?.message || `gitleaks exited ${res.status}` };
+    // gitleaks 8.30 exits 0 with "no leaks found" when its git call fails. It logs the failure at level ERR.
+    if (/^\S+ ERR /m.test(output)) return { status: 'error', output };
+    // A pull request or a push always has a commit, so a range with none scanned nothing.
+    if (range && /\b0 commits scanned/.test(output)) return { status: 'error', output: `${output}\nThe range ${range} has no commits.` };
     outputs.push(output);
   }
   return { status: 'ok', output: outputs.join('\n') };
@@ -75,6 +82,10 @@ if (import.meta.main) {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const index = process.argv.indexOf('--range');
   const range = index === -1 ? undefined : process.argv[index + 1];
+  if (index !== -1 && !range) {
+    console.error('secret-scan: --range needs a value, for example origin/main..HEAD');
+    process.exit(1);
+  }
   const result = scan({ cwd: root, config: join(root, '.gitleaks.toml'), range });
   if (result.status === 'ok') {
     console.log('secret scan ok');

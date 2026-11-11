@@ -101,10 +101,11 @@ for (const [file, limit] of [['AGENTS.md', 100], ['PROGRESS.md', 40]]) {
   }
 }
 
-// Secrets in the staged and the unstaged changes. In CI the job "secrets" scans the commits of the pull request instead.
+// Secrets in the staged and the unstaged changes. In GitHub Actions the job "secrets" scans the commits instead.
+// The gate is GITHUB_ACTIONS, not CI: some agent shells set CI, and the scan must still run there.
 const warnings = [];
 let secretsScanned = false;
-if (!process.env.CI) {
+if (!process.env.GITHUB_ACTIONS) {
   const { status, output } = scan({ cwd: root, config: join(root, '.gitleaks.toml') });
   secretsScanned = status === 'ok';
   if (status === 'missing') {
