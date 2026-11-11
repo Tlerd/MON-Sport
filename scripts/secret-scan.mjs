@@ -47,12 +47,59 @@ export function findGitleaks({
 /** The gitleaks argument lists: a range scan reads commits, a local scan reads the staged and the unstaged diff. */
 export function scanArgs({ config, range }) {
   // --verbose names the file and the line of each finding. --redact hides the value.
-  const common = ['--config', config, '--redact', '--verbose', '--no-banner', '.'];
+  // --ignore-gitleaks-allow: a "gitleaks:allow" comment in code would skip a finding with no review. Use .gitleaks.toml.
+  const common = ['--config', config, '--redact', '--verbose', '--ignore-gitleaks-allow', '--no-banner', '.'];
   if (range) return [['git', `--log-opts=${range}`, ...common]];
   return [
     ['git', '--pre-commit', '--staged', ...common],
     ['git', '--pre-commit', ...common],
   ];
+}
+
+/**
+ * The allowlist policy of .gitleaks.toml. It returns one line for each problem, and an empty list when the file is fine.
+ * - The default rules stay on: `[extend] useDefault = true`, and no `disabledRules`.
+ * - Each allowlist has a description (the reason), and a global one names its rules in `targetRules`.
+ * - Each allowlist allows exact values only: `regexes` of the form `^value$`, with no regex operator inside.
+ *   `paths`, `commits`, `stopwords`, and `regexTarget` would allow a whole file, commit, word, or line, so they are not allowed.
+ */
+export function allowlistProblems(toml) {
+  const tables = [];
+  for (const raw of toml.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    if (line.startsWith('[')) tables.push({ header: line, body: [] });
+    else if (tables.length) tables[tables.length - 1].body.push(line);
+  }
+  const problems = [];
+  const extend = tables.filter((t) => t.header === '[extend]');
+  if (!extend.some((t) => t.body.some((l) => /^useDefault\s*=\s*true\b/.test(l)))) problems.push('[extend] must set useDefault = true');
+  if (tables.some((t) => t.body.some((l) => /^disabledRules\s*=/.test(l)))) problems.push('disabledRules turns rules off');
+
+  const allowlists = tables.filter((t) => /^\[\[?(rules\.)?allowlists?\]\]?$/.test(t.header));
+  allowlists.forEach((table, index) => {
+    const name = `allowlist ${index + 1}`;
+    const text = table.body.join('\n');
+    if (!/^description[ \t]*=[ \t]*"[^"\n]*\S[^"\n]*"/m.test(text)) problems.push(`${name}: no description`);
+    if (!table.header.includes('rules.') && !/^targetRules\s*=\s*\[\s*["']\S/m.test(text)) problems.push(`${name}: no targetRules`);
+    for (const key of ['paths', 'commits', 'stopwords', 'regexTarget']) {
+      if (new RegExp(`^${key}\\s*=`, 'm').test(text)) problems.push(`${name}: ${key} is not allowed`);
+    }
+    const list = text.match(/^regexes\s*=\s*\[([\s\S]*?)\]\s*$/m);
+    if (!list) {
+      problems.push(`${name}: no regexes`);
+      return;
+    }
+    const values = [...list[1].matchAll(/'''([\s\S]*?)'''|"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1] ?? m[2]);
+    values.forEach((value, i) => {
+      const inner = value.startsWith('^') && value.endsWith('$') ? value.slice(1, -1) : null;
+      // An escaped punctuation mark (\. or \-) is a literal. Any other operator, or \d and the like, is a pattern.
+      if (inner === null || /[.*+?()[\]{}|^$\\]/.test(inner.replace(/\\[^A-Za-z0-9]/g, ''))) {
+        problems.push(`${name}: regex ${i + 1} is not one exact value (^...$)`);
+      }
+    });
+  });
+  return problems;
 }
 
 /**

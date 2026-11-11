@@ -29,4 +29,4 @@ Errors that happened before. When a new error looks the same, apply the fix firs
 - `WARN secrets: gitleaks is not installed`: `pnpm install` does not install gitleaks, because it is a Go binary. Install it once with `winget install Gitleaks.Gitleaks`. The check finds the winget folder without a new shell. CI still scans every pull request.
 - `FAIL secrets`: gitleaks found a secret in the staged or the unstaged changes. Remove it and read the value from an environment variable. The output hides the value.
 - A secret that reached a pushed commit must be rotated. Do not rewrite history: a force push is not allowed.
-- Public test data that gitleaks flags: add an entry with a reason to `.gitleaks.toml`. Do not allow a whole folder or a whole rule.
+- Public test data that gitleaks flags: add an entry with a reason to `.gitleaks.toml`. Copy the entry that is there: `description`, `targetRules`, and `regexes = ['''^the-exact-value$''']`. `harness/gitleaks-config.test.mjs` fails any other form. A `gitleaks:allow` comment has no effect.

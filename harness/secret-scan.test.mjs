@@ -37,17 +37,22 @@ test('no gitleaks gives null', () => {
   expect(findGitleaks({ env: {}, platform: 'linux', onPath: () => null })).toBeNull();
 });
 
+test('a "gitleaks:allow" comment in code does not hide a finding', () => {
+  for (const run of scanArgs({ config: 'c' })) expect(run).toContain('--ignore-gitleaks-allow');
+  expect(scanArgs({ config: 'c', range: 'a..b' })[0]).toContain('--ignore-gitleaks-allow');
+});
+
 test('a local scan covers the staged and the unstaged changes, with the repository config and redaction', () => {
   const runs = scanArgs({ config: 'C:/r/.gitleaks.toml' });
   expect(runs).toEqual([
-    ['git', '--pre-commit', '--staged', '--config', 'C:/r/.gitleaks.toml', '--redact', '--verbose', '--no-banner', '.'],
-    ['git', '--pre-commit', '--config', 'C:/r/.gitleaks.toml', '--redact', '--verbose', '--no-banner', '.'],
+    ['git', '--pre-commit', '--staged', '--config', 'C:/r/.gitleaks.toml', '--redact', '--verbose', '--ignore-gitleaks-allow', '--no-banner', '.'],
+    ['git', '--pre-commit', '--config', 'C:/r/.gitleaks.toml', '--redact', '--verbose', '--ignore-gitleaks-allow', '--no-banner', '.'],
   ]);
 });
 
 test('a range scan reads the commits of that range', () => {
   expect(scanArgs({ config: '.gitleaks.toml', range: 'origin/main..HEAD' })).toEqual([
-    ['git', '--log-opts=origin/main..HEAD', '--config', '.gitleaks.toml', '--redact', '--verbose', '--no-banner', '.'],
+    ['git', '--log-opts=origin/main..HEAD', '--config', '.gitleaks.toml', '--redact', '--verbose', '--ignore-gitleaks-allow', '--no-banner', '.'],
   ]);
 });
 
@@ -84,6 +89,16 @@ test.skipIf(!bin)('a staged GitHub token stops the scan, and the output does not
     const result = scan({ cwd: dir, config, bin, env });
     expect(result.status).toBe('leak');
     expect(result.output).not.toContain(token);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test.skipIf(!bin)('a staged token with a "gitleaks:allow" comment still stops the scan', () => {
+  const token = ['ghp', 'R8x2Lq9VtZ4mK7bN1wC5yH3jD6fG0sPeUaXo'].join('_');
+  const dir = repoWith('config.ts', `export const token = '${token}'; // gitleaks:allow\n`);
+  try {
+    expect(scan({ cwd: dir, config, bin, env }).status).toBe('leak');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
