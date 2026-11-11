@@ -56,22 +56,30 @@ A Reviewer round is a `reviewer` subagent, or `claude -p --permission-mode plan 
 5. After the last step, run `qa`. Put its questions in the end report and in `docs/qa/`.
 6. A Reviewer reviews each pull request. Post findings as a pull request comment that ends with the marker line of `REVIEW.md`. Fix each finding of medium or higher. Run a new Reviewer on the new head, on the diff since the last reviewed head. A finding is closed only when that Reviewer says so. Each run is one round. A pull request on money, concurrency, schema, or personal data also runs skill `rule-review` and posts its comment.
 7. Wait for checks in the background: `gh pr checks <n> --watch --fail-fast`. The pull request is ready when all checks pass and the latest marker for the current head shows no finding of medium or higher. A finding tagged pre-existing does not count. The check `pr-gates` fails a pull request that changes a path outside its allowed list, or lists an AC with no test.
-8. Stop at the ready pull request. Agents never merge: no `node scripts/merge.mjs`, no `gh pr merge` (`HUMAN_DECISIONS.md`, row 49). Add a section "Chạy thử local" to the pull request body with the commands below. Put the pull request in the end report, in merge order. Go on with the next step.
-9. The user runs the branch locally and merges with `node scripts/merge.mjs <n>`. Then `.github/workflows/deploy.yml` deploys. In the next run, check that the deploy run passed and `/api/health` answers on the service URL. Run `verify-flow` on the live service. Fix a failure in a new pull request.
+8. Stop at the ready pull request. Agents never merge: no `node scripts/merge.mjs`, no `gh pr merge` (`HUMAN_DECISIONS.md`, row 49). `.claude/settings.json` denies both in Claude Code. Antigravity has no deny list, so there the rule holds only while agents follow it. Fill the section "Chạy thử local" of the pull request body (see below). A stacked pull request starts that section with "Merge sau #<n của bước trước>". Put the pull request in the end report, in merge order. Go on with the next step.
+9. The user runs the branch locally and merges with `node scripts/merge.mjs <n>`. The script refuses a base other than `main`. Then `.github/workflows/deploy.yml` deploys. In the next run, check that the deploy run passed and `/api/health` answers on the service URL. Run `verify-flow` on the live service. Fix a failure in a new pull request.
+10. At the start of each run, update each open pull request of the agents:
+    - When its base branch was merged, set the base to `main` with `gh pr edit <n> --base main`, if GitHub did not do it.
+    - When its branch is behind its base, or it conflicts, merge the base into the branch with `git merge`. Never rebase and force push. Run `pnpm map` when `@map.md` conflicts.
+    - Push, wait for the checks, then run a Reviewer round on the diff since the last reviewed head. The head changed, so `merge.mjs` needs a new marker.
+    - Every pull request rewrites `PROGRESS.md`, so two open pull requests often conflict there. Keep the newer text.
 
-The section "Chạy thử local" of a pull request body:
+The section "Chạy thử local" of a pull request body. Do not start a line there with `AC-n:`: `pr-gates` reads every such line as an AC claim.
 
 ```
 gh pr checkout <n>
 pnpm install
 pnpm db:start
 pnpm --filter @monsport/api exec prisma migrate deploy
-pnpm --filter @monsport/api db:seed
+pnpm --filter @monsport/api exec prisma generate
 pnpm dev:api
 pnpm dev:web
 ```
 
-Run `pnpm dev:api` and `pnpm dev:web` in two terminals, then open http://localhost:5173. Add the screens and flows to check, one per line.
+- First time on a machine: copy `apps/api/.env.example` to `apps/api/.env`.
+- Optional: `pnpm --filter @monsport/api db:seed` loads the demo data. It empties the local tables first.
+- Run `pnpm dev:api` and `pnpm dev:web` in two terminals, then open http://localhost:5173.
+- Add the screens and flows to check, one per line.
 
 A fix, chore, or docs change with no brief needs no issue. Branch: `fix/<slug>`, `chore/<slug>`, or `docs/<slug>`. It still gets a pull request and changes only the files its description lists.
 
@@ -83,7 +91,7 @@ After a merge, if `@map.md` on `main` is stale, open `chore/map-refresh` with `p
 - A finding of medium or higher still open after 2 review rounds, or autofix giving up: choose the safest fix. Record the finding in the pull request and `PROGRESS.md`. Post `<!-- review-accepted head=<sha> -->` on the pull request and continue.
 - Keep a task list for the run, in the tool or in a file. Mark items done. Before you end a turn, read it again. While an item is open and not blocked, do it. A step only the user can do (a real device check) goes in the end report and `PROGRESS.md`. Go on with the other items.
 - You may create test data on the live service. Give each test account the name prefix `test-`.
-- End each run with a short report: what is done, the assumptions, the service URL, what is next.
+- End each run with a short report: what is done, the pull requests ready to merge in merge order, the assumptions, the service URL, what is next.
 
 ## Other
 

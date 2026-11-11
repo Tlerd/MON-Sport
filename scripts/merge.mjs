@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // The one way to merge a pull request: node scripts/merge.mjs <number> [--dry-run]
-// `gh pr merge` is denied in .claude/settings.json. This script merges only when
-// - the pull request is open, not a draft, and not from main;
+// The user runs it. Agents never merge (HUMAN_DECISIONS.md row 49): `gh pr merge` and this script are
+// denied in .claude/settings.json. This script merges only when
+// - the pull request is open, not a draft, not from main, and its base is main
+//   (a stacked step waits until the pull request of its base branch is merged);
 // - every check is green (it does not wait: use `gh pr checks <n> --watch --fail-fast` first);
 // - the latest Reviewer marker for the current head shows no high and no medium finding.
 // The marker is the last line of the Reviewer comment, see REVIEW.md:
@@ -60,6 +62,7 @@ export function mergeBlockers(pr) {
   if (pr.state !== 'OPEN') blockers.push(`the pull request is ${pr.state}`);
   if (pr.isDraft) blockers.push('the pull request is a draft');
   if (pr.headRefName === 'main') blockers.push('the head branch is main');
+  if (pr.baseRefName !== 'main') blockers.push(`the base is ${pr.baseRefName}, not main; merge the pull request of ${pr.baseRefName} first, then set the base with gh pr edit <n> --base main`);
   const checks = ciState(latestChecks(pr.statusCheckRollup));
   if (checks !== 'green') blockers.push(`checks are ${checks}; wait for green with gh pr checks <n> --watch --fail-fast`);
 
@@ -77,7 +80,7 @@ if (import.meta.main) {
     console.error('Usage: node scripts/merge.mjs <pull request number> [--dry-run]');
     process.exit(2);
   }
-  const view = spawnSync('gh', ['pr', 'view', number, '--json', 'state,isDraft,headRefName,headRefOid,statusCheckRollup,comments'], { encoding: 'utf8' });
+  const view = spawnSync('gh', ['pr', 'view', number, '--json', 'state,isDraft,baseRefName,headRefName,headRefOid,statusCheckRollup,comments'], { encoding: 'utf8' });
   if (view.status !== 0) {
     console.error(`FAIL merge: gh pr view ${number} failed\n${view.stderr}`);
     process.exit(1);

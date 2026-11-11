@@ -1,5 +1,5 @@
 // Runs Antigravity (`agy`) with model fallback: `node scripts/agy-run.mjs [--strong-only] <agy args>`.
-// Claude Code (Opus) plans, checks, and merges. agy codes on every model of MODELS, flash included.
+// Claude Code (Opus) plans and checks; the user merges. agy codes on every model of MODELS, flash included.
 // It runs each model at the effort in its name (`-medium` or `-high`). When a model is out of quota, the same run
 // starts again on the next model of MODELS. Any other result, pass or fail, ends the run.
 // `--strong-only` keeps a Reviewer run on the STRONG models: it fails rather than review on a weaker one.
