@@ -9,6 +9,7 @@ import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { acquire, lockPath } from './check-lock.mjs';
 import { hookSkips } from './hook-skip.mjs';
+import { INSTALL_HINT, scan } from './secret-scan.mjs';
 
 const MAX_LINES = 60;
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -100,6 +101,23 @@ for (const [file, limit] of [['AGENTS.md', 100], ['PROGRESS.md', 40]]) {
   }
 }
 
+// Secrets in the staged and the unstaged changes. In GitHub Actions the job "secrets" scans the commits instead.
+// The gate is GITHUB_ACTIONS, not CI: some agent shells set CI, and the scan must still run there.
+const warnings = [];
+let secretsScanned = false;
+if (!process.env.GITHUB_ACTIONS) {
+  const { status, output } = scan({ cwd: root, config: join(root, '.gitleaks.toml') });
+  secretsScanned = status === 'ok';
+  if (status === 'missing') {
+    warnings.push(`WARN secrets: gitleaks is not installed, so no secret scan ran. CI still scans. ${INSTALL_HINT}`);
+  } else if (status !== 'ok') {
+    failures.push(
+      `FAIL secrets: gitleaks (${status})\n${output}\n` +
+        'Fix: remove the secret and read it from an environment variable. For public test data, add an allowlist entry with a reason to .gitleaks.toml.',
+    );
+  }
+}
+
 // A package without a "typecheck" script would pass the types step unchecked.
 const unchecked = sourceDirs
   .flatMap((dir) => readdirSync(join(root, dir)).map((name) => `${dir}/${name}/package.json`))
@@ -121,7 +139,10 @@ for (const [name, command] of steps) {
 }
 
 if (failures.length === 0) {
-  if (!hook) console.log(`check ok: ${steps.map(([name]) => name).join(', ')}`);
+  if (!hook) {
+    console.log(`check ok: ${[...steps.map(([name]) => name), ...(secretsScanned ? ['secrets'] : [])].join(', ')}`);
+    for (const warning of warnings) console.error(warning);
+  }
   release();
   process.exit(0);
 }
