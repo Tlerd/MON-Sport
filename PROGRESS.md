@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-08 (F-020 to F-027 open and deferred lows and row 47 done).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-12 (open items after PR #227: deferred lows, PR #209).
 
 ## Current state
 
@@ -25,6 +25,14 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 ## Open decisions
 
 See `HUMAN_DECISIONS.md`. It holds the open decisions (numbers 1 to 6 and 8 to 48), the steps that only the user can do, and the settled ones.
+
+## Open items after PR #227 (2026-11-12)
+
+PR #227 made the user the only one who merges (`HUMAN_DECISIONS.md` row 49). These items are still open:
+
+1. Deferred lows of PR #227 round 2 (details in its comment): (a) the deny of `node *scripts/merge.mjs*` matches a path string, so `node scripts/./merge.mjs` still runs; fix: refuse in `scripts/merge.mjs` when `process.stdin.isTTY` is false, with a test. (b) Step 10 of `agent-workflow`: give the Reviewer `git show --remerge-diff <merge sha>`, not the diff since the last reviewed head. (c) Step 10: for a `PROGRESS.md` conflict, keep the branch text, then add open items from `main`.
+2. PR #209 (`fix/local-postgres-recovery`, local Postgres starts with `fsync=off`) is open. Update its branch from `main` (step 10). It has no review marker, so the first Reviewer round reads the whole diff (`gh pr diff 209`). Then hand it to the user to merge.
+3. Flaky test: `apps/api/src/modules/auth/google-auth.e2e.test.ts` AC-31 (two "Hoàn tất đăng ký" requests at the same time) failed twice on 2026-11-12 in a full local `pnpm check`. It got `[201, 409]` instead of `[201, 400]`. It passes alone. Cause: `auth.controller.ts` (about line 525) looks up the phone before the code check, so when request 1 commits first, request 2 gets 409 "Số này đã có tài khoản...". The code is correct and the lookup must stay first (R4, AC-40). Fix the test and brief F-004 AC-31: accept `[201, 400]` or `[201, 409]` with the matching messages, and record the brief change as an assumption. Until then, this test and `harness/secret-scan.test.mjs` (timed out once at 5000 ms under load) each get one rerun (`agent-workflow`, fix ladder).
 
 ## Next step
 
