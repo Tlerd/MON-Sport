@@ -1,5 +1,6 @@
 // The allowlist policy of .gitleaks.toml: an agent can make a failing secret scan pass only by allowing
 // one exact public test value, with a reason. scripts/secret-scan.mjs (allowlistProblems) holds the rules.
+// The policy is an allow-list of exact lines, so a TOML form it does not know fails instead of passing.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,7 +10,8 @@ import { allowlistProblems } from '../scripts/secret-scan.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
-const good = `[extend]
+const good = `# A comment line is fine.
+[extend]
 useDefault = true
 
 [[allowlists]]
@@ -17,6 +19,10 @@ description = "The public sample Web Push key of the push tests."
 targetRules = ["generic-api-key"]
 regexes = ['''^tBHItJI5svbpez7KI4CCXg$''']
 `;
+
+// A function replacement, because "$'" in a replacement string means "the text after the match".
+const swap = (from, to) => good.replace(from, () => to);
+const fails = (toml) => expect(allowlistProblems(toml), toml).not.toEqual([]);
 
 test('the .gitleaks.toml of this repository follows the policy', () => {
   expect(allowlistProblems(readFileSync(join(root, '.gitleaks.toml'), 'utf8'))).toEqual([]);
@@ -26,38 +32,70 @@ test('no .gitleaksignore file skips findings by fingerprint', () => {
   expect(existsSync(join(root, '.gitleaksignore'))).toBe(false);
 });
 
-test('an entry with one exact value, a reason, and one rule passes', () => {
+test('an entry with one exact value, a reason, and named rules passes, with CRLF line ends too', () => {
   expect(allowlistProblems(good)).toEqual([]);
+  expect(allowlistProblems(good.replaceAll('\n', '\r\n'))).toEqual([]);
+  expect(allowlistProblems(swap('["generic-api-key"]', '["generic-api-key", "github-pat"]'))).toEqual([]);
+  expect(allowlistProblems(swap("'''^tBHItJI5svbpez7KI4CCXg$'''", "'''^a$''', '''^b\\.c$'''"))).toEqual([]);
 });
 
-test('the default rules stay on', () => {
-  expect(allowlistProblems(good.replace('useDefault = true', 'useDefault = false'))).toContain('[extend] must set useDefault = true');
-  expect(allowlistProblems(`${good}\n[extend]\ndisabledRules = ["generic-api-key"]\n`)).toContain('disabledRules turns rules off');
+test('the default rules stay on: [extend] once, with useDefault = true', () => {
+  expect(allowlistProblems(swap('useDefault = true', 'useDefault = false'))).toContain('[extend] must set useDefault = true');
+  expect(allowlistProblems(swap('[extend]\nuseDefault = true\n', ''))).toContain('[extend] must appear once');
+  fails(`${good}\n[extend]\nuseDefault = true\n`);
+  fails(swap('useDefault = true', 'useDefault = true\ndisabledRules = ["github-pat"]'));
+  fails(swap('useDefault = true', 'useDefault = true\n"disabledRules" = ["github-pat"]'));
+  fails(swap('useDefault = true', 'useDefault = true\nDisabledRules = ["github-pat"]'));
+  fails(swap('useDefault = true', 'useDefault = true\npath = "other.toml"'));
 });
 
-test('an entry needs a reason', () => {
-  expect(allowlistProblems(good.replace(/description = .*\n/, ''))).toContain('allowlist 1: no description');
-  expect(allowlistProblems(good.replace(/description = .*\n/, 'description = ""\n'))).toContain('allowlist 1: no description');
+test('an entry needs a reason, named rules, and regexes, each once', () => {
+  expect(allowlistProblems(swap(/description = .*\n/, ''))).toContain('allowlist 1: needs one description');
+  fails(swap(/description = .*\n/, 'description = ""\n'));
+  expect(allowlistProblems(swap(/targetRules = .*\n/, ''))).toContain('allowlist 1: needs one targetRules');
+  expect(allowlistProblems(swap(/regexes = .*\n/, ''))).toContain('allowlist 1: needs one regexes');
 });
 
-test('a global entry names its rules', () => {
-  expect(allowlistProblems(good.replace(/targetRules = .*\n/, ''))).toContain('allowlist 1: no targetRules');
-});
-
-test('an entry allows exact values only, not a pattern, a path, a commit, or a word', () => {
-  // A function replacement, because "$'" in a replacement string means "the text after the match".
-  const regex = (value) => good.replace("'''^tBHItJI5svbpez7KI4CCXg$'''", () => value);
-  expect(allowlistProblems(regex("'''tBHItJI5svbpez7KI4CCXg'''"))).toContain('allowlist 1: regex 1 is not one exact value (^...$)');
-  expect(allowlistProblems(regex("'''^.*$'''"))).toContain('allowlist 1: regex 1 is not one exact value (^...$)');
-  expect(allowlistProblems(regex("'''^test-[a-z]+$'''"))).toContain('allowlist 1: regex 1 is not one exact value (^...$)');
-  for (const key of ['paths', 'commits', 'stopwords']) {
-    expect(allowlistProblems(`${good}${key} = ['''x''']\n`)).toContain(`allowlist 1: ${key} is not allowed`);
+test('an entry allows exact values only', () => {
+  for (const value of ["'''tBH'''", "'''^.*$'''", "'''^test-[a-z]+$'''", "'''^\\d+$'''", "'''^a$''', '.*'", "'''^a$''', \".*\""]) {
+    expect(allowlistProblems(swap("'''^tBHItJI5svbpez7KI4CCXg$'''", value)), value).not.toEqual([]);
   }
-  expect(allowlistProblems(`${good}regexTarget = "line"\n`)).toContain('allowlist 1: regexTarget is not allowed');
-  expect(allowlistProblems(good.replace(/regexes = .*\n/, ''))).toContain('allowlist 1: no regexes');
 });
 
-test('the rule of an entry inside a [[rules]] table follows the same policy', () => {
-  const rule = `${good}\n[[rules]]\nid = "github-pat"\n\n  [[rules.allowlists]]\n  paths = ['''docs/''']\n`;
-  expect(allowlistProblems(rule)).toEqual(expect.arrayContaining(['allowlist 2: no description', 'allowlist 2: paths is not allowed']));
+test('paths, commits, stopwords, regexTarget, and condition are not allowed, in any spelling', () => {
+  for (const line of [
+    "paths = ['''.*''']",
+    "Paths = ['''.*''']",
+    "\"paths\" = ['''.*''']",
+    "commits = ['abc']",
+    "stopwords = ['''x''']",
+    'regexTarget = "line"',
+    'condition = "AND"',
+  ]) {
+    fails(`${good}${line}\n`);
+  }
+});
+
+test('a header in another spelling, or with a comment after it, fails', () => {
+  for (const header of ['[[allowlists]] # reason', '[[ allowlists ]]', '[["allowlists"]]', '[[AllowLists]]', '[allowlist]', '[allowlist] # x']) {
+    fails(swap('[[allowlists]]', header));
+  }
+});
+
+test('an inline allowlist before [extend], or a regexes array over two lines, fails', () => {
+  fails(`allowlists = [{ description = "x", targetRules = ["github-pat"], paths = ['''.*'''] }]\n${good}`);
+  fails(swap("regexes = ['''^tBHItJI5svbpez7KI4CCXg$''']", "regexes = ['''^tBHItJI5svbpez7KI4CCXg$''', # \n'''.*''']"));
+});
+
+test('a [[rules]] table, which would change a default rule, fails in every form', () => {
+  for (const block of [
+    "[[rules]]\nid = \"github-pat\"\nregex = '''zzzz-never'''",
+    '[[rules]]\nid = "github-pat"\nentropy = 9.0',
+    "[[rules]]\nid = \"github-pat\"\npath = '''^nowhere$'''",
+    "[[rules]]\nid = \"github-pat\"\nallowlists = [{ paths = ['''.*'''] }]",
+    "[[rules]]\nid = \"github-pat\"\nallowlist.paths = ['''.*''']",
+    "[[rules]]\nid = \"github-pat\"\n\n  [[rules.allowlists]]\n  description = \"x\"\n  regexes = ['''^a$''']",
+  ]) {
+    fails(`${good}\n${block}\n`);
+  }
 });
