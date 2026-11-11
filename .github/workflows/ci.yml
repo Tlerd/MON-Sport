@@ -41,6 +41,39 @@ jobs:
             echo "image=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # Scans the new commits for secrets with gitleaks and .gitleaks.toml. It runs for every change, docs too, so no path filter.
+  # A local `pnpm check` scans only the uncommitted changes, and only where gitleaks is installed. This job is the gate.
+  secrets:
+    runs-on: [self-hosted, monsport-local]
+    timeout-minutes: 5
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+      EVENT: ${{ github.event_name }}
+      BASE_REF: ${{ github.base_ref }}
+      BEFORE: ${{ github.event.before }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - name: Install gitleaks (pinned version, checked against its SHA-256)
+        run: |
+          dir="$RUNNER_TEMP/gitleaks"
+          file="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          mkdir -p "$dir"
+          curl --fail --silent --show-error --location --output "$dir/$file" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$file"
+          echo "$GITLEAKS_SHA256  $dir/$file" | sha256sum --check --quiet
+          tar --extract --gzip --file "$dir/$file" --directory "$dir" gitleaks
+          echo "GITLEAKS_BIN=$dir/gitleaks" >> "$GITHUB_ENV"
+      - name: No secret in the new commits
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then range="origin/$BASE_REF..HEAD"; else range="$BEFORE..$GITHUB_SHA"; fi
+          node scripts/secret-scan.mjs --range "$range"
+
   check:
     needs: changes
     if: needs.changes.outputs.check == 'true'

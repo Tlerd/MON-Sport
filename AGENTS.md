@@ -5,7 +5,7 @@ Web app to book sports courts and join matches. Venue owners confirm bookings by
 ## Commands
 
 - `pnpm install`: installs the tools and turns on the git hook.
-- `pnpm check`: runs the tests, the type-check, and the import rules. One line when all pass, the failing lines when one fails.
+- `pnpm check`: runs the tests, the type-check, the import rules, and the secret scan (gitleaks, `.gitleaks.toml`). One line when all pass, the failing lines when one fails.
 - `pnpm dev:api` and `pnpm dev:web`: start the API on port 3000 and the web app, which sends `/api` to the API.
 - `pnpm db:start`: starts the local Postgres on port 55432. Copy `apps/api/.env.example` to `apps/api/.env`. The API tests need it.
 - `pnpm map`: rewrites `@map.md`, the list of code files with their exported names. Read it to find a file. `pnpm check` fails when it is stale.

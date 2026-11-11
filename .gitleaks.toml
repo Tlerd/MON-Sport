@@ -1,0 +1,11 @@
+# Gitleaks rules for this repository: the default rules plus the allowlist below.
+# scripts/secret-scan.mjs loads this file in `pnpm check` and in the CI job "secrets".
+# Allow a value only when it is public test data. Write the reason in the description.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The public sample Web Push subscription keys of the push tests. They are not credentials."
+targetRules = ["generic-api-key"]
+regexes = ['''^tBHItJI5svbpez7KI4CCXg$''']
