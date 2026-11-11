@@ -56,11 +56,27 @@ export function scanArgs({ config, range }) {
 }
 
 /**
+ * gitleaks 8.30 exits 0 with "no leaks found" when its git call fails, and logs each git stderr line at level ERR.
+ * A git warning (for example CRLF in an unstaged file) is harmless. Any other ERR line means git failed.
+ */
+export const gitFailed = (output) =>
+  output
+    .split(/\r?\n/)
+    .some((line) => /^\S+ ERR /.test(line) && !/ ERR \[git\] warning:/.test(line) && !/stderr is not empty/.test(line));
+
+/**
  * Runs the scan. status is "ok", "leak", "missing" (no binary), or "error" (gitleaks or git failed).
  * env is the environment of gitleaks and its git calls. A test passes one without GIT_* for its temporary repository.
  */
 export function scan({ cwd, config, range, bin = findGitleaks(), env = process.env }) {
   if (!bin) return { status: 'missing', output: INSTALL_HINT };
+  if (range) {
+    // A pull request or a push always has a commit, so an empty range means a wrong range. Git counts the commits:
+    // gitleaks does not count a commit without text lines, such as a deletion or a merge.
+    const count = spawnSync('git', ['rev-list', '--count', range], { cwd, env, encoding: 'utf8' });
+    if (count.status !== 0) return { status: 'error', output: `git rev-list ${range} failed: ${(count.stderr || count.error?.message || '').trim()}` };
+    if (Number(count.stdout.trim()) === 0) return { status: 'error', output: `The range ${range} has no commits.` };
+  }
   const outputs = [];
   for (const args of scanArgs({ config, range })) {
     // Exit 1 means leaks (the default --exit-code). Any other non-zero code is an error.
@@ -69,10 +85,7 @@ export function scan({ cwd, config, range, bin = findGitleaks(), env = process.e
     const output = `${res.stdout ?? ''}${res.stderr ?? ''}`.replace(/\x1b\[[0-9;]*m/g, '').trim();
     if (res.status === 1) return { status: 'leak', output };
     if (res.status !== 0) return { status: 'error', output: output || res.error?.message || `gitleaks exited ${res.status}` };
-    // gitleaks 8.30 exits 0 with "no leaks found" when its git call fails. It logs the failure at level ERR.
-    if (/^\S+ ERR /m.test(output)) return { status: 'error', output };
-    // A pull request or a push always has a commit, so a range with none scanned nothing.
-    if (range && /\b0 commits scanned/.test(output)) return { status: 'error', output: `${output}\nThe range ${range} has no commits.` };
+    if (gitFailed(output)) return { status: 'error', output };
     outputs.push(output);
   }
   return { status: 'ok', output: outputs.join('\n') };

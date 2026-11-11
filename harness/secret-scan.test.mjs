@@ -111,6 +111,37 @@ test.skipIf(!bin)('a git error is an error, not a clean scan, because gitleaks t
   }
 });
 
+const commit = (dir, ...args) =>
+  execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '--quiet', ...args], { cwd: dir, env, stdio: 'pipe' });
+
+test.skipIf(!bin)('a range that only deletes a file is clean, though gitleaks counts 0 commits in it', () => {
+  const dir = repoWith('a.txt', 'x\n');
+  try {
+    commit(dir, '-m', 'add');
+    execFileSync('git', ['rm', '--quiet', 'a.txt'], { cwd: dir, env, stdio: 'pipe' });
+    commit(dir, '-m', 'delete');
+    expect(scan({ cwd: dir, config, bin, env, range: 'HEAD~1..HEAD' }).status).toBe('ok');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test.skipIf(!bin)('a git warning, such as CRLF in an unstaged file, is not an error', () => {
+  const dir = repoWith('.gitattributes', '* text=auto eol=lf\n');
+  try {
+    execFileSync('git', ['config', 'core.autocrlf', 'true'], { cwd: dir, env, stdio: 'pipe' });
+    writeFileSync(join(dir, 'b.txt'), 'one\n');
+    execFileSync('git', ['add', 'b.txt'], { cwd: dir, env, stdio: 'pipe' });
+    commit(dir, '-m', 'lf');
+    writeFileSync(join(dir, 'b.txt'), 'one\r\ntwo\r\n');
+    const result = scan({ cwd: dir, config, bin, env });
+    expect(result.output).toMatch(/CRLF/);
+    expect(result.status).toBe('ok');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test.skipIf(!bin)('a range with no commits is an error, because a pull request or a push always has one', () => {
   const dir = repoWith('a.txt', 'x\n');
   try {
