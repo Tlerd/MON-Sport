@@ -135,8 +135,25 @@ test.skipIf(!bin)('a git warning, such as CRLF in an unstaged file, is not an er
     commit(dir, '-m', 'lf');
     writeFileSync(join(dir, 'b.txt'), 'one\r\ntwo\r\n');
     const result = scan({ cwd: dir, config, bin, env });
-    expect(result.output).toMatch(/CRLF/);
     expect(result.status).toBe('ok');
+    expect(result.output).not.toMatch(/partial scan/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test.skipIf(!bin)('a CRLF file does not hide an unstaged secret in a later file', () => {
+  const dir = repoWith('.gitattributes', '* text=auto eol=lf\n');
+  try {
+    execFileSync('git', ['config', 'core.autocrlf', 'true'], { cwd: dir, env, stdio: 'pipe' });
+    writeFileSync(join(dir, 'a.txt'), 'one\n');
+    writeFileSync(join(dir, 'z.ts'), 'x\n');
+    execFileSync('git', ['add', '-A'], { cwd: dir, env, stdio: 'pipe' });
+    commit(dir, '-m', 'base');
+    writeFileSync(join(dir, 'a.txt'), 'one\r\ntwo\r\n');
+    const token = ['ghp', 'R8x2Lq9VtZ4mK7bN1wC5yH3jD6fG0sPeUaXo'].join('_');
+    writeFileSync(join(dir, 'z.ts'), `export const t = '${token}';\n`);
+    expect(scan({ cwd: dir, config, bin, env }).status).toBe('leak');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

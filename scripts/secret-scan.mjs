@@ -60,9 +60,19 @@ export function scanArgs({ config, range }) {
  * A git warning (for example CRLF in an unstaged file) is harmless. Any other ERR line means git failed.
  */
 export const gitFailed = (output) =>
+  /partial scan/.test(output) ||
   output
     .split(/\r?\n/)
     .some((line) => /^\S+ ERR /.test(line) && !/ ERR \[git\] warning:/.test(line) && !/stderr is not empty/.test(line));
+
+/**
+ * gitleaks stops reading the diff at the first git stderr line, so a CRLF warning on one unstaged file
+ * hid the files after it ("partial scan"). core.safecrlf=false turns that warning off for gitleaks' git calls only.
+ */
+function withoutCrlfWarning(env) {
+  const count = Number(env.GIT_CONFIG_COUNT) || 0;
+  return { ...env, GIT_CONFIG_COUNT: String(count + 1), [`GIT_CONFIG_KEY_${count}`]: 'core.safecrlf', [`GIT_CONFIG_VALUE_${count}`]: 'false' };
+}
 
 /**
  * Runs the scan. status is "ok", "leak", "missing" (no binary), or "error" (gitleaks or git failed).
@@ -80,7 +90,7 @@ export function scan({ cwd, config, range, bin = findGitleaks(), env = process.e
   const outputs = [];
   for (const args of scanArgs({ config, range })) {
     // Exit 1 means leaks (the default --exit-code). Any other non-zero code is an error.
-    const res = spawnSync(bin, args, { cwd, encoding: 'utf8', env: { ...env, NO_COLOR: '1' } });
+    const res = spawnSync(bin, args, { cwd, encoding: 'utf8', env: { ...withoutCrlfWarning(env), NO_COLOR: '1' } });
     // gitleaks colors REDACTED even with NO_COLOR, so strip the ANSI codes.
     const output = `${res.stdout ?? ''}${res.stderr ?? ''}`.replace(/\x1b\[[0-9;]*m/g, '').trim();
     if (res.status === 1) return { status: 'leak', output };
