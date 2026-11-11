@@ -1,7 +1,7 @@
 // Proves the decisions of scripts/merge.mjs: the one way to merge a pull request.
 
 import { expect, test } from 'vitest';
-import { latestChecks, mergeArgs, mergeBlockers, reviewMarker } from '../scripts/merge.mjs';
+import { deleteBranchArgs, latestChecks, mergeArgs, mergeBlockers, mergeResult, reviewMarker } from '../scripts/merge.mjs';
 
 const HEAD = 'abc1234def5678abc1234def5678abc1234def56';
 const green = [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }];
@@ -85,8 +85,34 @@ test('a queued or running rerun of a check blocks, whatever its time and its pla
   }
 });
 
-test('the merge command pins the head that was checked', () => {
-  expect(mergeArgs('95', pr())).toEqual(['pr', 'merge', '95', '--merge', '--delete-branch', '--match-head-commit', HEAD]);
+// --delete-branch also switches the local checkout to main. That fails when another worktree holds main,
+// after the merge on GitHub already happened (2026-11-12, PR 227 and 228). The branch is deleted on the remote only.
+test('the merge command pins the head that was checked and never touches the local checkout', () => {
+  expect(mergeArgs('95', pr())).toEqual(['pr', 'merge', '95', '--merge', '--match-head-commit', HEAD]);
+});
+
+test('the remote head branch is deleted through the GitHub API, as gh did, and a fork branch is left alone', () => {
+  expect(deleteBranchArgs(pr())).toEqual(['api', '-X', 'DELETE', 'repos/{owner}/{repo}/git/refs/heads/feat/1-1-x']);
+  expect(deleteBranchArgs(pr({ isCrossRepository: true }))).toBeNull();
+  // An unencoded "#" would end the URL at "feat/a" and delete that branch instead.
+  expect(deleteBranchArgs(pr({ headRefName: 'feat/a#b%c' }))).toEqual(['api', '-X', 'DELETE', 'repos/{owner}/{repo}/git/refs/heads/feat/a%23b%25c']);
+});
+
+test('the state on GitHub after the merge decides the result, not the exit code of gh', () => {
+  expect(mergeResult({ status: 0, state: 'MERGED' })).toEqual({ merged: true, unknown: false, warning: null });
+  // gh merged on GitHub, then failed on a local step.
+  const late = mergeResult({ status: 1, state: 'MERGED', stderr: "fatal: 'main' is already used by worktree" });
+  expect(late.merged).toBe(true);
+  expect(late.warning).toContain('already used by worktree');
+  expect(mergeResult({ status: 1, state: 'OPEN', stderr: 'boom' })).toEqual({ merged: false, unknown: false, warning: null });
+  // gh said yes, but GitHub did not merge (for example, the head moved).
+  expect(mergeResult({ status: 0, state: 'OPEN' })).toEqual({ merged: false, unknown: false, warning: null });
+});
+
+test('a state that could not be read is unknown, never reported as not merged', () => {
+  for (const state of ['', undefined, null]) {
+    expect(mergeResult({ status: 0, state })).toEqual({ merged: false, unknown: true, warning: null });
+  }
 });
 
 test('reviewMarker reads the numbers and ignores text that is not a marker', () => {
