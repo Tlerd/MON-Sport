@@ -6,10 +6,17 @@ import { latestChecks, mergeArgs, mergeBlockers, reviewMarker } from '../scripts
 const HEAD = 'abc1234def5678abc1234def5678abc1234def56';
 const green = [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }];
 const marker = (head = HEAD, high = 0, medium = 0) => ({ body: `Review.\n<!-- review head=${head} high=${high} medium=${medium} -->` });
-const pr = (more = {}) => ({ state: 'OPEN', isDraft: false, headRefName: 'feat/1-1-x', headRefOid: HEAD, statusCheckRollup: green, comments: [marker()], ...more });
+const pr = (more = {}) => ({ state: 'OPEN', isDraft: false, baseRefName: 'main', headRefName: 'feat/1-1-x', headRefOid: HEAD, statusCheckRollup: green, comments: [marker()], ...more });
 
 test('a green open pull request with a clean marker for its head has no blocker', () => {
   expect(mergeBlockers(pr())).toEqual([]);
+});
+
+test('a stacked pull request whose base is not main blocks, and names the base to merge first', () => {
+  const blockers = mergeBlockers(pr({ baseRefName: 'feat/1-1-x', headRefName: 'feat/1-2-y' }));
+  expect(blockers).toHaveLength(1);
+  expect(blockers[0]).toContain('feat/1-1-x');
+  expect(mergeBlockers(pr({ baseRefName: undefined }))).toHaveLength(1);
 });
 
 test('a red or pending check blocks', () => {
