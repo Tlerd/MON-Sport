@@ -27,7 +27,7 @@ Use it when a change to a shared part (`packages/shared`, `packages/client`, a s
 3. Choose the coder for the call sites:
    - 3 or more feature folders or modules, and each needs more than an import change (new logic, new tests): run a swarm.
    - Otherwise: one coder, by the coder order above.
-4. Set `AGY_MODELS` to `gemini-3.8-flash-high` (PowerShell: `$env:AGY_MODELS = 'gemini-3.8-flash-high'`). Then run `node scripts/agy-run.mjs --mode accept-edits --output-format json --print-timeout 45m -p "/swarm <task>"`. The task says:
+4. Run the swarm in one command, so `AGY_MODELS` holds for this run only. Bash: `AGY_MODELS=gemini-3.8-flash-high node scripts/agy-run.mjs --mode accept-edits --output-format json --print-timeout 45m -p "/swarm <task>"`. PowerShell: `$env:AGY_MODELS='gemini-3.8-flash-high'; node scripts/agy-run.mjs <same args>; Remove-Item Env:AGY_MODELS`. Confirm the stderr line `agy-run: ran on gemini-3.8-flash-high`. The task says:
    - Every worker and the verifier run on `gemini-3.8-flash-high`.
    - One worker for each feature folder or module, with the files it owns. No two workers own one file.
    - A worker runs `pnpm --filter <package> typecheck`, and the tests of its own files only in `apps/web`, `apps/mobile`, or `packages/*`. API tests share one database per checkout, so they run only in the verifier's `pnpm check`.
@@ -39,7 +39,7 @@ Use it when a change to a shared part (`packages/shared`, `packages/client`, a s
 
 - The model of each worker is set by the task text only: the coordinator picks it. When the output names a member on another model, the run failed: one coder redoes the call sites.
 - Exit 4 (3.8 out of quota): one coder does the call sites. Never start a swarm on another model.
-- A worker that runs out of quota pauses and does not exit. A timeout, or a nonzero exit other than 3 or 4, leaves a partial diff: one coder finishes the call sites from that diff.
+- A worker that runs out of quota pauses and does not exit. Any nonzero exit after agy started, a timeout or exit 4 included, can leave a partial diff: one coder finishes the call sites from the diff in the working tree.
 - A swarm costs the quota of every worker and extra minutes of coordination. In the trial of 2026-11-12 (7 files changed their imports, 2 dropped their own copy of a helper), one coder took 13.2 minutes, and the shared step plus a swarm took 4.5 + 12.9 = 17.4 minutes. The diffs were the same.
 
 ## Fix ladder
