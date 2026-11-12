@@ -1,7 +1,9 @@
 // Proves the decisions of scripts/merge.mjs: the one way to merge a pull request.
 
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from 'vitest';
-import { deleteBranchArgs, latestChecks, mergeArgs, mergeBlockers, mergeResult, reviewMarker } from '../scripts/merge.mjs';
+import { deleteBranchArgs, latestChecks, mergeArgs, mergeBlockers, mergeResult, reviewMarker, ttyBlocker } from '../scripts/merge.mjs';
 
 const HEAD = 'abc1234def5678abc1234def5678abc1234def56';
 const green = [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }];
@@ -118,4 +120,24 @@ test('a state that could not be read is unknown, never reported as not merged', 
 test('reviewMarker reads the numbers and ignores text that is not a marker', () => {
   expect(reviewMarker('<!-- review head=abc1234 high=0 medium=2 -->')).toEqual({ head: 'abc1234', high: 0, medium: 2 });
   expect(reviewMarker('review head=abc1234 high=0 medium=0')).toBeNull();
+});
+
+test('ttyBlocker returns null for a TTY', () => {
+  expect(ttyBlocker(true, ['node', 'scripts/merge.mjs', '123'])).toBeNull();
+});
+
+test("ttyBlocker returns null for '--dry-run' without a TTY", () => {
+  expect(ttyBlocker(false, ['node', 'scripts/merge.mjs', '123', '--dry-run'])).toBeNull();
+});
+
+test('ttyBlocker returns the message without a TTY', () => {
+  expect(ttyBlocker(false, ['node', 'scripts/merge.mjs', '123'])).toBe(
+    'merge.mjs needs a terminal: the user runs it by hand (HUMAN_DECISIONS.md row 49). Agents never merge. Use --dry-run to check the blockers.'
+  );
+});
+
+test('spawning merge.mjs without a TTY exits 1 and needs a terminal before any gh call', () => {
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/merge.mjs', import.meta.url)), '999'], { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf8' });
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('needs a terminal');
 });

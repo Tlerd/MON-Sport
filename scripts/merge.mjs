@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The one way to merge a pull request: node scripts/merge.mjs <number> [--dry-run]
 // The user runs it. Agents never merge (HUMAN_DECISIONS.md row 49): `gh pr merge` and this script are
-// denied in .claude/settings.json. This script merges only when
+// denied in .claude/settings.json. The script refuses to merge when stdin is not a terminal, so a path trick around the deny list still stops.
+// This script merges only when
 // - the pull request is open, not a draft, not from main, and its base is main
 //   (a stacked step waits until the pull request of its base branch is merged);
 // - every check is green (it does not wait: use `gh pr checks <n> --watch --fail-fast` first);
@@ -97,11 +98,21 @@ export function mergeBlockers(pr) {
   return blockers;
 }
 
+export function ttyBlocker(isTTY, argv = []) {
+  if (argv?.includes?.('--dry-run') || isTTY === true) return null;
+  return 'merge.mjs needs a terminal: the user runs it by hand (HUMAN_DECISIONS.md row 49). Agents never merge. Use --dry-run to check the blockers.';
+}
+
 if (import.meta.main) {
   const number = process.argv[2];
   if (!/^\d+$/.test(number ?? '')) {
     console.error('Usage: node scripts/merge.mjs <pull request number> [--dry-run]');
     process.exit(2);
+  }
+  const blocked = ttyBlocker(process.stdin.isTTY === true, process.argv);
+  if (blocked) {
+    console.error(`FAIL merge: ${blocked}`);
+    process.exit(1);
   }
   const view = spawnSync('gh', ['pr', 'view', number, '--json', 'state,isDraft,isCrossRepository,baseRefName,headRefName,headRefOid,statusCheckRollup,comments'], { encoding: 'utf8' });
   if (view.status !== 0) {

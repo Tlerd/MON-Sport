@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-12 (open items after PR #227, and the swarm step).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-12 (open items after PR #227, the swarm step, and the second swarm trial).
 
 ## Current state
 
@@ -30,10 +30,10 @@ See `HUMAN_DECISIONS.md`. It holds the open decisions (numbers 1 to 6 and 8 to 4
 
 PR #227 made the user the only one who merges (`HUMAN_DECISIONS.md` row 49). These items are still open:
 
-1. Deferred lows of PR #227 round 2 (details in its comment): (a) the deny of `node *scripts/merge.mjs*` matches a path string, so `node scripts/./merge.mjs` still runs; fix: refuse in `scripts/merge.mjs` when `process.stdin.isTTY` is false, with a test. (b) Step 10 of `agent-workflow`: give the Reviewer `git show --remerge-diff <merge sha>`, not the diff since the last reviewed head. (c) Step 10: for a `PROGRESS.md` conflict, keep the branch text, then add open items from `main`.
+1. `fix/progress-open-items` closes the deferred lows of PR #227 round 2: `scripts/merge.mjs` refuses to merge when stdin is not a terminal (`ttyBlocker`), and step 10 of `agent-workflow` gives the Reviewer `git show --remerge-diff` and keeps the branch text of `PROGRESS.md`.
 2. PR #209 (`fix/local-postgres-recovery`, local Postgres starts with `fsync=off`) is open. Update its branch from `main` (step 10). It has no review marker, so the first Reviewer round reads the whole diff (`gh pr diff 209`). Then hand it to the user to merge.
-3. Flaky test: `apps/api/src/modules/auth/google-auth.e2e.test.ts` AC-31 (two "Hoàn tất đăng ký" requests at the same time) failed twice on 2026-11-12 in a full local `pnpm check`. It got `[201, 409]` instead of `[201, 400]`. It passes alone. Cause: `auth.controller.ts` (about line 525) looks up the phone before the code check, so when request 1 commits first, request 2 gets 409 "Số này đã có tài khoản...". The code is correct and the lookup must stay first (R4, AC-40). Fix the test and brief F-004 AC-31: accept `[201, 400]` or `[201, 409]` with the matching messages, and record the brief change as an assumption. Until then, this test and `harness/secret-scan.test.mjs` (timed out once at 5000 ms under load) each get one rerun (`agent-workflow`, fix ladder). It failed again in a commit hook on 2026-11-12.
-4. `agent-workflow` has a "Swarm step (agy 3.8)" since `chore/agent-workflow-swarm-step`: the shared part first, then `/swarm` on `gemini-3.8-flash-high` only when 3 or more feature folders need more than import changes. The trial on `chore/client-helpers-dedupe` (9 files, mostly import changes) was slower with the swarm (17.4 min) than with one coder (13.2 min). Try it again on a larger fan-out before you widen the rule.
+3. Flaky test AC-31 of `google-auth.e2e.test.ts` is fixed in `fix/progress-open-items`: it accepts `[201, 400]` or `[201, 409]` with the matching message, and brief F-004 records it as an assumption. `harness/secret-scan.test.mjs` (timed out once at 5000 ms under load) still gets one rerun (fix ladder).
+4. `agent-workflow` has a "Swarm step (agy 3.8)" since `chore/agent-workflow-swarm-step`: the shared part first, then `/swarm` on `gemini-3.8-flash-high` only when 3 or more feature folders need more than import changes. The trial on `chore/client-helpers-dedupe` (9 files, mostly import changes) was slower with the swarm (17.4 min) than with one coder (13.2 min). A second swarm on 2026-11-12 did items 1 and 3 above (3 workers, 5 files, independent changes) in 11.8 min with `pnpm check` green and a correct diff. No one-coder baseline ran for it, so the rule stays as it is.
 
 ## Next step
 
