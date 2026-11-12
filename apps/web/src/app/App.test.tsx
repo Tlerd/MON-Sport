@@ -463,4 +463,143 @@ describe('App', () => {
     fireEvent.click(within(alert).getByRole('button', { name: 'Đóng' }));
     expect(screen.queryByText(message)).toBeNull();
   });
+
+  it('AC-11: on "Đơn vị của tôi", owner sees the "Nhân viên" section for each venue', async () => {
+    const venue = {
+      id: '0199a1b2-0000-7000-8000-000000000010',
+      name: 'Sân Cầu Lông ABC',
+      address: '123 Đường 1',
+      phone: '0901234567',
+      opensAt: 360,
+      closesAt: 1320,
+      courts: [],
+    };
+    const staffList = [
+      {
+        id: 'staff-1',
+        name: 'Nhân Viên Một',
+        phone: '0901111111',
+        venueId: venue.id,
+        lockedAt: null,
+      },
+      {
+        id: 'staff-2',
+        name: 'Nhân Viên Hai',
+        phone: '0902222222',
+        venueId: venue.id,
+        lockedAt: '2026-11-12T10:00:00Z',
+      },
+    ];
+
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'owner-1', name: 'Bình', role: 'OWNER' }) });
+      }
+      if (url === '/api/owner/venues') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([venue]) });
+      }
+      if (url === `/api/owner/venues/${venue.id}/staff`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(staffList) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/chu-san/don-vi');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Đơn vị của tôi' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Nhân viên' })).toBeTruthy();
+
+    expect(await screen.findByText(/Nhân Viên Một/)).toBeTruthy();
+    expect(screen.getByText('0901111111')).toBeTruthy();
+    expect(screen.getByText('Đang làm')).toBeTruthy();
+
+    expect(screen.getByText(/Nhân Viên Hai/)).toBeTruthy();
+    expect(screen.getByText('0902222222')).toBeTruthy();
+    expect(screen.getByText('Đã khóa')).toBeTruthy();
+
+    expect(screen.getByLabelText('Tên nhân viên')).toBeTruthy();
+    expect(screen.getByLabelText('Số điện thoại')).toBeTruthy();
+    expect(screen.getByLabelText('Mật khẩu')).toBeTruthy();
+    expect(screen.getByLabelText(/đồng ý với thông báo về dữ liệu cá nhân/i)).toBeTruthy();
+
+    const lockButtons = screen.getAllByRole('button', { name: 'Khóa' });
+    expect(lockButtons.length).toBe(1);
+    fireEvent.click(lockButtons[0]);
+    expect(screen.getByRole('dialog', { name: 'Xác nhận khóa Nhân Viên Một' })).toBeTruthy();
+  });
+
+  it('AC-12: a STAFF user gets the owner shell with only "Lịch sân" and "Yêu cầu", and no "Doanh thu" or "Đơn vị và giá"', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'staff-1', name: 'Hoàng', role: 'STAFF' }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/chu-san/lich');
+    render(<App />);
+
+    const sidebar = await screen.findByRole('navigation', { name: 'Chức năng chủ sân' });
+    expect(within(sidebar).getByText('Yêu cầu')).toBeTruthy();
+    expect(within(sidebar).getByText('Lịch sân')).toBeTruthy();
+    expect(within(sidebar).queryByText('Doanh thu')).toBeNull();
+    expect(within(sidebar).queryByText('Đơn vị và giá')).toBeNull();
+  });
+
+  it('AC-12: opening the revenue path directly sends a STAFF to "Lịch sân"', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'staff-1', name: 'Hoàng', role: 'STAFF' }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/chu-san/doanh-thu');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Lịch sân' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Báo cáo doanh thu' })).toBeNull();
+  });
+
+  it('AC-12: a STAFF user on /chu-san/yeu-cau sees no cancel or "đã thu tiền" controls', async () => {
+    const bookingId = '0199a1b2-0000-7000-8000-000000000101';
+    const futureStart = new Date(Date.now() + 3600_000).toISOString();
+    const futureEnd = new Date(Date.now() + 7200_000).toISOString();
+    const confirmedBooking = {
+      id: bookingId,
+      courtId: 'court-1',
+      startAt: futureStart,
+      endAt: futureEnd,
+      status: 'CONFIRMED',
+      source: 'APP',
+      priceTotal: 120_000,
+      confirmDeadline: null,
+      confirmedAt: new Date().toISOString(),
+      cancelledAt: null,
+      createdAt: new Date().toISOString(),
+      customer: { name: 'Khách Một', phone: '0987654321' },
+      paidAtVenue: false,
+    };
+
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'staff-1', name: 'Hoàng', role: 'STAFF' }) });
+      }
+      if (url === '/api/owner/bookings?status=CONFIRMED') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([confirmedBooking]) });
+      }
+      if (url === '/api/owner/bookings') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([confirmedBooking]) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/chu-san/yeu-cau');
+    render(<App />);
+
+    expect((await screen.findAllByText(/Khách Một/)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /^hủy/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /thu tiền/i })).toBeNull();
+  });
 });

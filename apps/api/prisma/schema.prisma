@@ -19,6 +19,7 @@ enum Role {
   ADMIN
   OWNER
   USER
+  STAFF
 }
 
 enum NotificationType {
@@ -91,13 +92,18 @@ model User {
   skillLevel      SkillLevel?
   /// The session guard refuses a cookie issued before this time. The admin unlock sets it. Null: no limit.
   sessionsValidFrom DateTime? @db.Timestamptz(3)
+  /// Brief F-031: The venue this staff member belongs to. Null for non-staff.
+  staffVenueId    String?   @db.Uuid
   createdAt       DateTime      @default(now()) @db.Timestamptz(3)
   venues          Venue[]
+  staffVenue      Venue?    @relation("VenueStaff", fields: [staffVenueId], references: [id])
   bookings        Booking[]
   matches         Match[]
   matchPlayers    MatchPlayer[]
   notifications   Notification[]
   pushSubscriptions PushSubscription[]
+
+  @@index([staffVenueId])
 }
 
 model Venue {
@@ -111,6 +117,7 @@ model Venue {
   /// Minutes since 00:00, a multiple of 30, after opensAt.
   closesAt Int
   owner    User    @relation(fields: [ownerId], references: [id])
+  staff    User[]  @relation("VenueStaff")
   courts   Court[]
 }
 

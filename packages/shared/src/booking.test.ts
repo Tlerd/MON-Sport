@@ -13,6 +13,8 @@ import {
   RECURRING_MIN_WEEKS,
   RecurringPhoneBookingRequest,
   RecurringPhoneBookingResponse,
+  Role,
+  SessionUser,
 } from './booking.ts';
 
 const slot = { courtId: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b', startAt: '2026-11-20T17:00:00+07:00', endAt: '2026-11-20T18:00:00+07:00' };
@@ -235,3 +237,17 @@ describe('recurring phone booking contract, brief F-030', () => {
     expect(OwnerBookingView.parse({ ...ownerBooking, seriesId: uuid }).seriesId).toBe(uuid);
   });
 });
+
+describe('staff role, brief F-031', () => {
+  it('AC-1: Role includes STAFF and SessionUser accepts STAFF role', () => {
+    expect(Role.parse('STAFF')).toBe('STAFF');
+    expect(Role.options).toContain('STAFF');
+    const staffSession = {
+      id: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b',
+      name: 'Nhân viên A',
+      role: 'STAFF',
+    };
+    expect(SessionUser.parse(staffSession)).toEqual(staffSession);
+  });
+});
+

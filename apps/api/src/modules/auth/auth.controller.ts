@@ -154,7 +154,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(SessionGuard)
   me(@Req() req: AuthedRequest): SessionUser {
-    return req.user;
+    return { id: req.user.id, name: req.user.name, role: req.user.role };
   }
 
   @Get('providers')

@@ -104,11 +104,11 @@ export function OwnerShell() {
   }, [refreshKey]);
 
   return (
-    <div className="shell owner-shell">
+    <div className="shell owner-shell" data-role={user?.role}>
       <div className="owner-layout">
         <aside className="sidebar" aria-label="Menu chủ sân">
           <div className="sidebar-brand">
-            <NavLink to="/chu-san/yeu-cau" className="brand">
+            <NavLink to={user?.role === 'STAFF' ? '/chu-san/lich' : '/chu-san/yeu-cau'} className="brand">
               MONSPORT
             </NavLink>
           </div>
@@ -130,22 +130,26 @@ export function OwnerShell() {
               <Calendar size={20} aria-hidden="true" />
               <span className="nav-text">Lịch sân</span>
             </NavLink>
-            <NavLink
-              to="/chu-san/doanh-thu"
-              title="Doanh thu"
-              className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-            >
-              <TrendingUp size={20} aria-hidden="true" />
-              <span className="nav-text">Doanh thu</span>
-            </NavLink>
-            <NavLink
-              to="/chu-san/don-vi"
-              title="Đơn vị và giá"
-              className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-            >
-              <Store size={20} aria-hidden="true" />
-              <span className="nav-text">Đơn vị và giá</span>
-            </NavLink>
+            {user?.role !== 'STAFF' && (
+              <>
+                <NavLink
+                  to="/chu-san/doanh-thu"
+                  title="Doanh thu"
+                  className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
+                >
+                  <TrendingUp size={20} aria-hidden="true" />
+                  <span className="nav-text">Doanh thu</span>
+                </NavLink>
+                <NavLink
+                  to="/chu-san/don-vi"
+                  title="Đơn vị và giá"
+                  className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
+                >
+                  <Store size={20} aria-hidden="true" />
+                  <span className="nav-text">Đơn vị và giá</span>
+                </NavLink>
+              </>
+            )}
           </nav>
         </aside>
         <div className="owner-body">

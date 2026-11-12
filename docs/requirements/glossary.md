@@ -20,6 +20,7 @@ Nguồn: bảng "Tên gọi" và các mục Users, Rules của `intake-monsport-
 | Host | Người dùng mở trận trên một booking của mình | chủ trận, chủ kèo |
 | Người dùng | Người có tài khoản vai trò người dùng. Đặt sân, mở trận, vào trận | khách, user |
 | Người ghép trận | Người dùng vào trận của một host khác | người chơi ghép |
+| Nhân viên | Người dùng làm việc cho một đơn vị do chủ sân tạo tài khoản. Xem và xác nhận yêu cầu, nhập booking của đơn vị đó (BR-55) | staff, người trực sân |
 | Phòng chờ | Danh sách các trận đang mở, tự cập nhật | sảnh, lobby |
 | Sân | Một đơn vị đặt riêng trong một đơn vị | sân con, court |
 | Suất | Một chỗ trong trận. Số suất của trận gồm cả host | slot, chỗ |

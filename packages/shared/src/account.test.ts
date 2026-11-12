@@ -3,12 +3,15 @@ import {
   CourtInput,
   CourtUpdate,
   CreateOwnerRequest,
+  CreateStaffRequest,
   errorMessage,
   Messages,
   OwnerCourtUpdate,
   OwnerVenueUpdate,
   RegisterRequest,
   PRIVACY_NOTICE,
+  STAFF_PHONE_TAKEN,
+  StaffView,
   UserSearchRequest,
   VenueInput,
   VenueUpdate,
@@ -124,3 +127,73 @@ describe('player skill level, brief F-029', () => {
     expect(PRIVACY_NOTICE).toContain('Mọi người, kể cả người chưa đăng nhập, thấy tên và trình độ của host trong phòng chờ.');
   });
 });
+
+describe('staff contract, brief F-031', () => {
+  const staffInput = {
+    name: '  Lê Văn A ',
+    phone: '0901112233',
+    password: 'san-cau-long-2026',
+    consent: true,
+  };
+
+  it('AC-1: CreateStaffRequest accepts name, phone, password and consent: true, and trims name', () => {
+    expect(CreateStaffRequest.parse(staffInput)).toEqual({
+      name: 'Lê Văn A',
+      phone: '0901112233',
+      password: 'san-cau-long-2026',
+      consent: true,
+    });
+  });
+
+  it('AC-1: CreateStaffRequest refuses without consent or with consent: false', () => {
+    expect(messageOf(CreateStaffRequest.safeParse({ ...staffInput, consent: false }))).toBe(Messages.consent);
+    const { consent: _consent, ...withoutConsent } = staffInput;
+    expect(messageOf(CreateStaffRequest.safeParse(withoutConsent))).toBe(Messages.consent);
+  });
+
+  it('AC-1: CreateStaffRequest refuses password of 7 characters', () => {
+    expect(messageOf(CreateStaffRequest.safeParse({ ...staffInput, password: '1234567' }))).toBe(Messages.passwordLength);
+  });
+
+  it('AC-1: CreateStaffRequest refuses weak password or password containing phone', () => {
+    for (const password of ['matkhau123', 'PASSWORD123', '12345678', 'aaaaaaaaaa', '0901112233x', '+84901112233']) {
+      expect(messageOf(CreateStaffRequest.safeParse({ ...staffInput, password }))).toBe(Messages.weakPassword);
+    }
+  });
+
+  it('AC-1: CreateStaffRequest is strict and refuses extra fields', () => {
+    expect(CreateStaffRequest.safeParse({ ...staffInput, extra: 'forbidden' }).success).toBe(false);
+  });
+
+  it('AC-1: StaffView contains id, name, phone, venueId, lockedAt', () => {
+    const validView = {
+      id: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b',
+      name: 'Lê Văn A',
+      phone: '0901112233',
+      venueId: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c',
+      lockedAt: null,
+    };
+    expect(StaffView.parse(validView)).toEqual(validView);
+    expect(
+      StaffView.parse({
+        ...validView,
+        lockedAt: '2026-11-20T17:00:00+07:00',
+      }),
+    ).toEqual({
+      ...validView,
+      lockedAt: '2026-11-20T17:00:00+07:00',
+    });
+    expect(StaffView.safeParse({ ...validView, id: 'not-a-uuid' }).success).toBe(false);
+    expect(StaffView.safeParse({ ...validView, venueId: 'not-a-uuid' }).success).toBe(false);
+    expect(StaffView.safeParse({ ...validView, phone: '123' }).success).toBe(false);
+  });
+
+  it('AC-1: STAFF_PHONE_TAKEN has exact Vietnamese message', () => {
+    expect(STAFF_PHONE_TAKEN).toBe('Số này đã có tài khoản');
+  });
+
+  it('AC-14: PRIVACY_NOTICE states staff of a venue see customer name and phone', () => {
+    expect(PRIVACY_NOTICE).toContain('Nhân viên của đơn vị thấy tên và số điện thoại của khách đặt sân ở đơn vị đó.');
+  });
+});
+

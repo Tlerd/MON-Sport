@@ -519,3 +519,50 @@ describe('migration 20261112000000_f030_booking_series', () => {
   });
 });
 
+describe('migration 20261112100000_f031_staff', () => {
+  it('AC-10: migration only adds: contains no DROP, no SET NOT NULL, and no DEFAULT', () => {
+    const sql = readFileSync(new URL('./migrations/20261112100000_f031_staff/migration.sql', import.meta.url), 'utf8');
+    expect(sql.toUpperCase()).not.toContain('DROP');
+    expect(sql.toUpperCase()).not.toContain('SET NOT NULL');
+    expect(sql.toUpperCase()).not.toContain('DEFAULT');
+  });
+
+  it('AC-10: a User row inserted without staffVenueId reads back null', async () => {
+    const testUserId = randomUUID();
+    await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'StaffTest', $2, 'x')`, [
+      testUserId,
+      `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+    ]);
+    try {
+      const { rows } = await db.query('SELECT "staffVenueId" FROM "User" WHERE id = $1', [testUserId]);
+      expect(rows).toEqual([{ staffVenueId: null }]);
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id = $1', [testUserId]);
+    }
+  });
+
+  it('AC-10: accepts STAFF role and foreign key to Venue.id', async () => {
+    const staffId = randomUUID();
+    const phone = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+    try {
+      const res = await sqlState(
+        db.query(
+          `INSERT INTO "User" (id, name, phone, "passwordHash", role, "staffVenueId") VALUES ($1, 'Staff', $2, 'x', 'STAFF', $3)`,
+          [staffId, phone, venueId],
+        ),
+      );
+      expect(res).toBe('ok');
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id = $1', [staffId]);
+    }
+  });
+
+  it('AC-10: creates index on User.staffVenueId', async () => {
+    const res = await db.query(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'User' AND indexname = 'User_staffVenueId_idx'`,
+    );
+    expect(res.rows.length).toBe(1);
+  });
+});
+
+

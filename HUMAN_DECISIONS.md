@@ -72,6 +72,7 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 54 | Luồng Google có bắt chọn trình độ khi đăng ký không? | Không | Không | F-029 |
 | 55 | Đặt cố định: buổi trùng giờ bỏ và báo, hay hủy cả chuỗi? (F-030) | Bỏ và báo | Không | F-030 |
 | 56 | Số tuần tối đa của đặt cố định (F-030) | 12 | Không | F-030 |
+| 57 | Nhân viên có hủy booking và đánh dấu đã thu tiền không? (F-031) | Không | Không | F-031 |
 
 ## Việc chỉ người dùng làm được
 

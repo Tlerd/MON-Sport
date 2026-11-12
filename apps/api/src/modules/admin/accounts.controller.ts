@@ -49,8 +49,26 @@ export class AdminAccountsController {
   @Post('users/:id/lock')
   @HttpCode(200)
   async lock(@Param('id', Id) id: string): Promise<AccountView> {
-    // One conditional write: a parallel unlock cannot slip between a read and the write, and the first lock time stays.
-    await this.prisma.user.updateMany({ where: { id, lockedAt: null, deletedAt: null, role: { not: 'ADMIN' } }, data: { lockedAt: this.clock.now() } });
+    const now = this.clock.now();
+    await this.prisma.$transaction(async (tx) => {
+      // One conditional write: a parallel unlock cannot slip between a read and the write, and the first lock time stays.
+      await tx.user.updateMany({ where: { id, lockedAt: null, deletedAt: null, role: { not: 'ADMIN' } }, data: { lockedAt: now } });
+      const target = await tx.user.findUnique({ where: { id } });
+      if (target?.role === 'OWNER') {
+        const venues = await tx.venue.findMany({ where: { ownerId: id }, select: { id: true } });
+        const venueIds = venues.map((v) => v.id);
+        if (venueIds.length > 0) {
+          await tx.user.updateMany({
+            where: { staffVenueId: { in: venueIds }, role: 'STAFF', deletedAt: null, lockedAt: null },
+            data: { lockedAt: now, sessionsValidFrom: now },
+          });
+          await tx.user.updateMany({
+            where: { staffVenueId: { in: venueIds }, role: 'STAFF', deletedAt: null, lockedAt: { not: null } },
+            data: { sessionsValidFrom: now },
+          });
+        }
+      }
+    });
     const user = await this.account(id);
     if (user.role === 'ADMIN') throw new BadRequestException('Không khóa được tài khoản admin');
     return toAccountView(user);

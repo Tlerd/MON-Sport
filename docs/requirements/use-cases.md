@@ -14,7 +14,8 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Primary Actor | Use cases |
 |---|---|
 | Người dùng | UC-1 Đăng ký và đăng nhập · UC-2 Chọn sân và xem giờ trống · UC-3 Gửi yêu cầu đặt sân · UC-6 Xem và hủy booking |
-| Chủ sân | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-11 Sửa giá và giờ mở cửa · UC-12 Xem dashboard tài chính · UC-16 Chủ sân đặt cố định hằng tuần |
+| Chủ sân | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-11 Sửa giá và giờ mở cửa · UC-12 Xem dashboard tài chính · UC-16 Chủ sân đặt cố định hằng tuần · UC-17 Chủ sân quản lý nhân viên |
+| Nhân viên | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-16 Chủ sân đặt cố định hằng tuần |
 | Host | UC-7 Mở trận · UC-9 Hủy trận · UC-15 Host duyệt yêu cầu vào trận |
 | Người ghép trận | UC-8 Vào và rời trận |
 | Admin | UC-10 Quản lý tài khoản và đơn vị · UC-13 Xem dashboard toàn trang |
@@ -307,3 +308,21 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Business Rules | BR-1, BR-2, BR-3, BR-5, BR-6, BR-8, BR-10, BR-23, BR-54 |
 | Other Information | Các booking trong chuỗi mang chung seriesId. Hệ thống khóa Court một lần trong transaction |
 | Assumptions | Buổi trùng giờ bị bỏ và báo lại, không hủy cả chuỗi (BR-54) |
+
+## UC-17 Chủ sân quản lý nhân viên
+
+| Row | Content |
+|---|---|
+| Primary Actor, Secondary Actors | Chủ sân · Nhân viên |
+| Trigger | Chủ sân muốn giao việc nhận yêu cầu và nhập booking cho nhân viên của một đơn vị |
+| Description | Chủ sân tạo tài khoản nhân viên cho một đơn vị của mình. Chủ sân xem danh sách nhân viên và khóa tài khoản nhân viên khi cần |
+| Preconditions | PRE-17: chủ sân đã đăng nhập và sở hữu ít nhất một đơn vị |
+| Postconditions | POST-17: tài khoản nhân viên được tạo hoặc bị khóa |
+| Normal Flow | 17.0 Tạo nhân viên<br>1. Chủ sân mở mục "Nhân viên" của một đơn vị.<br>2. Chủ sân nhập tên, số điện thoại và mật khẩu của nhân viên.<br>3. Chủ sân đánh dấu xác nhận nhân viên đã đồng ý về dữ liệu cá nhân.<br>4. Hệ thống tạo tài khoản vai trò STAFF gắn với đơn vị đó.<br>5. Hệ thống hiện nhân viên mới trong danh sách |
+| Alternative Flows | 17.1 Khóa nhân viên: chủ sân chọn khóa một nhân viên và xác nhận. Hệ thống khóa tài khoản và hủy mọi phiên cũ (BR-28, BR-32) |
+| Exceptions | 17.0.E1 Số điện thoại đã có tài khoản: hệ thống báo số này đã có tài khoản (BR-24).<br>17.0.E2 Mật khẩu yếu hoặc chứa số điện thoại: hệ thống từ chối (BR-31).<br>17.0.E3 Chưa đánh dấu đồng ý dữ liệu cá nhân: hệ thống từ chối (BR-29) |
+| Priority | Medium |
+| Frequency of Use | Khoảng 2 lần mỗi tháng cho mỗi đơn vị |
+| Business Rules | BR-23, BR-24, BR-28, BR-29, BR-31, BR-32, BR-55 |
+| Other Information | Nhân viên đăng nhập bằng số điện thoại và mật khẩu. Nhân viên chỉ xem và thao tác trên đơn vị của mình. Admin đổi chủ đơn vị hoặc khóa chủ sân thì khóa mọi nhân viên của đơn vị đó |
+| Assumptions | Mỗi nhân viên làm việc cho đúng một đơn vị. Hệ thống khóa tài khoản chứ không xóa dữ liệu nhân viên |

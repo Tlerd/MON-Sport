@@ -1972,3 +1972,91 @@ a.google-btn:hover { background: var(--court-soft); }
   accent-color: var(--color-primary);
 }
 
+/* Brief F-031: staff management */
+.staff-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.staff-section h4 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--court-deep);
+}
+
+.staff-section h5 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.staff-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.staff-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.staff-name {
+  font-weight: 600;
+}
+
+.staff-phone {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.staff-status {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.staff-status.active {
+  background: var(--color-status-ok-bg);
+  color: var(--color-status-ok);
+}
+
+.staff-status.locked {
+  background: var(--color-status-no-bg);
+  color: var(--color-status-no);
+}
+
+.confirm-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.staff-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Staff role in OwnerShell: defense-in-depth hide cancel and payment controls */
+.owner-shell[data-role='STAFF'] .payment-action,
+.owner-shell[data-role='STAFF'] .btn-toggle-paid {
+  display: none !important;
+}
+
+

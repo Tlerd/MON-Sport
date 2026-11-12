@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Names and values follow docs/requirements/data-dictionary.md.
-export const Role = z.enum(['ADMIN', 'OWNER', 'USER']);
+export const Role = z.enum(['ADMIN', 'OWNER', 'USER', 'STAFF']);
 export type Role = z.infer<typeof Role>;
 
 export const Sport = z.enum(['FOOTBALL', 'BADMINTON']);

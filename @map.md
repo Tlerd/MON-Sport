@@ -38,6 +38,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - bookings.controller.ts: BookingsController, OwnerBookingsController
 - bookings.module.ts: BookingsModule
 - bookings.service.ts: toView, BookingsService, lockVenueOf, expireBookings, finishPastMatches
+- venue-scope.ts: VenueScope, ScopeUser, venueScope, matchesScope, assertScope
 
 ## apps/api/src/modules/database/
 - clock.ts: Clock
@@ -79,6 +80,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - push.module.ts: PushModule
 - push.service.ts: PushService
 - subscriptions.service.ts: MAX_SUBSCRIPTIONS, SubscriptionsService
+
+## apps/api/src/modules/staff/
+- staff.controller.ts: StaffController
+- staff.module.ts: StaffModule
+- staff.service.ts: toStaffView, StaffService
 
 ## apps/api/src/modules/venues/
 - availability.controller.ts: AvailabilityController
@@ -159,7 +165,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - App.tsx: App
 - BookPage.tsx: BookPage
 - SchedulePage.tsx: SchedulePage
-- pages.tsx: BookPage, OwnerRequestsPage, LobbyPage, MyPage, AuthPage
+- pages.tsx: BookPage, OwnerRequestsPage, MyVenuesPage, LobbyPage, MyPage, AuthPage
 - router.tsx: RoleGuard, routes, createRouter
 - session.tsx: SessionContextValue, SessionProvider, useSession
 - shells.tsx: initial, MobileBanner, PlayerShell, OwnerShell, AdminShell
@@ -211,6 +217,9 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/web/src/features/notifications/
 - Notifications.tsx: Notifications
 - PushToggle.tsx: PushToggle
+
+## apps/web/src/features/staff/
+- StaffSection.tsx: StaffSection
 
 ## apps/web/src/features/venues/
 - MyVenues.tsx: MyVenues

@@ -82,8 +82,11 @@ export class StatsService {
       }),
     ]);
 
-    const accounts = { ADMIN: 0, OWNER: 0, USER: 0 };
-    for (const row of accountRows) accounts[row.role] = row._count._all;
+    const accounts: Record<'ADMIN' | 'OWNER' | 'USER', number> = { ADMIN: 0, OWNER: 0, USER: 0 };
+    for (const row of accountRows) {
+      if (row.role === 'STAFF') continue;
+      accounts[row.role] = row._count._all;
+    }
 
     const venueOfCourt = new Map(courts.map((c) => [c.id, c.venueId]));
     const sumByVenue = (rows: { courtId: string; _count: { _all: number } }[]) => {

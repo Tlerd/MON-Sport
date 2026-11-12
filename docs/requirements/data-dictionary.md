@@ -85,11 +85,11 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | PushSubscription.endpoint | Địa chỉ push của trình duyệt | text | ≤ 2048 | Duy nhất |
 | PushSubscription.p256dh | Khóa công khai Web Push | text | ≤ 200 | — |
 | PushSubscription.userId | Chủ của thiết bị | id của User | 36 | — |
-| Role | Vai trò tài khoản | enum | — | `ADMIN` · `OWNER` (chủ sân) · `USER` (người dùng) |
+| Role | Vai trò tài khoản | enum | — | `ADMIN` · `OWNER` (chủ sân) · `STAFF` (nhân viên) · `USER` (người dùng) |
 | SkillLevel | Mức trình độ của người chơi (brief F-029) | enum | — | `BEGINNER` Mới chơi · `INTERMEDIATE` Trung bình · `ADVANCED` Khá |
 | Sport | Môn chơi | enum | — | `FOOTBALL` bóng đá · `BADMINTON` cầu lông |
 | timestamptz(3) | Thời điểm | timestamp with time zone, mili giây | — | Lưu UTC. Hiển thị theo `Asia/Ho_Chi_Minh` (BR-27) |
-| User | Một tài khoản | id + name + phone + (passwordHash) + role + (googleSub) + (email) + (phoneVerifiedAt) + (lockedAt) + (deletedAt) + (consentAt) + (skillLevel) + (sessionsValidFrom) + createdAt | — | — |
+| User | Một tài khoản | id + name + phone + (passwordHash) + role + (googleSub) + (email) + (phoneVerifiedAt) + (lockedAt) + (deletedAt) + (consentAt) + (skillLevel) + (sessionsValidFrom) + (staffVenueId) + createdAt | — | — |
 | User.consentAt | Lúc người dùng đồng ý với thông báo bảo vệ dữ liệu cá nhân khi đăng ký | timestamptz(3) | — | Có khi người dùng tự đăng ký. Null với tài khoản do admin hoặc seed tạo (brief F-003) |
 | User.deletedAt | Lúc người dùng xóa tài khoản | timestamptz(3) | — | Khi có, `name` và `phone` đã được thay (BR-26) |
 | User.email | Email lấy từ Google khi `email_verified` = true | varchar(254) | ≤ 254 | Null được. Chỉ dùng để hiển thị (brief F-004) |
@@ -102,6 +102,7 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | User.role | Vai trò | Role | — | Mặc định `USER` |
 | User.sessionsValidFrom | Phiên tạo trước thời điểm này không còn hiệu lực | timestamptz(3) | — | Admin mở khóa tài khoản thì đặt bằng lúc mở khóa (BR-32). Null là không giới hạn (brief F-006) |
 | User.skillLevel | Mức trình độ người chơi chọn khi đăng ký trên web | SkillLevel | — | Null được. Null với tài khoản app, Google, admin và seed (brief F-029) |
+| User.staffVenueId | Đơn vị mà nhân viên làm việc | id của Venue | 36 | Null được. Chỉ có khi role = STAFF (brief F-031) |
 | Venue | Một đơn vị | id + ownerId + name + address + phone + opensAt + closesAt | — | — |
 | Venue.address | Địa chỉ | text | 1–200 ký tự | — |
 | Venue.closesAt | Giờ đóng cửa, tính bằng phút từ 00:00 | integer | — | 30–1440, bội của 30. Lớn hơn `opensAt` |

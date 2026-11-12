@@ -30,7 +30,7 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-17 | Khi host hủy trận, booking của trận chuyển sang "Đã hủy" | action enabler | static | Intake, Trạng thái của trận |
 | BR-18 | Người ghép trận rời trận được tới giờ bắt đầu | constraint | static | Intake, Assumptions |
 | BR-19 | Trận chuyển sang "Đã đá xong" khi qua giờ kết thúc của booking | action enabler | static | Intake, Assumptions |
-| BR-20 | Chỉ chủ sân của booking và host của trận thấy số điện thoại của người dùng | constraint | static | Intake, Data |
+| BR-20 | Chỉ chủ sân của booking và host của trận thấy số điện thoại của người dùng. BR-55 mở rộng cho nhân viên của đơn vị | constraint | static | Intake, Data |
 | BR-21 | Doanh thu chỉ tính các booking "Đã xác nhận" có đánh dấu "đã thu tiền tại sân" | computation | static | Intake, UC-12 |
 | BR-22 | Admin không xác nhận và không hủy booking | constraint | static | Intake, Phân quyền |
 | BR-23 | Chủ sân chỉ xem và sửa dữ liệu của các đơn vị mình quản lý | constraint | static | Intake, Phân quyền |
@@ -65,6 +65,7 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-52 | Yêu cầu "Chờ duyệt" hết hạn khi trận không còn "Mở" hoặc "Đầy", hoặc khi đã qua giờ bắt đầu. Trận "Đầy" không làm yêu cầu hết hạn. Mọi chỗ đọc yêu cầu áp dụng cùng quy tắc này | computation | dynamic | Intake V2, W1, brief F-028 |
 | BR-53 | Trình độ của trận là trình độ của host. Phòng chờ lọc trận theo trình độ của host. Host chưa chọn trình độ chỉ hiện khi không lọc | constraint | static | Intake V2, W4, brief F-029 |
 | BR-54 | Đặt cố định tạo một booking cho mỗi tuần dưới một khóa `Court`. Buổi trùng giờ với booking active bị bỏ và báo lại. Các buổi khác vẫn được tạo. Giá mỗi buổi tính lúc đặt (BR-6). | action enabler | dynamic | Intake V2, W2, brief F-030 |
+| BR-55 | Nhân viên làm cho một đơn vị. Nhân viên xem và xác nhận yêu cầu, và nhập booking gọi điện của đơn vị đó. Nhân viên không hủy booking, không đánh dấu đã thu tiền, không xem doanh thu, không sửa giá. Nhân viên của đơn vị thấy số điện thoại của khách đặt sân ở đơn vị đó (mở rộng BR-20) | constraint | static | Intake V2, W3, brief F-031 |
 
 ## Assumptions
 
