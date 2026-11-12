@@ -293,7 +293,7 @@ describe('Staff module (F-031)', () => {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const rows = await db.$queryRaw<{ count: number }[]>`
-        SELECT count(*)::int AS count FROM pg_stat_activity WHERE wait_event_type = 'Lock'
+        SELECT count(*)::int AS count FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database() AND query ILIKE '%FOR SHARE%'
       `;
       if (Number(rows[0]?.count ?? 0) > 0) return;
       await new Promise((resolve) => setTimeout(resolve, intervalMs));

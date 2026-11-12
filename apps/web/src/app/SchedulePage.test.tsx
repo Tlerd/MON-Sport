@@ -339,16 +339,16 @@ describe('SchedulePage (F-030)', () => {
     expect(screen.getByRole('heading', { name: 'Booking khách gọi' })).toBeTruthy();
   });
 
-  it('AC-7: formatDeadlineRemaining formats remaining time correctly and shows units', () => {
-    // Current test time is 2026-11-20T03:00:00Z.
+  it('deadline text of a pending request shows its units (review of PR 240)', () => {
+    // Current test time is 2026-11-20T03:00:00Z. Each deadline has 30 s of slack, because the fake clock advances.
     // 1. "1 giờ 59 phút": deadline in 1 hour 59 mins
-    expect(formatDeadlineRemaining('2026-11-20T02:59:00Z', '2026-11-20T10:00:00Z')).toBe('1 giờ 59 phút');
+    expect(formatDeadlineRemaining('2026-11-20T02:59:30Z', '2026-11-20T10:00:00Z')).toBe('1 giờ 59 phút');
 
     // 2. "1 giờ": deadline in exactly 1 hour (minutes are 0)
-    expect(formatDeadlineRemaining('2026-11-20T02:00:00Z', '2026-11-20T10:00:00Z')).toBe('1 giờ');
+    expect(formatDeadlineRemaining('2026-11-20T02:00:30Z', '2026-11-20T10:00:00Z')).toBe('1 giờ');
 
     // 3. "45 phút": under an hour
-    expect(formatDeadlineRemaining('2026-11-20T01:45:00Z', '2026-11-20T10:00:00Z')).toBe('45 phút');
+    expect(formatDeadlineRemaining('2026-11-20T01:45:30Z', '2026-11-20T10:00:00Z')).toBe('45 phút');
 
     // 4. "Hết hạn": deadline in the past
     expect(formatDeadlineRemaining('2026-11-20T00:00:00Z', '2026-11-20T10:00:00Z')).toBe('Hết hạn');
