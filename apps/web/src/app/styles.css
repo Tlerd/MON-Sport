@@ -1955,3 +1955,20 @@ a.google-btn:hover { background: var(--court-soft); }
 
 /* A grid item has min-width: auto, so the date chip row made the lobby page 829px wide in a 390px window and the queue buttons fell outside it (brief F-028, AC-14). */
 .player-main > * { min-width: 0; }
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+  font: var(--font-body);
+}
+
+.checkbox-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
