@@ -29,22 +29,36 @@ export class StaffService {
    * If caller does not own the venue, answers 404 (BR-23).
    */
   async createStaff(venueId: string, ownerId: string, data: CreateStaffRequest): Promise<StaffView> {
-    const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
-    if (!venue || venue.ownerId !== ownerId) {
-      throw new NotFoundException('Không tìm thấy đơn vị');
-    }
+    const passwordHash = await this.passwords.hash(data.password);
     const now = this.clock.now();
     try {
-      const user = await this.prisma.user.create({
-        data: {
-          name: data.name,
-          phone: data.phone,
-          passwordHash: await this.passwords.hash(data.password),
-          role: 'STAFF',
-          staffVenueId: venueId,
-          consentAt: now,
-          createdAt: now,
-        },
+      const user = await this.prisma.$transaction(async (tx) => {
+        const venueRows = await tx.$queryRaw<{ ownerId: string }[]>`
+          SELECT "ownerId" FROM "Venue" WHERE "id" = ${venueId}::uuid FOR SHARE
+        `;
+        if (venueRows.length === 0) {
+          throw new NotFoundException('Không tìm thấy đơn vị');
+        }
+        if (venueRows[0].ownerId !== ownerId) {
+          throw new NotFoundException('Không tìm thấy đơn vị');
+        }
+        const userRows = await tx.$queryRaw<unknown[]>`
+          SELECT 1 FROM "User" WHERE "id" = ${ownerId}::uuid AND "lockedAt" IS NULL AND "deletedAt" IS NULL FOR SHARE
+        `;
+        if (userRows.length === 0) {
+          throw new NotFoundException('Không tìm thấy đơn vị');
+        }
+        return tx.user.create({
+          data: {
+            name: data.name,
+            phone: data.phone,
+            passwordHash,
+            role: 'STAFF',
+            staffVenueId: venueId,
+            consentAt: now,
+            createdAt: now,
+          },
+        });
       });
       return toStaffView(user);
     } catch (error) {

@@ -288,4 +288,52 @@ describe('Staff module (F-031)', () => {
     expect(staffDũngAfter.lockedAt).toEqual(EVEN_LATER);
     expect(staffDũngAfter.sessionsValidFrom).toEqual(EVEN_LATER);
   });
+
+  it('AC-13: create staff waits while admin holds venue row, moves owner, and commits; create answers 404 and no STAFF row exists', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const holding = new Promise<void>((resolve) => (locked = resolve));
+
+    const adminTx = db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "Venue" WHERE "id" = ${ids.venueBình}::uuid FOR UPDATE`;
+      locked();
+      await gate;
+      await tx.venue.update({
+        where: { id: ids.venueBình },
+        data: { ownerId: ids.Dũng },
+      });
+    });
+
+    await holding;
+
+    let createFinished = false;
+    const createReq = as('Bình')
+      .post(`/api/owner/venues/${ids.venueBình}/staff`, {
+        name: 'Nhân viên Chuyển Chủ',
+        phone: '0988888899',
+        password: 'secure-password-99',
+        consent: true,
+      })
+      .then((res) => {
+        createFinished = true;
+        return res;
+      });
+
+    // Wait briefly to verify create is blocked on the Venue FOR SHARE lock
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(createFinished).toBe(false);
+
+    // Commit admin owner move
+    release();
+    await adminTx;
+
+    // createStaff unblocks, sees venue.ownerId is now Dũng, and answers 404
+    const res = await createReq;
+    expect(res.status).toBe(404);
+
+    // Verify no STAFF row exists
+    const staffCount = await db.user.count({ where: { phone: '0988888899' } });
+    expect(staffCount).toBe(0);
+  });
 });

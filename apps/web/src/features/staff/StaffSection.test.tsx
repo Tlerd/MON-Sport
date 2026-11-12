@@ -165,4 +165,42 @@ describe('StaffSection', () => {
 
     expect(await screen.findByText(STAFF_PHONE_TAKEN)).toBeTruthy();
   });
+
+  it('AC-11: phone input has autoComplete="off" and password input has autoComplete="new-password"', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === `/api/owner/venues/${venueId}/staff`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(initialStaff) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    render(<StaffSection venueId={venueId} />);
+
+    await screen.findByText('Nguyễn Văn An');
+
+    const phoneInput = screen.getByLabelText('Số điện thoại');
+    expect(phoneInput.getAttribute('autocomplete')).toBe('off');
+
+    const passwordInput = screen.getByLabelText('Mật khẩu');
+    expect(passwordInput.getAttribute('autocomplete')).toBe('new-password');
+  });
+
+  it('AC-11: moves focus to "Xác nhận khóa" button when lock confirm dialog opens', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === `/api/owner/venues/${venueId}/staff`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(initialStaff) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    render(<StaffSection venueId={venueId} />);
+
+    await screen.findByText('Nguyễn Văn An');
+
+    const lockBtn = screen.getByRole('button', { name: 'Khóa' });
+    fireEvent.click(lockBtn);
+
+    const confirmBtn = screen.getByRole('button', { name: 'Xác nhận khóa' });
+    expect(document.activeElement).toBe(confirmBtn);
+  });
 });

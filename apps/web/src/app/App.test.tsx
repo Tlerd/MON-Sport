@@ -602,4 +602,21 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /^hủy/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /thu tiền/i })).toBeNull();
   });
+
+  it('AC-12: a STAFF user\'s shell has no notification bell', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'staff-1', name: 'Hoàng', role: 'STAFF' }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/chu-san/lich');
+    render(<App />);
+
+    await screen.findByRole('heading', { name: 'Lịch sân' });
+    const banner = screen.getByRole('banner');
+    expect(within(banner).getByText('Hoàng')).toBeTruthy();
+    expect(within(banner).queryByRole('button', { name: /thông báo/i })).toBeNull();
+  });
 });

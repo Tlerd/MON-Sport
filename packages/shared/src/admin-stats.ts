@@ -26,7 +26,7 @@ export const AdminStatsView = z.object({
   date: z.string(), // YYYY-MM-DD, the day in use
   weekStart: z.string(), // YYYY-MM-DD, Monday
   weekEnd: z.string(), // YYYY-MM-DD, Sunday
-  accounts: z.object({ ADMIN: Count, OWNER: Count, USER: Count }),
+  accounts: z.object({ ADMIN: Count, OWNER: Count, USER: Count, STAFF: Count }),
   newUsers: Count,
   activeUsers: Count,
   avgConfirmMinutes: Count.nullable(),

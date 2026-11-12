@@ -163,7 +163,7 @@ describe('AdminPanel', () => {
   it('AC-13: shows the tabs "Tài khoản và đơn vị" (open by default) and "Số liệu", and loads the stats only when the second opens', async () => {
     const api = fakeApi();
     const STATS = {
-      date: '2026-11-20', weekStart: '2026-11-16', weekEnd: '2026-11-22', accounts: { ADMIN: 1, OWNER: 3, USER: 40 },
+      date: '2026-11-20', weekStart: '2026-11-16', weekEnd: '2026-11-22', accounts: { ADMIN: 1, OWNER: 3, USER: 40, STAFF: 0 },
       newUsers: 5, activeUsers: 3, avgConfirmMinutes: null, expiryRate: 0, venues: [],
     };
     const fetch = vi.fn((url: string, init?: RequestInit) =>
