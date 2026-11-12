@@ -338,7 +338,7 @@ describe('MyBookings', () => {
     const binhSelect = within(binhRow).getByRole('combobox') as HTMLSelectElement;
     expect(binhSelect.value).toBe('');
     fireEvent.change(binhSelect, { target: { value: '5' } });
-    fireEvent.click(within(binhRow).getByRole('button', { name: 'Lưu' }));
+    fireEvent.click(within(binhRow).getByRole('button', { name: 'Lưu điểm cho Bình' }));
 
     await vi.waitFor(() => expect(within(binhRow).getByText('Đã lưu')).toBeTruthy());
     expect(fetch).toHaveBeenCalledWith(
@@ -361,7 +361,7 @@ describe('MyBookings', () => {
     expect(cuongNoShow.checked).toBe(true);
     expect(cuongSelect.disabled).toBe(true);
 
-    fireEvent.click(within(cuongRow).getByRole('button', { name: 'Lưu' }));
+    fireEvent.click(within(cuongRow).getByRole('button', { name: 'Lưu điểm cho Cường' }));
     await vi.waitFor(() => expect(within(cuongRow).getByText('Đã lưu')).toBeTruthy());
     expect(fetch).toHaveBeenCalledWith(
       `/api/matches/${matchId}/ratings/${userCuong}`,
@@ -375,9 +375,20 @@ describe('MyBookings', () => {
     // 3. Dung: select 3 sao, click Lưu -> API returns 400 -> shows error message
     const dungSelect = within(dungRow).getByRole('combobox') as HTMLSelectElement;
     fireEvent.change(dungSelect, { target: { value: '3' } });
-    fireEvent.click(within(dungRow).getByRole('button', { name: 'Lưu' }));
+    fireEvent.click(within(dungRow).getByRole('button', { name: 'Lưu điểm cho Dung' }));
 
     await vi.waitFor(() => expect(within(dungRow).getByRole('alert')).toBeTruthy());
     expect(within(dungRow).getByRole('alert').textContent).toContain('Đã quá 7 ngày sau trận, không chấm điểm được nữa');
+  });
+
+  it('AC-8: does not show "Chấm điểm người chơi" for past PENDING booking whose match the user hosts', async () => {
+    const matchId = '0199a1b2-0000-7000-8000-000000000399';
+    const pendingPast = row(1, 'PENDING', '2026-11-20T01:00:00.000Z', '2026-11-20T02:00:00.000Z', {
+      match: { id: matchId, status: 'OPEN', capacity: 4, joinedCount: 2, pricePerSlot: 50_000 },
+    });
+    stubApi([[pendingPast]]);
+    render(<MyBookings />);
+    await screen.findAllByText('Cầu lông A · Sân 1');
+    expect(screen.queryByRole('button', { name: 'Chấm điểm người chơi' })).toBeNull();
   });
 });

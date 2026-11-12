@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
-import { SchedulePage } from './SchedulePage.tsx';
+import { formatDeadlineRemaining, SchedulePage } from './SchedulePage.tsx';
 import { SessionProvider } from './session.tsx';
 
 describe('SchedulePage (F-030)', () => {
@@ -136,8 +136,10 @@ describe('SchedulePage (F-030)', () => {
     expect(recurringCheckbox).toBeTruthy();
     expect(recurringCheckbox.checked).toBe(false);
 
-    // When unchecked, select "Số tuần" is not shown
+    // When unchecked, select "Số tuần" is not shown and price line reads "Tạm tính"
     expect(screen.queryByLabelText('Số tuần')).toBeNull();
+    expect(screen.getByText('Tạm tính')).toBeTruthy();
+    expect(screen.queryByText('Tạm tính mỗi buổi')).toBeNull();
 
     // 2. Submit while unchecked -> calls POST /api/owner/bookings without weeks
     const submitBtn = screen.getByRole('button', { name: 'Lưu booking' });
@@ -145,9 +147,11 @@ describe('SchedulePage (F-030)', () => {
 
     // Wait for panel to close and verify POST /api/owner/bookings payload
     expect(await screen.findByText(/Đã lưu booking/)).toBeTruthy();
-    expect(capturedBookingRequest).toBeTruthy();
-    expect(capturedBookingRequest.courtId).toBe('court-1');
-    expect(capturedBookingRequest.weeks).toBeUndefined();
+    expect(capturedBookingRequest).toEqual({
+      courtId: 'court-1',
+      startAt: '2026-11-20T06:00:00+07:00',
+      endAt: '2026-11-20T07:00:00+07:00',
+    });
 
     // 3. Open panel again to test recurring toggle & options 2-12
     fireEvent.click(screen.getByRole('button', { name: /Booking khách gọi/ }));
@@ -156,9 +160,11 @@ describe('SchedulePage (F-030)', () => {
     const recurringCheckbox2 = screen.getByLabelText('Lặp lại hằng tuần') as HTMLInputElement;
     expect(recurringCheckbox2.checked).toBe(false);
 
-    // Check the box
+    // Check the box -> price line reads "Tạm tính mỗi buổi"
     fireEvent.click(recurringCheckbox2);
     expect(recurringCheckbox2.checked).toBe(true);
+    expect(screen.getByText('Tạm tính mỗi buổi')).toBeTruthy();
+    expect(screen.queryByText('Tạm tính')).toBeNull();
 
     // Now select "Số tuần" is displayed
     const weeksSelect = screen.getByLabelText('Số tuần') as HTMLSelectElement;
@@ -331,5 +337,20 @@ describe('SchedulePage (F-030)', () => {
     expect(errorAlert.textContent).toBe('Mọi buổi đều đã có người đặt');
     // Panel should still be open
     expect(screen.getByRole('heading', { name: 'Booking khách gọi' })).toBeTruthy();
+  });
+
+  it('AC-7: formatDeadlineRemaining formats remaining time correctly and shows units', () => {
+    // Current test time is 2026-11-20T03:00:00Z.
+    // 1. "1 giờ 59 phút": deadline in 1 hour 59 mins
+    expect(formatDeadlineRemaining('2026-11-20T02:59:00Z', '2026-11-20T10:00:00Z')).toBe('1 giờ 59 phút');
+
+    // 2. "1 giờ": deadline in exactly 1 hour (minutes are 0)
+    expect(formatDeadlineRemaining('2026-11-20T02:00:00Z', '2026-11-20T10:00:00Z')).toBe('1 giờ');
+
+    // 3. "45 phút": under an hour
+    expect(formatDeadlineRemaining('2026-11-20T01:45:00Z', '2026-11-20T10:00:00Z')).toBe('45 phút');
+
+    // 4. "Hết hạn": deadline in the past
+    expect(formatDeadlineRemaining('2026-11-20T00:00:00Z', '2026-11-20T10:00:00Z')).toBe('Hết hạn');
   });
 });

@@ -4,6 +4,8 @@ import {
   minuteOfDayVN,
   vnDateString,
   addDaysYmd,
+  RECURRING_MIN_WEEKS,
+  RECURRING_MAX_WEEKS,
   type BookingView,
   type OwnerBookingView,
   type RecurringPhoneBookingResponse,
@@ -20,14 +22,14 @@ import { useSession } from './session.tsx';
 import { initial } from './shells.tsx';
 import { DURATIONS, slotAt as at } from '../features/bookings/slot.ts';
 
-function formatDeadlineRemaining(createdAt: string, startAt: string) {
+export function formatDeadlineRemaining(createdAt: string, startAt: string) {
   const dl = confirmDeadline(new Date(createdAt), new Date(startAt));
   const diffMs = dl.getTime() - Date.now();
   if (diffMs <= 0) return 'Hết hạn';
   const diffMins = Math.floor(diffMs / 60000);
   const h = Math.floor(diffMins / 60);
   const m = diffMins % 60;
-  if (h > 0) return `${h} giờ ${m > 0 ? `${m}` : ''}`.trim();
+  if (h > 0) return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
   return `${m} phút`;
 }
 
@@ -557,7 +559,10 @@ export function SchedulePage() {
                 value={panelWeeks}
                 onChange={(e) => setPanelWeeks(Number(e.target.value))}
               >
-                {Array.from({ length: 11 }, (_, i) => i + 2).map((w) => (
+                {Array.from(
+                  { length: RECURRING_MAX_WEEKS - RECURRING_MIN_WEEKS + 1 },
+                  (_, i) => RECURRING_MIN_WEEKS + i,
+                ).map((w) => (
                   <option key={w} value={w}>
                     {w}
                   </option>
@@ -567,7 +572,7 @@ export function SchedulePage() {
           )}
 
           <div className="total" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 'var(--space-md)' }}>
-            <span className="meta">Tạm tính</span>
+            <span className="meta">{panelRecurring ? 'Tạm tính mỗi buổi' : 'Tạm tính'}</span>
             <strong className="money tnum">{panelPrice !== null ? formatVnd(panelPrice) : '—'}</strong>
           </div>
 

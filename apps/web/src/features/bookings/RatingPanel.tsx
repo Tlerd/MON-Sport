@@ -75,6 +75,7 @@ function PlayerRatingRow({ matchId, player }: { matchId: string; player: PlayerR
       </label>
       <button
         type="button"
+        aria-label={`Lưu điểm cho ${player.name}`}
         disabled={saving}
         onClick={() => void handleSave()}
       >

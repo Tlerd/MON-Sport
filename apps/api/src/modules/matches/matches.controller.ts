@@ -97,8 +97,9 @@ export class MatchesController {
   ): Promise<PlayerRatingView> {
     const parsed = RatePlayerRequest.safeParse(body);
     if (!parsed.success) {
-      const msg = parsed.error.issues[0]?.message;
-      throw new BadRequestException(msg && !msg.startsWith('Expected') && !msg.startsWith('Invalid') && !msg.startsWith('Number') ? msg : Messages.invalid);
+      const issue = parsed.error.issues[0];
+      const msg = issue?.code === 'custom' ? issue.message : Messages.invalid;
+      throw new BadRequestException(msg);
     }
     return this.matches.ratePlayer(req.user.id, id, userId, parsed.data);
   }

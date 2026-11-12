@@ -144,7 +144,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
             const rateWindowMs = RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
             const canRate =
               Boolean(b.match) &&
-              b.status !== 'CANCELLED' &&
+              b.status === 'CONFIRMED' &&
               b.match!.status !== 'CANCELLED' &&
               now.getTime() >= startAt.getTime() &&
               now.getTime() <= startAt.getTime() + rateWindowMs;

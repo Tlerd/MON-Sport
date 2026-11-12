@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import { hash } from '@node-rs/argon2';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { ALL_WEEKS_TAKEN, PHONE_MESSAGE } from '@monsport/shared';
+import { ALL_WEEKS_TAKEN, PHONE_MESSAGE, addDaysYmd, vnDateString } from '@monsport/shared';
 import { AppModule } from '../../app.module.js';
 import { setupApp } from '../../setup-app.js';
 import { issueSession } from '../auth/session.js';
@@ -12,12 +12,9 @@ import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 
 const vnDate = (daysFromBase: number, hhmm: string) => {
-  const base = new Date('2026-11-20T00:00:00+07:00');
-  const target = new Date(base.getTime() + daysFromBase * 24 * 60 * 60 * 1000);
-  const y = target.getFullYear();
-  const m = String(target.getMonth() + 1).padStart(2, '0');
-  const d = String(target.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}T${hhmm}:00+07:00`;
+  const base = vnDateString(new Date('2026-11-20T00:00:00+07:00'));
+  const ymd = addDaysYmd(base, daysFromBase);
+  return `${ymd}T${hhmm}:00+07:00`;
 };
 
 const clock = { at: new Date(vnDate(0, '10:00')), now() { return this.at; } };
@@ -180,7 +177,7 @@ describe('POST /api/owner/bookings/recurring', () => {
     expect(await db.booking.count({ where: { courtId: ids.A1, status: 'CONFIRMED' } })).toBe(4);
   });
 
-  it('AC-7: non-owner, past time, outside opening hours return 400', async () => {
+  it("AC-7: returns 404 for another owner's court and 400 for a past start or a time outside opening hours", async () => {
     expect((await enterRecurring('Bình', '17:00', '18:00', 4, {}, 'B1').expect(404)).body.message).toBe('Không tìm thấy sân');
     expect((await enterRecurring('Bình', '09:00', '10:00', 4).expect(400)).body.message).toBe('Giờ bắt đầu đã qua');
     expect((await enterRecurring('Bình', '05:00', '06:00', 4).expect(400)).body.message).toBe('Ngoài giờ mở cửa');

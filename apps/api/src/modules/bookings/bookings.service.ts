@@ -179,18 +179,20 @@ export class BookingsService {
       assertOpen(court, firstStart, firstEnd);
       await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
 
+      const activeBookings = await tx.booking.findMany({
+        where: {
+          courtId: court.id,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          startAt: { lt: occurrences[occurrences.length - 1].endAt },
+          endAt: { gt: occurrences[0].startAt },
+        },
+      });
+
       const toInsert: { startAt: Date; endAt: Date }[] = [];
       const skipped: { startAt: string; endAt: string }[] = [];
 
       for (const occ of occurrences) {
-        const overlap = await tx.booking.findFirst({
-          where: {
-            courtId: court.id,
-            status: { in: ['PENDING', 'CONFIRMED'] },
-            startAt: { lt: occ.endAt },
-            endAt: { gt: occ.startAt },
-          },
-        });
+        const overlap = activeBookings.some((b) => b.startAt < occ.endAt && b.endAt > occ.startAt);
         if (overlap) {
           skipped.push({
             startAt: occ.startAt.toISOString(),

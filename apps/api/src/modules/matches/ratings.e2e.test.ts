@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { hash } from '@node-rs/argon2';
 import {
   MatchRequestListView,
+  Messages,
   PlayerRatingView,
   RATE_CANCELLED,
   RATE_NOT_PLAYER,
@@ -234,10 +235,42 @@ describe('player ratings and reputation (F-032)', () => {
     await ratePlayer(null, normalMatch, 'Chi', { stars: 5, noShow: false }).expect(401);
 
     // 9. Refuses invalid request body: 400
-    await ratePlayer('An', normalMatch, 'Chi', { stars: 0, noShow: false }).expect(400);
-    await ratePlayer('An', normalMatch, 'Chi', { stars: 6, noShow: false }).expect(400);
-    await ratePlayer('An', normalMatch, 'Chi', { stars: 3, noShow: true }).expect(400);
-    await ratePlayer('An', normalMatch, 'Chi', { stars: null, noShow: false }).expect(400);
+    const inv1 = await ratePlayer('An', normalMatch, 'Chi', { stars: 0, noShow: false }).expect(400);
+    expect(inv1.body.message).toBe(Messages.invalid);
+    const inv2 = await ratePlayer('An', normalMatch, 'Chi', { stars: 6, noShow: false }).expect(400);
+    expect(inv2.body.message).toBe(Messages.invalid);
+    const inv3 = await ratePlayer('An', normalMatch, 'Chi', { stars: 3, noShow: true }).expect(400);
+    expect(inv3.body.message).toBe('Chọn số sao, hoặc chọn Vắng mặt');
+    const inv4 = await ratePlayer('An', normalMatch, 'Chi', { stars: null, noShow: false }).expect(400);
+    expect(inv4.body.message).toBe('Chọn số sao, hoặc chọn Vắng mặt');
+  });
+
+  it('AC-3: window edges: rating at now == startAt passes (200), at startAt + 7 days passes (200), at startAt + 7 days + 1 ms fails with RATE_TOO_LATE, and 1 ms before startAt fails with RATE_TOO_EARLY', async () => {
+    const matchId = await openMatchWithPlayers('An', '08:00', '09:00', ['Chi']);
+    const startMs = new Date(vn('08:00')).getTime();
+    const windowEndMs = startMs + 7 * 24 * 60 * 60_000;
+
+    // 1 ms before startAt fails with RATE_TOO_EARLY
+    clock.at = new Date(startMs - 1);
+    const early = await ratePlayer('An', matchId, 'Chi', { stars: 5, noShow: false }).expect(400);
+    expect(early.body.message).toBe(RATE_TOO_EARLY);
+
+    // now == startAt passes (200)
+    clock.at = new Date(startMs);
+    const atStart = await ratePlayer('An', matchId, 'Chi', { stars: 5, noShow: false }).expect(200);
+    expect(atStart.body.stars).toBe(5);
+
+    // at startAt + 7 days passes (200)
+    clock.at = new Date(windowEndMs);
+    const atEnd = await ratePlayer('An', matchId, 'Chi', { stars: 4, noShow: false }).expect(200);
+    expect(atEnd.body.stars).toBe(4);
+
+    // at startAt + 7 days + 1 ms fails with RATE_TOO_LATE
+    clock.at = new Date(windowEndMs + 1);
+    const late = await ratePlayer('An', matchId, 'Chi', { stars: 5, noShow: false }).expect(400);
+    expect(late.body.message).toBe(RATE_TOO_LATE);
+
+    clock.at = new Date(vn('10:00'));
   });
 
   it('AC-4: GET /api/matches/:id/ratings returns active members except host with current ratings, 403 for non-host', async () => {
@@ -331,6 +364,45 @@ describe('player ratings and reputation (F-032)', () => {
         reputation: {
           ratingAvg: null,
           ratingCount: 0,
+          noShowCount: 0,
+        },
+      },
+    ]);
+  });
+
+  it('AC-5: player rated 5, 4, 4 in three matches has ratingAvg 4.3 and ratingCount 3', async () => {
+    // Chi has past ratings across three matches: 5 stars, 4 stars, 4 stars
+    const past1 = await openMatchWithPlayers('Hà', '06:00', '07:00', ['Chi']);
+    await db.playerRating.create({ data: { matchId: past1, raterId: ids['Hà'], playerId: ids['Chi'], stars: 5, noShow: false } });
+
+    const past2 = await openMatchWithPlayers('Hà', '07:00', '08:00', ['Chi']);
+    await db.playerRating.create({ data: { matchId: past2, raterId: ids['Hà'], playerId: ids['Chi'], stars: 4, noShow: false } });
+
+    const past3 = await openMatchWithPlayers('Hà', '08:00', '09:00', ['Chi']);
+    await db.playerRating.create({ data: { matchId: past3, raterId: ids['Hà'], playerId: ids['Chi'], stars: 4, noShow: false } });
+
+    // An opens an APPROVAL match starting in the future
+    const bookingId = await book('An', '18:00', '19:00');
+    const openRes = await openMatch('An', { bookingId, capacity: 4, pricePerSlot: 50_000, joinMode: 'APPROVAL' }).expect(201);
+    const matchId = openRes.body.id as string;
+
+    // Chi requests to join
+    clock.at = new Date(vn('10:01'));
+    await joinMatch('Chi', matchId).expect(200);
+
+    // Host reads requests list
+    const res = await requestsOf('An', matchId).expect(200);
+    const parsed = MatchRequestListView.parse(res.body);
+
+    expect(parsed).toEqual([
+      {
+        userId: ids['Chi'],
+        name: 'Chi',
+        phone: '0901234568',
+        requestedAt: new Date(vn('10:01')).toISOString(),
+        reputation: {
+          ratingAvg: 4.3,
+          ratingCount: 3,
           noShowCount: 0,
         },
       },

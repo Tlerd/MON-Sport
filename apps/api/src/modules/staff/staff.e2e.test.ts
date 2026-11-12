@@ -289,6 +289,18 @@ describe('Staff module (F-031)', () => {
     expect(staffDũngAfter.sessionsValidFrom).toEqual(EVEN_LATER);
   });
 
+  async function waitForLock(timeoutMs = 2000, intervalMs = 50): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const rows = await db.$queryRaw<{ count: number }[]>`
+        SELECT count(*)::int AS count FROM pg_stat_activity WHERE wait_event_type = 'Lock'
+      `;
+      if (Number(rows[0]?.count ?? 0) > 0) return;
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    throw new Error(`Timed out waiting for backend lock in pg_stat_activity after ${timeoutMs}ms`);
+  }
+
   it('AC-13: create staff waits while admin holds venue row, moves owner, and commits; create answers 404 and no STAFF row exists', async () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
@@ -307,33 +319,87 @@ describe('Staff module (F-031)', () => {
 
     await holding;
 
-    let createFinished = false;
-    const createReq = as('Bình')
-      .post(`/api/owner/venues/${ids.venueBình}/staff`, {
-        name: 'Nhân viên Chuyển Chủ',
-        phone: '0988888899',
-        password: 'secure-password-99',
-        consent: true,
-      })
-      .then((res) => {
-        createFinished = true;
-        return res;
+    let createReq: Promise<any> | undefined;
+    try {
+      let createFinished = false;
+      createReq = as('Bình')
+        .post(`/api/owner/venues/${ids.venueBình}/staff`, {
+          name: 'Nhân viên Chuyển Chủ',
+          phone: '0988888899',
+          password: 'secure-password-99',
+          consent: true,
+        })
+        .then((res) => {
+          createFinished = true;
+          return res;
+        });
+
+      await waitForLock();
+      expect(createFinished).toBe(false);
+
+      release();
+      await adminTx;
+
+      const res = await createReq;
+      expect(res.status).toBe(404);
+
+      const staffCount = await db.user.count({ where: { phone: '0988888899' } });
+      expect(staffCount).toBe(0);
+    } finally {
+      release();
+      await adminTx.catch(() => {});
+      await createReq?.catch(() => {});
+    }
+  });
+
+  it('AC-13: create staff waits while admin holds owner row, locks owner, and commits; create answers 404 and no STAFF row exists', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const holding = new Promise<void>((resolve) => (locked = resolve));
+
+    const lockTx = db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "User" WHERE "id" = ${ids.Bình}::uuid FOR UPDATE`;
+      locked();
+      await gate;
+      await tx.user.update({
+        where: { id: ids.Bình },
+        data: { lockedAt: LATER },
       });
+    });
 
-    // Wait briefly to verify create is blocked on the Venue FOR SHARE lock
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(createFinished).toBe(false);
+    await holding;
 
-    // Commit admin owner move
-    release();
-    await adminTx;
+    let createReq: Promise<any> | undefined;
+    try {
+      let createFinished = false;
+      createReq = as('Bình')
+        .post(`/api/owner/venues/${ids.venueBình}/staff`, {
+          name: 'Nhân viên Khóa Chủ',
+          phone: '0988888890',
+          password: 'secure-password-90',
+          consent: true,
+        })
+        .then((res) => {
+          createFinished = true;
+          return res;
+        });
 
-    // createStaff unblocks, sees venue.ownerId is now Dũng, and answers 404
-    const res = await createReq;
-    expect(res.status).toBe(404);
+      await waitForLock();
+      expect(createFinished).toBe(false);
 
-    // Verify no STAFF row exists
-    const staffCount = await db.user.count({ where: { phone: '0988888899' } });
-    expect(staffCount).toBe(0);
+      release();
+      await lockTx;
+
+      const res = await createReq;
+      expect(res.status).toBe(404);
+
+      const staffCount = await db.user.count({ where: { phone: '0988888890' } });
+      expect(staffCount).toBe(0);
+    } finally {
+      release();
+      await lockTx.catch(() => {});
+      await createReq?.catch(() => {});
+    }
   });
 });

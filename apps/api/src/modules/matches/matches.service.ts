@@ -147,7 +147,7 @@ function isUniqueViolation(error: unknown): boolean {
     }
     e = o.cause;
   }
-  return /23505|Match_bookingId_key/.test(String((error as Error)?.message ?? ''));
+  return /23505|P2002|Match_bookingId_key/.test(String((error as Error)?.message ?? ''));
 }
 
 @Injectable()
@@ -697,20 +697,26 @@ export class MatchesService {
       throw new BadRequestException(RATE_NOT_PLAYER);
     }
 
-    const saved = await this.prisma.playerRating.upsert({
-      where: { matchId_playerId: { matchId, playerId: targetUserId } },
-      create: {
-        matchId,
-        raterId: found.hostId,
-        playerId: targetUserId,
-        stars: body.stars,
-        noShow: body.noShow,
-      },
-      update: {
-        raterId: found.hostId,
-        stars: body.stars,
-        noShow: body.noShow,
-      },
+    const upsertRating = () =>
+      this.prisma.playerRating.upsert({
+        where: { matchId_playerId: { matchId, playerId: targetUserId } },
+        create: {
+          matchId,
+          raterId: found.hostId,
+          playerId: targetUserId,
+          stars: body.stars,
+          noShow: body.noShow,
+        },
+        update: {
+          raterId: found.hostId,
+          stars: body.stars,
+          noShow: body.noShow,
+        },
+      });
+
+    const saved = await upsertRating().catch((error: unknown) => {
+      if (isUniqueViolation(error)) return upsertRating();
+      throw error;
     });
 
     return {

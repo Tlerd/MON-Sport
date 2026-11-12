@@ -164,7 +164,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/web/src/app/
 - App.tsx: App
 - BookPage.tsx: BookPage
-- SchedulePage.tsx: SchedulePage
+- SchedulePage.tsx: formatDeadlineRemaining, SchedulePage
 - pages.tsx: BookPage, OwnerRequestsPage, MyVenuesPage, LobbyPage, MyPage, AuthPage
 - router.tsx: RoleGuard, routes, createRouter
 - session.tsx: SessionContextValue, SessionProvider, useSession
