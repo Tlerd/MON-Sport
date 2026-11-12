@@ -86,7 +86,7 @@ A Reviewer round is a `reviewer` subagent, or `claude -p --permission-mode plan 
     - When its base branch was merged, set the base to `main` with `gh pr edit <n> --base main`, if GitHub did not do it.
     - When its branch is behind its base, or it conflicts, merge the base into the branch with `git merge`. Never rebase and force push. Run `pnpm map` when `@map.md` conflicts.
     - Push, wait for the checks, then run a Reviewer round. Give the Reviewer `git show --remerge-diff <merge sha>` for the merge commit, which shows only what the merge resolved, plus the diff of any other commit since the last reviewed head. The head changed, so `merge.mjs` needs a new marker.
-    - Every pull request rewrites `PROGRESS.md`, so two open pull requests often conflict there. Keep the branch text, then add each open item from `main` that the branch text lacks.
+    - Every pull request rewrites `PROGRESS.md`, so two open pull requests often conflict there. Keep the branch text, drop each item that `main` closed, then add each open item from `main` that the branch text lacks.
 
 The section "Chạy thử local" of a pull request body. Do not start a line there with `AC-n:`: `pr-gates` reads every such line as an AC claim.
 
