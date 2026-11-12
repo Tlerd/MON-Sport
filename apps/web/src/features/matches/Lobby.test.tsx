@@ -893,7 +893,7 @@ describe('Lobby (F-011 and F-012)', () => {
     const { unmount } = render(<Lobby />);
     const levelGroup = screen.getByRole('group', { name: 'Trình độ' });
     expect(levelGroup).toBeTruthy();
-    expect(within(levelGroup).getByRole('button', { name: 'Tất cả trình độ' }).className).toContain('selected');
+    expect(within(levelGroup).getByRole('button', { name: 'Tất cả' }).className).toContain('selected');
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches', expect.anything()));
     fetch.mockClear();
@@ -912,7 +912,7 @@ describe('Lobby (F-011 and F-012)', () => {
   });
 
   it('AC-9: each match card in lobby displays host skill level label or none when null', async () => {
-    const withLevel = { ...m1, hostSkillLevel: 'BEGINNER' as const };
+    const withLevel = { ...m1, hostSkillLevel: 'INTERMEDIATE' as const };
     const withoutLevel = { ...m2, hostSkillLevel: null };
     const fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([withLevel, withoutLevel]) }));
     vi.stubGlobal('fetch', fetch);
@@ -923,7 +923,8 @@ describe('Lobby (F-011 and F-012)', () => {
 
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(2);
-    expect(within(items[0]).getByText('Mới chơi')).toBeTruthy();
+    expect(within(items[0]).getByText('Trình độ: Trung bình')).toBeTruthy();
+    expect(within(items[1]).queryByText('Trình độ: Trung bình')).toBeNull();
     expect(within(items[1]).queryByText('Mới chơi')).toBeNull();
     expect(within(items[1]).queryByText('Trung bình')).toBeNull();
     expect(within(items[1]).queryByText('Khá')).toBeNull();

@@ -299,7 +299,7 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
 
         <div role="group" aria-label="Trình độ" className="chips level-chips">
           <Chip selected={level === ''} onClick={() => setLevel('')}>
-            Tất cả trình độ
+            Tất cả
           </Chip>
           {(Object.entries(SKILL_LEVEL_LABELS) as [SkillLevel, string][]).map(([key, label]) => (
             <Chip
@@ -369,7 +369,7 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                       <div className="match-line-2">
                         <span>{`${SPORT_LABEL[m.sport]} · Ngày ${formatDay(m.startAt)}`}</span>
                         <span>Host: {m.hostName}</span>
-                        {m.hostSkillLevel && <span className="level-badge">{SKILL_LEVEL_LABELS[m.hostSkillLevel]}</span>}
+                        {m.hostSkillLevel && <span className="level-badge">{`Trình độ: ${SKILL_LEVEL_LABELS[m.hostSkillLevel]}`}</span>}
                       </div>
                       <div className="match-line-2">
                         <span className="match-slots">{`${m.joinedCount}/${m.capacity} suất · ${formatVnd(m.pricePerSlot)}/suất`}</span>

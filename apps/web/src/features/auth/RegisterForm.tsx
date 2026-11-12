@@ -1,5 +1,5 @@
 import { PRIVACY_NOTICE, SKILL_LEVEL_LABELS, SKILL_LEVEL_REQUIRED_MESSAGE, type SessionUser, type SkillLevel } from '@monsport/shared';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import { api, ApiError } from '@monsport/client';
 import { GoogleButton } from './GoogleButton.tsx';
 import { useAuthProviders } from './useAuthProviders.ts';
@@ -14,11 +14,15 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const selectRef = useRef<HTMLSelectElement>(null);
+
+  const hasSkillError = error === SKILL_LEVEL_REQUIRED_MESSAGE;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (skillLevel === '') {
       setError(SKILL_LEVEL_REQUIRED_MESSAGE);
+      selectRef.current?.focus();
       return;
     }
     setError('');
@@ -56,7 +60,19 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
         </div>
         <label>
           Trình độ
-          <select value={skillLevel} onChange={(e) => setSkillLevel(e.target.value as SkillLevel | '')}>
+          <select
+            ref={selectRef}
+            value={skillLevel}
+            aria-invalid={hasSkillError ? 'true' : undefined}
+            aria-describedby={hasSkillError ? 'skill-level-error' : undefined}
+            onChange={(e) => {
+              const value = e.target.value as SkillLevel | '';
+              setSkillLevel(value);
+              if (value && error === SKILL_LEVEL_REQUIRED_MESSAGE) {
+                setError('');
+              }
+            }}
+          >
             <option value="">Chọn trình độ</option>
             {(Object.entries(SKILL_LEVEL_LABELS) as [SkillLevel, string][]).map(([key, label]) => (
               <option key={key} value={key}>
@@ -72,7 +88,11 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
           <input type="checkbox" aria-describedby="privacy-notice" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           Tôi đã đọc và đồng ý với thông báo bảo vệ dữ liệu cá nhân ở trên.
         </label>
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && (
+          <p id={hasSkillError ? 'skill-level-error' : undefined} className="error" role="alert">
+            {error}
+          </p>
+        )}
         <div>
           <button type="submit" disabled={!consent || busy} aria-describedby={consent ? undefined : 'consent-hint'}>Tạo tài khoản</button>
           {!consent && <p id="consent-hint" className="hint">Tick ô đồng ý để tạo tài khoản.</p>}

@@ -109,6 +109,41 @@ describe('AuthPanel', () => {
     });
   });
 
+  it('AC-7: submit with no level sets aria-invalid="true", aria-describedby pointing to error text, and focuses the select', async () => {
+    render(<AuthPanel onLogin={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    type('Tên của bạn', 'Lan');
+    type('Số điện thoại', '0901112233');
+    type('Mật khẩu', 'matkhau123');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+
+    const select = screen.getByLabelText('Trình độ');
+    expect(select.getAttribute('aria-invalid')).toBe('true');
+    const errorId = select.getAttribute('aria-describedby');
+    expect(errorId).toBeTruthy();
+    expect(document.getElementById(errorId!)?.textContent).toBe('Chọn trình độ');
+    expect(document.activeElement).toBe(select);
+  });
+
+  it('AC-7: selecting a level removes the error text and removes aria-invalid', async () => {
+    render(<AuthPanel onLogin={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    type('Tên của bạn', 'Lan');
+    type('Số điện thoại', '0901112233');
+    type('Mật khẩu', 'matkhau123');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+
+    const select = screen.getByLabelText('Trình độ');
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(select.getAttribute('aria-invalid')).toBe('true');
+
+    fireEvent.change(select, { target: { value: 'BEGINNER' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(select.getAttribute('aria-invalid')).toBeNull();
+  });
+
   it('goes back to the login form, and moves focus to its heading', () => {
     render(<AuthPanel onLogin={() => undefined} />);
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
