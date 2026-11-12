@@ -929,4 +929,99 @@ describe('Lobby (F-011 and F-012)', () => {
     expect(within(items[1]).queryByText('Trung bình')).toBeNull();
     expect(within(items[1]).queryByText('Khá')).toBeNull();
   });
+
+  it('AC-9: in host queue, each requester shows reputation: "4,5 ★ (12) · 1 lần vắng", omits no-show count when 0, shows "Chưa có đánh giá" when unrated, and "Chưa có sao · 2 lần vắng" when only no-shows exist', async () => {
+    const hostUser: SessionUser = { id: m1.hostId, name: 'An', role: 'USER' };
+    const mApproval = { ...m1, joinMode: 'APPROVAL' as const, capacity: 6, joinedCount: 1 };
+    const detailView: MatchDetailView = {
+      ...mApproval,
+      viewerRole: 'HOST',
+      pendingCount: 5,
+      players: [{ userId: m1.hostId, name: 'An', phone: '0901234567', joinedAt: '2026-11-20T03:00:00.000Z' }],
+    };
+
+    const requests = [
+      {
+        userId: '0199a1b2-0000-7000-8000-000000000105',
+        name: 'Lan',
+        phone: '0901234568',
+        requestedAt: '2026-11-20T03:05:00.000Z',
+        reputation: { ratingAvg: 4.5, ratingCount: 12, noShowCount: 1 },
+      },
+      {
+        userId: '0199a1b2-0000-7000-8000-000000000106',
+        name: 'Minh',
+        phone: '0901234569',
+        requestedAt: '2026-11-20T03:06:00.000Z',
+        reputation: { ratingAvg: 5, ratingCount: 3, noShowCount: 0 },
+      },
+      {
+        userId: '0199a1b2-0000-7000-8000-000000000107',
+        name: 'Nam',
+        phone: '0901234570',
+        requestedAt: '2026-11-20T03:07:00.000Z',
+        reputation: { ratingAvg: null, ratingCount: 0, noShowCount: 0 },
+      },
+      {
+        userId: '0199a1b2-0000-7000-8000-000000000108',
+        name: 'Oanh',
+        phone: '0901234571',
+        requestedAt: '2026-11-20T03:08:00.000Z',
+        reputation: { ratingAvg: null, ratingCount: 0, noShowCount: 2 },
+      },
+      {
+        userId: '0199a1b2-0000-7000-8000-000000000109',
+        name: 'Phúc',
+        phone: '0901234572',
+        requestedAt: '2026-11-20T03:09:00.000Z',
+      },
+    ];
+
+    const fetch = vi.fn((url: string) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mApproval]) });
+      }
+      if (url === `/api/matches/${mApproval.id}`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detailView) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(requests) });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby user={hostUser} />);
+    expect(await screen.findByText('Cầu lông A · Sân 1')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByText('Hàng chờ (5)')).toBeTruthy();
+
+    const queueRows = screen.getAllByRole('listitem').filter((li) => li.classList.contains('queue-row'));
+    expect(queueRows).toHaveLength(5);
+
+    // 1. Lan: 4.5 avg, 12 ratings, 1 no-show -> '4,5 ★ (12) · 1 lần vắng'
+    expect(within(queueRows[0]).getByText('Lan')).toBeTruthy();
+    expect(within(queueRows[0]).getByText('4,5 ★ (12) · 1 lần vắng')).toBeTruthy();
+
+    // 2. Minh: 5 avg, 3 ratings, 0 no-shows -> '5 ★ (3)' (omits · 0 lần vắng)
+    expect(within(queueRows[1]).getByText('Minh')).toBeTruthy();
+    expect(within(queueRows[1]).getByText('5 ★ (3)')).toBeTruthy();
+    expect(within(queueRows[1]).queryByText(/lần vắng/)).toBeNull();
+
+    // 3. Nam: unrated (null, 0, 0) -> 'Chưa có đánh giá' (never '0 ★')
+    expect(within(queueRows[2]).getByText('Nam')).toBeTruthy();
+    expect(within(queueRows[2]).getByText('Chưa có đánh giá')).toBeTruthy();
+    expect(within(queueRows[2]).queryByText(/★/)).toBeNull();
+
+    // 4. Oanh: only no-shows (null, 0, 2) -> 'Chưa có sao · 2 lần vắng' (never '0 ★')
+    expect(within(queueRows[3]).getByText('Oanh')).toBeTruthy();
+    expect(within(queueRows[3]).getByText('Chưa có sao · 2 lần vắng')).toBeTruthy();
+    expect(within(queueRows[3]).queryByText(/★/)).toBeNull();
+
+    // 5. Phúc: reputation is undefined -> 'Chưa có đánh giá'
+    expect(within(queueRows[4]).getByText('Phúc')).toBeTruthy();
+    expect(within(queueRows[4]).getByText('Chưa có đánh giá')).toBeTruthy();
+    expect(within(queueRows[4]).queryByText(/★/)).toBeNull();
+  });
 });

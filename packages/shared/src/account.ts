@@ -36,7 +36,7 @@ export function errorMessage(error: z.ZodError): string {
  */
 export const PRIVACY_NOTICE = [
   'MONSPORT thu thập tên, số điện thoại, trình độ và lịch sử đặt sân của bạn để bạn đặt sân và ghép trận.',
-  'Chủ sân của booking và host của trận bạn vào thấy số điện thoại của bạn. Nhân viên của đơn vị thấy tên và số điện thoại của khách đặt sân ở đơn vị đó. Mọi người, kể cả người chưa đăng nhập, thấy tên và trình độ của host trong phòng chờ. Admin của MONSPORT thấy số điện thoại để quản lý tài khoản. MONSPORT không bán dữ liệu của bạn.',
+  'Chủ sân của booking và host của trận bạn vào thấy số điện thoại của bạn. Host chấm điểm người chơi sau trận. Host của trận "Host duyệt" thấy điểm uy tín của người xin. Nhân viên của đơn vị thấy tên và số điện thoại của khách đặt sân ở đơn vị đó. Mọi người, kể cả người chưa đăng nhập, thấy tên và trình độ của host trong phòng chờ. Admin của MONSPORT thấy số điện thoại để quản lý tài khoản. MONSPORT không bán dữ liệu của bạn.',
   'Dữ liệu được lưu trên máy chủ Google Cloud tại Singapore trong thời gian bạn dùng tài khoản. Khi bạn xóa tài khoản, booking cũ còn lại nhưng không còn tên và số điện thoại của bạn.',
   'Khi bạn dùng Google, MONSPORT lưu mã tài khoản Google và email đã xác minh. Để xác minh số điện thoại, MONSPORT gửi số của bạn cho nhà cung cấp tin nhắn SMS để gửi mã OTP.',
   'Theo Luật Bảo vệ dữ liệu cá nhân (Luật 91/2025), bạn có quyền xem, sửa, xóa dữ liệu và rút lại sự đồng ý. Hãy liên hệ admin của MONSPORT để làm việc này.',

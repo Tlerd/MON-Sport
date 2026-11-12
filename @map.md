@@ -202,6 +202,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - MyBookings.tsx: MyBookings
 - OwnerRequests.tsx: OwnerRequests
 - PhoneBookings.tsx: PhoneBookings
+- RatingPanel.tsx: RatingPanel
 - cancel.tsx: useCancelFlow, CancelAskState, CancelAsk
 - customer.tsx: Customer
 - slot.ts: DURATIONS, fitsAnyDuration, slotAt
@@ -212,7 +213,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/web/src/features/matches/
 - JoinedMatches.tsx: JoinedMatches
-- Lobby.tsx: Lobby
+- Lobby.tsx: formatReputation, Lobby
 
 ## apps/web/src/features/notifications/
 - Notifications.tsx: Notifications
@@ -264,6 +265,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - match.ts: JoinMode, MatchPlayerStatus, MATCH_CAPACITY_MESSAGE, MATCH_PRICE_MESSAGE, MATCH_FULL_MESSAGE, ALREADY_IN_MATCH_MESSAGE, …
 - notification.ts: NotificationType, NotificationItemView, NotificationsListResponse, NotificationReadResponse, NotificationReadAllResponse, formatSlotTime, …
 - push.ts: PUSH_HOST_ALLOWLIST, isAllowedPushEndpoint, PushSubscribeRequest, PushUnsubscribeRequest, PushPublicKeyResponse, PushPayload
+- rating.ts: RATE_WINDOW_DAYS, RATE_TOO_EARLY, RATE_TOO_LATE, RATE_CANCELLED, RATE_NOT_PLAYER, RatePlayerRequest, …
 
 ## packages/shared/
 - vitest.config.ts

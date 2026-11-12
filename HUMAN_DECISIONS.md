@@ -73,6 +73,8 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 55 | Đặt cố định: buổi trùng giờ bỏ và báo, hay hủy cả chuỗi? (F-030) | Bỏ và báo | Không | F-030 |
 | 56 | Số tuần tối đa của đặt cố định (F-030) | 12 | Không | F-030 |
 | 57 | Nhân viên có hủy booking và đánh dấu đã thu tiền không? (F-031) | Không | Không | F-031 |
+| 58 | Luật tính điểm uy tín và vắng mặt (F-032) | 1 đến 5 sao, hoặc Vắng mặt không sao. Điểm là trung bình sao và số lần vắng | Không | F-032 |
+| 59 | Ai thấy điểm uy tín? (F-032) | Chỉ host, trong hàng chờ | Không | F-032 |
 
 ## Việc chỉ người dùng làm được
 

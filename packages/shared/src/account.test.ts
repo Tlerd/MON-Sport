@@ -197,3 +197,11 @@ describe('staff contract, brief F-031', () => {
   });
 });
 
+describe('player rating privacy, brief F-032', () => {
+  it('AC-7: PRIVACY_NOTICE states host rates players and host sees reputation in approval matches', () => {
+    expect(PRIVACY_NOTICE).toContain('Host chấm điểm người chơi sau trận.');
+    expect(PRIVACY_NOTICE).toContain('Host của trận "Host duyệt" thấy điểm uy tín của người xin.');
+  });
+});
+
+

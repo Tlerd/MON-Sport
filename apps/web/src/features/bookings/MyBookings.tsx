@@ -1,9 +1,10 @@
-import { CALL_OWNER_MESSAGE, type JoinMode, type MatchStatus, type MatchView, type MyBookingView, userCancelDecision } from '@monsport/shared';
+import { CALL_OWNER_MESSAGE, type JoinMode, type MatchStatus, type MatchView, type MyBookingView, RATE_WINDOW_DAYS, userCancelDecision } from '@monsport/shared';
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { api, ApiError, formatDay, formatSlot, formatTime, formatVnd } from '@monsport/client';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { CancelAsk, useCancelFlow } from './cancel.tsx';
+import { RatingPanel } from './RatingPanel.tsx';
 import { STATUS_LABEL } from './status.ts';
 
 const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
@@ -24,6 +25,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
   const [pricePerSlot, setPricePerSlot] = useState('50000');
   const [joinMode, setJoinMode] = useState<JoinMode>('INSTANT');
   const [cancelMatchId, setCancelMatchId] = useState('');
+  const [ratingMatchId, setRatingMatchId] = useState('');
   const [matchBusy, setMatchBusy] = useState(false);
   const [matchError, setMatchError] = useState('');
 
@@ -139,6 +141,13 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
             const decision = userCancelDecision({ status: b.status, startAt }, now);
             const activeMatch = b.match && (b.match.status === 'OPEN' || b.match.status === 'FULL') ? b.match : null;
             const canOpenMatch = !b.match && (b.status === 'PENDING' || b.status === 'CONFIRMED') && startAt.getTime() > now.getTime();
+            const rateWindowMs = RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+            const canRate =
+              Boolean(b.match) &&
+              b.status !== 'CANCELLED' &&
+              b.match!.status !== 'CANCELLED' &&
+              now.getTime() >= startAt.getTime() &&
+              now.getTime() <= startAt.getTime() + rateWindowMs;
             const label = `${b.venueName} · ${b.courtName}, ${formatSlot(b.startAt, b.endAt)}`;
             return (
               <li key={b.id} className="ticket card-web" data-status={b.status}>
@@ -242,6 +251,20 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
                       <span>{CALL_OWNER_MESSAGE}</span>
                       <a className="phone" href={`tel:${b.venuePhone}`}>Gọi chủ sân</a>
                     </span>
+                  )}
+                  {canRate && (
+                    <span className="actions single">
+                      <button
+                        type="button"
+                        className="keep"
+                        onClick={() => setRatingMatchId((curr) => (curr === b.match!.id ? '' : b.match!.id))}
+                      >
+                        Chấm điểm người chơi
+                      </button>
+                    </span>
+                  )}
+                  {b.match && ratingMatchId === b.match.id && (
+                    <RatingPanel matchId={b.match.id} onClose={() => setRatingMatchId('')} />
                   )}
                 </span>
               </li>

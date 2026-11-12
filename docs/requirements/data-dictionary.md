@@ -80,6 +80,14 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | PhoneOtp.phoneKey | keyedDigest(phone) như AuthThrottle, không lưu số | varchar(64) | 64 | — |
 | PhoneOtp.purpose | Mục đích tạo mã | varchar(30) | ≤ 30 | `google_signup` · `google_verify` |
 | PhoneOtp.sentAt | Lúc gửi mã | timestamptz(3) | — | — |
+| PlayerRating | Một đánh giá của host cho người chơi trong trận (BR-56, brief F-032) | matchId + raterId + playerId + (stars) + noShow + createdAt + updatedAt | — | Khóa chính (`matchId`, `playerId`). Index trên `playerId`. CHECK (`stars` từ 1 đến 5, hoặc `noShow` không có sao) |
+| PlayerRating.createdAt | Lúc tạo đánh giá | timestamptz(3) | — | Do hệ thống ghi |
+| PlayerRating.matchId | Trận được chấm điểm | id của Match | 36 | Khóa ngoại tới Match |
+| PlayerRating.noShow | Đánh dấu người chơi vắng mặt không tới sân | boolean | — | Khi `true` thì `stars` là null |
+| PlayerRating.playerId | Người chơi được chấm điểm | id của User | 36 | Khóa ngoại tới User. Người có suất `ACTIVE` trong trận |
+| PlayerRating.raterId | Host chấm điểm | id của User | 36 | Khóa ngoại tới User. Host của trận |
+| PlayerRating.stars | Số sao đánh giá | integer | — | 1–5 khi `noShow` = `false`. Null khi `noShow` = `true` |
+| PlayerRating.updatedAt | Lúc cập nhật đánh giá gần nhất | timestamptz(3) | — | Do hệ thống ghi khi host sửa điểm |
 | PushSubscription | Một thiết bị nhận Web Push | id + userId + endpoint + p256dh + auth + createdAt | — | — |
 | PushSubscription.auth | Khóa xác thực Web Push | text | ≤ 100 | — |
 | PushSubscription.endpoint | Địa chỉ push của trình duyệt | text | ≤ 2048 | Duy nhất |

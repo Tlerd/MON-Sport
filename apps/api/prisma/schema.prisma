@@ -102,6 +102,8 @@ model User {
   matchPlayers    MatchPlayer[]
   notifications   Notification[]
   pushSubscriptions PushSubscription[]
+  ratingsGiven    PlayerRating[] @relation("RatingRater")
+  ratingsReceived PlayerRating[] @relation("RatingPlayer")
 
   @@index([staffVenueId])
 }
@@ -177,6 +179,7 @@ model Match {
   host         User          @relation(fields: [hostId], references: [id])
   players      MatchPlayer[]
   notifications Notification[]
+  ratings      PlayerRating[]
 
   @@index([status, sport])
   @@index([hostId])
@@ -258,5 +261,23 @@ model DevOtpOutbox {
   code      String   @db.Char(6)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
+
+/// Brief F-032: host ratings of players after a match (UC-19, BR-56).
+model PlayerRating {
+  matchId   String   @db.Uuid
+  raterId   String   @db.Uuid
+  playerId  String   @db.Uuid
+  stars     Int?
+  noShow    Boolean
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  match     Match    @relation(fields: [matchId], references: [id])
+  rater     User     @relation("RatingRater", fields: [raterId], references: [id])
+  player    User     @relation("RatingPlayer", fields: [playerId], references: [id])
+
+  @@id([matchId, playerId])
+  @@index([playerId])
+}
+
 
 

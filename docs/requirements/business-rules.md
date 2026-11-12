@@ -66,6 +66,8 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-53 | Trình độ của trận là trình độ của host. Phòng chờ lọc trận theo trình độ của host. Host chưa chọn trình độ chỉ hiện khi không lọc | constraint | static | Intake V2, W4, brief F-029 |
 | BR-54 | Đặt cố định tạo một booking cho mỗi tuần dưới một khóa `Court`. Buổi trùng giờ với booking active bị bỏ và báo lại. Các buổi khác vẫn được tạo. Giá mỗi buổi tính lúc đặt (BR-6). | action enabler | dynamic | Intake V2, W2, brief F-030 |
 | BR-55 | Nhân viên làm cho một đơn vị. Nhân viên xem và xác nhận yêu cầu, và nhập booking gọi điện của đơn vị đó. Nhân viên không hủy booking, không đánh dấu đã thu tiền, không xem doanh thu, không sửa giá. Nhân viên của đơn vị thấy số điện thoại của khách đặt sân ở đơn vị đó (mở rộng BR-20) | constraint | static | Intake V2, W3, brief F-031 |
+| BR-56 | Host chấm mỗi người có suất trong trận, sau giờ bắt đầu và trong 7 ngày. Mỗi người một điểm mỗi trận: từ 1 đến 5 sao, hoặc Vắng mặt không có sao. Chấm lại thì sửa điểm cũ. | action enabler | dynamic | Intake V2, W5, brief F-032 |
+| BR-57 | Điểm uy tín của người chơi là trung bình số sao (một chữ số thập phân), số điểm có sao và số lần vắng. Chỉ host của trận Host duyệt thấy điểm uy tín của người xin. | computation | dynamic | Intake V2, W5, brief F-032 |
 
 ## Assumptions
 
@@ -73,3 +75,5 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 - Quy tắc lưới giờ: giờ kết thúc cũng nằm trên lưới 30 phút. Bản intake chỉ ghi bước 30 phút cho giờ bắt đầu.
 - Quy tắc khóa tài khoản: tài khoản bị khóa không đăng nhập được. Bản intake chỉ ghi admin "khóa tài khoản".
 - Quy tắc đồng ý lúc đăng ký: intake chưa trả lời Luật 91/2025 có yêu cầu đồng ý lúc đăng ký hay không (open item 4). Ô đồng ý bắt buộc là lựa chọn an toàn hơn. Bạn sửa quy tắc này khi có ý kiến của người tư vấn luật.
+- Quy tắc chấm điểm (BR-56): điểm từ 1 đến 5 sao hoặc vắng mặt không có sao.
+- Quy tắc điểm uy tín (BR-57): điểm uy tín là trung bình số sao và số lần vắng mặt, không gộp công thức (brief F-032).

@@ -6,6 +6,7 @@ import {
   type MatchDetailView,
   type MatchRequestView,
   type MatchView,
+  type PlayerReputation,
   type SessionUser,
   type SkillLevel,
   type Sport,
@@ -38,6 +39,21 @@ function formatDayChip(ymd: string) {
   const dayOfWeek = days[d.getUTCDay()];
   const parts = ymd.split('-');
   return `${dayOfWeek} ${parts[2]}/${parts[1]}`;
+}
+
+/** Brief F-032 (AC-9): format player reputation for the host queue. */
+export function formatReputation(rep?: PlayerReputation | null): string {
+  if (!rep) return 'Chưa có đánh giá';
+  const { ratingAvg, ratingCount, noShowCount } = rep;
+  if (ratingAvg !== null && ratingCount > 0) {
+    const avgStr = ratingAvg.toLocaleString('vi-VN');
+    const starPart = `${avgStr} ★ (${ratingCount})`;
+    return noShowCount > 0 ? `${starPart} · ${noShowCount} lần vắng` : starPart;
+  }
+  if (noShowCount > 0) {
+    return `Chưa có sao · ${noShowCount} lần vắng`;
+  }
+  return 'Chưa có đánh giá';
 }
 
 interface LobbyProps {
@@ -444,9 +460,12 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                             const rowBusy = busyRequestUserIds.has(r.userId);
                             return (
                               <li key={r.userId} className="queue-row">
-                                <a href={`tel:${r.phone}`}>
-                                  <span>{r.name}</span> <span>({r.phone})</span>
-                                </a>
+                                <div className="queue-user">
+                                  <a href={`tel:${r.phone}`}>
+                                    <span>{r.name}</span> <span>({r.phone})</span>
+                                  </a>
+                                  <span className="queue-reputation">{formatReputation(r.reputation)}</span>
+                                </div>
                                 <div className="queue-actions">
                                   <button
                                     type="button"

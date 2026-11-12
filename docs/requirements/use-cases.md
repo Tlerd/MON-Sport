@@ -16,7 +16,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Người dùng | UC-1 Đăng ký và đăng nhập · UC-2 Chọn sân và xem giờ trống · UC-3 Gửi yêu cầu đặt sân · UC-6 Xem và hủy booking |
 | Chủ sân | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-11 Sửa giá và giờ mở cửa · UC-12 Xem dashboard tài chính · UC-16 Chủ sân đặt cố định hằng tuần · UC-17 Chủ sân quản lý nhân viên |
 | Nhân viên | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-16 Chủ sân đặt cố định hằng tuần |
-| Host | UC-7 Mở trận · UC-9 Hủy trận · UC-15 Host duyệt yêu cầu vào trận |
+| Host | UC-7 Mở trận · UC-9 Hủy trận · UC-15 Host duyệt yêu cầu vào trận · UC-19 Host chấm điểm người chơi |
 | Người ghép trận | UC-8 Vào và rời trận |
 | Admin | UC-10 Quản lý tài khoản và đơn vị · UC-13 Xem dashboard toàn trang |
 | Hệ thống | UC-14 Gửi thông báo |
@@ -279,16 +279,16 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 |---|---|
 | Primary Actor, Secondary Actors | Host · Người ghép trận |
 | Trigger | Người ghép trận xin vào một trận "Host duyệt" |
-| Description | Host xem hàng chờ của trận và duyệt hoặc từ chối từng yêu cầu. Yêu cầu không giữ suất |
+| Description | Host xem hàng chờ của trận, xem điểm uy tín của người xin và duyệt hoặc từ chối từng yêu cầu. Yêu cầu không giữ suất |
 | Preconditions | PRE-15: trận có chế độ "Host duyệt" và có yêu cầu "Chờ duyệt" |
 | Postconditions | POST-15: người được duyệt có suất. Người bị từ chối không có suất |
-| Normal Flow | 15.0<br>1. Host mở hàng chờ của trận.<br>2. Hệ thống hiện các yêu cầu "Chờ duyệt" chưa hết hạn (BR-52), theo thời gian gửi.<br>3. Host duyệt một yêu cầu.<br>4. Hệ thống thêm người đó vào trận khi còn suất. Khi hết suất, trận chuyển sang "Đầy" (BR-15, BR-50).<br>5. Hệ thống báo người xin (UC-14) |
+| Normal Flow | 15.0<br>1. Host mở hàng chờ của trận.<br>2. Hệ thống hiện các yêu cầu "Chờ duyệt" chưa hết hạn (BR-52), kèm điểm uy tín của người xin (BR-57), theo thời gian gửi.<br>3. Host duyệt một yêu cầu.<br>4. Hệ thống thêm người đó vào trận khi còn suất. Khi hết suất, trận chuyển sang "Đầy" (BR-15, BR-50).<br>5. Hệ thống báo người xin (UC-14) |
 | Alternative Flows | 15.1 Từ chối: host từ chối một yêu cầu. Hệ thống đánh dấu "Bị từ chối" và báo người xin (BR-51, UC-14) |
 | Exceptions | 15.0.E1 Trận đã đủ người: hệ thống từ chối duyệt và báo "Trận đã đủ người"<br>15.0.E2 Yêu cầu đã hết hạn: hệ thống báo yêu cầu hết hạn và không thêm người (BR-52) |
 | Priority | High |
 | Frequency of Use | Khoảng 20 lần mỗi ngày |
-| Business Rules | BR-15, BR-20, BR-50, BR-51, BR-52 |
-| Other Information | Chỉ host thấy số điện thoại của người xin (BR-20). Hai lệnh duyệt cùng lúc vào suất cuối: một lệnh thành công |
+| Business Rules | BR-15, BR-20, BR-50, BR-51, BR-52, BR-57 |
+| Other Information | Chỉ host thấy số điện thoại (BR-20) và điểm uy tín (BR-57) của người xin. Hai lệnh duyệt cùng lúc vào suất cuối: một lệnh thành công |
 | Assumptions | Host không đổi được chế độ vào trận sau khi mở trận (BR-49) |
 
 ## UC-16 Chủ sân đặt cố định hằng tuần
@@ -326,3 +326,22 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Business Rules | BR-23, BR-24, BR-28, BR-29, BR-31, BR-32, BR-55 |
 | Other Information | Nhân viên đăng nhập bằng số điện thoại và mật khẩu. Nhân viên chỉ xem và thao tác trên đơn vị của mình. Admin đổi chủ đơn vị hoặc khóa chủ sân thì khóa mọi nhân viên của đơn vị đó |
 | Assumptions | Mỗi nhân viên làm việc cho đúng một đơn vị. Hệ thống khóa tài khoản chứ không xóa dữ liệu nhân viên |
+
+## UC-19 Host chấm điểm người chơi
+
+| Row | Content |
+|---|---|
+| Primary Actor, Secondary Actors | Host · Người ghép trận |
+| Trigger | Trận đã qua giờ bắt đầu và chưa quá 7 ngày. Host muốn chấm điểm người chơi |
+| Description | Host chấm điểm từng người chơi có suất trong trận của mình. Host chọn từ 1 đến 5 sao, hoặc đánh dấu vắng mặt |
+| Preconditions | PRE-19: trận không bị hủy, đã qua giờ bắt đầu dưới 7 ngày, và có người chơi có suất ACTIVE |
+| Postconditions | POST-19: đánh giá của người chơi được lưu hoặc cập nhật. Điểm uy tín của người chơi được tính lại |
+| Normal Flow | 19.0<br>1. Host mở danh sách người chơi của trận trong "Booking của tôi".<br>2. Hệ thống hiện danh sách người có suất trong trận kèm điểm đã chấm nếu có.<br>3. Host chọn số sao từ 1 đến 5 cho người chơi.<br>4. Host bấm lưu.<br>5. Hệ thống lưu đánh giá và cập nhật điểm uy tín của người chơi (BR-56, BR-57) |
+| Alternative Flows | 19.1 Đánh dấu vắng mặt: ở bước 3, host chọn "Vắng mặt". Hệ thống lưu trạng thái vắng mặt không có sao (BR-56).<br>19.2 Chấm lại: host sửa số sao hoặc đổi giữa sao và vắng mặt rồi bấm lưu. Hệ thống ghi đè điểm cũ (BR-56) |
+| Exceptions | 19.0.E1 Chưa tới giờ bắt đầu: hệ thống từ chối và báo trận chưa bắt đầu.<br>19.0.E2 Quá 7 ngày sau giờ bắt đầu: hệ thống từ chối và báo đã quá hạn chấm điểm.<br>19.0.E3 Trận bị hủy hoặc booking không CONFIRMED: hệ thống từ chối chấm điểm.<br>19.0.E4 Người chơi không có suất ACTIVE hoặc là host: hệ thống từ chối chấm điểm |
+| Priority | Medium |
+| Frequency of Use | Khoảng 20 lần mỗi ngày |
+| Business Rules | BR-56, BR-57 |
+| Other Information | Host không tự chấm điểm chính mình. Mỗi người chơi trong một trận có nhiều nhất một điểm. Chấm lại thì ghi đè điểm cũ |
+| Assumptions | Chỉ host chấm điểm người chơi sau trận. Người chơi không chấm điểm host và không chấm lẫn nhau |
+

@@ -13,6 +13,7 @@ Nguồn: bảng "Tên gọi" và các mục Users, Rules của `intake-monsport-
 | Admin | Chủ của trang web. Tạo tài khoản chủ sân, tạo đơn vị và sân, xem số liệu toàn trang | quản trị viên |
 | Booking | Một khoảng giờ trên một sân, có trạng thái và giá | lượt đặt, đơn đặt |
 | Chủ sân | Người dùng quản lý một hoặc nhiều đơn vị. Xác nhận hoặc từ chối booking | owner, quản lý sân |
+| Điểm uy tín | Đánh giá về người chơi gồm trung bình số sao và số lần vắng mặt do host chấm sau trận (BR-57) | reputation, điểm tín nhiệm |
 | Đơn vị | Một cơ sở kinh doanh sân. Một đơn vị có một hoặc nhiều sân | cơ sở, venue, cụm sân |
 | Giờ cao điểm | Khung giá từ 17:00 tới 22:00 mỗi ngày | giờ vàng |
 | Giờ thường | Khung giá ngoài giờ cao điểm | giờ thấp điểm |

@@ -8,12 +8,23 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Req,
   Sse,
   UseGuards,
 } from '@nestjs/common';
-import { CreateMatchRequest, type MatchDetailView, matchErrorMessage, MatchLobbyQuery, type MatchRequestView, type MatchView, Messages } from '@monsport/shared';
+import {
+  CreateMatchRequest,
+  type MatchDetailView,
+  matchErrorMessage,
+  MatchLobbyQuery,
+  type MatchRequestView,
+  type MatchView,
+  Messages,
+  type PlayerRatingView,
+  RatePlayerRequest,
+} from '@monsport/shared';
 import type { Observable } from 'rxjs';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { LobbyEvents } from './lobby-events.service.js';
@@ -64,6 +75,32 @@ export class MatchesController {
   @Roles('USER')
   requests(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<MatchRequestView[]> {
     return this.matches.listRequests(req.user.id, id);
+  }
+
+  /** Brief F-032 (UC-19, BR-56): the host reads ratings for all active members except themselves. */
+  @Get(':id/ratings')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  ratings(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<PlayerRatingView[]> {
+    return this.matches.listRatings(req.user.id, id);
+  }
+
+  /** Brief F-032 (UC-19, BR-56): the host rates an active member. */
+  @Put(':id/ratings/:userId')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  ratePlayer(
+    @Req() req: AuthedRequest,
+    @Param('id', Id) id: string,
+    @Param('userId', Id) userId: string,
+    @Body() body: unknown,
+  ): Promise<PlayerRatingView> {
+    const parsed = RatePlayerRequest.safeParse(body);
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message;
+      throw new BadRequestException(msg && !msg.startsWith('Expected') && !msg.startsWith('Invalid') && !msg.startsWith('Number') ? msg : Messages.invalid);
+    }
+    return this.matches.ratePlayer(req.user.id, id, userId, parsed.data);
   }
 
   /** UC-7 (brief F-011): a user opens a match on their own app booking. BR-22: OWNER and ADMIN get 403. */

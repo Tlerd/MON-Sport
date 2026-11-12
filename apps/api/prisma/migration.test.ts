@@ -25,6 +25,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.query('DELETE FROM "PlayerRating" WHERE "raterId" = $1 OR "playerId" = $1', [userId]);
   await db.query('DELETE FROM "PushSubscription" WHERE "userId" = $1', [userId]);
   await db.query('DELETE FROM "Notification" WHERE "userId" = $1', [userId]);
   await db.query('DELETE FROM "MatchPlayer" WHERE "userId" = $1', [userId]);
@@ -560,6 +561,80 @@ describe('migration 20261112100000_f031_staff', () => {
   it('AC-10: creates index on User.staffVenueId', async () => {
     const res = await db.query(
       `SELECT indexname FROM pg_indexes WHERE tablename = 'User' AND indexname = 'User_staffVenueId_idx'`,
+    );
+    expect(res.rows.length).toBe(1);
+  });
+});
+
+describe('migration 20261112200000_f032_player_rating', () => {
+  it('AC-6: migration only adds: contains no DROP, and alters only PlayerRating', () => {
+    const sql = readFileSync(new URL('./migrations/20261112200000_f032_player_rating/migration.sql', import.meta.url), 'utf8');
+    expect(sql.toUpperCase()).not.toContain('DROP');
+    const alterTables = [...sql.matchAll(/ALTER\s+TABLE\s+"?(\w+)"?/gi)].map((m) => m[1]);
+    expect(alterTables.every((t) => t === 'PlayerRating')).toBe(true);
+  });
+
+  it('AC-6: enforces foreign keys, primary key, and check constraints on PlayerRating', async () => {
+    const bookingId = randomUUID();
+    const matchId = randomUUID();
+    const raterId = userId;
+    const player1 = randomUUID();
+    const player2 = randomUUID();
+    await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'P1', $2, 'x'), ($3, 'P2', $4, 'x')`, [
+      player1,
+      `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+      player2,
+      `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+    ]);
+    await db.query(
+      `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+       VALUES ($1, $2, '2026-11-27T16:00:00+07:00', '2026-11-27T17:00:00+07:00', 'PENDING', 'APP', $3, 80000)`,
+      [bookingId, courtId, raterId],
+    );
+    await db.query(
+      `INSERT INTO "Match" (id, "bookingId", "hostId", sport, capacity, "pricePerSlot", status, "joinedCount")
+       VALUES ($1, $2, $3, 'BADMINTON', 4, 50000, 'OPEN', 1)`,
+      [matchId, bookingId, raterId],
+    );
+
+    const rate = (mId: string, rId: string, pId: string, stars: number | null, noShow: boolean) =>
+      db.query(
+        `INSERT INTO "PlayerRating" ("matchId", "raterId", "playerId", stars, "noShow", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, now())`,
+        [mId, rId, pId, stars, noShow],
+      );
+
+    try {
+      // Valid ratings
+      expect(await sqlState(rate(matchId, raterId, player1, 5, false))).toBe('ok');
+      expect(await sqlState(rate(matchId, raterId, player2, null, true))).toBe('ok');
+
+      // Duplicate PK (matchId, playerId)
+      expect(await sqlState(rate(matchId, raterId, player1, 4, false))).toBe('23505');
+
+      // CHECK constraint: stars between 1 and 5
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), 0, false))).toBe('23514');
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), 6, false))).toBe('23514');
+
+      // CHECK constraint: noShow and stars exclusivity
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), null, false))).toBe('23514');
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), 3, true))).toBe('23514');
+
+      // FK constraint on non-existent user or match
+      expect(await sqlState(rate(randomUUID(), raterId, randomUUID(), 5, false))).toBe('23503');
+      expect(await sqlState(rate(matchId, randomUUID(), randomUUID(), 5, false))).toBe('23503');
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), 5, false))).toBe('23503');
+    } finally {
+      await db.query('DELETE FROM "PlayerRating" WHERE "matchId" = $1', [matchId]);
+      await db.query('DELETE FROM "Match" WHERE id = $1', [matchId]);
+      await db.query('DELETE FROM "Booking" WHERE id = $1', [bookingId]);
+      await db.query('DELETE FROM "User" WHERE id IN ($1, $2)', [player1, player2]);
+    }
+  });
+
+  it('AC-6: creates index on PlayerRating.playerId', async () => {
+    const res = await db.query(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'PlayerRating' AND indexname = 'PlayerRating_playerId_idx'`,
     );
     expect(res.rows.length).toBe(1);
   });

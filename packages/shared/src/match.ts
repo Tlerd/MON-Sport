@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Messages, PRICE_MAX, SkillLevel } from './account.ts';
 import { BookingStatus, MatchStatus, MatchSummary, Phone, Sport } from './booking.ts';
+import { PlayerReputation } from './rating.ts';
 
 // Brief F-011 and F-012 (UC-7, UC-8, UC-9): matches in the lobby. Names follow docs/requirements/data-dictionary.md.
 export { MatchStatus, MatchSummary };
@@ -114,6 +115,7 @@ export const MatchRequestView = z.object({
   name: z.string(),
   phone: Phone,
   requestedAt: Instant,
+  reputation: PlayerReputation.optional(),
 });
 export type MatchRequestView = z.infer<typeof MatchRequestView>;
 

@@ -148,8 +148,8 @@ describe('match join requests (F-028 step 2)', () => {
 
     const res = await requestsOf('An', matchId).expect(200);
     expect(MatchRequestListView.parse(res.body)).toEqual([
-      { userId: ids['Chi'], name: 'Chi', phone: '0901234568', requestedAt: new Date(vn('10:01')).toISOString() },
-      { userId: ids['Em'], name: 'Em', phone: '0901234569', requestedAt: new Date(vn('10:02')).toISOString() },
+      { userId: ids['Chi'], name: 'Chi', phone: '0901234568', requestedAt: new Date(vn('10:01')).toISOString(), reputation: { ratingAvg: null, ratingCount: 0, noShowCount: 0 } },
+      { userId: ids['Em'], name: 'Em', phone: '0901234569', requestedAt: new Date(vn('10:02')).toISOString(), reputation: { ratingAvg: null, ratingCount: 0, noShowCount: 0 } },
     ]);
     await requestsOf('Chi', matchId).expect(403);
     await requestsOf('Giang', matchId).expect(403);

@@ -297,3 +297,25 @@ describe('match contract, brief F-029', () => {
     expect(MatchLobbyQuery.safeParse({ level: 'EXPERT' }).success).toBe(false);
   });
 });
+
+describe('match contract, brief F-032', () => {
+  it('AC-1: MatchRequestView accepts optional reputation', () => {
+    const baseRequest = {
+      userId: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5e',
+      name: 'Lan',
+      phone: '0901234568',
+      requestedAt: '2026-11-20T03:01:00.000Z',
+    };
+    expect(MatchRequestView.parse(baseRequest)).toEqual(baseRequest);
+    const withReputation = {
+      ...baseRequest,
+      reputation: {
+        ratingAvg: 4.8,
+        ratingCount: 15,
+        noShowCount: 0,
+      },
+    };
+    expect(MatchRequestView.parse(withReputation)).toEqual(withReputation);
+  });
+});
+
