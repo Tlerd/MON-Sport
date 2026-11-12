@@ -15,7 +15,7 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | AuthThrottle.count | Số lần thử trong cửa sổ | integer | ≥ 1 | — |
 | AuthThrottle.key | Tên bộ đếm và HMAC-SHA256 của số điện thoại hoặc IP | text | ≤ 100 | Duy nhất. Không chứa số điện thoại hoặc IP đọc được |
 | AuthThrottle.windowStart | Lúc cửa sổ bắt đầu | timestamptz(3) | — | — |
-| Booking | Một khoảng giờ trên một sân | id + courtId + startAt + endAt + status + source + createdById + (customerName) + (customerPhone) + priceTotal + paidAtVenue + (confirmDeadline) + (confirmedAt) + (cancelledAt) + createdAt | — | `CHECK (endAt > startAt)`. Hai booking `PENDING` hoặc `CONFIRMED` trên cùng `courtId` không chồng khoảng `[startAt, endAt)` (BR-1) |
+| Booking | Một khoảng giờ trên một sân | id + courtId + startAt + endAt + status + source + createdById + (customerName) + (customerPhone) + priceTotal + paidAtVenue + (confirmDeadline) + (confirmedAt) + (cancelledAt) + (seriesId) + createdAt | — | `CHECK (endAt > startAt)`. Hai booking `PENDING` hoặc `CONFIRMED` trên cùng `courtId` không chồng khoảng `[startAt, endAt)` (BR-1) |
 | Booking.cancelledAt | Lúc booking bị hủy | timestamptz(3) | — | Có khi `status` = `CANCELLED` |
 | Booking.confirmDeadline | Hạn xác nhận | timestamptz(3) | — | Theo BR-7. Có khi `source` = `APP` |
 | Booking.confirmedAt | Lúc chủ sân xác nhận | timestamptz(3) | — | Có khi `status` = `CONFIRMED` |
@@ -26,6 +26,7 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | Booking.endAt | Giờ kết thúc | timestamptz(3) | — | Trên lưới 30 phút. Ít nhất 1 giờ sau `startAt` (BR-2, BR-3) |
 | Booking.paidAtVenue | Chủ sân đã thu tiền tại sân | boolean | — | Mặc định `false` (BR-21) |
 | Booking.priceTotal | Giá booking tính lúc đặt | money | — | Theo BR-5. Không đổi sau khi tạo (BR-6) |
+| Booking.seriesId | Chuỗi đặt cố định hằng tuần | uuid | 36 | Null được. Có index (BR-54, brief F-030) |
 | Booking.source | Booking đến từ đâu | BookingSource | — | — |
 | Booking.startAt | Giờ bắt đầu | timestamptz(3) | — | Trên lưới 30 phút (BR-2) |
 | Booking.status | Trạng thái booking | BookingStatus | — | Mặc định `PENDING` khi `source` = `APP`, `CONFIRMED` khi `source` = `PHONE` (BR-10) |

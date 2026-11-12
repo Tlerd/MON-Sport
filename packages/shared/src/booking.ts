@@ -86,6 +86,7 @@ export const BookingView = z.object({
   confirmedAt: Instant.nullable(),
   cancelledAt: Instant.nullable(),
   createdAt: Instant,
+  seriesId: z.uuid().nullable().optional(),
 });
 export type BookingView = z.infer<typeof BookingView>;
 
@@ -119,5 +120,21 @@ export const OwnerBookingView = BookingView.extend({
   customer: z.object({ name: z.string(), phone: Phone.nullable() }),
 });
 export type OwnerBookingView = z.infer<typeof OwnerBookingView>;
+
+export const RECURRING_MIN_WEEKS = 2;
+export const RECURRING_MAX_WEEKS = 12;
+export const ALL_WEEKS_TAKEN = 'Mọi buổi đều đã có người đặt';
+
+export const RecurringPhoneBookingRequest = CreatePhoneBookingRequest.extend({
+  weeks: z.int().min(RECURRING_MIN_WEEKS).max(RECURRING_MAX_WEEKS),
+}).strict();
+export type RecurringPhoneBookingRequest = z.infer<typeof RecurringPhoneBookingRequest>;
+
+export const RecurringPhoneBookingResponse = z.object({
+  seriesId: z.uuid(),
+  created: z.array(OwnerBookingView),
+  skipped: z.array(z.object({ startAt: Instant, endAt: Instant })),
+});
+export type RecurringPhoneBookingResponse = z.infer<typeof RecurringPhoneBookingResponse>;
 
 

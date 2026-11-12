@@ -14,7 +14,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Primary Actor | Use cases |
 |---|---|
 | Người dùng | UC-1 Đăng ký và đăng nhập · UC-2 Chọn sân và xem giờ trống · UC-3 Gửi yêu cầu đặt sân · UC-6 Xem và hủy booking |
-| Chủ sân | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-11 Sửa giá và giờ mở cửa · UC-12 Xem dashboard tài chính |
+| Chủ sân | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-11 Sửa giá và giờ mở cửa · UC-12 Xem dashboard tài chính · UC-16 Chủ sân đặt cố định hằng tuần |
 | Host | UC-7 Mở trận · UC-9 Hủy trận · UC-15 Host duyệt yêu cầu vào trận |
 | Người ghép trận | UC-8 Vào và rời trận |
 | Admin | UC-10 Quản lý tài khoản và đơn vị · UC-13 Xem dashboard toàn trang |
@@ -289,3 +289,21 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Business Rules | BR-15, BR-20, BR-50, BR-51, BR-52 |
 | Other Information | Chỉ host thấy số điện thoại của người xin (BR-20). Hai lệnh duyệt cùng lúc vào suất cuối: một lệnh thành công |
 | Assumptions | Host không đổi được chế độ vào trận sau khi mở trận (BR-49) |
+
+## UC-16 Chủ sân đặt cố định hằng tuần
+
+| Row | Content |
+|---|---|
+| Primary Actor, Secondary Actors | Chủ sân · — |
+| Trigger | Khách gọi điện cho chủ sân để đặt cố định hằng tuần |
+| Description | Chủ sân nhập một lần booking lặp lại hằng tuần cho khách gọi điện. Hệ thống tạo các booking cho từng tuần, bỏ buổi trùng giờ và báo lại (BR-54) |
+| Preconditions | PRE-16: chủ sân đã đăng nhập |
+| Postconditions | POST-16: các booking trong chuỗi được tạo ở trạng thái "Đã xác nhận", cùng seriesId |
+| Normal Flow | 16.0<br>1. Chủ sân chọn sân, giờ bắt đầu, giờ kết thúc và số tuần (từ 2 đến 12). Chủ sân có thể nhập tên và số điện thoại của khách.<br>2. Hệ thống kiểm tra từng tuần, tạo booking "Đã xác nhận" cho các tuần không trùng giờ (BR-10, BR-54).<br>3. Hệ thống hiện số buổi đã tạo và danh sách các buổi bị bỏ qua |
+| Alternative Flows | — |
+| Exceptions | 16.0.E1 Mọi buổi đều trùng giờ: hệ thống báo "Mọi buổi đều đã có người đặt" và không tạo booking nào.<br>16.0.E2 Số tuần không nằm từ 2 đến 12: hệ thống từ chối yêu cầu |
+| Priority | High |
+| Frequency of Use | Khoảng 10 lần mỗi ngày |
+| Business Rules | BR-1, BR-2, BR-3, BR-5, BR-6, BR-8, BR-10, BR-23, BR-54 |
+| Other Information | Các booking trong chuỗi mang chung seriesId. Hệ thống khóa Court một lần trong transaction |
+| Assumptions | Buổi trùng giờ bị bỏ và báo lại, không hủy cả chuỗi (BR-54) |

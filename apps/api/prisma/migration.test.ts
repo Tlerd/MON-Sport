@@ -487,3 +487,35 @@ describe('migration 20261110100000_f029_skill_level', () => {
     }
   });
 });
+
+describe('migration 20261112000000_f030_booking_series', () => {
+  it('AC-8: migration only adds: contains no DROP, no SET NOT NULL, and no DEFAULT', () => {
+    const sql = readFileSync(new URL('./migrations/20261112000000_f030_booking_series/migration.sql', import.meta.url), 'utf8');
+    expect(sql.toUpperCase()).not.toContain('DROP');
+    expect(sql.toUpperCase()).not.toContain('SET NOT NULL');
+    expect(sql.toUpperCase()).not.toContain('DEFAULT');
+  });
+
+  it('AC-8: a Booking row inserted without seriesId reads back null', async () => {
+    const bookingId = randomUUID();
+    await db.query(
+      `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+       VALUES ($1, $2, '2026-11-26T10:00:00+07:00', '2026-11-26T11:00:00+07:00', 'PENDING', 'APP', $3, 80000)`,
+      [bookingId, courtId, userId],
+    );
+    try {
+      const { rows } = await db.query('SELECT "seriesId" FROM "Booking" WHERE id = $1', [bookingId]);
+      expect(rows).toEqual([{ seriesId: null }]);
+    } finally {
+      await db.query('DELETE FROM "Booking" WHERE id = $1', [bookingId]);
+    }
+  });
+
+  it('AC-8: creates index on Booking.seriesId', async () => {
+    const res = await db.query(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'Booking' AND indexname = 'Booking_seriesId_idx'`,
+    );
+    expect(res.rows.length).toBe(1);
+  });
+});
+

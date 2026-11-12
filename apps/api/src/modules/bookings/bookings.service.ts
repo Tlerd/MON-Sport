@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  ALL_WEEKS_TAKEN,
   bookingPrice,
   type BookingView,
   CALL_OWNER_MESSAGE,
@@ -12,6 +14,8 @@ import {
   type MyBookingView,
   type OwnerBookingView,
   type PaidAtVenueResponse,
+  type RecurringPhoneBookingRequest,
+  type RecurringPhoneBookingResponse,
   USER_CANCEL_WINDOW_MS,
   userCancelDecision,
 } from '@monsport/shared';
@@ -29,6 +33,7 @@ export function toView(b: Booking): BookingView {
   return {
     id: b.id,
     courtId: b.courtId,
+    seriesId: b.seriesId ?? null,
     startAt: b.startAt.toISOString(),
     endAt: b.endAt.toISOString(),
     status: b.status,
@@ -129,6 +134,108 @@ export class BookingsService {
       confirmedAt: now,
     });
     return toOwnerView({ ...booking, createdBy: null });
+  }
+
+  /** UC-16 (brief F-030): an owner enters a recurring phone booking for 2 to 12 weeks. */
+  async enterRecurringPhoneBooking(
+    ownerId: string,
+    input: RecurringPhoneBookingRequest,
+  ): Promise<RecurringPhoneBookingResponse> {
+    const now = this.clock.now();
+    const startAt = new Date(input.startAt);
+    const endAt = new Date(input.endAt);
+    if (!isOnGrid(startAt) || !isOnGrid(endAt)) throw new BadRequestException('Giờ phải theo bước 30 phút'); // BR-2
+    if (!isLongEnough(startAt, endAt)) throw new BadRequestException('Mỗi booking dài ít nhất 1 giờ'); // BR-3
+    assertOpen(assertOwner(await this.findCourt(this.prisma, input.courtId), ownerId), startAt, endAt);
+    if (startAt <= now) throw new BadRequestException('Giờ bắt đầu đã qua');
+
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.recurringTransaction(ownerId, input, startAt, endAt, now);
+      } catch (error) {
+        if (isExclusionViolation(error)) throw new ConflictException(TAKEN);
+        if (!isDeadlock(error)) throw error;
+        if (attempt > 0) throw new ConflictException(BUSY);
+      }
+    }
+  }
+
+  private recurringTransaction(
+    ownerId: string,
+    input: RecurringPhoneBookingRequest,
+    firstStart: Date,
+    firstEnd: Date,
+    now: Date,
+  ): Promise<RecurringPhoneBookingResponse> {
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const occurrences = Array.from({ length: input.weeks }, (_, k) => ({
+      startAt: new Date(firstStart.getTime() + k * ONE_WEEK_MS),
+      endAt: new Date(firstEnd.getTime() + k * ONE_WEEK_MS),
+    }));
+
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockVenueOf(tx, input.courtId, ownerId);
+      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${input.courtId}::uuid FOR UPDATE`;
+      const court = await this.findCourt(tx, input.courtId);
+      assertOwner(court, ownerId);
+      assertOpen(court, firstStart, firstEnd);
+      await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
+
+      const toInsert: { startAt: Date; endAt: Date }[] = [];
+      const skipped: { startAt: string; endAt: string }[] = [];
+
+      for (const occ of occurrences) {
+        const overlap = await tx.booking.findFirst({
+          where: {
+            courtId: court.id,
+            status: { in: ['PENDING', 'CONFIRMED'] },
+            startAt: { lt: occ.endAt },
+            endAt: { gt: occ.startAt },
+          },
+        });
+        if (overlap) {
+          skipped.push({
+            startAt: occ.startAt.toISOString(),
+            endAt: occ.endAt.toISOString(),
+          });
+        } else {
+          toInsert.push(occ);
+        }
+      }
+
+      if (toInsert.length === 0) {
+        throw new ConflictException(ALL_WEEKS_TAKEN);
+      }
+
+      const seriesId = randomUUID();
+      const createdBookings: Booking[] = [];
+
+      for (const occ of toInsert) {
+        const created = await tx.booking.create({
+          data: {
+            courtId: court.id,
+            seriesId,
+            startAt: occ.startAt,
+            endAt: occ.endAt,
+            status: 'CONFIRMED',
+            source: 'PHONE',
+            createdById: ownerId,
+            customerName: input.customerName ?? null,
+            customerPhone: input.customerPhone ?? null,
+            priceTotal: bookingPrice(occ.startAt, occ.endAt, court.priceNormal, court.pricePeak),
+            confirmedAt: now,
+            createdAt: now,
+          },
+        });
+        createdBookings.push(created);
+      }
+
+      return {
+        seriesId,
+        created: createdBookings.map((b) => toOwnerView({ ...b, createdBy: null })),
+        skipped,
+      };
+    });
   }
 
   // Bookings on one court queue on its row lock before they insert. Without the lock, overlapping

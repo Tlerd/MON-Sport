@@ -70,6 +70,8 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 52 | Duyệt intake V2 (`proposed`) và thứ tự W1 đến W7 của `docs/design/ke-hoach-v2.md`. W6 (thanh toán) và W7 (MCP) chưa làm khi bạn chưa duyệt | Agent làm W1 (F-028) trước, theo yêu cầu "bắt đầu làm" ngày 10/11/2026 | Không | V2 |
 | 53 | Tên ba mức trình độ (F-029) | Mới chơi, Trung bình, Khá | Không | F-029 |
 | 54 | Luồng Google có bắt chọn trình độ khi đăng ký không? | Không | Không | F-029 |
+| 55 | Đặt cố định: buổi trùng giờ bỏ và báo, hay hủy cả chuỗi? (F-030) | Bỏ và báo | Không | F-030 |
+| 56 | Số tuần tối đa của đặt cố định (F-030) | 12 | Không | F-030 |
 
 ## Việc chỉ người dùng làm được
 

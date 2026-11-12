@@ -130,6 +130,7 @@ model Court {
 model Booking {
   id              String        @id @default(uuid(7)) @db.Uuid
   courtId         String        @db.Uuid
+  seriesId        String?       @db.Uuid
   startAt         DateTime      @db.Timestamptz(3)
   endAt           DateTime      @db.Timestamptz(3)
   status          BookingStatus
@@ -151,6 +152,7 @@ model Booking {
   @@index([courtId, status])
   @@index([createdById])
   @@index([courtId, startAt])
+  @@index([seriesId])
 }
 
 model Match {
