@@ -61,7 +61,7 @@ export function PlayerShell() {
         <div className="who">
           {user ? (
             <>
-              <Notifications userId={user.id} refresh={refreshKey} />
+              {user.role !== 'STAFF' && <Notifications userId={user.id} refresh={refreshKey} />}
               <span className="avatar" aria-hidden="true">
                 {initial(user.name)}
               </span>
@@ -158,7 +158,7 @@ export function OwnerShell() {
             <div className="who">
               {user && (
                 <>
-                  <Notifications userId={user.id} refresh={refreshKey} />
+                  {user.role !== 'STAFF' && <Notifications userId={user.id} refresh={refreshKey} />}
                   <span className="avatar" aria-hidden="true">
                     {initial(user.name)}
                   </span>
@@ -216,7 +216,7 @@ export function AdminShell() {
             <div className="who">
               {user && (
                 <>
-                  <Notifications userId={user.id} refresh={refreshKey} />
+                  {user.role !== 'STAFF' && <Notifications userId={user.id} refresh={refreshKey} />}
                   <span className="avatar" aria-hidden="true">
                     {initial(user.name)}
                   </span>

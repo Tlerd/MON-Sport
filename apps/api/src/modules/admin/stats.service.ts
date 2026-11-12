@@ -82,9 +82,8 @@ export class StatsService {
       }),
     ]);
 
-    const accounts: Record<'ADMIN' | 'OWNER' | 'USER', number> = { ADMIN: 0, OWNER: 0, USER: 0 };
+    const accounts: Record<'ADMIN' | 'OWNER' | 'USER' | 'STAFF', number> = { ADMIN: 0, OWNER: 0, USER: 0, STAFF: 0 };
     for (const row of accountRows) {
-      if (row.role === 'STAFF') continue;
       accounts[row.role] = row._count._all;
     }
 

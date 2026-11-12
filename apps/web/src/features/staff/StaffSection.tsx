@@ -1,11 +1,12 @@
 import type { StaffView } from '@monsport/shared';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@monsport/client';
 
 export function StaffSection({ venueId }: { venueId: string }) {
   const [staffList, setStaffList] = useState<StaffView[] | null>(null);
   const [error, setError] = useState('');
   const [confirmLockId, setConfirmLockId] = useState<string | null>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -15,6 +16,12 @@ export function StaffSection({ venueId }: { venueId: string }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (confirmLockId) {
+      confirmBtnRef.current?.focus();
+    }
+  }, [confirmLockId]);
+
+  useEffect(() => {
     api<StaffView[]>(`/api/owner/venues/${venueId}/staff`)
       .then(setStaffList)
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Không tải được danh sách nhân viên'));
@@ -22,11 +29,7 @@ export function StaffSection({ venueId }: { venueId: string }) {
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    if (submitting) return;
-    if (!consent) {
-      setFormError('Nhân viên đã đồng ý với thông báo về dữ liệu cá nhân');
-      return;
-    }
+    if (submitting || !consent) return;
     setFormError('');
     setSubmitting(true);
     try {
@@ -84,6 +87,7 @@ export function StaffSection({ venueId }: { venueId: string }) {
                   <span role="dialog" aria-label={`Xác nhận khóa ${s.name}`} className="confirm-lock">
                     <span>Khóa {s.name}?</span>
                     <button
+                      ref={confirmBtnRef}
                       type="button"
                       className="btn-confirm-lock"
                       onClick={() => handleLock(s.id)}
@@ -131,6 +135,7 @@ export function StaffSection({ venueId }: { venueId: string }) {
           <input
             type="tel"
             inputMode="tel"
+            autoComplete="off"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required
@@ -141,6 +146,7 @@ export function StaffSection({ venueId }: { venueId: string }) {
           Mật khẩu
           <input
             type="password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
