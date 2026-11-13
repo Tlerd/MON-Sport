@@ -17,6 +17,7 @@ import ownerDecide from './owner-decide.mjs';
 import phoneBooking from './phone-booking.mjs';
 import playerRequest from './player-request.mjs';
 import { parseOptions, ROOT, Run } from './lib.mjs';
+import { envFilePath, loadVerifyEnv } from './verify-env.mjs';
 
 const WEB_FLOWS = {
   'player-request': playerRequest,
@@ -44,6 +45,9 @@ try {
   console.error(error.message);
   process.exit(2);
 }
+// A live run takes its accounts from a file outside the repository. Only the names are printed.
+const fromFile = loadVerifyEnv({ target: opts.target });
+if (fromFile.length) console.log(`Accounts from ${envFilePath()}: ${fromFile.join(', ')}`);
 const defaultFlows = opts.app === 'mobile' ? MOBILE_FLOWS : WEB_FLOWS;
 const names = opts.flows.length ? opts.flows : Object.keys(defaultFlows);
 const unknown = names.filter((n) => !FLOWS[n]);
