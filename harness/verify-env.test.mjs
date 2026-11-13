@@ -46,3 +46,17 @@ test('VERIFY_ENV_FILE picks the file, and the default is outside the repository'
   expect(envFilePath({})).toBe(DEFAULT_ENV_FILE);
   expect(DEFAULT_ENV_FILE).toBe('D:/runenv/verify.env');
 });
+
+test('a UTF-8 BOM before the first key does not lose that key', () => {
+  const env = {};
+  loadVerifyEnv({ target: 'live', env, read: () => '﻿VERIFY_OWNER_PHONE=0900000001\r\nVERIFY_COURT=Sân 1\r\n' });
+  expect(env.VERIFY_OWNER_PHONE).toBe('0900000001');
+  expect(env.VERIFY_COURT).toBe('Sân 1');
+});
+
+test('an unquoted value ends at "#", so a password with "#" needs quotes', () => {
+  const env = {};
+  loadVerifyEnv({ target: 'live', env, read: () => 'VERIFY_OWNER_PASSWORD=Abc#123\nVERIFY_PLAYER_PASSWORD="Abc#123"\n' });
+  expect(env.VERIFY_OWNER_PASSWORD).toBe('Abc');
+  expect(env.VERIFY_PLAYER_PASSWORD).toBe('Abc#123');
+});

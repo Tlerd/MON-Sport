@@ -17,10 +17,11 @@ export function loadVerifyEnv({ target, env = process.env, read = (path) => read
     text = read(envFilePath(env));
   } catch (error) {
     if (error.code === 'ENOENT') return [];
-    throw error;
+    throw new Error(`Cannot read ${envFilePath(env)} (${error.code ?? error.message}). Fix the file or VERIFY_ENV_FILE.`);
   }
   const loaded = [];
-  for (const [name, value] of Object.entries(parseEnv(text))) {
+  // Notepad and PowerShell 5 write a BOM, and parseEnv would keep it in the first name.
+  for (const [name, value] of Object.entries(parseEnv(text.replace(/^﻿/, '')))) {
     if (!name.startsWith('VERIFY_') || value === '' || env[name]) continue;
     env[name] = value;
     loaded.push(name);

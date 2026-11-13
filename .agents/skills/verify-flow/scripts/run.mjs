@@ -46,7 +46,13 @@ try {
   process.exit(2);
 }
 // A live run takes its accounts from a file outside the repository. Only the names are printed.
-const fromFile = loadVerifyEnv({ target: opts.target });
+let fromFile;
+try {
+  fromFile = loadVerifyEnv({ target: opts.target });
+} catch (error) {
+  console.error(error.message);
+  process.exit(2);
+}
 if (fromFile.length) console.log(`Accounts from ${envFilePath()}: ${fromFile.join(', ')}`);
 const defaultFlows = opts.app === 'mobile' ? MOBILE_FLOWS : WEB_FLOWS;
 const names = opts.flows.length ? opts.flows : Object.keys(defaultFlows);
