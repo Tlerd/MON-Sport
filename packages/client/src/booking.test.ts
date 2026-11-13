@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { CourtView } from '@monsport/shared';
-import { dayChipLabel, dayHeading, durationsAt, priceRangeK, rangeHolding, startableMinutes } from './booking.ts';
+import {
+  dayChipLabel,
+  dayHeading,
+  durationsAt,
+  fitsAnyDuration,
+  priceRangeK,
+  rangeHolding,
+  slotAt,
+  startableMinutes,
+} from './booking.ts';
 
 const NOW = new Date('2026-10-29T10:00:00+07:00');
 const range = (date: string, from: string, to: string) => ({ startAt: `${date}T${from}:00+07:00`, endAt: `${date}T${to}:00+07:00` });
@@ -60,5 +69,29 @@ describe('booking helpers', () => {
     expect(startableMinutes(today, todayFree, NOW)).toEqual([690, 720]);
     expect(durationsAt(today, 690, todayFree, NOW)).toEqual([60, 90]);
     expect(durationsAt(today, 660, todayFree, NOW)).toEqual([]);
+  });
+});
+
+describe('slotAt', () => {
+  it('builds the instant of a minute of the day in Asia/Ho_Chi_Minh', () => {
+    expect(slotAt('2026-11-20', 17 * 60 + 30)).toBe('2026-11-20T17:30:00+07:00');
+  });
+
+  it('turns 24:00 into 00:00 of the next day, so a venue that closes at 24:00 takes its last hour', () => {
+    expect(slotAt('2026-11-20', 1440)).toBe('2026-11-21T00:00:00+07:00');
+    expect(slotAt('2026-12-31', 1440)).toBe('2027-01-01T00:00:00+07:00');
+  });
+});
+
+describe('fitsAnyDuration', () => {
+  it('returns true when at least one duration fits before closesAt', () => {
+    expect(fitsAnyDuration(360, 480)).toBe(true);
+    expect(fitsAnyDuration(1320, 1380)).toBe(true);
+  });
+
+  it('returns false when no duration fits before closesAt', () => {
+    expect(fitsAnyDuration(1350, 1380)).toBe(false);
+    expect(fitsAnyDuration(1380, 1380)).toBe(false);
+    expect(fitsAnyDuration(1400, 1380)).toBe(false);
   });
 });

@@ -3,6 +3,7 @@ const time = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', ho
 const day = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 export const formatVnd = (amount: number) => `${amount.toLocaleString('vi-VN')}đ`;
+export const durationLabel = (minutes: number): string => `${(minutes / 60).toLocaleString('vi-VN')} giờ`;
 export const formatTime = (iso: string) => time.format(new Date(iso));
 export const formatDay = (iso: string) => day.format(new Date(iso));
 export const formatSlot = (startAt: string, endAt: string) => `${formatTime(startAt)}–${formatTime(endAt)} ngày ${formatDay(startAt)}`;

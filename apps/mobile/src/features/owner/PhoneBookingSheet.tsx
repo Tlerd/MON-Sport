@@ -1,6 +1,7 @@
 import {
   api,
   ApiError,
+  durationLabel,
   formatDay,
   formatVnd,
   hhmm,
@@ -18,7 +19,6 @@ import { Chip } from '../../components/Chip.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
 
 const TAKEN_409 = 'Khung giờ này vừa có người đặt';
-const durationLabel = (minutes: number) => `${String(minutes / 60).replace('.', ',')} giờ`;
 
 export interface PhoneBookingCourt {
   id: string;

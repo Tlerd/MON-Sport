@@ -16,11 +16,20 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Chip } from '../components/Chip.tsx';
 import { SportIcon } from '../components/icons.tsx';
 import { Panel } from '../components/Panel.tsx';
-import { SlotGrid, hhmm, type SelectedSlot, type SlotCellInfo, type WindowId } from '../components/SlotGrid.tsx';
-import { api, ApiError, formatDay, formatTime, formatVnd } from '@monsport/client';
+import { SlotGrid, type SelectedSlot, type SlotCellInfo, type WindowId } from '../components/SlotGrid.tsx';
+import {
+  api,
+  ApiError,
+  DURATIONS,
+  durationLabel,
+  formatDay,
+  formatTime,
+  formatVnd,
+  hhmm,
+  slotAt as at,
+} from '@monsport/client';
 import { useSession } from './session.tsx';
 import { initial } from './shells.tsx';
-import { DURATIONS, slotAt as at } from '../features/bookings/slot.ts';
 
 export function formatDeadlineRemaining(createdAt: string, startAt: string) {
   const dl = confirmDeadline(new Date(createdAt), new Date(startAt));
@@ -515,7 +524,7 @@ export function SchedulePage() {
               >
                 {DURATIONS.map((d) => (
                   <option key={d} value={d}>
-                    {(d / 60).toLocaleString('vi-VN')} giờ
+                    {durationLabel(d)}
                   </option>
                 ))}
               </select>

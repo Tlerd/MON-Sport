@@ -13,11 +13,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Chip } from '../components/Chip.tsx';
 import { SportIcon } from '../components/icons.tsx';
-import { SlotGrid, hhmm, type SlotCellInfo } from '../components/SlotGrid.tsx';
+import { SlotGrid, type SlotCellInfo } from '../components/SlotGrid.tsx';
 import { StatusBadge } from '../components/StatusBadge.tsx';
-import { api, ApiError, formatDay, formatSlot, formatTime, formatVnd } from '@monsport/client';
+import {
+  api,
+  ApiError,
+  DURATIONS,
+  durationLabel,
+  fitsAnyDuration,
+  formatDay,
+  formatSlot,
+  formatTime,
+  formatVnd,
+  hhmm,
+  slotAt as at,
+} from '@monsport/client';
 import { useSession } from './session.tsx';
-import { DURATIONS, fitsAnyDuration, slotAt as at } from '../features/bookings/slot.ts';
 import { findVenues, normalizeName } from '../features/venues/search.ts';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
@@ -450,7 +461,7 @@ export function BookPage() {
                         (d) => (selectedStart ?? selectedVenue.opensAt) + d <= selectedVenue.closesAt,
                       ).map((d) => (
                         <option key={d} value={d}>
-                          {(d / 60).toLocaleString('vi-VN')} giờ
+                          {durationLabel(d)}
                         </option>
                       ))}
                     </select>

@@ -205,7 +205,6 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - RatingPanel.tsx: RatingPanel
 - cancel.tsx: useCancelFlow, CancelAskState, CancelAsk
 - customer.tsx: Customer
-- slot.ts: DURATIONS, fitsAnyDuration, slotAt
 - status.ts: STATUS_LABEL
 
 ## apps/web/src/features/finance/
@@ -237,8 +236,8 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## packages/client/src/
 - api.ts: ApiError, api
-- booking.ts: DURATIONS, slotAt, dayChipLabel, dayHeading, priceRangeK, rangeHolding, …
-- format.ts: formatVnd, formatTime, formatDay, formatSlot, HALF_HOURS, hhmm
+- booking.ts: DURATIONS, fitsAnyDuration, slotAt, dayChipLabel, dayHeading, priceRangeK, …
+- format.ts: formatVnd, durationLabel, formatTime, formatDay, formatSlot, HALF_HOURS, …
 - index.ts
 - lobby.ts: LobbyFilter, LobbyCard, lobbyMatches, lobbyChips, matchesForDay
 - my-bookings.ts: sortUpcoming, sortHistory, splitMine, joinedByOthers
