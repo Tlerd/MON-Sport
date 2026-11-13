@@ -75,6 +75,7 @@ function PlayerRatingRow({ matchId, player }: { matchId: string; player: PlayerR
       </label>
       <button
         type="button"
+        className="btn sm lime"
         aria-label={`Lưu điểm cho ${player.name}`}
         disabled={saving}
         onClick={() => void handleSave()}
@@ -123,7 +124,7 @@ export function RatingPanel({ matchId, onClose }: RatingPanelProps) {
       <div className="rating-header">
         <strong>Chấm điểm người chơi</strong>
         {onClose && (
-          <button type="button" className="keep" onClick={onClose}>
+          <button type="button" className="btn sm ghost keep" onClick={onClose}>
             Đóng
           </button>
         )}

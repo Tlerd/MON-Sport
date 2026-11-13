@@ -164,9 +164,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/web/src/app/
 - App.tsx: App
 - BookPage.tsx: BookPage
+- HomePage.tsx: HomePage
 - OwnerOverview.tsx: OwnerOverview
 - SchedulePage.tsx: formatDeadlineRemaining, SchedulePage
-- pages.tsx: BookPage, OwnerRequestsPage, MyVenuesPage, LobbyPage, MyPage, AuthPage, …
+- VenuesPage.tsx: VenuesPage
+- pages.tsx: HomePage, VenuesPage, BookPage, OwnerRequestsPage, MyVenuesPage, LobbyPage, …
 - router.tsx: RoleGuard, routes, createRouter
 - session.tsx: SessionContextValue, SessionProvider, useSession
 - shells.tsx: initial, MobileBanner, PlayerShell, OwnerShell, AdminShell
@@ -177,6 +179,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - CourtArt.tsx: CourtArtProps, CourtArt
 - CourtPrices.tsx: CourtPrices
 - EmptyState.tsx: EmptyStateProps, EmptyState
+- MatchCard.tsx: SPORT_LABEL, BOOKING_BADGE, MatchCardContent
 - Panel.tsx: PanelProps, Panel
 - SlotGrid.tsx: SlotCellStatus, SlotCellInfo, CourtItem, SelectedSlot, SlotGridProps, WindowId, …
 - SportIcon.tsx: KnownSportId, normalizeSportId, SportIconProps, SportIcon
@@ -191,6 +194,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - VenueAdmin.tsx: VenueAdmin
 
 ## apps/web/src/features/auth/
+- AuthCard.tsx: AuthCard
 - AuthPanel.tsx: AuthPanel
 - GoogleAccountActions.tsx: GoogleAccountActions
 - GoogleButton.tsx: GoogleButton

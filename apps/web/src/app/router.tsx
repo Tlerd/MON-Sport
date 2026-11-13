@@ -6,6 +6,7 @@ import { FinancialDashboard } from '../features/finance/FinancialDashboard.tsx';
 import {
   AuthPage,
   BookPage,
+  HomePage,
   LobbyPage,
   MyPage,
   MyVenuesPage,
@@ -14,6 +15,7 @@ import {
   ProfilePage,
   SchedulePage,
   TeamsPage,
+  VenuesPage,
 } from './pages.tsx';
 import { useSession } from './session.tsx';
 import { AdminShell, OwnerShell, PlayerShell } from './shells.tsx';
@@ -80,7 +82,7 @@ export const routes: RouteObject[] = [
         path: '/',
         element: (
           <RoleGuard allowed={['GUEST', 'USER']}>
-            <BookPage />
+            <HomePage />
           </RoleGuard>
         ),
       },
@@ -88,7 +90,7 @@ export const routes: RouteObject[] = [
         path: '/san',
         element: (
           <RoleGuard allowed={['GUEST', 'USER']}>
-            <BookPage />
+            <VenuesPage />
           </RoleGuard>
         ),
       },

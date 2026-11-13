@@ -9,28 +9,18 @@ import {
   type PlayerReputation,
   type SessionUser,
   type SkillLevel,
-  type Sport,
 } from '@monsport/shared';
-import { CalendarDays } from 'lucide-react';
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, CalendarDays, Plus } from 'lucide-react';
+import { type CSSProperties, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useInRouterContext, useNavigate, useSearchParams } from 'react-router';
 import { Chip } from '../../components/Chip.tsx';
+import { CourtArt } from '../../components/CourtArt.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
-import { SportIcon } from '../../components/icons.tsx';
+import { BOOKING_BADGE, MatchCardContent, SPORT_LABEL } from '../../components/MatchCard.tsx';
+import { SportIcon } from '../../components/SportIcon.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
+import { useToast } from '../../components/Toast.tsx';
 import { api, formatDay, formatTime, formatVnd } from '@monsport/client';
-
-const SPORT_LABEL: Record<Sport, string> = {
-  BADMINTON: 'Cầu lông',
-  FOOTBALL: 'Bóng đá',
-};
-
-const BOOKING_BADGE: Record<MatchView['bookingStatus'], string> = {
-  PENDING: 'Chưa xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  REJECTED: 'Bị từ chối',
-  EXPIRED: 'Hết hạn',
-  CANCELLED: 'Đã hủy',
-};
 
 function formatDayChip(ymd: string) {
   // Noon UTC falls on the same calendar day in every time zone, so the weekday never depends on the machine (BR-27).
@@ -40,6 +30,9 @@ function formatDayChip(ymd: string) {
   const parts = ymd.split('-');
   return `${dayOfWeek} ${parts[2]}/${parts[1]}`;
 }
+
+const initialChar = (name: string) =>
+  [...(name.normalize('NFC').trim().split(/\s+/).at(-1) ?? '')][0] ?? '';
 
 /** Brief F-032 (AC-9): format player reputation for the host queue. */
 export function formatReputation(rep?: PlayerReputation | null): string {
@@ -62,15 +55,19 @@ interface LobbyProps {
   onMatchChanged?: () => void;
 }
 
-/**
- * Brief F-011 and F-012 (UC-8): public lobby of OPEN matches with real-time SSE stream,
- * match detail view with active player list, and join/leave match actions.
- */
-export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
+interface LobbyInnerProps extends LobbyProps {
+  tranParam?: string | null;
+  onSelectTran?: (id: string | null) => void;
+  onNavigate?: (to: string) => void;
+}
+
+function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSelectTran, onNavigate }: LobbyInnerProps) {
   const heading = useId();
+  const { comingSoon } = useToast();
   const [sport, setSport] = useState('');
   const [level, setLevel] = useState<SkillLevel | ''>('');
   const [date, setDate] = useState('');
+  const [typeTab, setTypeTab] = useState<'ALL' | 'SINGLE'>('ALL');
   const [matches, setMatches] = useState<MatchView[] | null>(null);
   const [error, setError] = useState('');
   const [streamTick, setStreamTick] = useState(0);
@@ -87,6 +84,8 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
   const [loadingAction, setLoadingAction] = useState(false);
 
   const loadSeqRef = useRef(0);
+  const autoOpenedTranRef = useRef<string | null>(null);
+  const prevTranParamRef = useRef<string | null>(tranParam);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const todayStr = useMemo(() => vnDateString(new Date()), []);
   const dateOptions = useMemo(() => {
@@ -139,6 +138,24 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     }
   }, []);
 
+  const openMatch = useCallback(
+    async (m: MatchView) => {
+      loadSeqRef.current += 1;
+      liveStateRef.current.expandedId = m.id;
+      setExpandedId(m.id);
+      setDetail(null);
+      setRequestsState({ matchId: null, items: [] });
+      setBusyRequestUserIds(new Set());
+      setDetailError('');
+      setActionError('');
+
+      // AC-11: unauthenticated guests see login prompt and web does not call GET /api/matches/<id>.
+      if (!user) return;
+      await loadDetail(m.id, m.joinMode);
+    },
+    [user, loadDetail],
+  );
+
   // AC-12 & AC-13: listen to SSE /api/matches/stream and reload list, open detail, and host requests when a match event arrives.
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
@@ -179,30 +196,50 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     };
   }, [sport, level, date, refresh, streamTick]);
 
-  async function toggleDetail(m: MatchView) {
+  const clearDetailState = useCallback(() => {
     loadSeqRef.current += 1;
-    if (expandedId === m.id) {
-      liveStateRef.current.expandedId = null;
-      setExpandedId(null);
-      setDetail(null);
-      setRequestsState({ matchId: null, items: [] });
-      setBusyRequestUserIds(new Set());
-      setDetailError('');
-      setActionError('');
-      return;
-    }
-    liveStateRef.current.expandedId = m.id;
-    setExpandedId(m.id);
+    liveStateRef.current.expandedId = null;
+    autoOpenedTranRef.current = null;
+    setExpandedId(null);
     setDetail(null);
     setRequestsState({ matchId: null, items: [] });
     setBusyRequestUserIds(new Set());
     setDetailError('');
     setActionError('');
+  }, []);
 
-    // AC-11: unauthenticated guests see login prompt and web does not call GET /api/matches/<id>.
-    if (!user) return;
+  const closeDetail = useCallback(() => {
+    clearDetailState();
+    onSelectTran?.(null);
+  }, [clearDetailState, onSelectTran]);
 
-    await loadDetail(m.id, m.joinMode);
+  // AC-6 & mobile detail sheet: open when ?tran=<id> is set, close when browser Back clears it.
+  useEffect(() => {
+    const prevTran = prevTranParamRef.current;
+    prevTranParamRef.current = tranParam;
+    if (!tranParam) {
+      if (prevTran !== null) {
+        clearDetailState();
+      }
+      return;
+    }
+    if (!matches) return;
+    if (autoOpenedTranRef.current === tranParam) return;
+    const target = matches.find((m) => m.id === tranParam);
+    if (target) {
+      autoOpenedTranRef.current = tranParam;
+      void openMatch(target);
+    }
+  }, [tranParam, matches, openMatch, clearDetailState]);
+
+  async function toggleDetail(m: MatchView) {
+    if (expandedId === m.id) {
+      closeDetail();
+      return;
+    }
+    autoOpenedTranRef.current = m.id;
+    onSelectTran?.(m.id);
+    await openMatch(m);
   }
 
   async function handleJoin(id: string) {
@@ -286,12 +323,31 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     }
   }
 
+  function handleCreateMatch() {
+    const dest = user ? '/lich-cua-toi' : '/dang-nhap';
+    if (onNavigate) {
+      onNavigate(dest);
+    } else if (typeof window !== 'undefined') {
+      window.location.assign(dest);
+    }
+  }
+
   const remaining = selectedMatch ? selectedMatch.capacity - selectedMatch.joinedCount : 0;
   const selectedIsApproval = ((detail?.joinMode ?? selectedMatch?.joinMode) ?? 'INSTANT') === 'APPROVAL';
 
   return (
     <section className="panel lobby-panel" aria-labelledby={heading}>
-      <h2 id={heading}>Phòng chờ</h2>
+      <div className="page-head">
+        <div>
+          <h1>Ghép trận</h1>
+          <h2 id={heading}>Phòng chờ</h2>
+        </div>
+        <button type="button" className="btn lime" onClick={handleCreateMatch}>
+          <Plus size={18} className="ic" aria-hidden="true" />
+          <span>Tạo trận</span>
+        </button>
+      </div>
+
       <div className="filter-chips-row">
         <div role="group" aria-label="Môn thể thao" className="chips sport-chips">
           <Chip selected={sport === ''} onClick={() => setSport('')}>
@@ -354,9 +410,33 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
             />
           </label>
         </div>
+
+        <div className="fbar">
+          <div className="seg" role="group" aria-label="Loại trận">
+            <button
+              type="button"
+              className={typeTab === 'ALL' ? 'on' : ''}
+              onClick={() => setTypeTab('ALL')}
+            >
+              Tất cả
+            </button>
+            <button
+              type="button"
+              className={typeTab === 'SINGLE' ? 'on' : ''}
+              onClick={() => setTypeTab('SINGLE')}
+            >
+              Trận đơn
+            </button>
+            <button type="button" onClick={comingSoon}>
+              Trận đội
+            </button>
+          </div>
+          {matches && <span className="count">{`${matches.length} trận đang mở`}</span>}
+        </div>
       </div>
-      <div className="lobby-split">
-        <div className="lobby-list-pane">
+
+      <div className="lobby-split md">
+        <div className="lobby-list-pane md-list">
           {error && <p className="error" role="alert">{error}</p>}
           <div role="status" className="live">
             {matches?.length === 0 && !error && (
@@ -370,32 +450,13 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                 return (
                   <li
                     key={m.id}
-                    className={`ticket match-ticket card-web ${isExpanded ? 'active' : ''}`}
+                    className={`ticket match-ticket card mc compact ${isExpanded ? 'on active' : ''}`}
                     data-status={m.bookingStatus}
                     onClick={() => toggleDetail(m)}
                   >
-                    <span className="match-icon">
-                      <SportIcon sport={m.sport} size={20} />
-                    </span>
-                    <span className="match-body body">
-                      <div className="match-line-1">
-                        <span className="where">{`${m.venueName} · ${m.courtName}`}</span>
-                        <span>{` · ${formatTime(m.startAt)}–${formatTime(m.endAt)}`}</span>
-                      </div>
-                      <div className="match-line-2">
-                        <span>{`${SPORT_LABEL[m.sport]} · Ngày ${formatDay(m.startAt)}`}</span>
-                        <span>Host: {m.hostName}</span>
-                        {m.hostSkillLevel && <span className="level-badge">{`Trình độ: ${SKILL_LEVEL_LABELS[m.hostSkillLevel]}`}</span>}
-                      </div>
-                      <div className="match-line-2">
-                        <span className="match-slots">{`${m.joinedCount}/${m.capacity} suất · ${formatVnd(m.pricePerSlot)}/suất`}</span>
-                        <StatusBadge className="status" status={m.bookingStatus} label={BOOKING_BADGE[m.bookingStatus]} />
-                        {(m.status === 'FULL' || m.joinedCount >= m.capacity) && (
-                          <StatusBadge className="status" status="FULL" />
-                        )}
-                        {(m.joinMode ?? 'INSTANT') === 'APPROVAL' && (
-                          <StatusBadge className="status" status="APPROVAL" label="Host duyệt" />
-                        )}
+                    <MatchCardContent
+                      match={m}
+                      footerAction={
                         <button
                           type="button"
                           className="link detail-toggle"
@@ -406,8 +467,8 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                         >
                           {isExpanded ? 'Đóng chi tiết' : 'Xem chi tiết'}
                         </button>
-                      </div>
-                    </span>
+                      }
+                    />
                   </li>
                 );
               })}
@@ -415,87 +476,187 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
           )}
         </div>
 
-        <div className="lobby-detail-pane">
+        <div className={`lobby-detail-pane md-detail ${selectedMatch ? 'open' : ''}`}>
           {selectedMatch ? (
-            <div className="match-detail card-web">
-              <h3>{`${selectedMatch.venueName} · ${selectedMatch.courtName}`}</h3>
-              <p className="detail-meta-row">
-                <span>{`${SPORT_LABEL[selectedMatch.sport]} · Ngày ${formatDay(selectedMatch.startAt)}`}</span>
-                <span>{`${formatTime(selectedMatch.startAt)}–${formatTime(selectedMatch.endAt)}`}</span>
-              </p>
-              <div className="detail-meta">
-                <span>Còn {remaining} suất trống</span>
-                <span>{formatVnd(selectedMatch.pricePerSlot)}/suất</span>
+            <div className="match-detail card detail">
+              <div className="md-back-bar">
+                <button type="button" className="back md-back" onClick={closeDetail}>
+                  <ArrowLeft size={16} className="ic" aria-hidden="true" />
+                  <span>Quay lại</span>
+                </button>
+              </div>
+              <header className="hero">
+                <CourtArt sport={selectedMatch.sport} />
+                <div className="hero-in">
+                  <div>
+                    <span className="stub-sport">
+                      <SportIcon sport={selectedMatch.sport} size={14} />
+                      <span>{SPORT_LABEL[selectedMatch.sport]}</span>
+                    </span>
+                    <h3>{`${selectedMatch.venueName} · ${selectedMatch.courtName}`}</h3>
+                  </div>
+                  <div className="hero-when">
+                    <b>{formatTime(selectedMatch.startAt)}</b>
+                    <span>
+                      {`Ngày ${formatDay(selectedMatch.startAt)}`}
+                      <br />
+                      {`đến ${formatTime(selectedMatch.endAt)}`}
+                    </span>
+                  </div>
+                </div>
+              </header>
+
+              <div className="detail-b">
+                <div className="tags">
+                  <span className="tag solo">Trận đơn</span>
+                  <StatusBadge
+                    className="status"
+                    status={selectedMatch.bookingStatus}
+                    label={BOOKING_BADGE[selectedMatch.bookingStatus]}
+                  />
+                  {selectedIsApproval && <span className="tag warn">Host duyệt</span>}
+                </div>
+
+                <dl className="facts">
+                  <div>
+                    <dt>Đơn vị và sân</dt>
+                    <dd>
+                      {selectedMatch.venueName}
+                      <small>{`${selectedMatch.courtName} · ${selectedMatch.venueAddress}`}</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Trình độ</dt>
+                    <dd>
+                      {selectedMatch.hostSkillLevel
+                        ? SKILL_LEVEL_LABELS[selectedMatch.hostSkillLevel]
+                        : 'Mọi trình độ'}
+                      <small>{`${SPORT_LABEL[selectedMatch.sport]} · Ngày ${formatDay(selectedMatch.startAt)}`}</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Giá mỗi suất</dt>
+                    <dd>
+                      <span>{`${formatVnd(selectedMatch.pricePerSlot)}/suất`}</span>
+                      <small>{`Còn ${remaining} suất trống`}</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Host</dt>
+                    <dd>{selectedMatch.hostName}</dd>
+                  </div>
+                </dl>
+
+                {!user && (
+                  <p className="hint">Đăng nhập để vào trận</p>
+                )}
+
+                {user && detail && detail.id === selectedMatch.id && (
+                  <>
+                    <div className="players-section">
+                      <h4>
+                        <strong>Người tham gia:</strong>{' '}
+                        <span>{`${detail.players.length}/${selectedMatch.capacity}`}</span>
+                      </h4>
+                      <div className="meter">
+                        <i
+                          style={{
+                            width: `${Math.min(100, Math.round((detail.players.length / selectedMatch.capacity) * 100))}%`,
+                          }}
+                        />
+                      </div>
+                      <ul className="roster players-list">
+                        {detail.players.map((p) => (
+                          <li key={p.userId} className="rp">
+                            <span
+                              className="av"
+                              style={{
+                                '--s': '36px',
+                                '--c': p.userId === selectedMatch.hostId ? 'var(--ink)' : 'var(--ok)',
+                              } as CSSProperties}
+                              aria-hidden="true"
+                            >
+                              {initialChar(p.name)}
+                            </span>
+                            <div>
+                              {detail.viewerRole === 'HOST' && p.phone ? (
+                                <a href={`tel:${p.phone}`}>{p.name} ({p.phone})</a>
+                              ) : (
+                                <b>{p.name}</b>
+                              )}
+                            </div>
+                            {p.userId === selectedMatch.hostId && (
+                              <span className="tag ghost">Host</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {detail.viewerRole === 'HOST' && selectedIsApproval && (
+                      <div className="queue-section reqs">
+                        <h4 className="queue-heading">{`Hàng chờ (${requests.length})`}</h4>
+                        {requests.length === 0 ? (
+                          <p className="hint">Chưa có yêu cầu</p>
+                        ) : (
+                          <ul className="queue-list">
+                            {requests.map((r) => {
+                              const rowBusy = busyRequestUserIds.has(r.userId);
+                              return (
+                                <li key={r.userId} className="queue-row rp">
+                                  <div className="queue-user">
+                                    <a href={`tel:${r.phone}`}>
+                                      <span>{r.name}</span> <span>({r.phone})</span>
+                                    </a>
+                                    <span className="queue-reputation">{formatReputation(r.reputation)}</span>
+                                  </div>
+                                  <div className="queue-actions">
+                                    <button
+                                      type="button"
+                                      className="btn sm lime"
+                                      disabled={rowBusy}
+                                      onClick={() => void handleRequestDecision(selectedMatch.id, r.userId, 'approve')}
+                                    >
+                                      Duyệt
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn sm ghost secondary"
+                                      disabled={rowBusy}
+                                      onClick={() => void handleRequestDecision(selectedMatch.id, r.userId, 'reject')}
+                                    >
+                                      Từ chối
+                                    </button>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <section className="detail-chat">
+                  <h4>Trò chuyện trong trận</h4>
+                  <p className="dim small">Sắp ra mắt</p>
+                </section>
+
+                {detailError && <p className="error bad" role="alert">{detailError}</p>}
+                {actionError && <p className="error bad" role="alert">{actionError}</p>}
               </div>
 
-              {!user && (
-                <p className="hint">Đăng nhập để vào trận</p>
-              )}
-
-              {user && detail && detail.id === selectedMatch.id && (
-                <>
-                  <div className="players-section">
-                    <strong>Người tham gia:</strong>
-                    <ul className="players-list">
-                      {detail.players.map((p) => (
-                        <li key={p.userId}>
-                          {detail.viewerRole === 'HOST' && p.phone ? (
-                            <a href={`tel:${p.phone}`}>{p.name} ({p.phone})</a>
-                          ) : (
-                            <span>{p.name}</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {detail.viewerRole === 'HOST' && selectedIsApproval && (
-                    <div className="queue-section">
-                      <strong className="queue-heading">{`Hàng chờ (${requests.length})`}</strong>
-                      {requests.length === 0 ? (
-                        <p className="hint">Chưa có yêu cầu</p>
-                      ) : (
-                        <ul className="queue-list">
-                          {requests.map((r) => {
-                            const rowBusy = busyRequestUserIds.has(r.userId);
-                            return (
-                              <li key={r.userId} className="queue-row">
-                                <div className="queue-user">
-                                  <a href={`tel:${r.phone}`}>
-                                    <span>{r.name}</span> <span>({r.phone})</span>
-                                  </a>
-                                  <span className="queue-reputation">{formatReputation(r.reputation)}</span>
-                                </div>
-                                <div className="queue-actions">
-                                  <button
-                                    type="button"
-                                    disabled={rowBusy}
-                                    onClick={() => void handleRequestDecision(selectedMatch.id, r.userId, 'approve')}
-                                  >
-                                    Duyệt
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="secondary"
-                                    disabled={rowBusy}
-                                    onClick={() => void handleRequestDecision(selectedMatch.id, r.userId, 'reject')}
-                                  >
-                                    Từ chối
-                                  </button>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="actions match-actions">
+              <footer className="detail-f actions match-actions">
+                <button type="button" className="btn ghost" onClick={comingSoon}>
+                  Chia sẻ trận
+                </button>
+                {user && detail && detail.id === selectedMatch.id && (
+                  <>
                     {detail.viewerRole === 'PLAYER' && (
                       <button
                         type="button"
-                        className="secondary"
+                        className="btn ghost secondary"
                         disabled={loadingAction}
                         onClick={() => handleLeave(selectedMatch.id)}
                       >
@@ -510,7 +671,7 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                           <p className="hint" role="status">Đã gửi yêu cầu. Chờ host duyệt</p>
                           <button
                             type="button"
-                            className="secondary"
+                            className="btn ghost secondary"
                             disabled={loadingAction}
                             onClick={() => handleLeave(selectedMatch.id)}
                           >
@@ -520,6 +681,7 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                       ) : (
                         <button
                           type="button"
+                          className="btn lime"
                           disabled={loadingAction}
                           onClick={() => handleJoin(selectedMatch.id)}
                         >
@@ -527,15 +689,12 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                         </button>
                       )
                     )}
-                  </div>
-                </>
-              )}
-
-              {detailError && <p className="error" role="alert">{detailError}</p>}
-              {actionError && <p className="error" role="alert">{actionError}</p>}
+                  </>
+                )}
+              </footer>
             </div>
           ) : (
-            <div className="card-web empty-detail-card">
+            <div className="card empty empty-detail-card">
               <EmptyState message="Chọn một trận bên danh sách để xem người tham gia và vào trận." />
             </div>
           )}
@@ -543,4 +702,35 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
       </div>
     </section>
   );
+}
+
+function LobbyRouterBridge(props: LobbyProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const handleSelectTran = useCallback(
+    (id: string | null) => {
+      const next = new URLSearchParams(searchParams);
+      if (id) next.set('tran', id);
+      else next.delete('tran');
+      setSearchParams(next);
+    },
+    [searchParams, setSearchParams],
+  );
+  return (
+    <LobbyInner
+      {...props}
+      tranParam={searchParams.get('tran')}
+      onSelectTran={handleSelectTran}
+      onNavigate={(to) => navigate(to)}
+    />
+  );
+}
+
+/**
+ * Brief F-011 and F-012 (UC-8): public lobby of OPEN matches with real-time SSE stream,
+ * match detail view with active player list, and join/leave match actions.
+ */
+export function Lobby(props: LobbyProps) {
+  const inRouter = useInRouterContext();
+  return inRouter ? <LobbyRouterBridge {...props} /> : <LobbyInner {...props} />;
 }

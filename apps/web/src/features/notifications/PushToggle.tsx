@@ -68,7 +68,7 @@ export function PushToggle({ userId }: { userId: string }) {
         // disabled: a disabled button loses the focus.
         <button
           type="button"
-          className={state === 'on' ? 'push-button quiet' : 'push-button'}
+          className={state === 'on' ? 'btn sm ghost wide push-button quiet' : 'btn sm lime wide push-button'}
           aria-disabled={busy}
           onClick={() => {
             if (busy) return;

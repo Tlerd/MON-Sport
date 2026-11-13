@@ -142,11 +142,17 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
   const unreadCount = data?.unreadCount ?? 0;
   const label = unreadCount > 0 ? `Thông báo, ${unreadCount} chưa đọc` : 'Thông báo';
 
+  const iconTone = (type: NotificationItemView['type']) => {
+    if (type === 'BOOKING_CONFIRMED' || type === 'MATCH_JOIN_APPROVED') return 'ok';
+    if (type === 'BOOKING_REJECTED' || type === 'MATCH_CANCELLED' || type === 'MATCH_JOIN_REJECTED') return 'bad';
+    return 'warn';
+  };
+
   return (
     <div className="notif-box">
       <button
         type="button"
-        className="icon-button notif-bell"
+        className={`ib icon-button notif-bell ${open ? 'on' : ''}`}
         aria-label={label}
         aria-expanded={open}
         title={label}
@@ -159,9 +165,9 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
       </button>
 
       {open && (
-        <div className="notif-drawer" role="region" aria-label="Bảng thông báo">
-          <div className="notif-header">
-            <h2>Thông báo</h2>
+        <div className="pop wide notif-popover notif-drawer" role="region" aria-label="Bảng thông báo">
+          <header className="notif-header">
+            <h3>Thông báo</h3>
             <div className="notif-actions">
               <button
                 type="button"
@@ -180,18 +186,18 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
                 Đóng
               </button>
             </div>
-          </div>
+          </header>
 
           <PushToggle userId={userId} />
 
           {!data || data.items.length === 0 ? (
-            <p className="notif-empty">Chưa có thông báo nào</p>
+            <p className="notif-empty dim small">Chưa có thông báo nào</p>
           ) : (
             <ul className="notif-list">
               {data?.items.map((item) => (
                 <li
                   key={item.id}
-                  className={`notif-item ${item.readAt ? 'read' : 'unread'}`}
+                  className={`nt notif-item ${item.readAt ? 'read' : 'unread'}`}
                   onClick={() => markOneRead(item)}
                   role="button"
                   tabIndex={0}
@@ -202,13 +208,18 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
                     }
                   }}
                 >
-                  <div className="notif-item-header">
-                    <span className="notif-item-title">{item.title}</span>
-                    {!item.readAt && <span className="notif-dot" aria-label="Chưa đọc">Mới</span>}
-                  </div>
-                  <p className="notif-item-msg">{item.message}</p>
-                  <div className="notif-item-time">
-                    {formatTime(item.createdAt)} {formatDay(item.createdAt)}
+                  <span className={`nt-ic ${iconTone(item.type)}`} aria-hidden="true">
+                    <Bell size={16} />
+                  </span>
+                  <div className="nt-body">
+                    <div className="notif-item-header">
+                      <span className="notif-item-title">{item.title}</span>
+                      {!item.readAt && <span className="notif-dot tag solo" aria-label="Chưa đọc">Mới</span>}
+                    </div>
+                    <p className="notif-item-msg">{item.message}</p>
+                    <small className="notif-item-time">
+                      {formatTime(item.createdAt)} {formatDay(item.createdAt)}
+                    </small>
                   </div>
                 </li>
               ))}

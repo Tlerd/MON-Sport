@@ -135,7 +135,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
       {rows.length === 0 ? (
         <EmptyState message="Bạn chưa có booking nào. Chọn đơn vị ở trên để đặt sân." />
       ) : (
-        <ul className="tickets" ref={list}>
+        <ul className="tickets schedule-list" ref={list}>
           {rows.map((b) => {
             const startAt = new Date(b.startAt);
             const decision = userCancelDecision({ status: b.status, startAt }, now);
@@ -150,123 +150,130 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
               now.getTime() <= startAt.getTime() + rateWindowMs;
             const label = `${b.venueName} · ${b.courtName}, ${formatSlot(b.startAt, b.endAt)}`;
             return (
-              <li key={b.id} className="ticket card-web" data-status={b.status}>
-                <span className="stub">
-                  <strong>{formatTime(b.startAt)}</strong>
-                  <span>đến {formatTime(b.endAt)}</span>
-                </span>
-                <span className="body">
-                  <span className="where">{`${b.venueName} · ${b.courtName}`}</span>
-                  <span>Ngày {formatDay(b.startAt)}</span>
-                  <span className="money">{formatVnd(b.priceTotal)}</span>
-                  <StatusBadge
-                    className="status"
-                    status={b.status}
-                    label={STATUS_LABEL[b.status]}
-                    {...(decision !== 'ALLOW' && { tabIndex: -1, 'data-focus': b.id })}
-                  />
-                  {b.match && (
-                    <span className="match-summary">
-                      {`${MATCH_STATUS_LABEL[b.match.status]} · ${b.match.joinedCount}/${b.match.capacity} suất · ${formatVnd(b.match.pricePerSlot)}/suất`}
-                    </span>
-                  )}
-                  {canOpenMatch && openingId !== b.id && (
-                    <span className="actions single">
-                      <button type="button" className="keep" aria-label={`Mở trận ${label}`} onClick={() => startOpenMatch(b.id)}>
-                        Mở trận
-                      </button>
-                    </span>
-                  )}
-                  {canOpenMatch && openingId === b.id && (
-                    <form className="match-form stack" onSubmit={(e) => void submitMatch(e, b.id)}>
-                      <div className="row two">
-                        <label>
-                          Số suất
-                          <input type="number" min={2} max={30} required value={capacity} onChange={(e) => setCapacity(e.target.value)} />
-                        </label>
-                        <label>
-                          Giá mỗi suất (đ)
-                          <input type="number" min={0} max={10_000_000} required value={pricePerSlot} onChange={(e) => setPricePerSlot(e.target.value)} />
-                        </label>
-                      </div>
-                      <fieldset className="join-mode-fieldset">
-                        <legend>Cách vào trận</legend>
-                        <div className="join-mode-options">
-                          <label className="join-mode-option">
-                            <input
-                              type="radio"
-                              name={`joinMode-${b.id}`}
-                              value="INSTANT"
-                              checked={joinMode === 'INSTANT'}
-                              onChange={() => setJoinMode('INSTANT')}
-                            />
-                            <span>Vào ngay</span>
+              <li key={b.id} className="card ticket si-item" data-status={b.status}>
+                <div className="si">
+                  <div className="stub si-t">
+                    <strong>{formatTime(b.startAt)}</strong>
+                    <span>đến {formatTime(b.endAt)}</span>
+                  </div>
+                  <div className="body si-b">
+                    <div className="si-top">
+                      <b className="where">{`${b.venueName} · ${b.courtName}`}</b>
+                      <StatusBadge
+                        className="status"
+                        status={b.status}
+                        label={STATUS_LABEL[b.status]}
+                        {...(decision !== 'ALLOW' && { tabIndex: -1, 'data-focus': b.id })}
+                      />
+                    </div>
+                    <div className="si-meta">
+                      <span>Ngày {formatDay(b.startAt)}</span>
+                      <span aria-hidden="true"> · </span>
+                      <span className="money">{formatVnd(b.priceTotal)}</span>
+                    </div>
+                    {b.match && (
+                      <span className="match-summary">
+                        {`${MATCH_STATUS_LABEL[b.match.status]} · ${b.match.joinedCount}/${b.match.capacity} suất · ${formatVnd(b.match.pricePerSlot)}/suất`}
+                      </span>
+                    )}
+                    {canOpenMatch && openingId !== b.id && (
+                      <span className="actions single">
+                        <button type="button" className="btn sm lime keep" aria-label={`Mở trận ${label}`} onClick={() => startOpenMatch(b.id)}>
+                          Mở trận
+                        </button>
+                      </span>
+                    )}
+                    {canOpenMatch && openingId === b.id && (
+                      <form className="match-form stack" onSubmit={(e) => void submitMatch(e, b.id)}>
+                        <div className="fgrid">
+                          <label className="fld">
+                            <span>Số suất</span>
+                            <input type="number" min={2} max={30} required value={capacity} onChange={(e) => setCapacity(e.target.value)} />
                           </label>
-                          <label className="join-mode-option">
-                            <input
-                              type="radio"
-                              name={`joinMode-${b.id}`}
-                              value="APPROVAL"
-                              checked={joinMode === 'APPROVAL'}
-                              onChange={() => setJoinMode('APPROVAL')}
-                            />
-                            <span>Host duyệt</span>
+                          <label className="fld">
+                            <span>Giá mỗi suất (đ)</span>
+                            <input type="number" min={0} max={10_000_000} required value={pricePerSlot} onChange={(e) => setPricePerSlot(e.target.value)} />
                           </label>
                         </div>
-                      </fieldset>
-                      <span className="actions">
-                        <button type="submit" disabled={matchBusy}>Tạo trận</button>
-                        <button type="button" className="keep" onClick={closeOpenMatch}>Đóng</button>
+                        <fieldset className="join-mode-fieldset">
+                          <legend>Cách vào trận</legend>
+                          <div className="type-pick join-mode-options">
+                            <label className={`join-mode-option ${joinMode === 'INSTANT' ? 'on' : ''}`}>
+                              <input
+                                type="radio"
+                                name={`joinMode-${b.id}`}
+                                value="INSTANT"
+                                checked={joinMode === 'INSTANT'}
+                                onChange={() => setJoinMode('INSTANT')}
+                              />
+                              <span>Vào ngay</span>
+                            </label>
+                            <label className={`join-mode-option ${joinMode === 'APPROVAL' ? 'on' : ''}`}>
+                              <input
+                                type="radio"
+                                name={`joinMode-${b.id}`}
+                                value="APPROVAL"
+                                checked={joinMode === 'APPROVAL'}
+                                onChange={() => setJoinMode('APPROVAL')}
+                              />
+                              <span>Host duyệt</span>
+                            </label>
+                          </div>
+                        </fieldset>
+                        <span className="actions">
+                          <button type="submit" className="btn sm lime" disabled={matchBusy}>Tạo trận</button>
+                          <button type="button" className="btn sm ghost keep" onClick={closeOpenMatch}>Đóng</button>
+                        </span>
+                      </form>
+                    )}
+                    {activeMatch && decision === 'ALLOW' && (
+                      cancelMatchId === activeMatch.id ? (
+                        <span className="actions">
+                          <button
+                            type="button"
+                            className="btn sm danger secondary"
+                            autoFocus
+                            disabled={matchBusy}
+                            aria-label={`Xác nhận hủy trận ${label}`}
+                            onClick={() => void confirmCancelMatch(b.id, activeMatch.id)}
+                          >
+                            Xác nhận hủy trận
+                          </button>
+                          <button type="button" className="btn sm ghost keep" onClick={() => setCancelMatchId('')}>
+                            Giữ trận
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="actions single">
+                          <button type="button" className="btn sm ghost keep" aria-label={`Hủy trận ${label}`} onClick={() => setCancelMatchId(activeMatch.id)}>
+                            Hủy trận
+                          </button>
+                        </span>
+                      )
+                    )}
+                    {!activeMatch && decision === 'ALLOW' && <CancelAsk id={b.id} label={label} ask={ask} />}
+                    {decision === 'CALL_OWNER' && (
+                      <span className="call-owner">
+                        <span>{CALL_OWNER_MESSAGE}</span>
+                        <a className="phone link" href={`tel:${b.venuePhone}`}>Gọi chủ sân</a>
                       </span>
-                    </form>
-                  )}
-                  {activeMatch && decision === 'ALLOW' && (
-                    cancelMatchId === activeMatch.id ? (
-                      <span className="actions">
+                    )}
+                    {canRate && (
+                      <span className="actions single">
                         <button
                           type="button"
-                          className="secondary"
-                          autoFocus
-                          disabled={matchBusy}
-                          aria-label={`Xác nhận hủy trận ${label}`}
-                          onClick={() => void confirmCancelMatch(b.id, activeMatch.id)}
+                          className="btn sm ghost keep"
+                          onClick={() => setRatingMatchId((curr) => (curr === b.match!.id ? '' : b.match!.id))}
                         >
-                          Xác nhận hủy trận
-                        </button>
-                        <button type="button" className="keep" onClick={() => setCancelMatchId('')}>
-                          Giữ trận
+                          Chấm điểm người chơi
                         </button>
                       </span>
-                    ) : (
-                      <span className="actions single">
-                        <button type="button" className="keep" aria-label={`Hủy trận ${label}`} onClick={() => setCancelMatchId(activeMatch.id)}>
-                          Hủy trận
-                        </button>
-                      </span>
-                    )
-                  )}
-                  {!activeMatch && decision === 'ALLOW' && <CancelAsk id={b.id} label={label} ask={ask} />}
-                  {decision === 'CALL_OWNER' && (
-                    <span className="call-owner">
-                      <span>{CALL_OWNER_MESSAGE}</span>
-                      <a className="phone" href={`tel:${b.venuePhone}`}>Gọi chủ sân</a>
-                    </span>
-                  )}
-                  {canRate && (
-                    <span className="actions single">
-                      <button
-                        type="button"
-                        className="keep"
-                        onClick={() => setRatingMatchId((curr) => (curr === b.match!.id ? '' : b.match!.id))}
-                      >
-                        Chấm điểm người chơi
-                      </button>
-                    </span>
-                  )}
-                  {b.match && ratingMatchId === b.match.id && (
-                    <RatingPanel matchId={b.match.id} onClose={() => setRatingMatchId('')} />
-                  )}
-                </span>
+                    )}
+                    {b.match && ratingMatchId === b.match.id && (
+                      <RatingPanel matchId={b.match.id} onClose={() => setRatingMatchId('')} />
+                    )}
+                  </div>
+                </div>
               </li>
             );
           })}

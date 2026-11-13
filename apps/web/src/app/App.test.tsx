@@ -33,8 +33,13 @@ describe('App', () => {
 
   it('AC-25: after the sign-up, the booking form and the name "Lan" in the top bar show', async () => {
     const lan = { id: '0199a1b2-0000-7000-8000-000000000009', name: 'Lan', role: 'USER' };
+    const sampleVenue = {
+      id: 'v1', name: 'Sân Cầu Lông 1', address: '12 Nguyễn Trãi', phone: '0901234567',
+      opensAt: 360, closesAt: 1320,
+      courts: [{ id: 'c1', venueId: 'v1', name: 'Sân 1', sport: 'BADMINTON', priceNormal: 80000, pricePeak: 110000, peakStart: 1020, peakEnd: 1260 }],
+    };
     vi.stubGlobal('fetch', vi.fn((url: string) => {
-      const [status, body] = url === '/api/auth/me' ? [401, { message: 'Bạn cần đăng nhập' }] : url === '/api/auth/register' ? [201, lan] : [200, []];
+      const [status, body] = url === '/api/auth/me' ? [401, { message: 'Bạn cần đăng nhập' }] : url === '/api/auth/register' ? [201, lan] : url === '/api/venues' ? [200, [sampleVenue]] : [200, []];
       return Promise.resolve({ ok: (status as number) < 400, status, json: () => Promise.resolve(body) });
     }));
     render(<App />);
@@ -48,8 +53,10 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
 
-    expect(await screen.findByRole('heading', { name: 'Đặt sân' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Trận đang mở' })).toBeTruthy();
     expect(within(screen.getByRole('banner')).getByText('Lan')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('link', { name: /Sân Cầu Lông 1/ }));
+    expect(await screen.findByRole('heading', { name: 'Đặt sân' })).toBeTruthy();
   });
 
   it('shows the owner requests to an owner', async () => {
@@ -120,28 +127,47 @@ describe('App', () => {
     return Promise.resolve({ ok: (status as number) < 400, status, json: () => Promise.resolve(body) });
   }));
 
+  const sampleVenueForSan = {
+    id: 'v1', name: 'Sân Cầu Lông 1', address: '12 Nguyễn Trãi', phone: '0901234567',
+    opensAt: 360, closesAt: 1320,
+    courts: [{ id: 'c1', venueId: 'v1', name: 'Sân 1', sport: 'BADMINTON', priceNormal: 80000, pricePeak: 110000, peakStart: 1020, peakEnd: 1260 }],
+  };
+  const asWithVenue = (me: unknown) => vi.stubGlobal('fetch', vi.fn((url: string) => {
+    const [status, body] = url === '/api/auth/me' ? (me ? [200, me] : [401, { message: 'Bạn cần đăng nhập' }]) : url === '/api/venues' ? [200, [sampleVenueForSan]] : [200, []];
+    return Promise.resolve({ ok: (status as number) < 400, status, json: () => Promise.resolve(body) });
+  }));
+
   it('AC-14: a guest sees the free hours and the notice once', async () => {
     as(null);
+    window.history.pushState({}, '', '/san');
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Giờ trống' })).toBeTruthy();
     expect(screen.getAllByText(NOTICE)).toHaveLength(1);
   });
 
   it('AC-14: a user sees the free hours and the booking form, and the notice once', async () => {
-    as({ id: 'x', name: 'An', role: 'USER' });
+    asWithVenue({ id: 'x', name: 'An', role: 'USER' });
+    window.history.pushState({}, '', '/san');
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Giờ trống' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Đặt sân' })).toBeTruthy();
+    expect(screen.getAllByText(NOTICE)).toHaveLength(1);
+
+    fireEvent.click(await screen.findByRole('link', { name: /Sân Cầu Lông 1/ }));
+    expect(await screen.findByRole('heading', { name: 'Đặt sân' })).toBeTruthy();
     expect(screen.getAllByText(NOTICE)).toHaveLength(1);
   });
 
   it('AC-7: a user sees the search box once, in the free hours, and the booking form has none', async () => {
-    as({ id: 'x', name: 'An', role: 'USER' });
+    asWithVenue({ id: 'x', name: 'An', role: 'USER' });
+    window.history.pushState({}, '', '/san');
     render(<App />);
     const freeHours = (await screen.findByRole('heading', { name: 'Giờ trống' })).closest('section')!;
     expect(screen.getAllByLabelText('Tìm theo tên sân')).toHaveLength(1);
     expect(within(freeHours).getByLabelText('Tìm theo tên sân')).toBeTruthy();
-    expect(within(screen.getByRole('heading', { name: 'Đặt sân' }).closest('section')!).queryByLabelText('Tìm theo tên sân')).toBeNull();
+
+    fireEvent.click(await screen.findByRole('link', { name: /Sân Cầu Lông 1/ }));
+    const bookingForm = (await screen.findByRole('heading', { name: 'Đặt sân' })).closest('section')!;
+    expect(within(bookingForm).queryByLabelText('Tìm theo tên sân')).toBeNull();
   });
 
   it.each([['OWNER', 'Yêu cầu đặt sân'], ['ADMIN', null]] as const)('AC-14: a %s does not see the free hours', async (role, heading) => {
@@ -295,7 +321,7 @@ describe('App', () => {
     const { calls, subscription } = withPush();
     try {
       render(<App />);
-      fireEvent.click(await screen.findByRole('button', { name: /An/ }));
+      fireEvent.click(await within(screen.getByRole('banner')).findByRole('button', { name: /An/ }));
       const logoutButton = await screen.findByRole('button', { name: 'Đăng xuất' });
       // resyncPush runs once after the page load; wait for it, or a slow run can read the stored user after the logout cleared it.
       await waitFor(() => expect(calls).toContain('POST push'));
@@ -316,7 +342,7 @@ describe('App', () => {
     const { calls } = withPush({ unsubscribeFails: true, deleteStatus: 500 });
     try {
       render(<App />);
-      fireEvent.click(await screen.findByRole('button', { name: /An/ }));
+      fireEvent.click(await within(screen.getByRole('banner')).findByRole('button', { name: /An/ }));
       const logoutButton = await screen.findByRole('button', { name: 'Đăng xuất' });
       // resyncPush runs once after the page load; wait for it, or a slow run can read the stored user after the logout cleared it.
       await waitFor(() => expect(calls).toContain('POST push'));
@@ -334,7 +360,7 @@ describe('App', () => {
     const { calls } = withPush();
     try {
       render(<App />);
-      await screen.findByRole('button', { name: /An/ });
+      await within(screen.getByRole('banner')).findByRole('button', { name: /An/ });
 
       await waitFor(() => expect(calls).toEqual(['POST push']));
     } finally {
@@ -457,7 +483,7 @@ describe('App', () => {
 
     const alert = (await screen.findByText(message)).closest('[role="alert"]') as HTMLElement;
     expect(alert).toBeTruthy();
-    expect(await screen.findByRole('heading', { name: 'Đặt sân' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Trận đang mở' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Đăng nhập' })).toBeNull();
     await waitFor(() => expect(window.location.search).toBe(''));
     expect(screen.getByText(message)).toBeTruthy();
@@ -713,5 +739,35 @@ describe('App', () => {
     expect(await within(main).findByRole('heading', { name: 'Lan' })).toBeTruthy();
     fireEvent.click(within(main).getByRole('button', { name: 'Sửa hồ sơ' }));
     expect(within(screen.getByRole('status')).getByText('Sắp ra mắt')).toBeTruthy();
+  });
+
+  it('AC-3: USER at / clicks "Tin nhắn" then "Tạo trận đội" to see "Sắp ra mắt" with no navigation or fetch', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      const [status, body] = url === '/api/auth/me' ? [200, { id: 'u-an', name: 'An', role: 'USER' }] : [200, []];
+      return Promise.resolve({ ok: (status as number) < 400, status, json: () => Promise.resolve(body) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Trận đang mở' })).toBeTruthy();
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map(([url]) => url);
+      expect(urls).toContain('/api/notifications');
+      expect(urls).toContain('/api/matches');
+      expect(urls).toContain('/api/bookings/mine');
+      expect(urls).toContain('/api/venues');
+    });
+
+    const callsBefore = fetchMock.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tin nhắn' }));
+    expect(within(screen.getByRole('status')).getAllByText('Sắp ra mắt')).toHaveLength(1);
+    expect(window.location.pathname).toBe('/');
+    expect(fetchMock.mock.calls.length).toBe(callsBefore);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo trận đội' }));
+    expect(within(screen.getByRole('status')).getAllByText('Sắp ra mắt')).toHaveLength(2);
+    expect(window.location.pathname).toBe('/');
+    expect(fetchMock.mock.calls.length).toBe(callsBefore);
   });
 });

@@ -14,9 +14,11 @@ import { Lobby } from '../features/matches/Lobby.tsx';
 import { MyVenues } from '../features/venues/MyVenues.tsx';
 import { StaffSection } from '../features/staff/StaffSection.tsx';
 import { BookPage as InnerBookPage } from './BookPage.tsx';
+import { HomePage as InnerHomePage } from './HomePage.tsx';
 import { useSession } from './session.tsx';
+import { VenuesPage as InnerVenuesPage } from './VenuesPage.tsx';
 
-export function BookPage() {
+export function HomePage() {
   const [searchParams] = useSearchParams();
   const google = searchParams.get('google');
   const googleError = searchParams.get('google_error');
@@ -40,9 +42,7 @@ export function BookPage() {
   if (google === 'complete') {
     return (
       <div className="auth-page">
-        <section className="panel">
-          <GoogleComplete onLogin={handleLogin} />
-        </section>
+        <GoogleComplete onLogin={handleLogin} />
       </div>
     );
   }
@@ -50,9 +50,7 @@ export function BookPage() {
   if (google === 'verify') {
     return (
       <div className="auth-page">
-        <section className="panel">
-          <GoogleVerify onLogin={handleLogin} />
-        </section>
+        <GoogleVerify onLogin={handleLogin} />
       </div>
     );
   }
@@ -72,16 +70,24 @@ export function BookPage() {
   return (
     <>
       {notice && (
-        <div className="notice" role="alert">
+        <div className="notice warnbox" role="alert">
           <span>{notice}</span>{' '}
           <button type="button" className="link" onClick={() => setGoogleNotice(null)}>
             Đóng
           </button>
         </div>
       )}
-      <InnerBookPage />
+      <InnerHomePage />
     </>
   );
+}
+
+export function VenuesPage() {
+  return <InnerVenuesPage />;
+}
+
+export function BookPage() {
+  return <InnerBookPage />;
 }
 
 export function OwnerRequestsPage() {
@@ -103,7 +109,7 @@ export function LobbyPage() {
   const { user, refreshKey, bumpRefresh } = useSession();
 
   return (
-    <div className="lobby-page">
+    <div className="page lobby-page">
       <Lobby
         user={user ?? null}
         refresh={refreshKey}
@@ -118,23 +124,29 @@ export function MyPage() {
   const [tab, setTab] = useState<'upcoming' | 'joined'>('upcoming');
 
   return (
-    <div className="my-page">
-      <nav className="tabs" aria-label="Lịch của tôi">
-        <button
-          type="button"
-          className={tab === 'upcoming' ? 'active' : ''}
-          onClick={() => setTab('upcoming')}
-        >
-          Sắp tới
-        </button>
-        <button
-          type="button"
-          className={tab === 'joined' ? 'active' : ''}
-          onClick={() => setTab('joined')}
-        >
-          Trận đã vào
-        </button>
-      </nav>
+    <div className="page narrow my-page">
+      <div className="page-head">
+        <div>
+          <h1>Lịch của tôi</h1>
+          <p>Mọi booking và mọi trận bạn tham gia.</p>
+        </div>
+        <nav className="seg tabs" aria-label="Lịch của tôi">
+          <button
+            type="button"
+            className={tab === 'upcoming' ? 'on active' : ''}
+            onClick={() => setTab('upcoming')}
+          >
+            Sắp tới
+          </button>
+          <button
+            type="button"
+            className={tab === 'joined' ? 'on active' : ''}
+            onClick={() => setTab('joined')}
+          >
+            Trận đã vào
+          </button>
+        </nav>
+      </div>
       {tab === 'upcoming' ? (
         <MyBookings refresh={refreshKey} onMatchChanged={bumpRefresh} />
       ) : (
@@ -167,9 +179,7 @@ export function AuthPage() {
   if (google === 'complete') {
     return (
       <div className="auth-page">
-        <section className="panel">
-          <GoogleComplete onLogin={handleLogin} />
-        </section>
+        <GoogleComplete onLogin={handleLogin} />
       </div>
     );
   }
@@ -177,9 +187,7 @@ export function AuthPage() {
   if (google === 'verify') {
     return (
       <div className="auth-page">
-        <section className="panel">
-          <GoogleVerify onLogin={handleLogin} />
-        </section>
+        <GoogleVerify onLogin={handleLogin} />
       </div>
     );
   }

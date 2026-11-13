@@ -1,6 +1,7 @@
 import { PRIVACY_NOTICE, type GooglePendingView, type SessionUser } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
 import { api, ApiError } from '@monsport/client';
+import { AuthCard } from './AuthCard.tsx';
 import { isGoogleSessionMissing } from './googleErrors.ts';
 import { GoogleSessionExpired } from './GoogleSessionExpired.tsx';
 
@@ -130,17 +131,17 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
 
   if (expired) {
     return (
-      <>
+      <AuthCard>
         <h2 tabIndex={-1}>Hoàn tất đăng ký</h2>
         <GoogleSessionExpired />
-      </>
+      </AuthCard>
     );
   }
 
   const sendLabel = codeSent ? 'Gửi lại mã' : 'Gửi mã';
 
   return (
-    <>
+    <AuthCard>
       <h2 tabIndex={-1}>Hoàn tất đăng ký</h2>
       {pending && (
         <div className="google-user-info">
@@ -153,8 +154,8 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
         </div>
       )}
       <form onSubmit={handleSubmit} className="stack">
-        <label>
-          Tên
+        <label className="fld">
+          <span>Tên</span>
           <input
             type="text"
             autoComplete="name"
@@ -164,9 +165,9 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
             required
           />
         </label>
-        <div>
-          <label>
-            Số điện thoại
+        <div className="fld-group">
+          <label className="fld">
+            <span>Số điện thoại</span>
             <input
               type="tel"
               inputMode="tel"
@@ -203,12 +204,13 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
           />
-          Tôi đã đọc và đồng ý với thông báo bảo vệ dữ liệu cá nhân ở trên.
+          <span>Tôi đã đọc và đồng ý với thông báo bảo vệ dữ liệu cá nhân ở trên.</span>
         </label>
 
         <div>
           <button
             type="button"
+            className="btn ghost wide"
             onClick={handleSendOtp}
             disabled={!consent || !phone || sendingOtp || countdown > 0}
           >
@@ -218,8 +220,8 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
 
         {codeSent && (
           <div>
-            <label>
-              Mã OTP
+            <label className="fld">
+              <span>Mã OTP</span>
               <input
                 type="text"
                 inputMode="numeric"
@@ -235,17 +237,17 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
         )}
 
         {error && (
-          <p className="error" role="alert">
+          <p className="error bad" role="alert">
             {error}
           </p>
         )}
 
         <div>
-          <button type="submit" disabled={!codeSent || !code || busy}>
+          <button type="submit" className="btn lime wide" disabled={!codeSent || !code || busy}>
             Hoàn tất
           </button>
         </div>
       </form>
-    </>
+    </AuthCard>
   );
 }

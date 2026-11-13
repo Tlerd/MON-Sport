@@ -239,16 +239,16 @@ export function SlotGrid({
           style={{ gridTemplateColumns: `var(--slot-label-width) repeat(${totalCols}, minmax(28px, 1fr))` }}
         >
         {/* Header row */}
-        <div className="slot-grid-corner" />
-        {cols.length > 0 && cols[0] % 60 !== 0 && <div key="h-leading" className="slot-grid-h" />}
+        <div className="slot-grid-corner g-corner" />
+        {cols.length > 0 && cols[0] % 60 !== 0 && <div key="h-leading" className="slot-grid-h g-hour" />}
         {cols.map((minute) => {
           if (minute % 60 === 0) {
             const span = cols.includes(minute + 30) ? 2 : 1;
             return (
               <div
                 key={`h-${minute}`}
-                className="slot-grid-h tnum"
-                style={{ gridColumn: `span ${span}`, fontSize: '11px', color: 'var(--color-ink-muted)' }}
+                className="slot-grid-h g-hour tnum"
+                style={{ gridColumn: `span ${span}`, fontSize: '12px', color: 'var(--ink3)' }}
               >
                 {hhmm(minute)}
               </div>
@@ -261,13 +261,13 @@ export function SlotGrid({
         {courts.map((court, courtIdx) => (
           <div key={court.id} style={{ display: 'contents' }}>
             <div
-              className="slot-grid-court-label"
+              className="slot-grid-court-label g-head"
               style={{
-                fontSize: '14px',
+                fontSize: '13.5px',
                 fontWeight: 600,
                 display: 'flex',
                 alignItems: 'center',
-                color: 'var(--color-ink)',
+                color: 'var(--ink)',
               }}
             >
               {court.name}
@@ -281,18 +281,30 @@ export function SlotGrid({
               const isTaken = cell.status === 'taken' || cell.status === 'mine';
               const isPending = cell.status === 'pending';
               const isConfirmed = cell.status === 'confirmed';
+              const past = mode === 'pick' && minute < pastBefore;
+              const mockStateClass =
+                isPending
+                  ? 'pending'
+                  : isTaken || isConfirmed
+                    ? 'booked'
+                    : past
+                      ? 'past'
+                      : sel
+                        ? 'free on'
+                        : 'free';
 
               const classNames = [
                 'cell',
                 'slot-cell',
+                'g-cell',
+                mockStateClass,
                 peak ? 'peak' : '',
-                mode === 'pick' && minute < pastBefore ? 'past' : '',
+                past ? 'past' : '',
                 sel ? 'sel selected' : '',
                 cell.status,
               ].filter(Boolean).join(' ');
 
               if (mode === 'pick') {
-                const past = minute < pastBefore;
                 const disabled = isTaken || isPending || isConfirmed || past;
                 const ariaLabel = `${court.name} ${hhmm(minute)} ${past ? 'đã qua' : disabled ? 'đã có người' : 'trống'}`;
 

@@ -132,6 +132,11 @@ Khung mới đổi chữ, vai trò và đường dẫn của vài phần tử. C
 | `apps/web/src/app/App.test.tsx` (AC-20, AC-22) | tìm thẳng nút `"Đăng xuất"` | mở menu tài khoản (`/An/`) trước khi tìm nút `"Đăng xuất"` | Nút `"Đăng xuất"` nằm trong hộp bật lên của tài khoản ở thanh trên |
 | `apps/web/src/app/App.test.tsx` (AC-25, AC-14) | tiêu đề "Đặt sân" ở `/` | tiêu đề "Đặt sân" ở `/san/<id>` | Đặt sân nằm ở `/san/<id>` |
 | `apps/web/src/pwa.test.ts` | `<meta name="theme-color" content="#082f26">` | `<meta name="theme-color" content="#101915">` | Màu nền thanh trên đổi sang `--ink` (`#101915`) |
+| `apps/web/src/app/BookPage.test.tsx` | mở thẳng `/` rồi tìm cả "Giờ trống" lẫn chọn khung giờ | mở `/san` cho test tìm sân, mở `/san/<id>` cho test đặt sân | Danh sách đơn vị ở `/san`, màn đặt sân chi tiết ở `/san/<id>` |
+| `apps/web/src/app/App.test.tsx` (AC-25, AC-14, AC-7) | mở `/` rồi tìm "Giờ trống" và "Đặt sân" trên cùng trang | AC-25 kiểm "Trận đang mở" ở `/` rồi qua `/san/<id>` kiểm "Đặt sân"; AC-14 và AC-7 mở `/san` rồi bấm sang `/san/<id>` | Tách `/san` ("Giờ trống" + tìm sân) và `/san/<id>` ("Đặt sân") |
+| `apps/web/src/app/App.test.tsx` (F-004 review) | `findByRole('heading', { name: 'Đặt sân' })` tại `/?google_error=taken` | `findByRole('heading', { name: 'Trận đang mở' })` tại `/?google_error=taken` | Trang `/` là trang chủ (`HomePage`) |
+| `apps/web/src/app/App.test.tsx` (AC-20, AC-22) | `findByRole('button', { name: /An/ })` trên toàn trang | `within(screen.getByRole('banner')).findByRole('button', { name: /An/ })` | Trang chủ có thêm nút khung soạn "Hôm nay ra sân môn gì, An?" |
+| `apps/web/src/features/matches/Lobby.test.tsx` (AC-11) | `screen.getByText('An')` trên toàn trang | `within(playersSection).getByText('An')` trong `.players-section` | Chi tiết trận hiển thị tên host trong mục thông tin chung (`facts`) và trong danh sách người chơi |
 
 ## Risks and reviews
 

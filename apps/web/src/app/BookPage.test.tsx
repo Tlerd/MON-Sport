@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { BookPage } from './BookPage.tsx';
 import { SessionProvider } from './session.tsx';
+import { VenuesPage } from './VenuesPage.tsx';
 
 describe('BookPage (F-017)', () => {
   // 05:30 on 2026-11-21 in Asia/Ho_Chi_Minh: every cell of the day is still ahead, whatever the real clock says.
@@ -74,11 +75,14 @@ describe('BookPage (F-017)', () => {
     return fetchMock;
   }
 
-  function renderPage() {
+  function renderPage(initialPath = `/san/${venue.id}`) {
     return render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={[initialPath]}>
         <SessionProvider>
-          <BookPage />
+          <Routes>
+            <Route path="/san" element={<VenuesPage />} />
+            <Route path="/san/:id" element={<BookPage />} />
+          </Routes>
         </SessionProvider>
       </MemoryRouter>,
     );
@@ -170,9 +174,9 @@ describe('BookPage (F-017)', () => {
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
     }));
 
-    renderPage();
+    renderPage('/san');
 
-    expect(await screen.findByRole('heading', { name: 'Cầu lông A' })).toBeTruthy();
+    expect(await screen.findByText('Cầu lông A')).toBeTruthy();
     expect(screen.getByText('Cầu lông Phương Nam')).toBeTruthy();
 
     const searchInput = screen.getByLabelText('Tìm theo tên sân');
@@ -182,8 +186,8 @@ describe('BookPage (F-017)', () => {
     expect(within(list).getByText('Cầu lông Phương Nam')).toBeTruthy();
     expect(within(list).queryByText('Cầu lông A')).toBeNull();
 
-    // Click the result: opens the venue and never preselects a court
-    fireEvent.click(within(list).getByText('Cầu lông Phương Nam'));
+    // Click the result: opens the venue at /san/:id and never preselects a court
+    fireEvent.click(within(list).getByRole('link', { name: /Cầu lông Phương Nam/ }));
     expect(await screen.findByRole('heading', { name: 'Cầu lông Phương Nam' })).toBeTruthy();
     expect(screen.getAllByText('Chưa chọn')).toHaveLength(2); // Sân and Giờ are both "Chưa chọn"
   });

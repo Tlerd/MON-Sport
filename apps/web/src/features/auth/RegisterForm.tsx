@@ -39,27 +39,27 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
     <>
       <h2 tabIndex={-1}>Tạo tài khoản</h2>
       <form onSubmit={submit} className="stack">
-        <label>
-          Tên của bạn
+        <label className="fld">
+          <span>Tên của bạn</span>
           <input autoComplete="name" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
-        <div>
-          <label>
-            Số điện thoại
+        <div className="fld-group">
+          <label className="fld">
+            <span>Số điện thoại</span>
             <input type="tel" autoComplete="tel-national" aria-describedby="phone-hint" value={phone} onChange={(e) => setPhone(e.target.value)} required />
           </label>
           <p id="phone-hint" className="hint">10 chữ số, bắt đầu bằng 0.</p>
         </div>
-        <div>
-          <label>
-            Mật khẩu
+        <div className="fld-group">
+          <label className="fld">
+            <span>Mật khẩu</span>
             <input type="password" autoComplete="new-password" minLength={8} maxLength={128} aria-describedby="password-hint"
               value={password} onChange={(e) => setPassword(e.target.value)} required />
           </label>
           <p id="password-hint" className="hint">Ít nhất 8 ký tự.</p>
         </div>
-        <label>
-          Trình độ
+        <label className="fld">
+          <span>Trình độ</span>
           <select
             ref={selectRef}
             value={skillLevel}
@@ -86,15 +86,15 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
         </div>
         <label className="consent">
           <input type="checkbox" aria-describedby="privacy-notice" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-          Tôi đã đọc và đồng ý với thông báo bảo vệ dữ liệu cá nhân ở trên.
+          <span>Tôi đã đọc và đồng ý với thông báo bảo vệ dữ liệu cá nhân ở trên.</span>
         </label>
         {error && (
-          <p id={hasSkillError ? 'skill-level-error' : undefined} className="error" role="alert">
+          <p id={hasSkillError ? 'skill-level-error' : undefined} className="error bad" role="alert">
             {error}
           </p>
         )}
         <div>
-          <button type="submit" disabled={!consent || busy} aria-describedby={consent ? undefined : 'consent-hint'}>Tạo tài khoản</button>
+          <button type="submit" className="btn lime wide" disabled={!consent || busy} aria-describedby={consent ? undefined : 'consent-hint'}>Tạo tài khoản</button>
           {!consent && <p id="consent-hint" className="hint">Tick ô đồng ý để tạo tài khoản.</p>}
         </div>
       </form>

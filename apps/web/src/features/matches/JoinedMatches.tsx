@@ -45,19 +45,26 @@ export function JoinedMatches({ refresh = 0 }: { refresh?: number }) {
         {matches?.length === 0 && !error && <EmptyState message="Bạn chưa vào trận nào" />}
       </div>
       {matches && matches.length > 0 && (
-        <ul className="tickets joined-matches-list">
+        <ul className="tickets joined-matches-list schedule-list">
           {matches.map((m) => (
-            <li key={m.id} className="ticket card-web" data-status={m.status}>
-              <span className="stub">
-                <strong>{formatTime(m.startAt)}</strong>
-                <span>đến {formatTime(m.endAt)}</span>
-              </span>
-              <span className="body">
-                <span className="where">{`${m.venueName} · ${m.courtName}`}</span>
-                <span>{`Ngày ${formatDay(m.startAt)} · ${formatTime(m.startAt)}–${formatTime(m.endAt)}`}</span>
-                <span>{`${m.joinedCount}/${m.capacity} suất`}</span>
-                <StatusBadge className="status" status={m.status} label={STATUS_LABEL[m.status]} />
-              </span>
+            <li key={m.id} className="card ticket si-item" data-status={m.status}>
+              <div className="si">
+                <div className="stub si-t">
+                  <strong>{formatTime(m.startAt)}</strong>
+                  <span>đến {formatTime(m.endAt)}</span>
+                </div>
+                <div className="body si-b">
+                  <div className="si-top">
+                    <b className="where">{`${m.venueName} · ${m.courtName}`}</b>
+                    <StatusBadge className="status" status={m.status} label={STATUS_LABEL[m.status]} />
+                  </div>
+                  <div className="si-meta">
+                    <span>{`Ngày ${formatDay(m.startAt)} · ${formatTime(m.startAt)}–${formatTime(m.endAt)}`}</span>
+                    <span aria-hidden="true"> · </span>
+                    <span>{`${m.joinedCount}/${m.capacity} suất`}</span>
+                  </div>
+                </div>
+              </div>
             </li>
           ))}
         </ul>

@@ -182,18 +182,37 @@ function TopBar({
 export function PlayerShell() {
   const { user } = useSession();
   const { comingSoon } = useToast();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleSearch = () => {
     const q = searchText.trim();
+    setDrawerOpen(false);
     navigate(q ? `/san?q=${encodeURIComponent(q)}` : '/san');
   };
+
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawerOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
 
   return (
     <div className="shell player-shell">
       <TopBar
         homeTo="/"
+        hasSidebar
+        drawerOpen={drawerOpen}
+        onToggleDrawer={() => setDrawerOpen((v) => !v)}
         leftExtra={
           <div className="search" role="search">
             <Search size={16} className="ic" aria-hidden="true" />
@@ -257,6 +276,89 @@ export function PlayerShell() {
           </>
         }
       />
+      {drawerOpen && (
+        <>
+          <div
+            className="scrim drawer-scrim"
+            aria-hidden="true"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside className="lcol float open" aria-label="Menu điều hướng">
+            <div className="search drawer-search" role="search">
+              <Search size={16} className="ic" aria-hidden="true" />
+              <input
+                type="search"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearch();
+                  }
+                }}
+                placeholder="Tìm sân, trận..."
+                aria-label="Tìm sân từ menu"
+              />
+            </div>
+            <div className="card me-card">
+              {user ? (
+                <NavLink to="/ho-so" className="me-link" onClick={() => setDrawerOpen(false)}>
+                  <span className="av avatar" style={{ '--s': '44px', '--c': 'var(--ok)' } as CSSProperties} aria-hidden="true">
+                    {initial(user.name)}
+                  </span>
+                  <span className="me-meta">
+                    <b>{user.name}</b>
+                    <small>{ROLE_LABEL[user.role]}</small>
+                  </span>
+                </NavLink>
+              ) : (
+                <NavLink to="/dang-nhap" className="btn lime wide" onClick={() => setDrawerOpen(false)}>
+                  Đăng nhập
+                </NavLink>
+              )}
+            </div>
+            <nav className="card lnav" aria-label="Lối tắt">
+              {user && (
+                <NavLink to="/lich-cua-toi" className={navClass} onClick={() => setDrawerOpen(false)}>
+                  <Calendar size={18} className="ic" aria-hidden="true" />
+                  <span>Lịch của tôi</span>
+                </NavLink>
+              )}
+              <NavLink to="/phong-cho" className={navClass} onClick={() => setDrawerOpen(false)}>
+                <Users size={18} className="ic" aria-hidden="true" />
+                <span>Ghép trận</span>
+              </NavLink>
+              <NavLink to="/san" className={navClass} onClick={() => setDrawerOpen(false)}>
+                <MapPin size={18} className="ic" aria-hidden="true" />
+                <span>Tìm sân</span>
+              </NavLink>
+              <hr className="lnav-sep" />
+              <button
+                type="button"
+                className="lnav-btn"
+                onClick={() => {
+                  setDrawerOpen(false);
+                  comingSoon();
+                }}
+              >
+                <Shield size={18} className="ic" aria-hidden="true" />
+                <span>Đội của tôi</span>
+              </button>
+              <button
+                type="button"
+                className="lnav-btn"
+                onClick={() => {
+                  setDrawerOpen(false);
+                  comingSoon();
+                }}
+              >
+                <Trophy size={18} className="ic" aria-hidden="true" />
+                <span>Thành tích</span>
+              </button>
+            </nav>
+          </aside>
+        </>
+      )}
       <main className="player-main">
         <Outlet />
       </main>

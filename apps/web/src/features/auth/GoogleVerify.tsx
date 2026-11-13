@@ -1,5 +1,6 @@
 import type { SessionUser } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
+import { AuthCard } from './AuthCard.tsx';
 import { isGoogleSessionMissing } from './googleErrors.ts';
 import { GoogleSessionExpired } from './GoogleSessionExpired.tsx';
 
@@ -109,23 +110,24 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
 
   if (expired) {
     return (
-      <>
+      <AuthCard>
         <h2 tabIndex={-1}>Xác minh số điện thoại</h2>
         <GoogleSessionExpired />
-      </>
+      </AuthCard>
     );
   }
 
   const sendLabel = codeSent ? 'Gửi lại mã' : 'Gửi mã';
 
   return (
-    <>
+    <AuthCard>
       <h2 tabIndex={-1}>Xác minh số điện thoại</h2>
       <p className="hint">Mã xác minh sẽ được gửi đến số điện thoại của tài khoản.</p>
       <form onSubmit={handleSubmit} className="stack">
         <div>
           <button
             type="button"
+            className="btn ghost wide"
             onClick={handleSendOtp}
             disabled={sendingOtp || countdown > 0}
           >
@@ -135,8 +137,8 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
 
         {codeSent && (
           <div>
-            <label>
-              Mã OTP
+            <label className="fld">
+              <span>Mã OTP</span>
               <input
                 type="text"
                 inputMode="numeric"
@@ -152,17 +154,17 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
         )}
 
         {error && (
-          <p className="error" role="alert">
+          <p className="error bad" role="alert">
             {error}
           </p>
         )}
 
         <div>
-          <button type="submit" disabled={!codeSent || !code || busy}>
+          <button type="submit" className="btn lime wide" disabled={!codeSent || !code || busy}>
             Xác minh
           </button>
         </div>
       </form>
-    </>
+    </AuthCard>
   );
 }
