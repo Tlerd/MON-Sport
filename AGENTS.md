@@ -5,7 +5,7 @@ Web app to book sports courts and join matches. Venue owners confirm bookings by
 ## Commands
 
 - `pnpm install`: installs the tools and turns on the git hook.
-- `pnpm check`: runs the tests, the type-check, and the import rules. One line when all pass, the failing lines when one fails.
+- `pnpm check`: runs the tests, the type-check, the import rules, and the secret scan (gitleaks, `.gitleaks.toml`). One line when all pass, the failing lines when one fails.
 - `pnpm dev:api` and `pnpm dev:web`: start the API on port 3000 and the web app, which sends `/api` to the API.
 - `pnpm db:start`: starts the local Postgres on port 55432. Copy `apps/api/.env.example` to `apps/api/.env`. The API tests need it.
 - `pnpm map`: rewrites `@map.md`, the list of code files with their exported names. Read it to find a file. `pnpm check` fails when it is stale.
@@ -35,14 +35,16 @@ A folder appears when its first feature needs it. `.dependency-cruiser.cjs` hold
 
 ## Autonomy
 
-The user starts work with "tiếp tục", "continue", or a goal. Take it to a live result: plan, build, review, merge, deploy. The user is not there to answer, so a question stops the work. Decide, and let the user correct later.
+The user starts work with "tiếp tục", "continue", or a goal. Take it to a pull request that is ready to merge: plan, build, review, checks green. The user is not there to answer, so a question stops the work. Decide, and let the user correct later.
+
+An agent merges a ready pull request with `node scripts/merge.mjs <n>` only, in merge order (`HUMAN_DECISIONS.md`, row 50). The script refuses a red check or a missing review marker. The merge deploys. After a merge, check the deploy run and the live service. Fix a failure in a new pull request.
 
 - Start with `git status`, `PROGRESS.md`, and `HUMAN_DECISIONS.md`. Finish work in progress first. Without a goal, do the steps in `PROGRESS.md` in order, then the next slice by the launch order in the intake.
 - Keep a task list for the run and mark items done. Stop only when the next item needs the user, or a rule here stops you. A turn that ends with a summary, an offer to continue, or a list of decisions that block nothing leaves work undone. A step only the user can do goes in `PROGRESS.md`; go on with the other items.
-- End each run with a short report: what is done, the assumptions, the service URL, what is next.
+- End each run with a short report: what is done, the pull requests merged, each one still open with the reason, the assumptions, the service URL, what is next.
 - When the intake or a brief leaves a decision open, choose what the intake supports best, or else the safer option. Write it under "Assumptions" with the reason. Record a decision that is costly to reverse in `docs/adr/`.
 - A finding of medium or higher still open after 2 review rounds: choose the safest fix, record the finding in the pull request and `PROGRESS.md`, post `<!-- review-accepted head=<sha> -->` on the pull request, and continue.
-- Each step of a brief gets its own branch `feat/<issue>-<step>-<slug>` (for example `feat/12-1-booking-schema`), its own pull request, a Reviewer, and a merge with `node scripts/merge.mjs <n>`. Wait for the checks in the background. A change to money, concurrency, the schema, or personal data gets the strongest model and also the skill `rule-review`. Load the skill `agent-workflow` (`.agents/skills/agent-workflow/SKILL.md`) for the roles, the review rounds, the coder fallback when quota runs out, and the deploy check.
+- Each step of a brief gets its own branch `feat/<issue>-<step>-<slug>` (for example `feat/12-1-booking-schema`), its own pull request, and a Reviewer. A step that needs an unmerged step branches from that step's branch and uses it as the pull request base. Wait for the checks in the background. A change to money, concurrency, the schema, or personal data gets the strongest model and also the skill `rule-review`. Load the skill `agent-workflow` (`.agents/skills/agent-workflow/SKILL.md`) for the roles, the review rounds, the coder fallback when quota runs out, and the deploy check.
 - Before a pull request that changes a screen, and after each deploy, run the skill `verify-flow`.
 - Spend time and tokens on the result: read the files a step needs, and run long commands in the background.
 
@@ -61,7 +63,7 @@ The session model is the Planner and the Reviewer. The skill `agent-workflow` ho
 
 These keep the work safe. Do not bend them to make work pass:
 
-- Force push, push to `main`, and merging with a failing check.
+- Force push, push to `main`, and a merge by any way other than `node scripts/merge.mjs` (no `gh pr merge`, no `--admin`).
 - Deleting data, a branch, or a cloud resource that this work did not create.
 - Writing a secret or a password into code, a log, a commit, or a comment.
 - Weakening `pnpm check`, CI, the hooks, or these rules.
@@ -70,6 +72,6 @@ These keep the work safe. Do not bend them to make work pass:
 
 Git and the tests hold the state: read `git log --oneline -15` and run `pnpm check`. A criterion with a passing `AC-n` test is done.
 
-`PROGRESS.md` holds the next step. Rewrite it in place when the next step changes, in the same pull request, before the merge.
+`PROGRESS.md` holds the next step. Rewrite it in place when the next step changes, in the same pull request, before the merge. When a feature is done, move its record to `COMPLETED.md`.
 
 `HUMAN_DECISIONS.md` holds each decision or step that only the user can do, with the default that agents follow. Add a row when work needs one. Move it to "Đã chốt" when the user answers, in the same pull request. Never delete a row.

@@ -16,7 +16,7 @@ Chủ sân tạo tài khoản nhân viên cho một đơn vị của mình. Nhâ
 
 | Non-goal | Why it is out | When it comes back |
 |---|---|---|
-| Nhân viên hủy booking hoặc đánh dấu đã thu tiền | Intake W3 để ngỏ. Hủy và tiền là việc của chủ sân. Mặc định an toàn hơn | Khi bạn chốt dòng 57 của `HUMAN_DECISIONS.md` |
+| Nhân viên hủy booking hoặc đánh dấu đã thu tiền | Intake W3 để ngỏ. Hủy và tiền là việc của chủ sân. Mặc định an toàn hơn | Khi bạn chốt dòng 59 của `HUMAN_DECISIONS.md` |
 | Một nhân viên làm cho nhiều đơn vị | Cần bảng liên kết và chọn đơn vị | Khi bạn cần |
 | Thông báo cho nhân viên | Thông báo `BOOKING_REQUESTED` vẫn tới chủ sân | Khi bạn cần |
 | App mobile cho nhân viên | Làm web trước. App chuyển `STAFF` sang thông báo "Dùng web" | Brief app của W3 |
@@ -118,7 +118,7 @@ One pull request for each row. Each pull request passes the check command on its
 
 | Assumption | Why |
 |---|---|
-| Nhân viên không hủy booking, không đánh dấu đã thu tiền (dòng 57) | Intake W3 để ngỏ việc xóa booking. Hủy và tiền ảnh hưởng tới khách và doanh thu, nên chọn mặc định an toàn hơn |
+| Nhân viên không hủy booking, không đánh dấu đã thu tiền (dòng 59) | Intake W3 để ngỏ việc xóa booking. Hủy và tiền ảnh hưởng tới khách và doanh thu, nên chọn mặc định an toàn hơn |
 | Mỗi nhân viên làm cho một đơn vị | Đủ cho người trực sân. Cột trên `User` đơn giản hơn bảng liên kết |
 | "Xóa" nhân viên là khóa tài khoản | Giữ lịch sử booking mà nhân viên đã xác nhận. Không xóa dữ liệu |
 | Chủ sân xác nhận nhân viên đã đồng ý (BR-29) | Nhân viên không tự đăng ký |

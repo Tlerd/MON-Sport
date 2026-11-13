@@ -8,7 +8,9 @@ import { connect } from 'node:net';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { acquire, lockPath } from './check-lock.mjs';
+import { DOC_LIMITS, sizeFailures } from './doc-size.mjs';
 import { hookSkips } from './hook-skip.mjs';
+import { INSTALL_HINT, scan } from './secret-scan.mjs';
 
 const MAX_LINES = 60;
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -89,14 +91,27 @@ const failures = [];
 }
 
 // Every session reads these files, so they stay short.
-for (const [file, limit] of [['AGENTS.md', 100], ['PROGRESS.md', 40]]) {
+for (const [file, limit] of Object.entries(DOC_LIMITS)) {
   if (!existsSync(join(root, file))) continue;
-  const lines = readFileSync(join(root, file), 'utf8').trimEnd().split('\n').length;
-  if (lines > limit) {
-    failures.push(
-      `FAIL size: ${file} has ${lines} lines and the limit is ${limit}\n` +
-        'Fix: keep what the next session needs. Move the rest into code, a test, or a commit message.',
-    );
+  failures.push(...sizeFailures(file, readFileSync(join(root, file), 'utf8'), limit));
+}
+
+// Secrets in the staged and the unstaged changes. In GitHub Actions the job "secrets" scans the commits instead.
+// The gate is GITHUB_ACTIONS, not CI: some agent shells set CI, and the scan must still run there.
+const warnings = [];
+let secretsScanned = false;
+if (!process.env.GITHUB_ACTIONS) {
+  const { status, output } = scan({ cwd: root, config: join(root, '.gitleaks.toml') });
+  secretsScanned = status === 'ok';
+  if (status === 'missing') {
+    warnings.push(`WARN secrets: gitleaks is not installed, so no secret scan ran. CI still scans. ${INSTALL_HINT}`);
+  } else if (status !== 'ok') {
+    // Only a leak gets the secret hint. An error (a policy break, a git failure, a config gitleaks cannot load) says its own cause.
+    const hint =
+      status === 'leak'
+        ? '\nFix: remove the secret and read it from an environment variable. For public test data, add an allowlist entry with a reason to .gitleaks.toml.'
+        : '';
+    failures.push(`FAIL secrets: gitleaks (${status})\n${output}${hint}`);
   }
 }
 
@@ -121,7 +136,10 @@ for (const [name, command] of steps) {
 }
 
 if (failures.length === 0) {
-  if (!hook) console.log(`check ok: ${steps.map(([name]) => name).join(', ')}`);
+  if (!hook) {
+    console.log(`check ok: ${[...steps.map(([name]) => name), ...(secretsScanned ? ['secrets'] : [])].join(', ')}`);
+    for (const warning of warnings) console.error(warning);
+  }
   release();
   process.exit(0);
 }
