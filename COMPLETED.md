@@ -1,6 +1,6 @@
 # Completed
 
-This file lists the features that are done: the issue, the pull requests, the brief, and the criteria that pass. When a feature is done, add it here and take it out of `PROGRESS.md`. Open work stays in `PROGRESS.md`. Decisions are in `HUMAN_DECISIONS.md`. History is in git.
+This file lists the features that are done, and the done steps of a feature that is partly done: the issue, the pull requests, the brief, and the criteria that pass. When a feature is done, add it here and take it out of `PROGRESS.md`. Open work stays in `PROGRESS.md`. Decisions are in `HUMAN_DECISIONS.md`. History is in git.
 
 ## Web (V1)
 
@@ -12,9 +12,9 @@ This file lists the features that are done: the issue, the pull requests, the br
 - F-010 is done (issue #57, PRs #56, #58; brief `docs/briefs/F-010-tim-theo-ten-san.md`): search by court name in "Giờ trống", AC-1 to AC-8 pass. A result opens the venue and never preselects a court: the user decides.
 - F-009 is done (issue #60, PRs #59, #61, #62; brief `docs/briefs/F-009-nguoi-dung-huy-booking-va-xem-lich-su.md`): a user cancels a booking (BR-11, BR-12) and sees "Booking của tôi" with the venue, the court, and the cancelled state. An owner cancels an `APP` booking too, until it starts. AC-1 to AC-19 pass. `GET /api/bookings/mine` is USER only now, and it expires overdue requests.
 - F-011, F-012, F-013, F-015, and F-016 are done (issues #64, #68, #72, #77, #81; PRs #65-#67, #69-#71, #73-#75, #78-#80, #82-#84, and step 3 of F-016). F-011: matches/lobby. F-012: join/leave, SSE. F-013: in-app notifications. F-015: owner finance dashboard (UC-12). F-016: admin site-wide stats (UC-13), `GET /api/admin/stats` and the "Số liệu" tab, with week helpers in `packages/shared/src/booking-time.ts`. AC-1 to AC-12 pass in F-011 to F-015, AC-1 to AC-14 in F-016. `verify-flow` has no flow for the admin screens, so F-016 got a manual check at 390px and desktop.
-- F-014 is done (issue #86, PRs #87-#89 and step 3): Web Push for UC-14, with `sw.js`, the manifest, and the button in the notification drawer. AC-1 to AC-22 pass. The real-device test on 2026-10-21 failed: the owner and the requester did not see a new notification at the same time. A local run showed that the server sends the push (LISTEN, claim, send reach the push service). The in-app list reloaded only after the user's own action. PRs #94 and #101 fix that (AC-23), live since 2026-10-23. Web Push is not done until an Android phone passes (`PROGRESS.md`).
+- F-014 is partly done; its open item is in `PROGRESS.md` (issue #86, PRs #87-#89 and step 3): Web Push for UC-14, with `sw.js`, the manifest, and the button in the notification drawer. AC-1 to AC-22 pass. The real-device test on 2026-10-21 failed: the owner and the requester did not see a new notification at the same time. A local run showed that the server sends the push (LISTEN, claim, send reach the push service). The in-app list reloaded only after the user's own action. PRs #94 and #101 fix that (AC-23), live since 2026-10-23. Web Push is not done until an Android phone passes (`PROGRESS.md`).
 - F-017 is done (issue #103, PRs #102, #104 and step 2; brief `docs/briefs/F-017-giao-dien-web-theo-design.md`): the web UI follows `DESIGN.md` (tokens, `SlotGrid` time windows, player top nav, owner and admin sidebar), and no page is wider than the window at 390px, 1024px and 1440px. AC-1 to AC-8 pass. `pnpm check` takes a lock per checkout since PR #100, so two sessions in one checkout wait for each other.
-- F-004 steps 1 to 3 are done. Step 4 (live) waits for the user (`PROGRESS.md`). Live users must log in again after the F-004 step 2 deploy (one key per cookie).
+- F-004 is partly done; its open item is in `PROGRESS.md`. Steps 1 to 3 are done. Step 4 (live) waits for the user. Live users must log in again after the F-004 step 2 deploy (one key per cookie).
 
 ## Mobile app (V1)
 
