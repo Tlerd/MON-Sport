@@ -30,7 +30,7 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-17 | Khi host hủy trận, booking của trận chuyển sang "Đã hủy" | action enabler | static | Intake, Trạng thái của trận |
 | BR-18 | Người ghép trận rời trận được tới giờ bắt đầu | constraint | static | Intake, Assumptions |
 | BR-19 | Trận chuyển sang "Đã đá xong" khi qua giờ kết thúc của booking | action enabler | static | Intake, Assumptions |
-| BR-20 | Chỉ chủ sân của booking và host của trận thấy số điện thoại của người dùng | constraint | static | Intake, Data |
+| BR-20 | Chỉ chủ sân của booking và host của trận thấy số điện thoại của người dùng. BR-55 mở rộng cho nhân viên của đơn vị | constraint | static | Intake, Data |
 | BR-21 | Doanh thu chỉ tính các booking "Đã xác nhận" có đánh dấu "đã thu tiền tại sân" | computation | static | Intake, UC-12 |
 | BR-22 | Admin không xác nhận và không hủy booking | constraint | static | Intake, Phân quyền |
 | BR-23 | Chủ sân chỉ xem và sửa dữ liệu của các đơn vị mình quản lý | constraint | static | Intake, Phân quyền |
@@ -59,6 +59,15 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-46 | Gỡ liên kết Google chỉ được phép khi tài khoản có mật khẩu. Tài khoản chỉ có Google nhận 400 "Hãy đặt mật khẩu trước khi gỡ Google" | constraint | static | Brief F-004, R6 |
 | BR-47 | Mỗi mã OTP gắn với một mục đích (`purpose`). Mã của mục đích này không được dùng cho mục đích khác | constraint | static | Brief F-004, O7 |
 | BR-48 | Khi nhà cung cấp tin nhắn lỗi, hệ thống trả về 503 "Không gửi được mã. Thử lại sau". Server xóa mã mới theo `codeHash`, và trừ 1 ở hai bộ đếm `otp-phone` và `otp-day` đã tăng, không xuống dưới 0 | action enabler | dynamic | Brief F-004, O8 |
+| BR-49 | Trận có một chế độ vào trận: "Vào ngay" hoặc "Host duyệt". Host chọn lúc mở trận và không đổi sau đó | constraint | static | Intake V2, W1, brief F-028 |
+| BR-50 | Yêu cầu vào trận không giữ suất. Chỉ khi host duyệt, người đó mới có suất, và chỉ khi trận còn suất. Kiểm tra và thêm người dưới cùng một khóa với BR-15 | constraint | dynamic | Intake V2, W1, brief F-028 |
+| BR-51 | Người bị host từ chối không gửi lại yêu cầu vào trận đó | constraint | dynamic | Intake V2, W1, brief F-028 |
+| BR-52 | Yêu cầu "Chờ duyệt" hết hạn khi trận không còn "Mở" hoặc "Đầy", hoặc khi đã qua giờ bắt đầu. Trận "Đầy" không làm yêu cầu hết hạn. Mọi chỗ đọc yêu cầu áp dụng cùng quy tắc này | computation | dynamic | Intake V2, W1, brief F-028 |
+| BR-53 | Trình độ của trận là trình độ của host. Phòng chờ lọc trận theo trình độ của host. Host chưa chọn trình độ chỉ hiện khi không lọc | constraint | static | Intake V2, W4, brief F-029 |
+| BR-54 | Đặt cố định tạo một booking cho mỗi tuần dưới một khóa `Court`. Buổi trùng giờ với booking active bị bỏ và báo lại. Các buổi khác vẫn được tạo. Giá mỗi buổi tính lúc đặt (BR-6). | action enabler | dynamic | Intake V2, W2, brief F-030 |
+| BR-55 | Nhân viên làm cho một đơn vị. Nhân viên xem và xác nhận yêu cầu, và nhập booking gọi điện của đơn vị đó. Nhân viên không hủy booking, không đánh dấu đã thu tiền, không xem doanh thu, không sửa giá. Nhân viên của đơn vị thấy số điện thoại của khách đặt sân ở đơn vị đó (mở rộng BR-20) | constraint | static | Intake V2, W3, brief F-031 |
+| BR-56 | Host chấm mỗi người có suất trong trận, sau giờ bắt đầu và trong 7 ngày. Mỗi người một điểm mỗi trận: từ 1 đến 5 sao, hoặc Vắng mặt không có sao. Chấm lại thì sửa điểm cũ. | action enabler | dynamic | Intake V2, W5, brief F-032 |
+| BR-57 | Điểm uy tín của người chơi là trung bình số sao (một chữ số thập phân), số điểm có sao và số lần vắng. Chỉ host của trận Host duyệt thấy điểm uy tín của người xin. | computation | dynamic | Intake V2, W5, brief F-032 |
 
 ## Assumptions
 
@@ -66,3 +75,5 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 - Quy tắc lưới giờ: giờ kết thúc cũng nằm trên lưới 30 phút. Bản intake chỉ ghi bước 30 phút cho giờ bắt đầu.
 - Quy tắc khóa tài khoản: tài khoản bị khóa không đăng nhập được. Bản intake chỉ ghi admin "khóa tài khoản".
 - Quy tắc đồng ý lúc đăng ký: intake chưa trả lời Luật 91/2025 có yêu cầu đồng ý lúc đăng ký hay không (open item 4). Ô đồng ý bắt buộc là lựa chọn an toàn hơn. Bạn sửa quy tắc này khi có ý kiến của người tư vấn luật.
+- Quy tắc chấm điểm (BR-56): điểm từ 1 đến 5 sao hoặc vắng mặt không có sao.
+- Quy tắc điểm uy tín (BR-57): điểm uy tín là trung bình số sao và số lần vắng mặt, không gộp công thức (brief F-032).

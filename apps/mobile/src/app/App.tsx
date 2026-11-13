@@ -185,7 +185,8 @@ export function App() {
     }
   }, [user?.role, location.pathname, navigate]);
 
-  if (user?.role === 'ADMIN') {
+  if (user?.role === 'ADMIN' || user?.role === 'STAFF') {
+    const isStaff = user.role === 'STAFF';
     return (
       <main
         style={{
@@ -200,13 +201,15 @@ export function App() {
         }}
       >
         <h1 style={{ font: 'var(--font-title-mobile)', margin: '0 0 var(--space-md)' }}>
-          Dùng web để quản trị
+          {isStaff ? 'Dùng web cho nhân viên' : 'Dùng web để quản trị'}
         </h1>
         <p style={{ font: 'var(--font-body)', color: 'var(--color-ink-muted)', margin: '0 0 var(--space-lg)' }}>
-          Giao diện quản trị viên chỉ hỗ trợ trên trình duyệt máy tính.
+          {isStaff
+            ? 'Giao diện nhân viên chỉ hỗ trợ trên trình duyệt web.'
+            : 'Giao diện quản trị viên chỉ hỗ trợ trên trình duyệt máy tính.'}
         </p>
         <a
-          href="/admin"
+          href={isStaff ? '/chu-san/yeu-cau' : '/admin'}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -220,7 +223,7 @@ export function App() {
             height: '44px',
           }}
         >
-          Đến trang quản trị web
+          {isStaff ? 'Đến trang nhân viên web' : 'Đến trang quản trị web'}
         </a>
         {logoutError && (
           <p style={{ margin: 'var(--space-md) 0 0', font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">

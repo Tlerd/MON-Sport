@@ -3,6 +3,7 @@ import { type AdminVenueView, CourtInput, CourtUpdate, type CourtView, errorMess
 import type { Court, Venue } from '../../generated/prisma/client.js';
 import { isUniqueViolation } from '../auth/accounts.service.js';
 import { Roles, SessionGuard } from '../auth/session.guard.js';
+import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { toCourtView, toVenueView } from '../venues/venue-view.js';
 import { isHoursViolation } from './db-errors.js';
@@ -26,7 +27,10 @@ const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(M
 @UseGuards(SessionGuard)
 @Roles('ADMIN')
 export class AdminVenuesController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clock: Clock,
+  ) {}
 
   @Get('venues')
   async list(): Promise<AdminVenueView[]> {
@@ -64,7 +68,18 @@ export class AdminVenuesController {
         const { id: _id, ...fields } = stored;
         const merged = VenueInput.safeParse({ ...fields, ...patch.data });
         if (!merged.success) throw new BadRequestException(errorMessage(merged.error));
-        if (patch.data.ownerId && patch.data.ownerId !== stored.ownerId) await this.assertOwner(patch.data.ownerId, tx);
+        if (patch.data.ownerId && patch.data.ownerId !== stored.ownerId) {
+          await this.assertOwner(patch.data.ownerId, tx);
+          const now = this.clock.now();
+          await tx.user.updateMany({
+            where: { staffVenueId: id, role: 'STAFF', deletedAt: null, lockedAt: null },
+            data: { lockedAt: now, sessionsValidFrom: now },
+          });
+          await tx.user.updateMany({
+            where: { staffVenueId: id, role: 'STAFF', deletedAt: null, lockedAt: { not: null } },
+            data: { sessionsValidFrom: now },
+          });
+        }
         return toAdminView(await tx.venue.update({ where: { id }, data: patch.data, include: WITH_COURTS }));
       });
     } catch (error) {

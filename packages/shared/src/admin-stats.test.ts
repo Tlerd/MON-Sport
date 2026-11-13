@@ -13,7 +13,7 @@ const view = {
   date: '2026-11-20',
   weekStart: '2026-11-16',
   weekEnd: '2026-11-22',
-  accounts: { ADMIN: 1, OWNER: 3, USER: 40 },
+  accounts: { ADMIN: 1, OWNER: 3, USER: 40, STAFF: 2 },
   newUsers: 5,
   activeUsers: 3,
   avgConfirmMinutes: 25,
@@ -63,6 +63,11 @@ describe('admin stats view contract, brief F-016', () => {
     expect(AdminStatsView.safeParse({ ...view, activeUsers: 1.5 }).success).toBe(false);
     expect(AdminStatsView.safeParse({ ...view, accounts: { ...view.accounts, USER: -1 } }).success).toBe(false);
     expect(AdminStatsView.safeParse({ ...view, accounts: { ADMIN: 1, OWNER: 3 } }).success).toBe(false);
+  });
+
+  it('AC-10: parses accounts including STAFF count and rejects when STAFF is missing', () => {
+    expect(AdminStatsView.parse(view).accounts.STAFF).toBe(2);
+    expect(AdminStatsView.safeParse({ ...view, accounts: { ADMIN: 1, OWNER: 3, USER: 40 } }).success).toBe(false);
   });
 
   it('F-016 contract for AC-4: a venue stat needs a uuid and counts that are whole and not negative', () => {

@@ -37,11 +37,11 @@ A folder appears when its first feature needs it. `.dependency-cruiser.cjs` hold
 
 The user starts work with "tiếp tục", "continue", or a goal. Take it to a pull request that is ready to merge: plan, build, review, checks green. The user is not there to answer, so a question stops the work. Decide, and let the user correct later.
 
-The user merges. Agents never merge a pull request (`HUMAN_DECISIONS.md`, row 49). The user runs the branch locally, merges it, and the merge deploys. After a merge, check the deploy run and the live service. Fix a failure in a new pull request.
+An agent merges a ready pull request with `node scripts/merge.mjs <n>` only, in merge order (`HUMAN_DECISIONS.md`, row 50). The script refuses a red check or a missing review marker. The merge deploys. After a merge, check the deploy run and the live service. Fix a failure in a new pull request.
 
 - Start with `git status`, `PROGRESS.md`, and `HUMAN_DECISIONS.md`. Finish work in progress first. Without a goal, do the steps in `PROGRESS.md` in order, then the next slice by the launch order in the intake.
 - Keep a task list for the run and mark items done. Stop only when the next item needs the user, or a rule here stops you. A turn that ends with a summary, an offer to continue, or a list of decisions that block nothing leaves work undone. A step only the user can do goes in `PROGRESS.md`; go on with the other items.
-- End each run with a short report: what is done, the pull requests ready to merge in merge order, the assumptions, the service URL, what is next.
+- End each run with a short report: what is done, the pull requests merged, each one still open with the reason, the assumptions, the service URL, what is next.
 - When the intake or a brief leaves a decision open, choose what the intake supports best, or else the safer option. Write it under "Assumptions" with the reason. Record a decision that is costly to reverse in `docs/adr/`.
 - A finding of medium or higher still open after 2 review rounds: choose the safest fix, record the finding in the pull request and `PROGRESS.md`, post `<!-- review-accepted head=<sha> -->` on the pull request, and continue.
 - Each step of a brief gets its own branch `feat/<issue>-<step>-<slug>` (for example `feat/12-1-booking-schema`), its own pull request, and a Reviewer. A step that needs an unmerged step branches from that step's branch and uses it as the pull request base. Wait for the checks in the background. A change to money, concurrency, the schema, or personal data gets the strongest model and also the skill `rule-review`. Load the skill `agent-workflow` (`.agents/skills/agent-workflow/SKILL.md`) for the roles, the review rounds, the coder fallback when quota runs out, and the deploy check.
@@ -63,7 +63,7 @@ The session model is the Planner and the Reviewer. The skill `agent-workflow` ho
 
 These keep the work safe. Do not bend them to make work pass:
 
-- Force push, push to `main`, and merging a pull request. The user merges.
+- Force push, push to `main`, and a merge by any way other than `node scripts/merge.mjs` (no `gh pr merge`, no `--admin`).
 - Deleting data, a branch, or a cloud resource that this work did not create.
 - Writing a secret or a password into code, a log, a commit, or a comment.
 - Weakening `pnpm check`, CI, the hooks, or these rules.
@@ -72,6 +72,6 @@ These keep the work safe. Do not bend them to make work pass:
 
 Git and the tests hold the state: read `git log --oneline -15` and run `pnpm check`. A criterion with a passing `AC-n` test is done.
 
-`PROGRESS.md` holds the next step. Rewrite it in place when the next step changes, in the same pull request, before the merge.
+`PROGRESS.md` holds the next step. Rewrite it in place when the next step changes, in the same pull request, before the merge. When a feature is done, move its record to `COMPLETED.md`.
 
 `HUMAN_DECISIONS.md` holds each decision or step that only the user can do, with the default that agents follow. Add a row when work needs one. Move it to "Đã chốt" when the user answers, in the same pull request. Never delete a row.

@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { type CourtView, errorMessage, Messages, OwnerCourtUpdate, OwnerVenueUpdate, VenueInput, type VenueView } from '@monsport/shared';
 import { isHoursViolation } from '../admin/db-errors.js';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
+import { venueScope } from '../bookings/venue-scope.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { toCourtView, toVenueView } from './venue-view.js';
 
@@ -33,8 +34,11 @@ export class OwnerVenuesController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
+  @Roles('OWNER', 'STAFF')
   async mine(@Req() req: AuthedRequest): Promise<VenueView[]> {
-    const venues = await this.prisma.venue.findMany({ where: { ownerId: req.user.id }, include: WITH_COURTS, orderBy: { name: 'asc' } });
+    const scope = venueScope(req.user);
+    const where = scope.venueId ? { id: scope.venueId } : { ownerId: scope.ownerId };
+    const venues = await this.prisma.venue.findMany({ where, include: WITH_COURTS, orderBy: { name: 'asc' } });
     return venues.map(toVenueView);
   }
 

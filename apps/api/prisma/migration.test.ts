@@ -25,6 +25,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.query('DELETE FROM "PlayerRating" WHERE "raterId" = $1 OR "playerId" = $1', [userId]);
   await db.query('DELETE FROM "PushSubscription" WHERE "userId" = $1', [userId]);
   await db.query('DELETE FROM "Notification" WHERE "userId" = $1', [userId]);
   await db.query('DELETE FROM "MatchPlayer" WHERE "userId" = $1', [userId]);
@@ -383,4 +384,260 @@ describe('migration f004_google_otp', () => {
     ]);
   });
 });
+
+
+describe('migration 20261110000000_f028_match_join_approval', () => {
+  const setup = async () => {
+    const bookingId = randomUUID();
+    const matchId = randomUUID();
+    const joinerIds = [randomUUID(), randomUUID()];
+    await db.query(
+      `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+       VALUES ($1, $2, '2026-11-25T16:00:00+07:00', '2026-11-25T17:00:00+07:00', 'PENDING', 'APP', $3, 80000)`,
+      [bookingId, courtId, userId],
+    );
+    await db.query(
+      `INSERT INTO "Match" (id, "bookingId", "hostId", sport, capacity, "pricePerSlot", status, "joinedCount")
+       VALUES ($1, $2, $3, 'BADMINTON', 4, 50000, 'OPEN', 1)`,
+      [matchId, bookingId, userId],
+    );
+    for (const id of joinerIds) {
+      await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'Joiner', $2, 'x')`, [
+        id,
+        `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+      ]);
+    }
+    return { matchId, joinerIds };
+  };
+  const cleanup = async (matchId: string, joinerIds: string[]) => {
+    await db.query('DELETE FROM "MatchPlayer" WHERE "matchId" = $1', [matchId]);
+    await db.query('DELETE FROM "Match" WHERE id = $1', [matchId]);
+    await db.query(`DELETE FROM "Booking" WHERE "courtId" = $1 AND "startAt" = '2026-11-25T16:00:00+07:00'`, [courtId]);
+    await db.query('DELETE FROM "User" WHERE id = ANY($1::uuid[])', [joinerIds]);
+  };
+
+  it('AC-1: a Match row inserted without joinMode reads back INSTANT', async () => {
+    const { matchId, joinerIds } = await setup();
+    try {
+      const { rows } = await db.query('SELECT "joinMode" FROM "Match" WHERE id = $1', [matchId]);
+      expect(rows).toEqual([{ joinMode: 'INSTANT' }]);
+    } finally {
+      await cleanup(matchId, joinerIds);
+    }
+  });
+
+  it('AC-1: the database accepts a MatchPlayer row with status PENDING and one with status REJECTED', async () => {
+    const { matchId, joinerIds } = await setup();
+    try {
+      const player = (uId: string, status: string) =>
+        db.query(`INSERT INTO "MatchPlayer" ("matchId", "userId", status, "joinedAt") VALUES ($1, $2, $3::"MatchPlayerStatus", now())`, [matchId, uId, status]);
+      expect(await sqlState(player(joinerIds[0]!, 'PENDING'))).toBe('ok');
+      expect(await sqlState(player(joinerIds[1]!, 'REJECTED'))).toBe('ok');
+      const { rows } = await db.query('SELECT status FROM "MatchPlayer" WHERE "matchId" = $1 ORDER BY status', [matchId]);
+      expect(rows).toEqual([{ status: 'PENDING' }, { status: 'REJECTED' }]);
+    } finally {
+      await cleanup(matchId, joinerIds);
+    }
+  });
+});
+
+describe('migration 20261110100000_f029_skill_level', () => {
+  it('AC-6: migration only adds: contains no DROP, no SET NOT NULL, and no DEFAULT', () => {
+    const sql = readFileSync(new URL('./migrations/20261110100000_f029_skill_level/migration.sql', import.meta.url), 'utf8');
+    expect(sql.toUpperCase()).not.toContain('DROP');
+    expect(sql.toUpperCase()).not.toContain('SET NOT NULL');
+    expect(sql.toUpperCase()).not.toContain('DEFAULT');
+  });
+
+  it('AC-6: a User row inserted without skillLevel reads back null', async () => {
+    const testUserId = randomUUID();
+    await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'SkillTest', $2, 'x')`, [
+      testUserId,
+      `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+    ]);
+    try {
+      const { rows } = await db.query('SELECT "skillLevel" FROM "User" WHERE id = $1', [testUserId]);
+      expect(rows).toEqual([{ skillLevel: null }]);
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id = $1', [testUserId]);
+    }
+  });
+
+  it('AC-6: the database accepts each of the 3 enum values for User.skillLevel and rejects another value', async () => {
+    const testUserIds = [randomUUID(), randomUUID(), randomUUID()];
+    const levels = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+    try {
+      for (let i = 0; i < 3; i++) {
+        const res = await sqlState(
+          db.query(
+            `INSERT INTO "User" (id, name, phone, "passwordHash", "skillLevel") VALUES ($1, 'LevelUser', $2, 'x', $3::"SkillLevel")`,
+            [testUserIds[i], `09${Math.floor(10000000 + Math.random() * 90000000)}`, levels[i]],
+          ),
+        );
+        expect(res).toBe('ok');
+      }
+      const bad = await sqlState(
+        db.query(
+          `INSERT INTO "User" (id, name, phone, "passwordHash", "skillLevel") VALUES ($1, 'BadUser', $2, 'x', $3::"SkillLevel")`,
+          [randomUUID(), `09${Math.floor(10000000 + Math.random() * 90000000)}`, 'EXPERT'],
+        ),
+      );
+      expect(bad).toBe('22P02');
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id = ANY($1::uuid[])', [testUserIds]);
+    }
+  });
+});
+
+describe('migration 20261112000000_f030_booking_series', () => {
+  it('AC-8: migration only adds: contains no DROP, no SET NOT NULL, and no DEFAULT', () => {
+    const sql = readFileSync(new URL('./migrations/20261112000000_f030_booking_series/migration.sql', import.meta.url), 'utf8');
+    expect(sql.toUpperCase()).not.toContain('DROP');
+    expect(sql.toUpperCase()).not.toContain('SET NOT NULL');
+    expect(sql.toUpperCase()).not.toContain('DEFAULT');
+  });
+
+  it('AC-8: a Booking row inserted without seriesId reads back null', async () => {
+    const bookingId = randomUUID();
+    await db.query(
+      `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+       VALUES ($1, $2, '2026-11-26T10:00:00+07:00', '2026-11-26T11:00:00+07:00', 'PENDING', 'APP', $3, 80000)`,
+      [bookingId, courtId, userId],
+    );
+    try {
+      const { rows } = await db.query('SELECT "seriesId" FROM "Booking" WHERE id = $1', [bookingId]);
+      expect(rows).toEqual([{ seriesId: null }]);
+    } finally {
+      await db.query('DELETE FROM "Booking" WHERE id = $1', [bookingId]);
+    }
+  });
+
+  it('AC-8: creates index on Booking.seriesId', async () => {
+    const res = await db.query(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'Booking' AND indexname = 'Booking_seriesId_idx'`,
+    );
+    expect(res.rows.length).toBe(1);
+  });
+});
+
+describe('migration 20261112100000_f031_staff', () => {
+  it('AC-10: migration only adds: contains no DROP, no SET NOT NULL, and no DEFAULT', () => {
+    const sql = readFileSync(new URL('./migrations/20261112100000_f031_staff/migration.sql', import.meta.url), 'utf8');
+    expect(sql.toUpperCase()).not.toContain('DROP');
+    expect(sql.toUpperCase()).not.toContain('SET NOT NULL');
+    expect(sql.toUpperCase()).not.toContain('DEFAULT');
+  });
+
+  it('AC-10: a User row inserted without staffVenueId reads back null', async () => {
+    const testUserId = randomUUID();
+    await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'StaffTest', $2, 'x')`, [
+      testUserId,
+      `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+    ]);
+    try {
+      const { rows } = await db.query('SELECT "staffVenueId" FROM "User" WHERE id = $1', [testUserId]);
+      expect(rows).toEqual([{ staffVenueId: null }]);
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id = $1', [testUserId]);
+    }
+  });
+
+  it('AC-10: accepts STAFF role and foreign key to Venue.id', async () => {
+    const staffId = randomUUID();
+    const phone = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+    try {
+      const res = await sqlState(
+        db.query(
+          `INSERT INTO "User" (id, name, phone, "passwordHash", role, "staffVenueId") VALUES ($1, 'Staff', $2, 'x', 'STAFF', $3)`,
+          [staffId, phone, venueId],
+        ),
+      );
+      expect(res).toBe('ok');
+    } finally {
+      await db.query('DELETE FROM "User" WHERE id = $1', [staffId]);
+    }
+  });
+
+  it('AC-10: creates index on User.staffVenueId', async () => {
+    const res = await db.query(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'User' AND indexname = 'User_staffVenueId_idx'`,
+    );
+    expect(res.rows.length).toBe(1);
+  });
+});
+
+describe('migration 20261112200000_f032_player_rating', () => {
+  it('AC-6: migration only adds: contains no DROP, and alters only PlayerRating', () => {
+    const sql = readFileSync(new URL('./migrations/20261112200000_f032_player_rating/migration.sql', import.meta.url), 'utf8');
+    expect(sql.toUpperCase()).not.toContain('DROP');
+    const alterTables = [...sql.matchAll(/ALTER\s+TABLE\s+"?(\w+)"?/gi)].map((m) => m[1]);
+    expect(alterTables.every((t) => t === 'PlayerRating')).toBe(true);
+  });
+
+  it('AC-6: enforces foreign keys, primary key, and check constraints on PlayerRating', async () => {
+    const bookingId = randomUUID();
+    const matchId = randomUUID();
+    const raterId = userId;
+    const player1 = randomUUID();
+    const player2 = randomUUID();
+    await db.query(`INSERT INTO "User" (id, name, phone, "passwordHash") VALUES ($1, 'P1', $2, 'x'), ($3, 'P2', $4, 'x')`, [
+      player1,
+      `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+      player2,
+      `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+    ]);
+    await db.query(
+      `INSERT INTO "Booking" (id, "courtId", "startAt", "endAt", status, source, "createdById", "priceTotal")
+       VALUES ($1, $2, '2026-11-27T16:00:00+07:00', '2026-11-27T17:00:00+07:00', 'PENDING', 'APP', $3, 80000)`,
+      [bookingId, courtId, raterId],
+    );
+    await db.query(
+      `INSERT INTO "Match" (id, "bookingId", "hostId", sport, capacity, "pricePerSlot", status, "joinedCount")
+       VALUES ($1, $2, $3, 'BADMINTON', 4, 50000, 'OPEN', 1)`,
+      [matchId, bookingId, raterId],
+    );
+
+    const rate = (mId: string, rId: string, pId: string, stars: number | null, noShow: boolean) =>
+      db.query(
+        `INSERT INTO "PlayerRating" ("matchId", "raterId", "playerId", stars, "noShow", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, now())`,
+        [mId, rId, pId, stars, noShow],
+      );
+
+    try {
+      // Valid ratings
+      expect(await sqlState(rate(matchId, raterId, player1, 5, false))).toBe('ok');
+      expect(await sqlState(rate(matchId, raterId, player2, null, true))).toBe('ok');
+
+      // Duplicate PK (matchId, playerId)
+      expect(await sqlState(rate(matchId, raterId, player1, 4, false))).toBe('23505');
+
+      // CHECK constraint: stars between 1 and 5
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), 0, false))).toBe('23514');
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), 6, false))).toBe('23514');
+
+      // CHECK constraint: noShow and stars exclusivity
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), null, false))).toBe('23514');
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), 3, true))).toBe('23514');
+
+      // FK constraint on non-existent user or match
+      expect(await sqlState(rate(randomUUID(), raterId, randomUUID(), 5, false))).toBe('23503');
+      expect(await sqlState(rate(matchId, randomUUID(), randomUUID(), 5, false))).toBe('23503');
+      expect(await sqlState(rate(matchId, raterId, randomUUID(), 5, false))).toBe('23503');
+    } finally {
+      await db.query('DELETE FROM "PlayerRating" WHERE "matchId" = $1', [matchId]);
+      await db.query('DELETE FROM "Match" WHERE id = $1', [matchId]);
+      await db.query('DELETE FROM "Booking" WHERE id = $1', [bookingId]);
+      await db.query('DELETE FROM "User" WHERE id IN ($1, $2)', [player1, player2]);
+    }
+  });
+
+  it('AC-6: creates index on PlayerRating.playerId', async () => {
+    const res = await db.query(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'PlayerRating' AND indexname = 'PlayerRating_playerId_idx'`,
+    );
+    expect(res.rows.length).toBe(1);
+  });
+});
+
 

@@ -14,7 +14,7 @@ const todayVN = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_
 const byStart = (a: OwnerBookingView, b: OwnerBookingView) => a.startAt.localeCompare(b.startAt);
 
 /** Brief F-007 (UC-5): the owner enters the booking of a customer who phoned, and cancels a booking (any source) before it starts (F-009). */
-export function PhoneBookings() {
+export function PhoneBookings({ canCancel = true }: { canCancel?: boolean } = {}) {
   const [rows, setRows] = useState<OwnerBookingView[] | null>(null);
   const [error, setError] = useState('');
 
@@ -29,7 +29,7 @@ export function PhoneBookings() {
   return (
     <>
       <PhoneBookingForm onSaved={(b) => setRows((list) => [...(list ?? []), b].sort(byStart))} />
-      <ConfirmedBookings rows={rows} error={error} onCancelled={(b) => setRows((list) => list?.map((r) => (r.id === b.id ? { ...r, ...b, customer: r.customer } : r)) ?? null)} />
+      <ConfirmedBookings rows={rows} error={error} canCancel={canCancel} onCancelled={(b) => setRows((list) => list?.map((r) => (r.id === b.id ? { ...r, ...b, customer: r.customer } : r)) ?? null)} />
     </>
   );
 }
@@ -150,7 +150,7 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
   );
 }
 
-function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingView[] | null; error: string; onCancelled: (b: BookingView) => void }) {
+function ConfirmedBookings({ rows, error, canCancel = true, onCancelled }: { rows: OwnerBookingView[] | null; error: string; canCancel?: boolean; onCancelled: (b: BookingView) => void }) {
   const heading = useId();
   const { list, failure, ask } = useCancelFlow(async (id) => onCancelled(await api<BookingView>(`/api/owner/bookings/${id}/cancel`, { method: 'POST' })));
 
@@ -181,7 +181,9 @@ function ConfirmedBookings({ rows, error, onCancelled }: { rows: OwnerBookingVie
                   tabIndex={-1}
                   data-focus={r.id}
                 />
-              ) : new Date(r.startAt) > new Date() && <CancelAsk id={r.id} label={formatSlot(r.startAt, r.endAt)} ask={ask} />}
+              ) : canCancel && new Date(r.startAt) > new Date() ? (
+                <CancelAsk id={r.id} label={formatSlot(r.startAt, r.endAt)} ask={ask} />
+              ) : null}
             </span>
           </li>
         ))}

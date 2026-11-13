@@ -141,7 +141,7 @@ describe('Admin stats API (F-016 / UC-13)', () => {
 
     const res = await getStats('Quản trị', '2026-11-20').expect(200);
     expect(AdminStatsView.parse(res.body)).toEqual(res.body);
-    expect(res.body.accounts).toEqual({ ADMIN: 1, OWNER: 3, USER: 40 });
+    expect(res.body.accounts).toEqual({ ADMIN: 1, OWNER: 3, USER: 40, STAFF: 0 });
   });
 
   it('AC-2: counts new users of the week only, by Vietnam time, USER role only', async () => {
@@ -181,6 +181,23 @@ describe('Admin stats API (F-016 / UC-13)', () => {
 
     const res = await getStats('Quản trị', '2026-11-20').expect(200);
     expect(res.body.activeUsers).toBe(3);
+  });
+
+  it('AC-16: PENDING and REJECTED rows and a cancelled request do not make an active user, ACTIVE and LEFT rows do', async () => {
+    // Dũng is an owner, so hosting does not count. His match and bookings are outside the week.
+    const m = await match({ bookingId: await booking({ who: 'Bình', source: 'PHONE' }), host: 'Dũng' });
+    const row = (who: string, status: 'PENDING' | 'REJECTED' | 'ACTIVE' | 'LEFT') =>
+      db.matchPlayer.create({ data: { matchId: m, userId: ids[who], status, joinedAt: vn('2026-11-18') } });
+    await row('An', 'PENDING');
+    await row('Chi', 'REJECTED');
+    // Lan sent a request and cancelled it: no row exists.
+    let res = await getStats('Quản trị', '2026-11-20').expect(200);
+    expect(res.body.activeUsers).toBe(0);
+
+    await row('Mai', 'ACTIVE');
+    await row('Lan', 'LEFT');
+    res = await getStats('Quản trị', '2026-11-20').expect(200);
+    expect(res.body.activeUsers).toBe(2);
   });
 
   it('AC-4: counts confirmed bookings and live matches of each venue, sorted by name, overdue pending excluded', async () => {
@@ -301,5 +318,20 @@ describe('Admin stats API (F-016 / UC-13)', () => {
     expect(res.body.date).toBe('2026-11-23');
     expect(res.body.weekStart).toBe('2026-11-23');
     expect(res.body.weekEnd).toBe('2026-11-29');
+  });
+
+  it('AC-10: counts STAFF accounts under accounts.STAFF, keeps locked staff, skips deleted staff', async () => {
+    await db.user.createMany({
+      data: [
+        { name: 'NV1', phone: '0981111111', role: 'STAFF', staffVenueId: ids.VA, passwordHash, createdAt: OUTSIDE },
+        { name: 'NV2', phone: '0981111112', role: 'STAFF', staffVenueId: ids.VB, passwordHash, createdAt: OUTSIDE },
+        { name: 'NV3', phone: '0981111113', role: 'STAFF', staffVenueId: ids.VA, passwordHash, createdAt: OUTSIDE, lockedAt: vn('2026-11-10') },
+        { name: 'NV4', phone: '0981111114', role: 'STAFF', staffVenueId: ids.VA, passwordHash, createdAt: OUTSIDE, deletedAt: vn('2026-11-10') },
+      ],
+    });
+
+    const res = await getStats('Quản trị', '2026-11-20').expect(200);
+    expect(AdminStatsView.parse(res.body)).toEqual(res.body);
+    expect(res.body.accounts.STAFF).toBe(3);
   });
 });
