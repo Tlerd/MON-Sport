@@ -1,7 +1,21 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { BookingStatus, type BookingView, CreateBookingRequest, CreatePhoneBookingRequest, Messages, type MyBookingView, type OwnerBookingView, type PaidAtVenueResponse, PHONE_MESSAGE, UpdatePaidAtVenueSchema } from '@monsport/shared';
+import {
+  BookingStatus,
+  type BookingView,
+  CreateBookingRequest,
+  CreatePhoneBookingRequest,
+  Messages,
+  type MyBookingView,
+  type OwnerBookingView,
+  type PaidAtVenueResponse,
+  PHONE_MESSAGE,
+  RecurringPhoneBookingRequest,
+  type RecurringPhoneBookingResponse,
+  UpdatePaidAtVenueSchema,
+} from '@monsport/shared';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { BookingsService } from './bookings.service.js';
+import { venueScope } from './venue-scope.js';
 
 // A malformed id gets the Vietnamese generic text, not the English text of the pipe.
 const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(Messages.invalid) });
@@ -42,33 +56,50 @@ export class OwnerBookingsController {
   constructor(private readonly bookings: BookingsService) {}
 
   @Get()
+  @Roles('OWNER', 'STAFF')
   list(@Req() req: AuthedRequest, @Query('status') status?: string): Promise<OwnerBookingView[]> {
     const parsed = BookingStatus.safeParse(status ?? 'PENDING');
     if (!parsed.success) throw new BadRequestException('Trạng thái không hợp lệ');
-    return this.bookings.forOwner(req.user.id, parsed.data);
+    return this.bookings.forOwner(venueScope(req.user), parsed.data);
+  }
+
+  /** UC-16 (brief F-030): recurring phone booking */
+  @Post('recurring')
+  @Roles('OWNER', 'STAFF')
+  @HttpCode(201)
+  enterRecurring(@Req() req: AuthedRequest, @Body() body: unknown): Promise<RecurringPhoneBookingResponse> {
+    const input = RecurringPhoneBookingRequest.safeParse(body);
+    if (!input.success) {
+      const phoneIssue = input.error.issues.find((i) => i.path[0] === 'customerPhone');
+      throw new BadRequestException(phoneIssue ? PHONE_MESSAGE : 'Dữ liệu đặt sân không hợp lệ');
+    }
+    return this.bookings.enterRecurringPhoneBooking(venueScope(req.user), req.user.id, input.data);
   }
 
   @Post(':id/confirm')
+  @Roles('OWNER', 'STAFF')
   @HttpCode(200)
   confirm(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string): Promise<BookingView> {
-    return this.bookings.decide(req.user.id, id, 'CONFIRMED');
+    return this.bookings.decide(venueScope(req.user), id, 'CONFIRMED');
   }
 
   @Post(':id/reject')
+  @Roles('OWNER', 'STAFF')
   @HttpCode(200)
   reject(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string): Promise<BookingView> {
-    return this.bookings.decide(req.user.id, id, 'REJECTED');
+    return this.bookings.decide(venueScope(req.user), id, 'REJECTED');
   }
 
   /** UC-5 (brief F-007): the booking of a customer who phoned. A wrong customer phone gets the phone text. */
   @Post()
+  @Roles('OWNER', 'STAFF')
   enter(@Req() req: AuthedRequest, @Body() body: unknown): Promise<OwnerBookingView> {
     const input = CreatePhoneBookingRequest.safeParse(body);
     if (!input.success) {
       const phoneIssue = input.error.issues.find((i) => i.path[0] === 'customerPhone');
       throw new BadRequestException(phoneIssue ? PHONE_MESSAGE : 'Dữ liệu đặt sân không hợp lệ');
     }
-    return this.bookings.enterPhoneBooking(req.user.id, input.data);
+    return this.bookings.enterPhoneBooking(venueScope(req.user), req.user.id, input.data);
   }
 
   @Post(':id/cancel')

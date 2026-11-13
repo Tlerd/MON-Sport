@@ -7,7 +7,7 @@ import { Customer } from './customer.tsx';
 import { STATUS_LABEL } from './status.ts';
 
 /** UC-4: the owner confirms or rejects each pending request. */
-export function OwnerRequests() {
+export function OwnerRequests({ canManagePayment = true }: { canManagePayment?: boolean } = {}) {
   const [rows, setRows] = useState<OwnerBookingView[] | null>(null);
   const [error, setError] = useState('');
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
@@ -78,7 +78,7 @@ export function OwnerRequests() {
               ) : (
                 <span className="status-wrap">
                   <StatusBadge className="status" status={r.status} label={STATUS_LABEL[r.status]} />
-                  {r.status === 'CONFIRMED' && (
+                  {canManagePayment && r.status === 'CONFIRMED' && (
                     <span className="payment-action">
                       <span className={`paid-tag ${r.paidAtVenue ? 'paid' : 'unpaid'}`}>
                         {r.paidAtVenue ? 'Đã thu tiền' : 'Chưa thu tiền'}

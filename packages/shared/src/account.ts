@@ -35,12 +35,17 @@ export function errorMessage(error: z.ZodError): string {
  * that the user and a legal adviser replace. One paragraph per line.
  */
 export const PRIVACY_NOTICE = [
-  'MONSPORT thu thập tên, số điện thoại và lịch sử đặt sân của bạn để bạn đặt sân và ghép trận.',
-  'Chủ sân của booking và host của trận bạn vào thấy số điện thoại của bạn. Admin của MONSPORT thấy số điện thoại để quản lý tài khoản. MONSPORT không bán dữ liệu của bạn.',
+  'MONSPORT thu thập tên, số điện thoại, trình độ và lịch sử đặt sân của bạn để bạn đặt sân và ghép trận.',
+  'Chủ sân của booking và host của trận bạn vào thấy số điện thoại của bạn. Host chấm điểm người chơi sau trận. Host của trận "Host duyệt" thấy điểm uy tín của người xin. Nhân viên của đơn vị thấy tên và số điện thoại của khách đặt sân ở đơn vị đó. Mọi người, kể cả người chưa đăng nhập, thấy tên và trình độ của host trong phòng chờ. Admin của MONSPORT thấy số điện thoại để quản lý tài khoản. MONSPORT không bán dữ liệu của bạn.',
   'Dữ liệu được lưu trên máy chủ Google Cloud tại Singapore trong thời gian bạn dùng tài khoản. Khi bạn xóa tài khoản, booking cũ còn lại nhưng không còn tên và số điện thoại của bạn.',
   'Khi bạn dùng Google, MONSPORT lưu mã tài khoản Google và email đã xác minh. Để xác minh số điện thoại, MONSPORT gửi số của bạn cho nhà cung cấp tin nhắn SMS để gửi mã OTP.',
   'Theo Luật Bảo vệ dữ liệu cá nhân (Luật 91/2025), bạn có quyền xem, sửa, xóa dữ liệu và rút lại sự đồng ý. Hãy liên hệ admin của MONSPORT để làm việc này.',
 ].join('\n');
+
+export const SkillLevel = z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED']);
+export type SkillLevel = z.infer<typeof SkillLevel>;
+export const SKILL_LEVEL_LABELS = { BEGINNER: 'Mới chơi', INTERMEDIATE: 'Trung bình', ADVANCED: 'Khá' } as const;
+export const SKILL_LEVEL_REQUIRED_MESSAGE = 'Chọn trình độ';
 
 const Name = z.string({ error: Messages.name }).trim().min(1, Messages.name).max(100, Messages.name);
 const Password = z.string().min(8, Messages.passwordLength).max(128, Messages.passwordMax);
@@ -57,6 +62,7 @@ export const RegisterRequest = z
     name: Name,
     phone: Phone,
     password: Password,
+    skillLevel: SkillLevel.optional(),
     consent: z.literal(true, { error: Messages.consent }),
   })
   .superRefine(notWeak);
@@ -64,6 +70,23 @@ export type RegisterRequest = z.infer<typeof RegisterRequest>;
 
 export const CreateOwnerRequest = z.object({ name: Name, phone: Phone, password: Password }).superRefine(notWeak);
 export type CreateOwnerRequest = z.infer<typeof CreateOwnerRequest>;
+
+export const CreateStaffRequest = z
+  .object({ name: Name, phone: Phone, password: Password, consent: z.literal(true, { error: Messages.consent }) })
+  .strict()
+  .superRefine(notWeak);
+export type CreateStaffRequest = z.infer<typeof CreateStaffRequest>;
+
+export const StaffView = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  phone: Phone,
+  venueId: z.uuid(),
+  lockedAt: Instant.nullable(),
+});
+export type StaffView = z.infer<typeof StaffView>;
+
+export const STAFF_PHONE_TAKEN = 'Số này đã có tài khoản';
 
 /** The admin finds one account by its exact phone number. The number goes in the body, so it stays out of request logs. */
 export const UserSearchRequest = z.object({ phone: Phone });

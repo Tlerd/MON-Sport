@@ -1,12 +1,12 @@
 import type { CourtView, VenueView } from '@monsport/shared';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { api, ApiError, hhmm } from '@monsport/client';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { HoursForm, PriceForm } from './OwnerEdits.tsx';
 
 /** UC-10 and BR-23: an owner sees only their own venues, with the courts and prices. UC-11: the owner edits them. */
-export function MyVenues() {
+export function MyVenues({ renderStaff }: { renderStaff?: (venue: VenueView) => ReactNode } = {}) {
   const [venues, setVenues] = useState<VenueView[] | null>(null);
   const [error, setError] = useState('');
 
@@ -25,14 +25,22 @@ export function MyVenues() {
         <EmptyState message="Bạn chưa có đơn vị nào. Admin gắn đơn vị cho tài khoản của bạn." />
       )}
       <div className="venues">
-        {venues?.map((v) => <VenueCard key={v.id} venue={v} onSaved={put} />)}
+        {venues?.map((v) => <VenueCard key={v.id} venue={v} onSaved={put} renderStaff={renderStaff} />)}
       </div>
     </section>
   );
 }
 
 /** One form at a time: the opening hours, or the prices of one court. */
-function VenueCard({ venue: v, onSaved }: { venue: VenueView; onSaved: (v: VenueView) => void }) {
+function VenueCard({
+  venue: v,
+  onSaved,
+  renderStaff,
+}: {
+  venue: VenueView;
+  onSaved: (v: VenueView) => void;
+  renderStaff?: (venue: VenueView) => ReactNode;
+}) {
   const [editing, setEditing] = useState<'hours' | string | null>(null);
   // When a form closes, focus goes back to the button that opened it, so a keyboard user keeps their place.
   const opener = useRef<string | null>(null);
@@ -83,6 +91,7 @@ function VenueCard({ venue: v, onSaved }: { venue: VenueView; onSaved: (v: Venue
           close={close}
         />
       )}
+      {renderStaff ? renderStaff(v) : null}
     </article>
   );
 }

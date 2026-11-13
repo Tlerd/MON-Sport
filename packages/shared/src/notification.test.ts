@@ -106,3 +106,33 @@ describe('notification schemas and helpers', () => {
     expect(NotificationReadAllResponse.safeParse({ count: 5 }).success).toBe(true);
   });
 });
+
+describe('join request notifications, brief F-028', () => {
+  const base = {
+    venueName: 'Cầu lông A',
+    courtName: 'Sân 1',
+    startAt: '2026-11-20T13:00:00.000Z',
+    endAt: '2026-11-20T14:00:00.000Z',
+  };
+
+  it('AC-11: NotificationType has the three join request types', () => {
+    for (const type of ['MATCH_JOIN_REQUESTED', 'MATCH_JOIN_APPROVED', 'MATCH_JOIN_REJECTED']) {
+      expect(NotificationType.safeParse(type).success).toBe(true);
+    }
+  });
+
+  it('AC-11: formatNotificationContent returns the title and message for MATCH_JOIN_REQUESTED, MATCH_JOIN_APPROVED, MATCH_JOIN_REJECTED', () => {
+    expect(formatNotificationContent({ ...base, type: 'MATCH_JOIN_REQUESTED' })).toEqual({
+      title: 'Có người xin vào trận',
+      message: 'Có người xin vào trận của bạn tại Cầu lông A - Sân 1 khung 20:00 - 21:00 ngày 20/11/2026.',
+    });
+    expect(formatNotificationContent({ ...base, type: 'MATCH_JOIN_APPROVED' })).toEqual({
+      title: 'Bạn đã được vào trận',
+      message: 'Host đã duyệt yêu cầu vào trận tại Cầu lông A - Sân 1 khung 20:00 - 21:00 ngày 20/11/2026.',
+    });
+    expect(formatNotificationContent({ ...base, type: 'MATCH_JOIN_REJECTED' })).toEqual({
+      title: 'Yêu cầu vào trận bị từ chối',
+      message: 'Host đã từ chối yêu cầu vào trận tại Cầu lông A - Sân 1 khung 20:00 - 21:00 ngày 20/11/2026.',
+    });
+  });
+});
