@@ -11,6 +11,7 @@ Drive the running app through a user flow. Each step asserts a state (an API ans
 
 - On `live`, the run deletes nothing and leaves test bookings. Never seed or clear `AuthThrottle` on the live database.
 - On `live`, the run takes every account from the shell or from `D:/runenv/verify.env`, see [references/targets.md](references/targets.md). Never write a password in a file of the repository, and never print one.
+- The owner starts a run on `live`. An agent never signs in to the live service with a password: write the command in `PROGRESS.md` as a step for the owner, and go on. When the owner has run it, read `report.md` and fix what failed.
 - `PASSED (n skipped)` means a flow did not run. A SKIP is not a pass.
 - A 429 on login is BR-30. Wait 15 minutes. See [references/gotchas.md](references/gotchas.md).
 - More failures that need a person: [references/gotchas.md](references/gotchas.md).

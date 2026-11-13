@@ -21,7 +21,8 @@ export function loadVerifyEnv({ target, env = process.env, read = (path) => read
   }
   const loaded = [];
   // Notepad and PowerShell 5 write a BOM, and parseEnv would keep it in the first name.
-  for (const [name, value] of Object.entries(parseEnv(text.replace(/^﻿/, '')))) {
+  const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+  for (const [name, value] of Object.entries(parseEnv(body))) {
     if (!name.startsWith('VERIFY_') || value === '' || env[name]) continue;
     env[name] = value;
     loaded.push(name);
