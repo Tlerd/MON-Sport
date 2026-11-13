@@ -14,7 +14,8 @@ const FIX =
 export function sizeFailures(file, text, limit) {
   const body = text.trimEnd();
   const lines = body.split('\n').length;
-  const chars = [...body].length;
+  // NFC, so a Vietnamese letter counts once, also when an editor saved the file in NFD.
+  const chars = [...body.normalize('NFC')].length;
   const failures = [];
   if (lines > limit.lines) {
     failures.push(`FAIL size: ${file} has ${lines} lines and the limit is ${limit.lines}\n${FIX}`);

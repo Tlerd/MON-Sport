@@ -24,6 +24,10 @@ test('the characters are counted, not the UTF-8 bytes', () => {
   expect(sizeFailures('X.md', 'Đặt sân'.repeat(2), { lines: 1, chars: 14 })).toEqual([]);
 });
 
+test('a text saved in NFD counts the same as in NFC', () => {
+  expect(sizeFailures('X.md', 'Đặt sân'.normalize('NFD').repeat(2), { lines: 1, chars: 14 })).toEqual([]);
+});
+
 test('trailing blank lines do not count', () => {
   expect(sizeFailures('X.md', 'a\nb\nc\n\n\n', limit)).toEqual([]);
 });
