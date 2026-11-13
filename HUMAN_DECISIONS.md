@@ -80,8 +80,8 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 
 | Việc | Vì sao agent không làm được |
 |---|---|
-| Chạy `verify-flow` trên bản live và gửi kết quả | Cần máy và tài khoản của người dùng |
-| Đặt `VERIFY_PLAYER2_PHONE` và `VERIFY_PLAYER2_PASSWORD` (một tài khoản `test-` thứ hai) để chạy luồng `lobby-approval` trên live | Luồng không tự đăng ký tài khoản trên live, vì số điện thoại có thể của người thật |
+| Chạy `verify-flow` trên bản live và gửi kết quả | Cần máy và tài khoản của người dùng. Agent không tự đăng nhập bản live bằng mật khẩu. Tài khoản nằm ở `D:/runenv/verify.env` (PR #246). Lệnh: `node .agents/skills/verify-flow/scripts/run.mjs --target live` |
+| Đặt `VERIFY_PLAYER2_PHONE` và `VERIFY_PLAYER2_PASSWORD` (một tài khoản `test-` thứ hai) để chạy luồng `lobby-approval` trên live | Luồng không tự đăng ký tài khoản trên live, vì số điện thoại có thể của người thật. Đã xong ngày 14/11/2026: hai biến nằm trong `D:/runenv/verify.env`, luồng `lobby-approval` chạy trên live với 0 SKIP. |
 | Kiểm UC-14 (Web Push) trên máy Android thật. Lần thử ngày 21/10/2026 thất bại, sửa bởi PR #94 và #101, chưa có lần thử lại | Cần máy thật |
 | Đăng nhập lại trên bản live sau lần deploy F-004 bước 2 (mỗi cookie một khóa) | Phiên của người dùng |
 
