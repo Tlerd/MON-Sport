@@ -10,4 +10,5 @@ export * from './finance.ts';
 export * from './admin-stats.ts';
 export * from './push.ts';
 export * from './google-auth.ts';
+export * from './rating.ts';
 

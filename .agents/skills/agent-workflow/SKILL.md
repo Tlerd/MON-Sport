@@ -1,6 +1,6 @@
 ---
 name: agent-workflow
-description: Roles, branch names, review rounds, the hand-off to the user for the merge, and the deploy check of the MONSPORT agent workflow. Use before you plan a brief step, pick a coder, open or review a pull request, handle a finding still open after 2 rounds, hand a pull request to the user, or check a deploy.
+description: Roles, branch names, review rounds, the merge, and the deploy check of the MONSPORT agent workflow. Use before you plan a brief step, pick a coder, open or review a pull request, handle a finding still open after 2 rounds, merge a pull request, or check a deploy.
 ---
 
 Read this before you plan a step, open a pull request, review, or hand a pull request to the user.
@@ -56,8 +56,8 @@ A Reviewer round is a `reviewer` subagent, or `claude -p --permission-mode plan 
 5. After the last step, run `qa`. Put its questions in the end report and in `docs/qa/`.
 6. A Reviewer reviews each pull request. Post findings as a pull request comment that ends with the marker line of `REVIEW.md`. Fix each finding of medium or higher. Run a new Reviewer on the new head, on the diff since the last reviewed head. A finding is closed only when that Reviewer says so. Each run is one round. A pull request on money, concurrency, schema, or personal data also runs skill `rule-review` and posts its comment.
 7. Wait for checks in the background: `gh pr checks <n> --watch --fail-fast`. The pull request is ready when all checks pass and the latest marker for the current head shows no finding of medium or higher. A finding tagged pre-existing does not count. The check `pr-gates` fails a pull request that changes a path outside its allowed list, or lists an AC with no test.
-8. Stop at the ready pull request. Agents never merge: no `node scripts/merge.mjs`, no `gh pr merge` (`HUMAN_DECISIONS.md`, row 49). `.claude/settings.json` denies both in Claude Code. Antigravity has no deny list, so there the rule holds only while agents follow it. Fill the section "Chạy thử local" of the pull request body (see below). A stacked pull request starts that section with "Merge sau #<n của bước trước>". Put the pull request in the end report, in merge order. Go on with the next step.
-9. The user runs the branch locally and merges with `node scripts/merge.mjs <n>`. The script refuses a base other than `main`. Then `.github/workflows/deploy.yml` deploys. In the next run, check that the deploy run passed and `/api/health` answers on the service URL. Run `verify-flow` on the live service. Fix a failure in a new pull request.
+8. Fill the section "Chạy thử local" of the pull request body (see below). A stacked pull request starts that section with "Merge sau #<n của bước trước>". Then merge the ready pull request with `node scripts/merge.mjs <n>`, in merge order (`HUMAN_DECISIONS.md`, row 50). A stacked pull request merges only after its base pull request is merged and its base is `main`. Never use `gh pr merge`: `.claude/settings.json` denies it in Claude Code. Antigravity has no deny list, so there the rule holds only while agents follow it. Put the pull request in the end report. Go on with the next step.
+9. The script refuses a base other than `main`, a red check, and a head with no clean review marker. Then `.github/workflows/deploy.yml` deploys. In the next run, check that the deploy run passed and `/api/health` answers on the service URL. Run `verify-flow` on the live service. Fix a failure in a new pull request.
 10. At the start of each run, update each open pull request of the agents:
     - When its base branch was merged, set the base to `main` with `gh pr edit <n> --base main`, if GitHub did not do it.
     - When its branch is behind its base, or it conflicts, merge the base into the branch with `git merge`. Never rebase and force push. Run `pnpm map` when `@map.md` conflicts.
@@ -91,7 +91,7 @@ After a merge, if `@map.md` on `main` is stale, open `chore/map-refresh` with `p
 - A finding of medium or higher still open after 2 review rounds, or autofix giving up: choose the safest fix. Record the finding in the pull request and `PROGRESS.md`. Post `<!-- review-accepted head=<sha> -->` on the pull request and continue.
 - Keep a task list for the run, in the tool or in a file. Mark items done. Before you end a turn, read it again. While an item is open and not blocked, do it. A step only the user can do (a real device check) goes in the end report and `PROGRESS.md`. Go on with the other items.
 - You may create test data on the live service. Give each test account the name prefix `test-`.
-- End each run with a short report: what is done, the pull requests ready to merge in merge order, the assumptions, the service URL, what is next.
+- End each run with a short report: what is done, the pull requests merged, each one still open with the reason, the assumptions, the service URL, what is next.
 
 ## Other
 

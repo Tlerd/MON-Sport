@@ -1,13 +1,18 @@
 import {
   addDaysYmd,
+  SKILL_LEVEL_LABELS,
   vnDateString,
+  type JoinMode,
   type MatchDetailView,
+  type MatchRequestView,
   type MatchView,
+  type PlayerReputation,
   type SessionUser,
+  type SkillLevel,
   type Sport,
 } from '@monsport/shared';
 import { CalendarDays } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Chip } from '../../components/Chip.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { SportIcon } from '../../components/icons.tsx';
@@ -36,6 +41,21 @@ function formatDayChip(ymd: string) {
   return `${dayOfWeek} ${parts[2]}/${parts[1]}`;
 }
 
+/** Brief F-032 (AC-9): format player reputation for the host queue. */
+export function formatReputation(rep?: PlayerReputation | null): string {
+  if (!rep) return 'Chưa có đánh giá';
+  const { ratingAvg, ratingCount, noShowCount } = rep;
+  if (ratingAvg !== null && ratingCount > 0) {
+    const avgStr = ratingAvg.toLocaleString('vi-VN');
+    const starPart = `${avgStr} ★ (${ratingCount})`;
+    return noShowCount > 0 ? `${starPart} · ${noShowCount} lần vắng` : starPart;
+  }
+  if (noShowCount > 0) {
+    return `Chưa có sao · ${noShowCount} lần vắng`;
+  }
+  return 'Chưa có đánh giá';
+}
+
 interface LobbyProps {
   refresh?: number;
   user?: SessionUser | null;
@@ -49,6 +69,7 @@ interface LobbyProps {
 export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
   const heading = useId();
   const [sport, setSport] = useState('');
+  const [level, setLevel] = useState<SkillLevel | ''>('');
   const [date, setDate] = useState('');
   const [matches, setMatches] = useState<MatchView[] | null>(null);
   const [error, setError] = useState('');
@@ -56,10 +77,16 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MatchDetailView | null>(null);
+  const [requestsState, setRequestsState] = useState<{ matchId: string | null; items: MatchRequestView[] }>({
+    matchId: null,
+    items: [],
+  });
+  const [busyRequestUserIds, setBusyRequestUserIds] = useState<Set<string>>(() => new Set());
   const [detailError, setDetailError] = useState<string>('');
   const [actionError, setActionError] = useState<string>('');
   const [loadingAction, setLoadingAction] = useState(false);
 
+  const loadSeqRef = useRef(0);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const todayStr = useMemo(() => vnDateString(new Date()), []);
   const dateOptions = useMemo(() => {
@@ -74,23 +101,66 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
 
   const isOtherDate = date !== '' && !dateOptions.some((d) => d.ymd === date);
 
-  // AC-12: listen to SSE /api/matches/stream and reload when a match event arrives.
+  const selectedMatch = matches?.find((m) => m.id === expandedId) ?? null;
+  const requests = selectedMatch && requestsState.matchId === selectedMatch.id ? requestsState.items : [];
+
+  const liveStateRef = useRef<{
+    expandedId: string | null;
+    user: SessionUser | null | undefined;
+    joinMode: JoinMode | undefined;
+  }>({
+    expandedId: null,
+    user: null,
+    joinMode: undefined,
+  });
+  liveStateRef.current = {
+    expandedId,
+    user,
+    joinMode: detail?.joinMode ?? selectedMatch?.joinMode,
+  };
+
+  const loadDetail = useCallback(async (matchId: string, matchJoinMode?: JoinMode) => {
+    const seq = ++loadSeqRef.current;
+    try {
+      const data = await api<MatchDetailView>(`/api/matches/${matchId}`);
+      if (seq !== loadSeqRef.current || liveStateRef.current.expandedId !== matchId) return;
+      setDetail(data);
+      setDetailError('');
+      if (data.viewerRole === 'HOST' && (data.joinMode === 'APPROVAL' || matchJoinMode === 'APPROVAL')) {
+        const reqs = await api<MatchRequestView[]>(`/api/matches/${matchId}/requests`);
+        if (seq !== loadSeqRef.current || liveStateRef.current.expandedId !== matchId) return;
+        setRequestsState({ matchId, items: reqs });
+      } else {
+        setRequestsState({ matchId, items: [] });
+      }
+    } catch (e) {
+      if (seq !== loadSeqRef.current || liveStateRef.current.expandedId !== matchId) return;
+      setDetailError((e as { message?: string })?.message ?? 'Không tải được chi tiết trận');
+    }
+  }, []);
+
+  // AC-12 & AC-13: listen to SSE /api/matches/stream and reload list, open detail, and host requests when a match event arrives.
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
     const es = new EventSource('/api/matches/stream');
     es.addEventListener('match', () => {
       setStreamTick((t) => t + 1);
+      const { expandedId: currentId, user: currentUser, joinMode } = liveStateRef.current;
+      if (currentId && currentUser) {
+        void loadDetail(currentId, joinMode);
+      }
     });
     return () => {
       es.close();
     };
-  }, []);
+  }, [loadDetail]);
 
   useEffect(() => {
     let current = true;
     setError('');
     const params = new URLSearchParams();
     if (sport) params.set('sport', sport);
+    if (level) params.set('level', level);
     if (date) params.set('date', date);
     const qs = params.toString();
     const url = qs ? `/api/matches?${qs}` : '/api/matches';
@@ -107,30 +177,32 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     return () => {
       current = false;
     };
-  }, [sport, date, refresh, streamTick]);
+  }, [sport, level, date, refresh, streamTick]);
 
   async function toggleDetail(m: MatchView) {
+    loadSeqRef.current += 1;
     if (expandedId === m.id) {
+      liveStateRef.current.expandedId = null;
       setExpandedId(null);
       setDetail(null);
+      setRequestsState({ matchId: null, items: [] });
+      setBusyRequestUserIds(new Set());
       setDetailError('');
       setActionError('');
       return;
     }
+    liveStateRef.current.expandedId = m.id;
     setExpandedId(m.id);
     setDetail(null);
+    setRequestsState({ matchId: null, items: [] });
+    setBusyRequestUserIds(new Set());
     setDetailError('');
     setActionError('');
 
     // AC-11: unauthenticated guests see login prompt and web does not call GET /api/matches/<id>.
     if (!user) return;
 
-    try {
-      const data = await api<MatchDetailView>(`/api/matches/${m.id}`);
-      setDetail(data);
-    } catch (e) {
-      setDetailError((e as { message?: string })?.message ?? 'Không tải được chi tiết trận');
-    }
+    await loadDetail(m.id, m.joinMode);
   }
 
   async function handleJoin(id: string) {
@@ -138,7 +210,9 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     setLoadingAction(true);
     try {
       const updated = await api<MatchDetailView>(`/api/matches/${id}/join`, { method: 'POST' });
-      setDetail(updated);
+      if (liveStateRef.current.expandedId === id) {
+        setDetail(updated);
+      }
       setMatches((prev) => prev?.map((m) => (m.id === id ? { ...m, joinedCount: updated.joinedCount, status: updated.status } : m)) ?? null);
       onMatchChanged?.();
     } catch (e) {
@@ -153,7 +227,9 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     setLoadingAction(true);
     try {
       const updated = await api<MatchDetailView>(`/api/matches/${id}/leave`, { method: 'POST' });
-      setDetail(updated);
+      if (liveStateRef.current.expandedId === id) {
+        setDetail(updated);
+      }
       setMatches((prev) => prev?.map((m) => (m.id === id ? { ...m, joinedCount: updated.joinedCount, status: updated.status } : m)) ?? null);
       onMatchChanged?.();
     } catch (e) {
@@ -163,8 +239,55 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
     }
   }
 
-  const selectedMatch = matches?.find((m) => m.id === expandedId) ?? null;
+  async function handleRequestDecision(matchId: string, requestUserId: string, action: 'approve' | 'reject') {
+    setActionError('');
+    setBusyRequestUserIds((prev) => new Set(prev).add(requestUserId));
+    loadSeqRef.current += 1;
+    try {
+      const updated = await api<MatchDetailView>(
+        `/api/matches/${matchId}/requests/${requestUserId}/${action}`,
+        { method: 'POST' },
+      );
+      setMatches(
+        (prev) =>
+          prev?.map((m) =>
+            m.id === matchId ? { ...m, joinedCount: updated.joinedCount, status: updated.status } : m,
+          ) ?? null,
+      );
+      if (liveStateRef.current.expandedId === matchId) {
+        setDetail(updated);
+        setDetailError('');
+        const reloadSeq = ++loadSeqRef.current;
+        try {
+          const reqs = await api<MatchRequestView[]>(`/api/matches/${matchId}/requests`);
+          if (reloadSeq === loadSeqRef.current && liveStateRef.current.expandedId === matchId) {
+            setRequestsState({ matchId, items: reqs });
+          }
+        } catch {
+          if (liveStateRef.current.expandedId === matchId) {
+            setRequestsState((prev) => ({
+              matchId,
+              items: prev.matchId === matchId ? prev.items.filter((r) => r.userId !== requestUserId) : [],
+            }));
+          }
+        }
+      }
+      onMatchChanged?.();
+    } catch (e) {
+      if (liveStateRef.current.expandedId === matchId) {
+        setActionError((e as { message?: string })?.message ?? 'Không thể xử lý yêu cầu');
+      }
+    } finally {
+      setBusyRequestUserIds((prev) => {
+        const next = new Set(prev);
+        next.delete(requestUserId);
+        return next;
+      });
+    }
+  }
+
   const remaining = selectedMatch ? selectedMatch.capacity - selectedMatch.joinedCount : 0;
+  const selectedIsApproval = ((detail?.joinMode ?? selectedMatch?.joinMode) ?? 'INSTANT') === 'APPROVAL';
 
   return (
     <section className="panel lobby-panel" aria-labelledby={heading}>
@@ -188,6 +311,21 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
           >
             Bóng đá
           </Chip>
+        </div>
+
+        <div role="group" aria-label="Trình độ" className="chips level-chips">
+          <Chip selected={level === ''} onClick={() => setLevel('')}>
+            Tất cả
+          </Chip>
+          {(Object.entries(SKILL_LEVEL_LABELS) as [SkillLevel, string][]).map(([key, label]) => (
+            <Chip
+              key={key}
+              selected={level === key}
+              onClick={() => setLevel(key)}
+            >
+              {label}
+            </Chip>
+          ))}
         </div>
 
         <div role="group" aria-label="Ngày chơi" className="chips date-chips">
@@ -247,12 +385,16 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                       <div className="match-line-2">
                         <span>{`${SPORT_LABEL[m.sport]} · Ngày ${formatDay(m.startAt)}`}</span>
                         <span>Host: {m.hostName}</span>
+                        {m.hostSkillLevel && <span className="level-badge">{`Trình độ: ${SKILL_LEVEL_LABELS[m.hostSkillLevel]}`}</span>}
                       </div>
                       <div className="match-line-2">
                         <span className="match-slots">{`${m.joinedCount}/${m.capacity} suất · ${formatVnd(m.pricePerSlot)}/suất`}</span>
                         <StatusBadge className="status" status={m.bookingStatus} label={BOOKING_BADGE[m.bookingStatus]} />
                         {(m.status === 'FULL' || m.joinedCount >= m.capacity) && (
                           <StatusBadge className="status" status="FULL" />
+                        )}
+                        {(m.joinMode ?? 'INSTANT') === 'APPROVAL' && (
+                          <StatusBadge className="status" status="APPROVAL" label="Host duyệt" />
                         )}
                         <button
                           type="button"
@@ -307,6 +449,48 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                     </ul>
                   </div>
 
+                  {detail.viewerRole === 'HOST' && selectedIsApproval && (
+                    <div className="queue-section">
+                      <strong className="queue-heading">{`Hàng chờ (${requests.length})`}</strong>
+                      {requests.length === 0 ? (
+                        <p className="hint">Chưa có yêu cầu</p>
+                      ) : (
+                        <ul className="queue-list">
+                          {requests.map((r) => {
+                            const rowBusy = busyRequestUserIds.has(r.userId);
+                            return (
+                              <li key={r.userId} className="queue-row">
+                                <div className="queue-user">
+                                  <a href={`tel:${r.phone}`}>
+                                    <span>{r.name}</span> <span>({r.phone})</span>
+                                  </a>
+                                  <span className="queue-reputation">{formatReputation(r.reputation)}</span>
+                                </div>
+                                <div className="queue-actions">
+                                  <button
+                                    type="button"
+                                    disabled={rowBusy}
+                                    onClick={() => void handleRequestDecision(selectedMatch.id, r.userId, 'approve')}
+                                  >
+                                    Duyệt
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="secondary"
+                                    disabled={rowBusy}
+                                    onClick={() => void handleRequestDecision(selectedMatch.id, r.userId, 'reject')}
+                                  >
+                                    Từ chối
+                                  </button>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+
                   <div className="actions match-actions">
                     {detail.viewerRole === 'PLAYER' && (
                       <button
@@ -319,13 +503,29 @@ export function Lobby({ refresh = 0, user, onMatchChanged }: LobbyProps) {
                       </button>
                     )}
                     {detail.viewerRole === 'NONE' && (
-                      <button
-                        type="button"
-                        disabled={loadingAction}
-                        onClick={() => handleJoin(selectedMatch.id)}
-                      >
-                        Vào trận
-                      </button>
+                      detail.myRequest === 'REJECTED' ? (
+                        <p className="hint">Host đã từ chối yêu cầu của bạn</p>
+                      ) : selectedIsApproval && detail.myRequest === 'PENDING' ? (
+                        <>
+                          <p className="hint" role="status">Đã gửi yêu cầu. Chờ host duyệt</p>
+                          <button
+                            type="button"
+                            className="secondary"
+                            disabled={loadingAction}
+                            onClick={() => handleLeave(selectedMatch.id)}
+                          >
+                            Hủy yêu cầu
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={loadingAction}
+                          onClick={() => handleJoin(selectedMatch.id)}
+                        >
+                          {selectedIsApproval ? 'Xin vào' : 'Vào trận'}
+                        </button>
+                      )
                     )}
                   </div>
                 </>

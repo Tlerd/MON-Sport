@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import type { AccountView, Role } from '@monsport/shared';
+import type { AccountView, Role, SkillLevel } from '@monsport/shared';
 import type { Prisma, User } from '../../generated/prisma/client.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { Passwords } from './passwords.js';
@@ -57,7 +57,15 @@ export class AccountsService {
    * Creates an account with an argon2 hash of the password. The unique index on the phone decides a race
    * between two sign-ups (brief F-003, AC-4), so there is no read before the insert.
    */
-  async create(input: { name: string; phone: string; password: string; role: Role; consentAt?: Date; createdAt: Date }): Promise<User> {
+  async create(input: {
+    name: string;
+    phone: string;
+    password: string;
+    role: Role;
+    consentAt?: Date;
+    createdAt: Date;
+    skillLevel?: SkillLevel | null;
+  }): Promise<User> {
     const { password, ...data } = input;
     try {
       return await this.prisma.user.create({ data: { ...data, passwordHash: await this.passwords.hash(password) } });

@@ -14,8 +14,9 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Primary Actor | Use cases |
 |---|---|
 | Người dùng | UC-1 Đăng ký và đăng nhập · UC-2 Chọn sân và xem giờ trống · UC-3 Gửi yêu cầu đặt sân · UC-6 Xem và hủy booking |
-| Chủ sân | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-11 Sửa giá và giờ mở cửa · UC-12 Xem dashboard tài chính |
-| Host | UC-7 Mở trận · UC-9 Hủy trận |
+| Chủ sân | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-11 Sửa giá và giờ mở cửa · UC-12 Xem dashboard tài chính · UC-16 Chủ sân đặt cố định hằng tuần · UC-17 Chủ sân quản lý nhân viên |
+| Nhân viên | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-16 Chủ sân đặt cố định hằng tuần |
+| Host | UC-7 Mở trận · UC-9 Hủy trận · UC-15 Host duyệt yêu cầu vào trận · UC-19 Host chấm điểm người chơi |
 | Người ghép trận | UC-8 Vào và rời trận |
 | Admin | UC-10 Quản lý tài khoản và đơn vị · UC-13 Xem dashboard toàn trang |
 | Hệ thống | UC-14 Gửi thông báo |
@@ -137,12 +138,12 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Description | Host mở trận trên một booking của mình. Trận hiện trong phòng chờ, kể cả khi chủ sân chưa xác nhận booking |
 | Preconditions | PRE-7: host có một booking "Chờ xác nhận" hoặc "Đã xác nhận" chưa có trận |
 | Postconditions | POST-7: có một trận "Mở" trong phòng chờ, host chiếm 1 suất |
-| Normal Flow | 7.0<br>1. Host chọn booking.<br>2. Host nhập môn, số suất và giá mỗi suất.<br>3. Hệ thống tạo trận "Mở" và thêm host vào trận (BR-14).<br>4. Hệ thống hiện trận trong phòng chờ với nhãn "Đã xác nhận" hoặc "Chưa xác nhận" |
+| Normal Flow | 7.0<br>1. Host chọn booking.<br>2. Host nhập môn, số suất và giá mỗi suất.<br>3. Host chọn chế độ vào trận (mặc định Vào ngay).<br>4. Hệ thống tạo trận "Mở" và thêm host vào trận (BR-14).<br>5. Hệ thống hiện trận trong phòng chờ với nhãn "Đã xác nhận" hoặc "Chưa xác nhận" |
 | Alternative Flows | — |
 | Exceptions | 7.0.E1 Booking đã có trận: hệ thống từ chối (BR-13) |
 | Priority | High |
 | Frequency of Use | Khoảng 15 lần mỗi ngày |
-| Business Rules | BR-13, BR-14, BR-25 |
+| Business Rules | BR-13, BR-14, BR-25, BR-49 |
 | Other Information | Phòng chờ của mọi người dùng thấy trận mới trong vòng 2 giây |
 | Assumptions | Số suất ít nhất là 2 |
 
@@ -152,15 +153,15 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 |---|---|
 | Primary Actor, Secondary Actors | Người ghép trận · Host |
 | Trigger | Người ghép trận thấy một trận trong phòng chờ |
-| Description | Người ghép trận lọc phòng chờ theo môn và ngày, xem chi tiết trận, rồi bấm xác nhận để vào trận. Host không duyệt |
+| Description | Người ghép trận lọc phòng chờ theo môn và ngày, xem chi tiết trận, rồi bấm xác nhận để vào trận. Trong trận "Vào ngay" host không duyệt. Trong trận "Host duyệt" người ghép trận gửi yêu cầu và host quyết định (UC-15) |
 | Preconditions | PRE-8: người ghép trận đã đăng nhập |
-| Postconditions | POST-8: người ghép trận có một suất trong trận |
+| Postconditions | POST-8: người ghép trận có một suất trong trận "Vào ngay", hoặc một yêu cầu "Chờ duyệt" trong trận "Host duyệt" |
 | Normal Flow | 8.0<br>1. Người ghép trận lọc phòng chờ theo môn và ngày.<br>2. Hệ thống hiện các trận "Mở".<br>3. Người ghép trận mở chi tiết: sân, giờ, host, số suất trống và giá.<br>4. Người ghép trận bấm xác nhận.<br>5. Hệ thống thêm người đó vào trận. Khi hết suất, trận chuyển sang "Đầy" (BR-15) |
-| Alternative Flows | 8.1 Rời trận: người ghép trận rời một trận đã vào. Hệ thống bỏ người đó khỏi trận, và trận "Đầy" về "Mở" (BR-15, BR-18)<br>8.2 Xem các trận đã vào: hệ thống hiện các trận của người đó |
-| Exceptions | 8.0.E1 Hai người cùng bấm vào suất cuối: một người vào được, người kia nhận "Trận đã đủ người"<br>8.1.E1 Đã tới giờ bắt đầu: hệ thống không cho rời (BR-18) |
+| Alternative Flows | 8.1 Rời trận: người ghép trận rời một trận đã vào. Hệ thống bỏ người đó khỏi trận, và trận "Đầy" về "Mở" (BR-15, BR-18)<br>8.2 Xem các trận đã vào: hệ thống hiện các trận của người đó<br>8.3 Hủy yêu cầu: người ghép trận hủy yêu cầu "Chờ duyệt" của mình. Hệ thống xóa yêu cầu, và người đó gửi lại được |
+| Exceptions | 8.0.E1 Hai người cùng bấm vào suất cuối: một người vào được, người kia nhận "Trận đã đủ người"<br>8.0.E2 Bị host từ chối: hệ thống từ chối yêu cầu gửi lại và hiện "Host đã từ chối yêu cầu của bạn" (BR-51)<br>8.1.E1 Đã tới giờ bắt đầu: hệ thống không cho rời (BR-18) |
 | Priority | High |
 | Frequency of Use | Khoảng 40 lần vào trận mỗi ngày |
-| Business Rules | BR-15, BR-18, BR-20 |
+| Business Rules | BR-15, BR-18, BR-20, BR-49, BR-50, BR-51, BR-52 |
 | Other Information | App chỉ hiện giá mỗi suất. Host tự thu tiền tại sân |
 | Assumptions | Người đã rời vào lại được khi trận còn "Mở" |
 
@@ -259,7 +260,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Row | Content |
 |---|---|
 | Primary Actor, Secondary Actors | Hệ thống · Chủ sân, Người dùng |
-| Trigger | Có yêu cầu đặt sân mới, booking được xác nhận hoặc bị từ chối, hoặc trận bị hủy |
+| Trigger | Có yêu cầu đặt sân mới, booking được xác nhận hoặc bị từ chối, hoặc trận bị hủy, có yêu cầu vào trận mới, yêu cầu được duyệt hoặc bị từ chối |
 | Description | Hệ thống gửi Web Push và thêm một dòng vào danh sách thông báo trong app |
 | Preconditions | PRE-14: người nhận đã đăng ký Web Push, nếu muốn nhận push |
 | Postconditions | POST-14: người nhận có một thông báo trong app |
@@ -271,3 +272,76 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Business Rules | — |
 | Other Information | Push tới trong vòng 30 giây. Thông báo trong app vẫn còn khi push lỗi |
 | Assumptions | — |
+
+## UC-15 Host duyệt yêu cầu vào trận
+
+| Row | Content |
+|---|---|
+| Primary Actor, Secondary Actors | Host · Người ghép trận |
+| Trigger | Người ghép trận xin vào một trận "Host duyệt" |
+| Description | Host xem hàng chờ của trận, xem điểm uy tín của người xin và duyệt hoặc từ chối từng yêu cầu. Yêu cầu không giữ suất |
+| Preconditions | PRE-15: trận có chế độ "Host duyệt" và có yêu cầu "Chờ duyệt" |
+| Postconditions | POST-15: người được duyệt có suất. Người bị từ chối không có suất |
+| Normal Flow | 15.0<br>1. Host mở hàng chờ của trận.<br>2. Hệ thống hiện các yêu cầu "Chờ duyệt" chưa hết hạn (BR-52), kèm điểm uy tín của người xin (BR-57), theo thời gian gửi.<br>3. Host duyệt một yêu cầu.<br>4. Hệ thống thêm người đó vào trận khi còn suất. Khi hết suất, trận chuyển sang "Đầy" (BR-15, BR-50).<br>5. Hệ thống báo người xin (UC-14) |
+| Alternative Flows | 15.1 Từ chối: host từ chối một yêu cầu. Hệ thống đánh dấu "Bị từ chối" và báo người xin (BR-51, UC-14) |
+| Exceptions | 15.0.E1 Trận đã đủ người: hệ thống từ chối duyệt và báo "Trận đã đủ người"<br>15.0.E2 Yêu cầu đã hết hạn: hệ thống báo yêu cầu hết hạn và không thêm người (BR-52) |
+| Priority | High |
+| Frequency of Use | Khoảng 20 lần mỗi ngày |
+| Business Rules | BR-15, BR-20, BR-50, BR-51, BR-52, BR-57 |
+| Other Information | Chỉ host thấy số điện thoại (BR-20) và điểm uy tín (BR-57) của người xin. Hai lệnh duyệt cùng lúc vào suất cuối: một lệnh thành công |
+| Assumptions | Host không đổi được chế độ vào trận sau khi mở trận (BR-49) |
+
+## UC-16 Chủ sân đặt cố định hằng tuần
+
+| Row | Content |
+|---|---|
+| Primary Actor, Secondary Actors | Chủ sân · — |
+| Trigger | Khách gọi điện cho chủ sân để đặt cố định hằng tuần |
+| Description | Chủ sân nhập một lần booking lặp lại hằng tuần cho khách gọi điện. Hệ thống tạo các booking cho từng tuần, bỏ buổi trùng giờ và báo lại (BR-54) |
+| Preconditions | PRE-16: chủ sân đã đăng nhập |
+| Postconditions | POST-16: các booking trong chuỗi được tạo ở trạng thái "Đã xác nhận", cùng seriesId |
+| Normal Flow | 16.0<br>1. Chủ sân chọn sân, giờ bắt đầu, giờ kết thúc và số tuần (từ 2 đến 12). Chủ sân có thể nhập tên và số điện thoại của khách.<br>2. Hệ thống kiểm tra từng tuần, tạo booking "Đã xác nhận" cho các tuần không trùng giờ (BR-10, BR-54).<br>3. Hệ thống hiện số buổi đã tạo và danh sách các buổi bị bỏ qua |
+| Alternative Flows | — |
+| Exceptions | 16.0.E1 Mọi buổi đều trùng giờ: hệ thống báo "Mọi buổi đều đã có người đặt" và không tạo booking nào.<br>16.0.E2 Số tuần không nằm từ 2 đến 12: hệ thống từ chối yêu cầu |
+| Priority | High |
+| Frequency of Use | Khoảng 10 lần mỗi ngày |
+| Business Rules | BR-1, BR-2, BR-3, BR-5, BR-6, BR-8, BR-10, BR-23, BR-54 |
+| Other Information | Các booking trong chuỗi mang chung seriesId. Hệ thống khóa Court một lần trong transaction |
+| Assumptions | Buổi trùng giờ bị bỏ và báo lại, không hủy cả chuỗi (BR-54) |
+
+## UC-17 Chủ sân quản lý nhân viên
+
+| Row | Content |
+|---|---|
+| Primary Actor, Secondary Actors | Chủ sân · Nhân viên |
+| Trigger | Chủ sân muốn giao việc nhận yêu cầu và nhập booking cho nhân viên của một đơn vị |
+| Description | Chủ sân tạo tài khoản nhân viên cho một đơn vị của mình. Chủ sân xem danh sách nhân viên và khóa tài khoản nhân viên khi cần |
+| Preconditions | PRE-17: chủ sân đã đăng nhập và sở hữu ít nhất một đơn vị |
+| Postconditions | POST-17: tài khoản nhân viên được tạo hoặc bị khóa |
+| Normal Flow | 17.0 Tạo nhân viên<br>1. Chủ sân mở mục "Nhân viên" của một đơn vị.<br>2. Chủ sân nhập tên, số điện thoại và mật khẩu của nhân viên.<br>3. Chủ sân đánh dấu xác nhận nhân viên đã đồng ý về dữ liệu cá nhân.<br>4. Hệ thống tạo tài khoản vai trò STAFF gắn với đơn vị đó.<br>5. Hệ thống hiện nhân viên mới trong danh sách |
+| Alternative Flows | 17.1 Khóa nhân viên: chủ sân chọn khóa một nhân viên và xác nhận. Hệ thống khóa tài khoản và hủy mọi phiên cũ (BR-28, BR-32) |
+| Exceptions | 17.0.E1 Số điện thoại đã có tài khoản: hệ thống báo số này đã có tài khoản (BR-24).<br>17.0.E2 Mật khẩu yếu hoặc chứa số điện thoại: hệ thống từ chối (BR-31).<br>17.0.E3 Chưa đánh dấu đồng ý dữ liệu cá nhân: hệ thống từ chối (BR-29) |
+| Priority | Medium |
+| Frequency of Use | Khoảng 2 lần mỗi tháng cho mỗi đơn vị |
+| Business Rules | BR-23, BR-24, BR-28, BR-29, BR-31, BR-32, BR-55 |
+| Other Information | Nhân viên đăng nhập bằng số điện thoại và mật khẩu. Nhân viên chỉ xem và thao tác trên đơn vị của mình. Admin đổi chủ đơn vị hoặc khóa chủ sân thì khóa mọi nhân viên của đơn vị đó |
+| Assumptions | Mỗi nhân viên làm việc cho đúng một đơn vị. Hệ thống khóa tài khoản chứ không xóa dữ liệu nhân viên |
+
+## UC-19 Host chấm điểm người chơi
+
+| Row | Content |
+|---|---|
+| Primary Actor, Secondary Actors | Host · Người ghép trận |
+| Trigger | Trận đã qua giờ bắt đầu và chưa quá 7 ngày. Host muốn chấm điểm người chơi |
+| Description | Host chấm điểm từng người chơi có suất trong trận của mình. Host chọn từ 1 đến 5 sao, hoặc đánh dấu vắng mặt |
+| Preconditions | PRE-19: trận không bị hủy, đã qua giờ bắt đầu dưới 7 ngày, và có người chơi có suất ACTIVE |
+| Postconditions | POST-19: đánh giá của người chơi được lưu hoặc cập nhật. Điểm uy tín của người chơi được tính lại |
+| Normal Flow | 19.0<br>1. Host mở danh sách người chơi của trận trong "Booking của tôi".<br>2. Hệ thống hiện danh sách người có suất trong trận kèm điểm đã chấm nếu có.<br>3. Host chọn số sao từ 1 đến 5 cho người chơi.<br>4. Host bấm lưu.<br>5. Hệ thống lưu đánh giá và cập nhật điểm uy tín của người chơi (BR-56, BR-57) |
+| Alternative Flows | 19.1 Đánh dấu vắng mặt: ở bước 3, host chọn "Vắng mặt". Hệ thống lưu trạng thái vắng mặt không có sao (BR-56).<br>19.2 Chấm lại: host sửa số sao hoặc đổi giữa sao và vắng mặt rồi bấm lưu. Hệ thống ghi đè điểm cũ (BR-56) |
+| Exceptions | 19.0.E1 Chưa tới giờ bắt đầu: hệ thống từ chối và báo trận chưa bắt đầu.<br>19.0.E2 Quá 7 ngày sau giờ bắt đầu: hệ thống từ chối và báo đã quá hạn chấm điểm.<br>19.0.E3 Trận bị hủy hoặc booking không CONFIRMED: hệ thống từ chối chấm điểm.<br>19.0.E4 Người chơi không có suất ACTIVE hoặc là host: hệ thống từ chối chấm điểm |
+| Priority | Medium |
+| Frequency of Use | Khoảng 20 lần mỗi ngày |
+| Business Rules | BR-56, BR-57 |
+| Other Information | Host không tự chấm điểm chính mình. Mỗi người chơi trong một trận có nhiều nhất một điểm. Chấm lại thì ghi đè điểm cũ |
+| Assumptions | Chỉ host chấm điểm người chơi sau trận. Người chơi không chấm điểm host và không chấm lẫn nhau |
+

@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  ALL_WEEKS_TAKEN,
   bookingPrice,
   type BookingView,
   CALL_OWNER_MESSAGE,
@@ -12,6 +14,8 @@ import {
   type MyBookingView,
   type OwnerBookingView,
   type PaidAtVenueResponse,
+  type RecurringPhoneBookingRequest,
+  type RecurringPhoneBookingResponse,
   USER_CANCEL_WINDOW_MS,
   userCancelDecision,
 } from '@monsport/shared';
@@ -19,6 +23,7 @@ import { type Booking, Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
 import { isDeadlock, isExclusionViolation, PrismaService } from '../database/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { assertScope, matchesScope, type VenueScope } from './venue-scope.js';
 
 const TAKEN = 'Khung giờ này vừa có người đặt';
 const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại'; // 40P01 is a 409, not a 500
@@ -29,6 +34,7 @@ export function toView(b: Booking): BookingView {
   return {
     id: b.id,
     courtId: b.courtId,
+    seriesId: b.seriesId ?? null,
     startAt: b.startAt.toISOString(),
     endAt: b.endAt.toISOString(),
     status: b.status,
@@ -74,11 +80,6 @@ function assertOpen(court: { venue: { opensAt: number; closesAt: number } }, sta
   if (startMinute < court.venue.opensAt || endMinute > court.venue.closesAt) throw new BadRequestException('Ngoài giờ mở cửa');
 }
 
-/** BR-23: a court of another owner answers as if it did not exist. */
-function assertOwner<T extends { venue: { ownerId: string } }>(court: T, ownerId: string): T {
-  if (court.venue.ownerId !== ownerId) throw new NotFoundException('Không tìm thấy sân');
-  return court;
-}
 
 @Injectable()
 export class BookingsService {
@@ -111,24 +112,130 @@ export class BookingsService {
   }
 
   /** UC-5 (brief F-007): an owner enters the booking of a customer who phoned. It is confirmed at once (BR-10). */
-  async enterPhoneBooking(ownerId: string, input: CreatePhoneBookingRequest): Promise<OwnerBookingView> {
+  async enterPhoneBooking(scope: VenueScope, creatorId: string, input: CreatePhoneBookingRequest): Promise<OwnerBookingView> {
     const now = this.clock.now();
     const startAt = new Date(input.startAt);
     const endAt = new Date(input.endAt);
     if (!isOnGrid(startAt) || !isOnGrid(endAt)) throw new BadRequestException('Giờ phải theo bước 30 phút'); // BR-2
     if (!isLongEnough(startAt, endAt)) throw new BadRequestException('Mỗi booking dài ít nhất 1 giờ'); // BR-3
-    assertOpen(assertOwner(await this.findCourt(this.prisma, input.courtId), ownerId), startAt, endAt);
+    assertOpen(assertScope(await this.findCourt(this.prisma, input.courtId), scope), startAt, endAt);
     if (startAt <= now) throw new BadRequestException('Giờ bắt đầu đã qua');
 
-    const booking = await this.insertUnderLock(input.courtId, startAt, endAt, now, ownerId, {
+    const booking = await this.insertUnderLock(input.courtId, startAt, endAt, now, scope, {
       status: 'CONFIRMED',
       source: 'PHONE',
-      createdById: ownerId,
+      createdById: creatorId,
       customerName: input.customerName ?? null,
       customerPhone: input.customerPhone ?? null,
       confirmedAt: now,
     });
     return toOwnerView({ ...booking, createdBy: null });
+  }
+
+  /** UC-16 (brief F-030): an owner enters a recurring phone booking for 2 to 12 weeks. */
+  async enterRecurringPhoneBooking(
+    scope: VenueScope,
+    creatorId: string,
+    input: RecurringPhoneBookingRequest,
+  ): Promise<RecurringPhoneBookingResponse> {
+    const now = this.clock.now();
+    const startAt = new Date(input.startAt);
+    const endAt = new Date(input.endAt);
+    if (!isOnGrid(startAt) || !isOnGrid(endAt)) throw new BadRequestException('Giờ phải theo bước 30 phút'); // BR-2
+    if (!isLongEnough(startAt, endAt)) throw new BadRequestException('Mỗi booking dài ít nhất 1 giờ'); // BR-3
+    assertOpen(assertScope(await this.findCourt(this.prisma, input.courtId), scope), startAt, endAt);
+    if (startAt <= now) throw new BadRequestException('Giờ bắt đầu đã qua');
+
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.recurringTransaction(scope, creatorId, input, startAt, endAt, now);
+      } catch (error) {
+        if (isExclusionViolation(error)) throw new ConflictException(TAKEN);
+        if (!isDeadlock(error)) throw error;
+        if (attempt > 0) throw new ConflictException(BUSY);
+      }
+    }
+  }
+
+  private recurringTransaction(
+    scope: VenueScope,
+    creatorId: string,
+    input: RecurringPhoneBookingRequest,
+    firstStart: Date,
+    firstEnd: Date,
+    now: Date,
+  ): Promise<RecurringPhoneBookingResponse> {
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const occurrences = Array.from({ length: input.weeks }, (_, k) => ({
+      startAt: new Date(firstStart.getTime() + k * ONE_WEEK_MS),
+      endAt: new Date(firstEnd.getTime() + k * ONE_WEEK_MS),
+    }));
+
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockVenueOf(tx, input.courtId, scope);
+      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${input.courtId}::uuid FOR UPDATE`;
+      const court = await this.findCourt(tx, input.courtId);
+      assertScope(court, scope);
+      assertOpen(court, firstStart, firstEnd);
+      await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
+
+      const activeBookings = await tx.booking.findMany({
+        where: {
+          courtId: court.id,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          startAt: { lt: occurrences[occurrences.length - 1].endAt },
+          endAt: { gt: occurrences[0].startAt },
+        },
+      });
+
+      const toInsert: { startAt: Date; endAt: Date }[] = [];
+      const skipped: { startAt: string; endAt: string }[] = [];
+
+      for (const occ of occurrences) {
+        const overlap = activeBookings.some((b) => b.startAt < occ.endAt && b.endAt > occ.startAt);
+        if (overlap) {
+          skipped.push({
+            startAt: occ.startAt.toISOString(),
+            endAt: occ.endAt.toISOString(),
+          });
+        } else {
+          toInsert.push(occ);
+        }
+      }
+
+      if (toInsert.length === 0) {
+        throw new ConflictException(ALL_WEEKS_TAKEN);
+      }
+
+      const seriesId = randomUUID();
+      const createdBookings: Booking[] = [];
+
+      for (const occ of toInsert) {
+        const created = await tx.booking.create({
+          data: {
+            courtId: court.id,
+            seriesId,
+            startAt: occ.startAt,
+            endAt: occ.endAt,
+            status: 'CONFIRMED',
+            source: 'PHONE',
+            createdById: creatorId,
+            customerName: input.customerName ?? null,
+            customerPhone: input.customerPhone ?? null,
+            priceTotal: bookingPrice(occ.startAt, occ.endAt, court.priceNormal, court.pricePeak),
+            confirmedAt: now,
+            createdAt: now,
+          },
+        });
+        createdBookings.push(created);
+      }
+
+      return {
+        seriesId,
+        created: createdBookings.map((b) => toOwnerView({ ...b, createdBy: null })),
+        skipped,
+      };
+    });
   }
 
   // Bookings on one court queue on its row lock before they insert. Without the lock, overlapping
@@ -143,14 +250,14 @@ export class BookingsService {
     startAt: Date,
     endAt: Date,
     now: Date,
-    ownerId: string | null,
+    scope: VenueScope | null,
     fields: Pick<Prisma.BookingUncheckedCreateInput, 'status' | 'source' | 'createdById' | 'customerName' | 'customerPhone' | 'confirmDeadline' | 'confirmedAt'>,
   ): Promise<Booking> {
     // The rare cycle named on expire can end this insert instead of the owner list. The rollback undoes all of it,
     // so the insert runs once more; a second 40P01 answers 409 (review of PR #49, finding 1).
     for (let attempt = 0; ; attempt++) {
       try {
-        return await this.insertTransaction(courtId, startAt, endAt, now, ownerId, fields);
+        return await this.insertTransaction(courtId, startAt, endAt, now, scope, fields);
       } catch (error) {
         if (isExclusionViolation(error)) throw new ConflictException(TAKEN); // BR-1
         if (!isDeadlock(error)) throw error;
@@ -164,14 +271,14 @@ export class BookingsService {
     startAt: Date,
     endAt: Date,
     now: Date,
-    ownerId: string | null,
+    scope: VenueScope | null,
     fields: Pick<Prisma.BookingUncheckedCreateInput, 'status' | 'source' | 'createdById' | 'customerName' | 'customerPhone' | 'confirmDeadline' | 'confirmedAt'>,
   ): Promise<Booking> {
     return this.prisma.$transaction(async (tx) => {
-      if (ownerId) await this.lockVenueOf(tx, courtId, ownerId);
+      if (scope) await this.lockVenueOf(tx, courtId, scope);
       await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${courtId}::uuid FOR UPDATE`;
       const court = await this.findCourt(tx, courtId);
-      if (ownerId) assertOwner(court, ownerId);
+      if (scope) assertScope(court, scope);
       assertOpen(court, startAt, endAt);
       // BR-8 without a job: expired requests on this court stop holding their time before the insert.
       await this.expire(tx, Prisma.sql`"courtId" = ${court.id}::uuid`, now);
@@ -293,8 +400,8 @@ export class BookingsService {
     }
   }
 
-  private lockVenueOf(tx: Pick<PrismaService, 'court' | 'venue' | '$queryRaw'>, courtId: string, ownerId?: string): Promise<void> {
-    return lockVenueOf(tx, courtId, ownerId);
+  private lockVenueOf(tx: Pick<PrismaService, 'court' | 'venue' | '$queryRaw'>, courtId: string, scope?: VenueScope): Promise<void> {
+    return lockVenueOf(tx, courtId, scope);
   }
 
   private async findCourt(db: Pick<PrismaService, 'court'>, courtId: string) {
@@ -326,17 +433,22 @@ export class BookingsService {
     return rows.map(toMyView);
   }
 
-  /** UC-4: the requests on the venues of one owner (BR-23). */
-  async forOwner(ownerId: string, status: Booking['status']): Promise<OwnerBookingView[]> {
-    const courts = Prisma.sql`SELECT c.id FROM "Court" c JOIN "Venue" v ON v.id = c."venueId" WHERE v."ownerId" = ${ownerId}::uuid`;
+  /** UC-4: the requests on the venues of one owner or assigned staff venue (BR-23). */
+  async forOwner(scope: VenueScope, status: Booking['status']): Promise<OwnerBookingView[]> {
+    const courts = scope.venueId
+      ? Prisma.sql`SELECT c.id FROM "Court" c WHERE c."venueId" = ${scope.venueId}::uuid`
+      : Prisma.sql`SELECT c.id FROM "Court" c JOIN "Venue" v ON v.id = c."venueId" WHERE v."ownerId" = ${scope.ownerId}::uuid`;
     const expireAll = () => this.expire(this.prisma, Prisma.sql`"courtId" IN (${courts})`, this.clock.now());
     // The rare cycle named on expire ends this statement alone, and the statement is safe to run twice (PR #45).
     await expireAll().catch((error: unknown) => {
       if (!isDeadlock(error)) throw error;
       return expireAll();
     });
+    const where = scope.venueId
+      ? { status, court: { venueId: scope.venueId } }
+      : { status, court: { venue: { ownerId: scope.ownerId } } };
     const rows = await this.prisma.booking.findMany({
-      where: { status, court: { venue: { ownerId } } },
+      where,
       include: { createdBy: true },
       orderBy: { startAt: 'asc' },
     });
@@ -344,11 +456,11 @@ export class BookingsService {
   }
 
   /** UC-4: confirm or reject one request. */
-  async decide(ownerId: string, bookingId: string, decision: 'CONFIRMED' | 'REJECTED'): Promise<BookingView> {
+  async decide(scope: VenueScope, bookingId: string, decision: 'CONFIRMED' | 'REJECTED'): Promise<BookingView> {
     const found = await this.prisma.booking.findUnique({ where: { id: bookingId }, select: { courtId: true } });
     if (!found) throw new NotFoundException('Không tìm thấy booking');
     const now = this.clock.now();
-    let outcome: { count: number; booking: Booking & { court: { venue: { ownerId: string } } } };
+    let outcome: { count: number; booking: Booking & { court: { venue: { id: string; ownerId: string } } } };
     try {
       outcome = await this.prisma.$transaction(async (tx) => {
         // The lock order of insertUnderLock: Venue (FOR SHARE), then Court. An insert holds the Court lock and may wait in
@@ -356,7 +468,7 @@ export class BookingsService {
         await this.lockVenueOf(tx, found.courtId);
         await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
-        if (booking.court.venue.ownerId !== ownerId) throw new ForbiddenException('Bạn không có quyền làm việc này'); // BR-23
+        if (!matchesScope(booking.court.venue, scope)) throw new ForbiddenException('Bạn không có quyền làm việc này'); // BR-23
         await this.expire(tx, Prisma.sql`id = ${bookingId}::uuid`, now);
         // The deadline is in the condition too, so a confirm cannot pass between the expire and this update.
         const result = await tx.booking.updateMany({
@@ -455,16 +567,16 @@ export class BookingsService {
 }
 
 /**
- * Court.venueId never changes, so it is safe to read before the lock. With an ownerId, a venue that moved to
- * another owner answers 404 before the court lock (brief F-007, contract step 4).
+ * Court.venueId never changes, so it is safe to read before the lock. With a scope, a venue that does
+ * not belong to the scope answers 404 before the court lock (brief F-007, contract step 4; F-031 AC-7/AC-8).
  */
-export async function lockVenueOf(tx: Pick<PrismaService, 'court' | 'venue' | '$queryRaw'>, courtId: string, ownerId?: string): Promise<void> {
+export async function lockVenueOf(tx: Pick<PrismaService, 'court' | 'venue' | '$queryRaw'>, courtId: string, scope?: VenueScope): Promise<void> {
   const court = await tx.court.findUnique({ where: { id: courtId }, select: { venueId: true } });
   if (!court) throw new NotFoundException('Không tìm thấy sân');
   await tx.$queryRaw`SELECT id FROM "Venue" WHERE id = ${court.venueId}::uuid FOR SHARE`;
-  if (!ownerId) return;
-  const venue = await tx.venue.findUnique({ where: { id: court.venueId }, select: { ownerId: true } });
-  if (venue?.ownerId !== ownerId) throw new NotFoundException('Không tìm thấy sân');
+  if (!scope) return;
+  const venue = await tx.venue.findUnique({ where: { id: court.venueId }, select: { id: true, ownerId: true } });
+  if (!venue || !matchesScope(venue, scope)) throw new NotFoundException('Không tìm thấy sân');
 }
 
 /**

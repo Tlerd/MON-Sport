@@ -6,7 +6,7 @@ import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { cookieValue, readSession, SESSION_COOKIE } from './session.js';
 
-export type AuthedRequest = Request & { user: SessionUser };
+export type AuthedRequest = Request & { user: SessionUser & { staffVenueId?: string | null } };
 
 const ROLES = 'roles';
 /** Limits a route to these roles. Without it, any signed-in user passes. */
@@ -27,7 +27,7 @@ export class SessionGuard implements CanActivate {
     // A cookie issued before sessionsValidFrom was revoked, for example by an unlock (brief F-006, BR-32).
     const revoked = !!user?.sessionsValidFrom && session!.issuedAt < user.sessionsValidFrom;
     if (!user || user.lockedAt || user.deletedAt || revoked) throw new UnauthorizedException('Bạn cần đăng nhập');
-    req.user = { id: user.id, name: user.name, role: user.role };
+    req.user = { id: user.id, name: user.name, role: user.role, staffVenueId: user.staffVenueId };
     const roles = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES, [context.getHandler(), context.getClass()]);
     if (roles && !roles.includes(user.role)) throw new ForbiddenException('Bạn không có quyền làm việc này');
     return true;

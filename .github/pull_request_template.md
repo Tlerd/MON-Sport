@@ -27,7 +27,7 @@ Refs #
 
 ## Chạy thử local
 
-<!-- The user runs these before the merge. Agents never merge. Keep the commands, set <n>, and list the screens and flows to check. A stacked pull request starts here with "Merge sau #<n>". Do not start a line here with "AC-n:": pr-gates reads it as an AC claim. -->
+<!-- The steps to run the branch locally. Keep the commands, set <n>, and list the screens and flows to check. A stacked pull request starts here with "Merge sau #<n>". Do not start a line here with "AC-n:": pr-gates reads it as an AC claim. -->
 
 ```
 gh pr checkout <n>

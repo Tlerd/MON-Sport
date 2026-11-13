@@ -38,6 +38,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - bookings.controller.ts: BookingsController, OwnerBookingsController
 - bookings.module.ts: BookingsModule
 - bookings.service.ts: toView, BookingsService, lockVenueOf, expireBookings, finishPastMatches
+- venue-scope.ts: VenueScope, ScopeUser, venueScope, matchesScope, assertScope
 
 ## apps/api/src/modules/database/
 - clock.ts: Clock
@@ -79,6 +80,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - push.module.ts: PushModule
 - push.service.ts: PushService
 - subscriptions.service.ts: MAX_SUBSCRIPTIONS, SubscriptionsService
+
+## apps/api/src/modules/staff/
+- staff.controller.ts: StaffController
+- staff.module.ts: StaffModule
+- staff.service.ts: toStaffView, StaffService
 
 ## apps/api/src/modules/venues/
 - availability.controller.ts: AvailabilityController
@@ -158,8 +164,8 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/web/src/app/
 - App.tsx: App
 - BookPage.tsx: BookPage
-- SchedulePage.tsx: SchedulePage
-- pages.tsx: BookPage, OwnerRequestsPage, LobbyPage, MyPage, AuthPage
+- SchedulePage.tsx: formatDeadlineRemaining, SchedulePage
+- pages.tsx: BookPage, OwnerRequestsPage, MyVenuesPage, LobbyPage, MyPage, AuthPage
 - router.tsx: RoleGuard, routes, createRouter
 - session.tsx: SessionContextValue, SessionProvider, useSession
 - shells.tsx: initial, MobileBanner, PlayerShell, OwnerShell, AdminShell
@@ -196,6 +202,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - MyBookings.tsx: MyBookings
 - OwnerRequests.tsx: OwnerRequests
 - PhoneBookings.tsx: PhoneBookings
+- RatingPanel.tsx: RatingPanel
 - cancel.tsx: useCancelFlow, CancelAskState, CancelAsk
 - customer.tsx: Customer
 - status.ts: STATUS_LABEL
@@ -205,11 +212,14 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/web/src/features/matches/
 - JoinedMatches.tsx: JoinedMatches
-- Lobby.tsx: Lobby
+- Lobby.tsx: formatReputation, Lobby
 
 ## apps/web/src/features/notifications/
 - Notifications.tsx: Notifications
 - PushToggle.tsx: PushToggle
+
+## apps/web/src/features/staff/
+- StaffSection.tsx: StaffSection
 
 ## apps/web/src/features/venues/
 - MyVenues.tsx: MyVenues
@@ -241,7 +251,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - vitest.config.ts
 
 ## packages/shared/src/
-- account.ts: Messages, errorMessage, PRIVACY_NOTICE, RegisterRequest, CreateOwnerRequest, UserSearchRequest, …
+- account.ts: Messages, errorMessage, PRIVACY_NOTICE, SkillLevel, SKILL_LEVEL_LABELS, SKILL_LEVEL_REQUIRED_MESSAGE, …
 - admin-stats.ts: AdminStatsQuerySchema, AdminStatsQuery, AdminVenueStat, AdminStatsView
 - availability.ts: AvailabilityQuery, FreeRange, Availability, FreeRangesInput, startOfDayVN, freeRanges
 - booking-time.ts: minuteOfDayVN, isOnGrid, isLongEnough, bookingPrice, confirmDeadline, USER_CANCEL_WINDOW_MS, …
@@ -251,9 +261,10 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - google-auth.ts: OTP_CODE_MESSAGE, OtpCode, ProvidersResponse, OtpResponse, GoogleOtpSignupRequest, GoogleOtpVerifyRequest, …
 - health.ts: HealthResponse
 - index.ts
-- match.ts: MatchPlayerStatus, MATCH_CAPACITY_MESSAGE, MATCH_PRICE_MESSAGE, MATCH_FULL_MESSAGE, ALREADY_IN_MATCH_MESSAGE, NOT_JOINABLE_MESSAGE, …
+- match.ts: JoinMode, MatchPlayerStatus, MATCH_CAPACITY_MESSAGE, MATCH_PRICE_MESSAGE, MATCH_FULL_MESSAGE, ALREADY_IN_MATCH_MESSAGE, …
 - notification.ts: NotificationType, NotificationItemView, NotificationsListResponse, NotificationReadResponse, NotificationReadAllResponse, formatSlotTime, …
 - push.ts: PUSH_HOST_ALLOWLIST, isAllowedPushEndpoint, PushSubscribeRequest, PushUnsubscribeRequest, PushPublicKeyResponse, PushPayload
+- rating.ts: RATE_WINDOW_DAYS, RATE_TOO_EARLY, RATE_TOO_LATE, RATE_CANCELLED, RATE_NOT_PLAYER, RatePlayerRequest, …
 
 ## packages/shared/
 - vitest.config.ts
