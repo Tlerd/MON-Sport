@@ -37,7 +37,7 @@ A folder appears when its first feature needs it. `.dependency-cruiser.cjs` hold
 
 The user starts work with "tiếp tục", "continue", or a goal. Take it to a pull request that is ready to merge: plan, build, review, checks green. The user is not there to answer, so a question stops the work. Decide, and let the user correct later.
 
-The user merges. Agents never merge a pull request (`HUMAN_DECISIONS.md`, row 49). The user runs the branch locally, merges it, and the merge deploys. After a merge, check the deploy run and the live service. Fix a failure in a new pull request.
+An agent merges a ready pull request with `node scripts/merge.mjs <n>` only, in merge order (`HUMAN_DECISIONS.md`, row 50). The script refuses a red check or a missing review marker. The merge deploys. After a merge, check the deploy run and the live service. Fix a failure in a new pull request.
 
 - Start with `git status`, `PROGRESS.md`, and `HUMAN_DECISIONS.md`. Finish work in progress first. Without a goal, do the steps in `PROGRESS.md` in order, then the next slice by the launch order in the intake.
 - Keep a task list for the run and mark items done. Stop only when the next item needs the user, or a rule here stops you. A turn that ends with a summary, an offer to continue, or a list of decisions that block nothing leaves work undone. A step only the user can do goes in `PROGRESS.md`; go on with the other items.
@@ -63,7 +63,7 @@ The session model is the Planner and the Reviewer. The skill `agent-workflow` ho
 
 These keep the work safe. Do not bend them to make work pass:
 
-- Force push, push to `main`, and merging a pull request. The user merges.
+- Force push, push to `main`, and a merge by any way other than `node scripts/merge.mjs` (no `gh pr merge`, no `--admin`).
 - Deleting data, a branch, or a cloud resource that this work did not create.
 - Writing a secret or a password into code, a log, a commit, or a comment.
 - Weakening `pnpm check`, CI, the hooks, or these rules.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The one way to merge a pull request: node scripts/merge.mjs <number> [--dry-run]
-// The user runs it. Agents never merge (HUMAN_DECISIONS.md row 49): `gh pr merge` and this script are
+// Agents and the user run it (HUMAN_DECISIONS.md row 50). `gh pr merge` is
 // denied in .claude/settings.json. This script merges only when
 // - the pull request is open, not a draft, not from main, and its base is main
 //   (a stacked step waits until the pull request of its base branch is merged);
