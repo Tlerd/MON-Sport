@@ -8,6 +8,7 @@ import { connect } from 'node:net';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { acquire, lockPath } from './check-lock.mjs';
+import { DOC_LIMITS, sizeFailures } from './doc-size.mjs';
 import { hookSkips } from './hook-skip.mjs';
 import { INSTALL_HINT, scan } from './secret-scan.mjs';
 
@@ -90,15 +91,9 @@ const failures = [];
 }
 
 // Every session reads these files, so they stay short.
-for (const [file, limit] of [['AGENTS.md', 100], ['PROGRESS.md', 40]]) {
+for (const [file, limit] of Object.entries(DOC_LIMITS)) {
   if (!existsSync(join(root, file))) continue;
-  const lines = readFileSync(join(root, file), 'utf8').trimEnd().split('\n').length;
-  if (lines > limit) {
-    failures.push(
-      `FAIL size: ${file} has ${lines} lines and the limit is ${limit}\n` +
-        'Fix: keep what the next session needs. Move the rest into code, a test, or a commit message.',
-    );
-  }
+  failures.push(...sizeFailures(file, readFileSync(join(root, file), 'utf8'), limit));
 }
 
 // Secrets in the staged and the unstaged changes. In GitHub Actions the job "secrets" scans the commits instead.

@@ -17,7 +17,7 @@ Kết quả cần có:
 
 - Một lỗi trong CI hoặc trên live tự sinh một phát hiện có bằng chứng. Không ai phải khởi động việc này.
 - Phát hiện vào một hàng chờ triage. Chủ dự án chọn: sửa ngay, xếp lịch, hoặc bỏ qua.
-- Một phát hiện được chọn đi qua quy trình như mọi việc khác: nhánh `fix/<slug>`, PR, Reviewer. Người dùng chạy thử local rồi merge bằng `node scripts/merge.mjs <n>` (`HUMAN_DECISIONS.md` dòng 49).
+- Một phát hiện được chọn đi qua quy trình như mọi việc khác: nhánh `fix/<slug>`, PR, Reviewer. Agent merge bằng `node scripts/merge.mjs <n>` (`HUMAN_DECISIONS.md` dòng 50).
 
 ## Hiện trạng (2026-11-10)
 
@@ -112,7 +112,7 @@ Bước của người dùng sau khi PR merge: tạo tác vụ Task Scheduler `M
 
 - Mức propose của `flaky_test` gắn nhãn `maintain-fix` cho issue.
 - Một chế độ mới của `ci-autofix.mjs` đọc nhãn đó. Nó dùng lại worktree riêng, `PROTECTED`, `CHEATS` và giới hạn 2 lần thử.
-- Agent mở PR `fix/<slug>`. PR đi qua Reviewer. Người dùng merge bằng `node scripts/merge.mjs <n>`. Không có merge tự động.
+- Agent mở PR `fix/<slug>`. PR đi qua Reviewer. Agent merge bằng `node scripts/merge.mjs <n>` (`HUMAN_DECISIONS.md` dòng 50).
 
 ### Pha 4: quét định kỳ hằng tuần (`chore/maintain-weekly-scan`)
 
