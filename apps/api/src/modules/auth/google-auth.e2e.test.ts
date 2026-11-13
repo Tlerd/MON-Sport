@@ -1202,10 +1202,18 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
     ]);
 
     const statuses = [r1.status, r2.status].sort();
-    expect(statuses).toEqual([201, 400]);
+    expect([[201, 400], [201, 409]]).toContainEqual(statuses);
 
-    const failRes = r1.status === 400 ? r1 : r2;
-    expect(failRes.body.message).toBe('Mã đã hết hạn. Hãy xin mã mới');
+    if (statuses[1] === 400) {
+      const failRes = r1.status === 400 ? r1 : r2;
+      expect(failRes.body.message).toBe('Mã đã hết hạn. Hãy xin mã mới');
+    } else {
+      const failRes = r1.status === 409 ? r1 : r2;
+      expect(failRes.body.message).toBe('Số này đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết Google');
+    }
+
+    const userCount = await db.user.count({ where: { phone: '0901112233' } });
+    expect(userCount).toBe(1);
   });
 
   it('AC-32: Số 0901234567 đã có tài khoản của An', async () => {

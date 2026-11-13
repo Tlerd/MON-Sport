@@ -126,7 +126,7 @@ Test giả lập Google bằng một discovery document và một khóa ký JWT 
 | AC-28 | Mã được tạo lúc 10:00:00 | Lan gửi mã đúng lúc 10:05:01 | 400 "Mã đã hết hạn. Hãy xin mã mới" |
 | AC-29 | Lan xin mã lúc 10:00:00 | Lan xin lại lúc 10:00:30, rồi lúc 10:01:01 | Lần 10:00:30 trả 429. Lần 10:01:01 trả 200, và mã cũ không còn dùng được |
 | AC-30 | Số `0901112233` đã nhận 5 mã trong giờ này | Ai đó xin mã thứ 6 cho số đó | 429. `OtpSender.send` không được gọi |
-| AC-31 | Hai request "Hoàn tất đăng ký" cùng `sub` "g-111", cùng số, cùng mã đúng, gửi cùng lúc | Server xử lý cả hai | Đúng 1 request nhận 201. Request kia nhận 400 "Mã đã hết hạn. Hãy xin mã mới" |
+| AC-31 | Hai request "Hoàn tất đăng ký" cùng `sub` "g-111", cùng số, cùng mã đúng, gửi cùng lúc | Server xử lý cả hai | Đúng 1 request nhận 201. Request kia nhận 400 "Mã đã hết hạn. Hãy xin mã mới", hoặc 409 "Số này đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết Google" khi request đầu đã lưu xong. Chỉ có 1 tài khoản. |
 | AC-32 | Số `0901234567` đã có tài khoản của An | Người có cookie `google_pending` xin mã cho số đó | 409. `OtpSender.send` không được gọi |
 | AC-33 | `OtpSender.send` ném lỗi | Lan xin mã | 503 "Không gửi được mã. Thử lại sau". `PhoneOtp` không có mã mới cho số đó |
 | AC-34 | `NODE_ENV` = `production` và `OTP_PROVIDER` = `dev` | API khởi động | API dừng với lỗi cấu hình |
@@ -250,6 +250,7 @@ Làm trong project Google Cloud đang chạy MONSPORT. Các bước 1 tới 7 n�
 - Tài khoản chỉ có Google không gỡ liên kết được, cho tới khi có luồng đặt mật khẩu.
 - Thư viện: `openid-client` (dependency mới), vì nó làm discovery, PKCE và kiểm `id_token`. Coder đọc tài liệu qua Context7 trước khi code.
 - Cookie `google_flow` dùng `SameSite=Lax`, vì Google gọi lại bằng một lần chuyển hướng GET từ site khác.
+- AC-31 nhận cả 409: server tra số điện thoại trước khi kiểm mã (R4, AC-40), nên khi request đầu đã lưu xong, request sau nhận 409. Test lỗi chập chờn ngày 12/11/2026 vì chỉ nhận 400.
 
 ## Open questions
 
