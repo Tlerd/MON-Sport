@@ -19,8 +19,8 @@ export function EmptyState({
   className = '',
 }: EmptyStateProps) {
   return (
-    <div className={`empty-state ${className}`.trim()}>
-      {icon && <div className="empty-state-icon" aria-hidden="true">{icon}</div>}
+    <div className={`empty empty-state ${className}`.trim()}>
+      {icon && <div className="empty-ball empty-state-icon" aria-hidden="true">{icon}</div>}
       <p className="empty-state-message text-muted">{message}</p>
       {actionText && (
         actionHref ? (

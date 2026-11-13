@@ -31,7 +31,7 @@ Chọn phương án 3.
 - `DESIGN.md` giữ nguyên token và điều khiển `apps/mobile`. Phần "Words" của nó vẫn áp dụng cho web.
 - `scripts/design-tokens.mjs` ghi vào `apps/mobile/src/app/tokens.css`.
 - Tên sản phẩm vẫn là MONSPORT. Web dùng tên gọi của intake: "trận", "đơn vị", "sân", "host". Web không dùng "kèo" và "cụm sân" của mẫu.
-- Web vẫn không tràn ngang ở 390px (intake, "Quality"). Mẫu đặt `min-width: 720px`. Web bỏ dòng đó và thêm quy tắc cho màn hẹp.
+- Bố cục theo chiều rộng không theo mẫu và không theo `DESIGN.md`. Nó theo `docs/design/web-responsive.md`, do agent viết. Người dùng, 14/11/2026: "Bỏ hết các quy tắc cũ, dùng quy tắc của bạn mà không phụ thuộc vào khuôn mẫu". Trang không cuộn ngang từ 360px trở lên.
 
 Quy tắc "Sắp ra mắt":
 

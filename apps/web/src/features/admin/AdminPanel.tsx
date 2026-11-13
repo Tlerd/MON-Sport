@@ -9,23 +9,8 @@ import { VenueAdmin } from './VenueAdmin.tsx';
 const message = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
 /** The admin screen: accounts and venues (brief F-003), and the numbers of the whole site (brief F-016). */
-export function AdminPanel() {
-  const [tab, setTab] = useState<'accounts' | 'stats'>('accounts');
-
-  return (
-    <>
-      <nav className="tabs" aria-label="Chức năng quản trị">
-        <button type="button" className={tab === 'accounts' ? 'active' : ''} aria-pressed={tab === 'accounts'} onClick={() => setTab('accounts')}>
-          Tài khoản và đơn vị
-        </button>
-        <button type="button" className={tab === 'stats' ? 'active' : ''} aria-pressed={tab === 'stats'} onClick={() => setTab('stats')}>
-          Số liệu
-        </button>
-      </nav>
-      {tab === 'stats' && <AdminStats />}
-      {tab === 'accounts' && <AccountsTab />}
-    </>
-  );
+export function AdminPanel({ view = 'accounts' }: { view?: 'accounts' | 'stats' } = {}) {
+  return view === 'stats' ? <AdminStats /> : <AccountsTab />;
 }
 
 /** UC-10: the admin creates owners, venues, and courts, and locks accounts (brief F-003). */

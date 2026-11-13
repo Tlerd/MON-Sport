@@ -261,7 +261,7 @@ components:
 
 # MONSPORT design standard
 
-Every screen in `apps/web` and `apps/mobile` follows this file. The YAML front matter holds the tokens, and it is the only source of token values. The sections below explain how to use them. The file follows the DESIGN.md format of Google Labs (`version: alpha`). `AGENTS.md` and the skill `agent-workflow` hold the workflow.
+Every screen in `apps/mobile` follows this file. Since ADR 0009, `apps/web` follows `docs/design/web-ui-v3/` and `apps/web/src/app/theme.css`, and still follows the section "Words". The YAML front matter holds the tokens for `apps/mobile`, and it is the only source of mobile token values. The sections below explain how to use them. The file follows the DESIGN.md format of Google Labs (`version: alpha`). `AGENTS.md` and the skill `agent-workflow` hold the workflow.
 
 Plans and mockups: `docs/design/`. Decision on the mobile app: `docs/adr/0006-app-mobile-pwa.md`.
 

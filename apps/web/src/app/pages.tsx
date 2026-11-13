@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import type { SessionUser } from '@monsport/shared';
+import { SKILL_LEVEL_LABELS, type SessionUser, type SkillLevel } from '@monsport/shared';
+import { ComingSoonButton, ComingSoonPage } from '../components/ComingSoon.tsx';
 import { AuthPanel } from '../features/auth/AuthPanel.tsx';
 import { GoogleComplete } from '../features/auth/GoogleComplete.tsx';
 import { GoogleVerify } from '../features/auth/GoogleVerify.tsx';
@@ -193,4 +194,69 @@ export function AuthPage() {
   );
 }
 
+export function TeamsPage() {
+  return (
+    <ComingSoonPage
+      title="Đội"
+      description="Lập đội để nhận trận đội, theo dõi thành tích và rủ nhau ra sân."
+      actionLabel="Lập đội mới"
+    />
+  );
+}
+
+export function ProfilePage() {
+  const { user } = useSession();
+  const profile = user as (SessionUser & { phone?: string | null; skillLevel?: SkillLevel | null }) | null;
+  const displayName = profile?.name ?? '';
+  const avatarInitial = [...(displayName.normalize('NFC').trim().split(/\s+/).at(-1) ?? '')][0] ?? '';
+
+  return (
+    <div className="page narrow">
+      <section className="card phead">
+        <span
+          className="av avatar"
+          style={{ '--s': '68px', '--c': 'var(--ok)' } as CSSProperties}
+          aria-hidden="true"
+        >
+          {avatarInitial}
+        </span>
+        <div>
+          <h1>{displayName}</h1>
+          {profile?.phone && <p className="meta">{profile.phone}</p>}
+          {profile?.skillLevel && (
+            <div className="tags">
+              <span className="tag solo">{SKILL_LEVEL_LABELS[profile.skillLevel] ?? profile.skillLevel}</span>
+            </div>
+          )}
+        </div>
+        <ComingSoonButton className="btn ghost">Sửa hồ sơ</ComingSoonButton>
+      </section>
+
+      <section className="card">
+        <div className="empty">
+          <div className="empty-ball" aria-hidden="true">
+            <svg
+              className="ic"
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M5.2 6.2c3.6 2.6 3.6 9 0 11.6M18.8 6.2c-3.6 2.6-3.6 9 0 11.6" />
+            </svg>
+          </div>
+          <h3>Sắp ra mắt</h3>
+          <p>Thống kê trận đấu và lịch sử gần đây sẽ hiển thị tại đây.</p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export { SchedulePage } from './SchedulePage.tsx';
+export { OwnerOverview } from './OwnerOverview.tsx';

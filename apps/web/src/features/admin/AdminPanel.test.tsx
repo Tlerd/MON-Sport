@@ -66,7 +66,7 @@ describe('AdminPanel', () => {
   it('AC-26: the admin creates owner Giang, venue "Cầu lông C" for Giang, then "Sân 1", and the list shows them', async () => {
     const fetch = fakeApi();
     vi.stubGlobal('fetch', fetch);
-    render(<AdminPanel />);
+    render(<AdminPanel view="accounts" />);
     const owners = (await screen.findByRole('heading', { name: 'Chủ sân' })).closest('section')!;
 
     fireEvent.click(within(owners).getByText('Tạo chủ sân', { selector: 'summary' }));
@@ -97,7 +97,7 @@ describe('AdminPanel', () => {
 
   it('AC-27: the admin finds 0901234567 and locks An, and the row shows "Đã khóa" and "Mở khóa"', async () => {
     vi.stubGlobal('fetch', fakeApi());
-    render(<AdminPanel />);
+    render(<AdminPanel view="accounts" />);
     const lock = (await screen.findByRole('heading', { name: 'Khóa tài khoản' })).closest('section')!;
     type(lock, 'Số điện thoại cần tìm', '0901234567');
     fireEvent.click(within(lock).getByRole('button', { name: 'Tìm' }));
@@ -110,7 +110,7 @@ describe('AdminPanel', () => {
 
   it('edits the price of a court, and sends only the fields that may change', async () => {
     vi.stubGlobal('fetch', fakeApi());
-    render(<AdminPanel />);
+    render(<AdminPanel view="accounts" />);
     const owners = (await screen.findByRole('heading', { name: 'Chủ sân' })).closest('section')!;
     fireEvent.click(within(owners).getByText('Tạo chủ sân', { selector: 'summary' }));
     type(owners, 'Tên chủ sân', 'Giang');
@@ -139,7 +139,7 @@ describe('AdminPanel', () => {
 
   it('clears an old result when the admin searches again, so the wrong account cannot be locked', async () => {
     vi.stubGlobal('fetch', fakeApi());
-    render(<AdminPanel />);
+    render(<AdminPanel view="accounts" />);
     const lock = (await screen.findByRole('heading', { name: 'Khóa tài khoản' })).closest('section')!;
     type(lock, 'Số điện thoại cần tìm', '0901234567');
     fireEvent.click(within(lock).getByRole('button', { name: 'Tìm' }));
@@ -152,7 +152,7 @@ describe('AdminPanel', () => {
 
   it('shows no lock button for an admin account', async () => {
     vi.stubGlobal('fetch', fakeApi());
-    render(<AdminPanel />);
+    render(<AdminPanel view="accounts" />);
     const lock = (await screen.findByRole('heading', { name: 'Khóa tài khoản' })).closest('section')!;
     type(lock, 'Số điện thoại cần tìm', '0900000000');
     fireEvent.click(within(lock).getByRole('button', { name: 'Tìm' }));
@@ -160,7 +160,7 @@ describe('AdminPanel', () => {
     expect(within(lock).queryByRole('button', { name: 'Khóa' })).toBeNull();
   });
 
-  it('AC-13: shows the tabs "Tài khoản và đơn vị" (open by default) and "Số liệu", and loads the stats only when the second opens', async () => {
+  it('AC-13: renders accounts view by prop and stats view when switched, loading stats only on stats view', async () => {
     const api = fakeApi();
     const STATS = {
       date: '2026-11-20', weekStart: '2026-11-16', weekEnd: '2026-11-22', accounts: { ADMIN: 1, OWNER: 3, USER: 40, STAFF: 0 },
@@ -169,31 +169,26 @@ describe('AdminPanel', () => {
     const fetch = vi.fn((url: string, init?: RequestInit) =>
       url.startsWith('/api/admin/stats') ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(STATS) }) : api(url, init));
     vi.stubGlobal('fetch', fetch);
-    render(<AdminPanel />);
+    const { rerender } = render(<AdminPanel view="accounts" />);
 
-    const tabs = screen.getByRole('navigation', { name: 'Chức năng quản trị' });
-    expect(within(tabs).getByRole('button', { name: 'Tài khoản và đơn vị' }).className).toBe('active');
-    expect(within(tabs).getByRole('button', { name: 'Số liệu' }).className).toBe('');
     expect(await screen.findByRole('heading', { name: 'Chủ sân' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Đơn vị' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Khóa tài khoản' })).toBeTruthy();
     expect(fetch.mock.calls.some(([u]) => String(u).startsWith('/api/admin/stats'))).toBe(false);
 
-    fireEvent.click(within(tabs).getByRole('button', { name: 'Số liệu' }));
+    rerender(<AdminPanel view="stats" />);
 
     expect(await screen.findByText('16/11 – 22/11/2026')).toBeTruthy();
-    expect(within(tabs).getByRole('button', { name: 'Số liệu' }).className).toBe('active');
-    expect(within(tabs).getByRole('button', { name: 'Số liệu', pressed: true })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Khóa tài khoản' })).toBeNull();
 
-    fireEvent.click(within(tabs).getByRole('button', { name: 'Tài khoản và đơn vị' }));
+    rerender(<AdminPanel view="accounts" />);
     expect(await screen.findByRole('heading', { name: 'Khóa tài khoản' })).toBeTruthy();
     expect(screen.queryByText('16/11 – 22/11/2026')).toBeNull();
   });
 
   it('says so when no account has the phone number', async () => {
     vi.stubGlobal('fetch', fakeApi());
-    render(<AdminPanel />);
+    render(<AdminPanel view="accounts" />);
     const lock = (await screen.findByRole('heading', { name: 'Khóa tài khoản' })).closest('section')!;
     type(lock, 'Số điện thoại cần tìm', '0909999999');
     fireEvent.click(within(lock).getByRole('button', { name: 'Tìm' }));

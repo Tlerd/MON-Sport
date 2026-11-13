@@ -1,4 +1,4 @@
-// Writes apps/web/src/app/tokens.css from DESIGN.md. Run it by hand when DESIGN.md changes: node scripts/design-tokens.mjs.
+// Writes apps/mobile/src/app/tokens.css from DESIGN.md. Run it by hand when DESIGN.md changes: node scripts/design-tokens.mjs.
 // It is not part of pnpm check. The output file says "Generated from DESIGN.md, do not edit".
 import { execSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const outPath = join(root, 'apps', 'web', 'src', 'app', 'tokens.css');
+const outPath = join(root, 'apps', 'mobile', 'src', 'app', 'tokens.css');
 
 const stdout = execSync('npx -y -p @google/design.md@0.4.0 designmd export --format dtcg DESIGN.md', {
   cwd: root,

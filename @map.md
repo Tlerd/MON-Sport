@@ -164,19 +164,24 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/web/src/app/
 - App.tsx: App
 - BookPage.tsx: BookPage
+- OwnerOverview.tsx: OwnerOverview
 - SchedulePage.tsx: formatDeadlineRemaining, SchedulePage
-- pages.tsx: BookPage, OwnerRequestsPage, MyVenuesPage, LobbyPage, MyPage, AuthPage
+- pages.tsx: BookPage, OwnerRequestsPage, MyVenuesPage, LobbyPage, MyPage, AuthPage, …
 - router.tsx: RoleGuard, routes, createRouter
 - session.tsx: SessionContextValue, SessionProvider, useSession
 - shells.tsx: initial, MobileBanner, PlayerShell, OwnerShell, AdminShell
 
 ## apps/web/src/components/
 - Chip.tsx: ChipProps, Chip
+- ComingSoon.tsx: ComingSoonButtonProps, ComingSoonButton, ComingSoonPageProps, ComingSoonPage
+- CourtArt.tsx: CourtArtProps, CourtArt
 - CourtPrices.tsx: CourtPrices
 - EmptyState.tsx: EmptyStateProps, EmptyState
 - Panel.tsx: PanelProps, Panel
 - SlotGrid.tsx: SlotCellStatus, SlotCellInfo, CourtItem, SelectedSlot, SlotGridProps, WindowId, …
+- SportIcon.tsx: KnownSportId, normalizeSportId, SportIconProps, SportIcon
 - StatusBadge.tsx: StatusValue, StatusBadgeProps, StatusBadge
+- Toast.tsx: ToastTone, ToastContextValue, ToastProvider, useToast
 - icons.tsx: IconProps, IconBadminton, IconFootball, SportIcon
 
 ## apps/web/src/features/admin/

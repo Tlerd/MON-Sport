@@ -1,90 +1,262 @@
-import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router';
+import { api } from '@monsport/client';
+import type { Role } from '@monsport/shared';
 import {
   Calendar,
+  ChevronDown,
+  Flag,
+  Home,
   Inbox,
   LayoutDashboard,
-  LayoutGrid,
+  MapPin,
+  Menu,
+  MessageSquare,
+  Plus,
+  Search,
+  Shield,
   Store,
-  Ticket,
   TrendingUp,
+  Trophy,
+  User,
   Users,
 } from 'lucide-react';
-import { Notifications } from '../features/notifications/Notifications.tsx';
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { useToast } from '../components/Toast.tsx';
 import { GoogleAccountActions } from '../features/auth/GoogleAccountActions.tsx';
-import { api } from '@monsport/client';
+import { Notifications } from '../features/notifications/Notifications.tsx';
 import { useSession } from './session.tsx';
 
 /** Vietnamese names put the given name last: "Nguyễn Văn An" shows "A". */
-export const initial = (name: string) => [...(name.normalize('NFC').trim().split(/\s+/).at(-1) ?? '')][0] ?? '';
+export const initial = (name: string) =>
+  [...(name.normalize('NFC').trim().split(/\s+/).at(-1) ?? '')][0] ?? '';
 
 export function MobileBanner() {
   return null;
 }
 
-export function PlayerShell() {
+const ROLE_LABEL: Record<Role, string> = {
+  USER: 'Người chơi',
+  OWNER: 'Chủ sân',
+  STAFF: 'Nhân viên',
+  ADMIN: 'Quản trị viên',
+};
+
+const navClass = ({ isActive }: { isActive: boolean }) => (isActive ? 'on active' : '');
+
+function TopBar({
+  homeTo,
+  hasSidebar = false,
+  drawerOpen = false,
+  onToggleDrawer,
+  leftExtra,
+  center,
+  rightExtra,
+}: {
+  homeTo: string;
+  hasSidebar?: boolean;
+  drawerOpen?: boolean;
+  onToggleDrawer?: () => void;
+  leftExtra?: ReactNode;
+  center: ReactNode;
+  rightExtra?: ReactNode;
+}) {
   const { user, logout, refreshKey } = useSession();
   const navigate = useNavigate();
+  const [popOpen, setPopOpen] = useState(false);
+  const whoRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!popOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPopOpen(false);
+    };
+    const onPointerDown = (e: MouseEvent) => {
+      if (whoRef.current && !whoRef.current.contains(e.target as Node)) {
+        setPopOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onPointerDown);
+    };
+  }, [popOpen]);
+
+  return (
+    <header className="top" role="banner">
+      <div className="top-l">
+        {hasSidebar && (
+          <button
+            type="button"
+            className="ib menu-btn"
+            aria-label={drawerOpen ? 'Đóng menu' : 'Mở menu'}
+            aria-expanded={drawerOpen}
+            onClick={onToggleDrawer}
+          >
+            <Menu size={20} className="ic" aria-hidden="true" />
+          </button>
+        )}
+        <NavLink to={homeTo} className="logo">
+          <i aria-hidden="true" />
+          <span>MONSPORT</span>
+        </NavLink>
+        {leftExtra}
+      </div>
+
+      {center}
+
+      <div className="top-r">
+        {rightExtra}
+        {user ? (
+          <>
+            {user.role !== 'STAFF' && <Notifications userId={user.id} refresh={refreshKey} />}
+            <div className="who" ref={whoRef}>
+              <button
+                type="button"
+                className={popOpen ? 'me-btn on' : 'me-btn'}
+                aria-expanded={popOpen}
+                aria-haspopup="menu"
+                onClick={() => setPopOpen((open) => !open)}
+              >
+                <span
+                  className="av avatar"
+                  style={{ '--s': '34px', '--c': 'var(--ok)' } as CSSProperties}
+                  aria-hidden="true"
+                >
+                  {initial(user.name)}
+                </span>
+                <span className="who">
+                  <span className="name">{user.name}</span>
+                </span>
+                <ChevronDown size={15} className="ic" aria-hidden="true" />
+              </button>
+              {popOpen && (
+                <div className="pop" role="menu" aria-label="Tài khoản">
+                  <div className="pop-head">
+                    <b>{user.name}</b>
+                    <small>{ROLE_LABEL[user.role]}</small>
+                  </div>
+                  <div className="pop-actions">
+                    {user.role === 'USER' && (
+                      <NavLink
+                        to="/ho-so"
+                        className="pop-item"
+                        onClick={() => setPopOpen(false)}
+                      >
+                        <User size={16} className="ic" aria-hidden="true" />
+                        <span>Hồ sơ</span>
+                      </NavLink>
+                    )}
+                    {user.role === 'USER' && (
+                      <div className="pop-item">
+                        <GoogleAccountActions />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="pop-item bad"
+                      onClick={async () => {
+                        setPopOpen(false);
+                        await logout();
+                        navigate('/dang-nhap');
+                      }}
+                    >
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <NavLink to="/dang-nhap" className="btn lime sm">
+            Đăng nhập
+          </NavLink>
+        )}
+      </div>
+    </header>
+  );
+}
+
+export function PlayerShell() {
+  const { user } = useSession();
+  const { comingSoon } = useToast();
+  const navigate = useNavigate();
+  const [searchText, setSearchText] = useState('');
+
+  const handleSearch = () => {
+    const q = searchText.trim();
+    navigate(q ? `/san?q=${encodeURIComponent(q)}` : '/san');
+  };
 
   return (
     <div className="shell player-shell">
-      <header className="topnav" role="banner">
-        <NavLink to="/" className="brand">
-          MONSPORT
-        </NavLink>
-        <nav className="nav-links" aria-label="Điều hướng chính">
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <LayoutGrid size={20} aria-hidden="true" />
-            <span>Đặt sân</span>
-          </NavLink>
-          <NavLink
-            to="/phong-cho"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <Users size={20} aria-hidden="true" />
-            <span>Phòng chờ</span>
-          </NavLink>
-          {user?.role === 'USER' && (
-            <NavLink
-              to="/lich-cua-toi"
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+      <TopBar
+        homeTo="/"
+        leftExtra={
+          <div className="search" role="search">
+            <Search size={16} className="ic" aria-hidden="true" />
+            <input
+              type="search"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+              placeholder="Tìm sân, trận..."
+              aria-label="Tìm kiếm"
+            />
+          </div>
+        }
+        center={
+          <nav className="top-c" aria-label="Điều hướng chính">
+            <NavLink to="/" end className={navClass}>
+              <Home size={18} className="ic" aria-hidden="true" />
+              <span>Trang chủ</span>
+            </NavLink>
+            <NavLink to="/phong-cho" className={navClass}>
+              <Users size={18} className="ic" aria-hidden="true" />
+              <span>Ghép trận</span>
+            </NavLink>
+            <NavLink to="/san" className={navClass}>
+              <MapPin size={18} className="ic" aria-hidden="true" />
+              <span>Sân</span>
+            </NavLink>
+            <NavLink to="/doi" className={navClass}>
+              <Shield size={18} className="ic" aria-hidden="true" />
+              <span>Đội</span>
+            </NavLink>
+            <NavLink to="/lich-cua-toi" className={navClass}>
+              <Calendar size={18} className="ic" aria-hidden="true" />
+              <span>Lịch</span>
+            </NavLink>
+          </nav>
+        }
+        rightExtra={
+          <>
+            <button
+              type="button"
+              className="btn lime sm create-match-btn"
+              onClick={() => navigate(user ? '/lich-cua-toi' : '/dang-nhap')}
             >
-              <Ticket size={20} aria-hidden="true" />
-              <span>Lịch của tôi</span>
-            </NavLink>
-          )}
-        </nav>
-        <div className="who">
-          {user ? (
-            <>
-              {user.role !== 'STAFF' && <Notifications userId={user.id} refresh={refreshKey} />}
-              <span className="avatar" aria-hidden="true">
-                {initial(user.name)}
-              </span>
-              <span className="name">{user.name}</span>
-              {user.role === 'USER' && <GoogleAccountActions />}
-              <button
-                type="button"
-                className="link"
-                onClick={async () => {
-                  await logout();
-                  navigate('/dang-nhap');
-                }}
-              >
-                Đăng xuất
-              </button>
-            </>
-          ) : (
-            <NavLink to="/dang-nhap" className="nav-item login-btn">
-              Đăng nhập
-            </NavLink>
-          )}
-        </div>
-      </header>
+              <Plus size={16} className="ic" aria-hidden="true" />
+              <span>Tạo trận</span>
+            </button>
+            <button
+              type="button"
+              className="ib"
+              aria-label="Tin nhắn"
+              onClick={comingSoon}
+            >
+              <MessageSquare size={19} className="ic" aria-hidden="true" />
+            </button>
+          </>
+        }
+      />
       <main className="player-main">
         <Outlet />
       </main>
@@ -93,9 +265,10 @@ export function PlayerShell() {
 }
 
 export function OwnerShell() {
-  const { user, logout, refreshKey } = useSession();
-  const navigate = useNavigate();
+  const { user, refreshKey } = useSession();
+  const { pathname } = useLocation();
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     api<Array<{ status: string }>>('/api/owner/bookings')
@@ -103,142 +276,165 @@ export function OwnerShell() {
       .catch(() => setPendingCount(0));
   }, [refreshKey]);
 
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawerOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
+
   return (
     <div className="shell owner-shell" data-role={user?.role}>
-      <div className="owner-layout">
-        <aside className="sidebar" aria-label="Menu chủ sân">
-          <div className="sidebar-brand">
-            <NavLink to={user?.role === 'STAFF' ? '/chu-san/lich' : '/chu-san/yeu-cau'} className="brand">
-              MONSPORT
-            </NavLink>
+      <TopBar
+        homeTo={user?.role === 'STAFF' ? '/chu-san/lich' : '/chu-san/yeu-cau'}
+        hasSidebar
+        drawerOpen={drawerOpen}
+        onToggleDrawer={() => setDrawerOpen((v) => !v)}
+        center={<span className="role-pill">Kênh chủ sân</span>}
+      />
+      <div className="dash">
+        {drawerOpen && (
+          <div
+            className="scrim drawer-scrim"
+            aria-hidden="true"
+            onClick={() => setDrawerOpen(false)}
+          />
+        )}
+        <aside
+          className={drawerOpen ? 'side sidebar open' : 'side sidebar'}
+          aria-label="Menu chủ sân"
+        >
+          <div className="side-who">
+            <span
+              className="av avatar"
+              style={{ '--s': '38px', '--c': 'var(--ok)' } as CSSProperties}
+              aria-hidden="true"
+            >
+              {initial(user?.name ?? '')}
+            </span>
+            <div>
+              <b>{user?.name}</b>
+              <small>{user?.role === 'STAFF' ? 'Nhân viên' : 'Chủ sân'}</small>
+            </div>
           </div>
           <nav className="sidebar-nav" aria-label="Chức năng chủ sân">
-            <NavLink
-              to="/chu-san/yeu-cau"
-              title="Yêu cầu"
-              className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-            >
-              <Inbox size={20} aria-hidden="true" />
-              <span className="nav-text">Yêu cầu</span>
+            {user?.role !== 'STAFF' && (
+              <NavLink to="/chu-san/tong-quan" className={navClass}>
+                <LayoutDashboard size={18} className="ic" aria-hidden="true" />
+                <span>Tổng quan</span>
+              </NavLink>
+            )}
+            <NavLink to="/chu-san/yeu-cau" className={navClass}>
+              <Inbox size={18} className="ic" aria-hidden="true" />
+              <span>Yêu cầu</span>
               {pendingCount > 0 && <span className="count-badge">{pendingCount}</span>}
             </NavLink>
-            <NavLink
-              to="/chu-san/lich"
-              title="Lịch sân"
-              className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-            >
-              <Calendar size={20} aria-hidden="true" />
-              <span className="nav-text">Lịch sân</span>
+            <NavLink to="/chu-san/lich" className={navClass}>
+              <Calendar size={18} className="ic" aria-hidden="true" />
+              <span>Lịch sân</span>
             </NavLink>
             {user?.role !== 'STAFF' && (
               <>
-                <NavLink
-                  to="/chu-san/doanh-thu"
-                  title="Doanh thu"
-                  className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-                >
-                  <TrendingUp size={20} aria-hidden="true" />
-                  <span className="nav-text">Doanh thu</span>
+                <NavLink to="/chu-san/doanh-thu" className={navClass}>
+                  <TrendingUp size={18} className="ic" aria-hidden="true" />
+                  <span>Doanh thu</span>
                 </NavLink>
-                <NavLink
-                  to="/chu-san/don-vi"
-                  title="Đơn vị và giá"
-                  className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-                >
-                  <Store size={20} aria-hidden="true" />
-                  <span className="nav-text">Đơn vị và giá</span>
+                <NavLink to="/chu-san/don-vi" className={navClass}>
+                  <Store size={18} className="ic" aria-hidden="true" />
+                  <span>Đơn vị và giá</span>
                 </NavLink>
               </>
             )}
           </nav>
         </aside>
-        <div className="owner-body">
-          <header className="owner-topbar" role="banner">
-            <div className="grow" />
-            <div className="who">
-              {user && (
-                <>
-                  {user.role !== 'STAFF' && <Notifications userId={user.id} refresh={refreshKey} />}
-                  <span className="avatar" aria-hidden="true">
-                    {initial(user.name)}
-                  </span>
-                  <span className="name">{user.name}</span>
-                  <button
-                    type="button"
-                    className="link"
-                    onClick={async () => {
-                      await logout();
-                      navigate('/dang-nhap');
-                    }}
-                  >
-                    Đăng xuất
-                  </button>
-                </>
-              )}
-            </div>
-          </header>
-          <main className="owner-main">
-            <Outlet />
-          </main>
-        </div>
+        <main className="dash-main owner-main">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
 }
 
 export function AdminShell() {
-  const { user, logout, refreshKey } = useSession();
-  const navigate = useNavigate();
+  const { user } = useSession();
+  const { pathname } = useLocation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawerOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
 
   return (
     <div className="shell admin-shell">
-      <div className="admin-layout">
-        <aside className="sidebar" aria-label="Menu quản trị">
-          <div className="sidebar-brand">
-            <NavLink to="/admin" className="brand">
-              MONSPORT
-            </NavLink>
+      <TopBar
+        homeTo="/admin"
+        hasSidebar
+        drawerOpen={drawerOpen}
+        onToggleDrawer={() => setDrawerOpen((v) => !v)}
+        center={<span className="role-pill">Trang quản trị</span>}
+      />
+      <div className="dash">
+        {drawerOpen && (
+          <div
+            className="scrim drawer-scrim"
+            aria-hidden="true"
+            onClick={() => setDrawerOpen(false)}
+          />
+        )}
+        <aside
+          className={drawerOpen ? 'side sidebar open' : 'side sidebar'}
+          aria-label="Menu quản trị"
+        >
+          <div className="side-who">
+            <span
+              className="av avatar"
+              style={{ '--s': '38px', '--c': 'var(--ok)' } as CSSProperties}
+              aria-hidden="true"
+            >
+              {initial(user?.name ?? '')}
+            </span>
+            <div>
+              <b>{user?.name}</b>
+              <small>Quản trị viên</small>
+            </div>
           </div>
           <nav className="sidebar-nav" aria-label="Chức năng quản trị">
-            <NavLink
-              to="/admin"
-              title="Tổng quan"
-              className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-            >
-              <LayoutDashboard size={20} aria-hidden="true" />
-              <span className="nav-text">Tổng quan</span>
+            <NavLink to="/admin" end className={navClass}>
+              <LayoutDashboard size={18} className="ic" aria-hidden="true" />
+              <span>Tổng quan</span>
+            </NavLink>
+            <NavLink to="/admin/tai-khoan" className={navClass}>
+              <Users size={18} className="ic" aria-hidden="true" />
+              <span>Tài khoản và đơn vị</span>
+            </NavLink>
+            <NavLink to="/admin/bao-cao" className={navClass}>
+              <Flag size={18} className="ic" aria-hidden="true" />
+              <span>Báo cáo vi phạm</span>
+            </NavLink>
+            <NavLink to="/admin/mon" className={navClass}>
+              <Trophy size={18} className="ic" aria-hidden="true" />
+              <span>Môn thể thao</span>
             </NavLink>
           </nav>
         </aside>
-        <div className="admin-body">
-          <header className="admin-topbar" role="banner">
-            <div className="grow" />
-            <div className="who">
-              {user && (
-                <>
-                  {user.role !== 'STAFF' && <Notifications userId={user.id} refresh={refreshKey} />}
-                  <span className="avatar" aria-hidden="true">
-                    {initial(user.name)}
-                  </span>
-                  <span className="name">{user.name}</span>
-                  <button
-                    type="button"
-                    className="link"
-                    onClick={async () => {
-                      await logout();
-                      navigate('/dang-nhap');
-                    }}
-                  >
-                    Đăng xuất
-                  </button>
-                </>
-              )}
-            </div>
-          </header>
-          <main className="admin-main">
-            <Outlet />
-          </main>
-        </div>
+        <main className="dash-main admin-main">
+          <Outlet />
+        </main>
       </div>
     </div>
   );

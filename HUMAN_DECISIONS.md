@@ -77,7 +77,6 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 61 | Ai thấy điểm uy tín? (F-032) | Chỉ host, trong hàng chờ | Không | F-032 |
 | 63 | Web mới dùng tên "MONSPORT" hay "Ra Sân" như mẫu? | Giữ "MONSPORT" | Không | F-033 |
 | 64 | Web mới dùng "kèo", "cụm sân" như mẫu, hay "trận", "đơn vị" như intake? | "Trận", "đơn vị" theo intake | Không | F-033 |
-| 65 | Web có còn phải dùng được ở màn rộng 390px không? Mẫu chỉ thu hẹp tới 720px | Có, theo intake | Không | F-033 |
 | 66 | Trang đầu của chủ sân sau đăng nhập là "Yêu cầu" hay "Tổng quan"? | "Yêu cầu" | Không | F-033 |
 
 ## Việc chỉ người dùng làm được
@@ -97,4 +96,5 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 49 | Agent không merge. Agent làm tới pull request đã review và có check xanh, kèm lệnh chạy thử local. Người dùng chạy local, thấy ổn thì merge, rồi CI/CD deploy. Lỗi sau deploy thì agent sửa trong pull request mới. Lời người dùng: "code test chạy rồi cứ tạo pull chưa merge, khi chạy local tôi thấy ổn thì mới merge vào chờ ci/cd để xem có lỗi gì mới sửa". Release, pre-release và staging hoãn tới khi người dùng yêu cầu: "phần đó lưu lại để lần sau dùng ... Khi tôi nói dùng mới add vào" | 12/11/2026 | người dùng |
 | 50 | Thay dòng 49. Agent tự merge pull request đã sẵn sàng bằng `node scripts/merge.mjs <n>`, theo thứ tự merge: check xanh và review marker sạch trên head hiện tại. `gh pr merge` vẫn bị chặn. Sau merge, agent kiểm tra deploy và service live. Lời người dùng: "tự động merge để làm cũng như các PR còn lại, tôi cho phép hết"; chọn "Cho sửa settings". | 13/11/2026 | người dùng |
 | 62 | Web bỏ giao diện cũ và theo mẫu ở `docs/design/web-ui-v3/` (ADR 0009). App mobile giữ `DESIGN.md`. Nút chưa có chức năng hiện "Sắp ra mắt". Lời người dùng: "xóa sạch giao diện cũ, dùng giao diện mới này (chỉ web), những tính năng chưa làm khi ấn nút cứ ghi là sắp ra mắt". | 14/11/2026 | người dùng |
+| 65 | Web co giãn theo quy tắc do agent tự viết trong `docs/design/web-responsive.md`. Bỏ quy tắc 390px cũ của `DESIGN.md` cho web và các `@media` của mẫu. Câu hỏi cũ: "Web có còn phải dùng được ở màn rộng 390px không? Mẫu chỉ thu hẹp tới 720px". Lời người dùng: "Bỏ hết các quy tắc cũ, dùng quy tắc của bạn mà không phụ thuộc vào khuôn mẫu rồi viết lại ý tưởng đó ra là được". | 14/11/2026 | người dùng |
 | 10a | "làm theo cách hiện tại": bảng admin vẫn đếm người dùng tạo booking `APP`, vào trận, hoặc làm host trong tuần. Số lần đăng nhập (`User.lastLoginAt`) chỉ là đề xuất, chỉ làm khi người dùng đồng ý | 23/10/2026 | người dùng, F-016 |

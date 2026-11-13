@@ -1,0 +1,66 @@
+:root {
+  --bg: #F3F1EA;
+  --surface: #FFFFFF;
+  --ink: #101915;
+  --ink2: #46524C;
+  --ink3: #7C8780;
+  --line: #E2DFD4;
+  --line2: #EEECE3;
+  --lime: #C9F04D;
+  --lime-soft: #EEF6DA;
+  --clay: #D9532A;
+  --clay-soft: #FCE9DF;
+  --amber: #E9A91C;
+  --amber-soft: #FBF0D3;
+  --ok: #1E7F50;
+  --ok-soft: #E1F1E7;
+  --bad: #C23B2E;
+  --bad-soft: #F9E1DE;
+  --blue: #2E66C2;
+  --body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --display: "Big Shoulders Display", "Be Vietnam Pro", Impact, sans-serif;
+  --top: 60px;
+  --r: 14px;
+
+  /* compatibility until parts B and C */
+  --color-primary: var(--ok);
+  --color-on-primary: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink2);
+  --color-canvas: var(--bg);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-peak: var(--amber);
+  --color-focus: var(--blue);
+  --color-status-wait: var(--clay);
+  --color-status-wait-bg: var(--amber-soft);
+  --color-status-ok: var(--ok);
+  --color-status-ok-bg: var(--ok-soft);
+  --color-status-no: var(--bad);
+  --color-status-no-bg: var(--bad-soft);
+  --color-status-off: var(--ink2);
+  --color-status-off-bg: var(--line2);
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-base: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  --radius-none: 0px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: var(--r);
+  --radius-full: 999px;
+
+  --font-title-mobile: 700 22px/28px var(--body);
+  --font-title-web: 700 28px/34px var(--body);
+  --font-headline-mobile: 700 17px/22px var(--body);
+  --font-headline-web: 700 18px/24px var(--body);
+  --font-body: 400 15px/21px var(--body);
+  --font-body-strong: 600 15px/21px var(--body);
+  --font-meta: 400 13px/18px var(--body);
+  --font-label: 600 13px/16px var(--body);
+  --font-numeric: 600 15px/21px var(--body);
+}

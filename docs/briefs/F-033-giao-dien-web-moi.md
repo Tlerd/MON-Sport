@@ -34,7 +34,7 @@ Người dùng, chủ sân, nhân viên và admin dùng web với khung, màu, c
 4. Dùng tên gọi của intake: "trận" (không "kèo"), "đơn vị" (không "cụm sân"), "sân", "host", "phòng chờ". Giữ nguyên chữ của mọi nút, tiêu đề và thông báo đang có, trừ khi bảng "Màn hình" ghi khác.
 5. Không hiện dữ liệu giả của mẫu. Một khối không có dữ liệu thật hiện trạng thái rỗng "Sắp ra mắt". Một nút không có chức năng thật gọi `comingSoon()`: thông báo nổi "Sắp ra mắt", không đổi trang, không gọi API.
 6. Không dòng "Giao diện mẫu, dữ liệu giả lập" và không tên model trong sản phẩm.
-7. Trang không tràn ngang ở 390px, 1024px và 1440px. Bỏ `min-width: 720px` của mẫu. Dưới 720px: một cột, tab của thanh trên chỉ còn icon, cột trái và thanh bên thành ngăn kéo (như mẫu ở 980px), bảng cuộn ngang trong khung của nó.
+7. Bố cục theo chiều rộng theo `docs/design/web-responsive.md`, không theo các `@media` của mẫu và không theo `DESIGN.md`. Trang không cuộn ngang từ 360px trở lên. Bỏ `min-width: 720px` của mẫu.
 8. Icon giao diện dùng `lucide-react` như hiện tại. Icon môn và hình sân (`courtArt`) chép từ `app.js` thành component React.
 9. Giữ tiêu điểm bàn phím nhìn thấy được, `prefers-reduced-motion`, và nhãn `aria` đang có.
 
@@ -44,18 +44,18 @@ Người dùng, chủ sân, nhân viên và admin dùng web với khung, màu, c
 
 | Vai trò | Đường dẫn | Màn theo mẫu | Nội dung thật | "Sắp ra mắt" |
 |---|---|---|---|---|
-| Mọi vai trò | khung | `topbar` | Logo về trang đầu của vai trò. Chuông là `Notifications` (không có với nhân viên). Menu tài khoản (`pop`): tên, vai trò, `GoogleAccountActions` (người dùng), "Hồ sơ" (người dùng), "Đăng xuất". Khách thấy nút "Đăng nhập" | — |
-| Khách, người dùng | khung | tab của `topbar` | "Trang chủ" `/`, "Ghép trận" `/phong-cho`, "Sân" `/san`, "Đội" `/doi`, "Lịch" `/lich-cua-toi`. Nút "Tạo trận": người dùng tới `/lich-cua-toi`, khách tới `/dang-nhap` (một trận mở trên một booking) | Ô tìm kiếm (khi nhấn Enter), nút "Tin nhắn" |
-| Khách, người dùng | `/` | `home` (3 cột) | Cột trái: thẻ tên (tới `/ho-so`), liên kết "Lịch của tôi", "Ghép trận", "Tìm sân". Giữa: ô tạo trận, chip môn, danh sách trận đang mở từ `GET /api/matches` dạng thẻ cuống vé. Bấm thẻ tới `/phong-cho?tran=<id>`. Cột phải: "Sắp ra sân" (booking sắp tới của người dùng, tối đa 2), "Đơn vị" (3 đơn vị đầu của `GET /api/venues`, tới `/san/<id>`). Xử lý `?google=` và `?google_error=` vẫn ở `/` | "Tạo trận đội", lọc "Trận đội", "Đội của tôi", "Thành tích", khối "Bạn chơi quen" |
+| Mọi vai trò | khung | `topbar` | Logo về trang đầu của vai trò. Chuông là `Notifications` (không có với nhân viên). Menu tài khoản (`pop`): tên, vai trò, `GoogleAccountActions` (người dùng), "Hồ sơ" (người dùng), "Đăng xuất". Khách thấy liên kết "Đăng nhập" (thẻ `a`). Tên người dùng luôn hiện trên thanh trên ở mọi cỡ màn, trong `.who .name` | — |
+| Khách, người dùng | khung | tab của `topbar` | "Trang chủ" `/`, "Ghép trận" `/phong-cho`, "Sân" `/san`, "Đội" `/doi`, "Lịch" `/lich-cua-toi`. Nút "Tạo trận": người dùng tới `/lich-cua-toi`, khách tới `/dang-nhap` (một trận mở trên một booking). Ô tìm kiếm: Enter mở `/san?q=<chữ>`, và `/san` điền ô tìm theo tên sân (F-010) từ `q` | Nút "Tin nhắn" |
+| Khách, người dùng | `/` | `home` (3 cột) | Cột trái: thẻ tên tới `/ho-so` (khách thấy liên kết "Đăng nhập"), liên kết "Lịch của tôi", "Ghép trận", "Tìm sân". Giữa: ô tạo trận, chip môn, danh sách trận đang mở từ `GET /api/matches` dạng thẻ cuống vé. Bấm thẻ tới `/phong-cho?tran=<id>`. Cột phải: "Sắp ra sân" (booking sắp tới của người dùng, tối đa 2), "Đơn vị" (3 đơn vị đầu của `GET /api/venues`, tới `/san/<id>`). Xử lý `?google=` và `?google_error=` vẫn ở `/` | "Tạo trận đội", lọc "Trận đội", "Đội của tôi", "Thành tích", khối "Bạn chơi quen" |
 | Khách, người dùng | `/phong-cho` | `matchesPage` (danh sách và chi tiết) | `Lobby` với thẻ `mc compact`, khung chi tiết `detail` (hero, `facts`, người chơi, hàng chờ F-028, điểm uy tín F-032, trình độ F-029). `?tran=<id>` mở chi tiết của trận đó | Lọc "Trận đội", khối "Trò chuyện trong trận", "Chia sẻ trận" |
-| Khách, người dùng | `/san` (mới) | `venuesPage` | Lưới thẻ đơn vị từ `GET /api/venues`: hình sân, icon môn, tên, địa chỉ, số sân, giá thấp nhất. Phần tìm theo tên sân (F-010) và "Giờ trống" (F-008) nằm ở đây | — |
+| Khách, người dùng | `/san` (mới) | `venuesPage` | Lưới thẻ đơn vị từ `GET /api/venues`: hình sân, icon môn, tên, địa chỉ, số sân, giá thấp nhất. Phần tìm theo tên sân (F-010) và "Giờ trống" (F-008) của `VenueBrowser` nằm ở đây, kèm câu UC-2 đầy đủ. Mọi màn hiện giờ trống đều hiện câu UC-2 đầy đủ, một lần | — |
 | Khách, người dùng | `/san/:id` | `venuePage` | Đầu trang của đơn vị, dải ngày, `SlotGrid`, khối tóm tắt bên phải với giá, "Gọi chủ sân", câu UC-2 đầy đủ và nút gửi yêu cầu | — |
 | Khách, người dùng | `/doi` (mới) | `teamsPage` | Tiêu đề "Đội" | Cả trang: trạng thái rỗng "Sắp ra mắt". Nút "Lập đội mới" |
 | Người dùng | `/lich-cua-toi` | `schedulePage` | Hai tab "Sắp tới" và "Trận đã vào" dạng `seg`. `MyBookings` (mở trận, hủy, chấm điểm) và `JoinedMatches` | — |
 | Người dùng | `/ho-so` (mới) | `profilePage` | Tên, số điện thoại của chính người dùng, trình độ nếu phiên có | "Sửa hồ sơ", các ô số liệu, "Trận gần đây" |
 | Khách | `/dang-nhap` | thẻ `card` giữa trang | `AuthPanel` và các màn Google | — |
 | Chủ sân, nhân viên | khung | `dash` | Thanh bên: "Tổng quan" (chỉ chủ sân), "Yêu cầu" (kèm số), "Lịch sân", "Doanh thu" (chỉ chủ sân), "Đơn vị và giá" (chỉ chủ sân). Thanh trên có nhãn "Kênh chủ sân" | — |
-| Chủ sân | `/chu-san/tong-quan` (mới) | `ownerOverview` | Từ `GET /api/owner/bookings`: ô "Yêu cầu chờ duyệt" (số `PENDING`), ô "Lượt đặt hôm nay" (số `CONFIRMED` có ngày hôm nay theo `Asia/Ho_Chi_Minh`), 3 yêu cầu chờ mới nhất với liên kết tới `/chu-san/yeu-cau`. Không có số tiền ở màn này | Biểu đồ "Doanh thu 7 ngày", ô "Lấp đầy giờ vàng", "Lịch hôm nay" |
+| Chủ sân | `/chu-san/tong-quan` (mới) | `ownerOverview` | Hai lời gọi: `GET /api/owner/bookings?status=PENDING` và `GET /api/owner/bookings?status=CONFIRMED` (không có `status`, API chỉ trả `PENDING`). Ô "Yêu cầu chờ duyệt" đếm lời gọi đầu. Ô "Lượt đặt hôm nay" đếm booking của lời gọi sau có `vnDateString(startAt) === vnDateString(now)`, 3 yêu cầu chờ mới nhất với liên kết tới `/chu-san/yeu-cau`. Không có số tiền ở màn này | Biểu đồ "Doanh thu 7 ngày", ô "Lấp đầy giờ vàng", "Lịch hôm nay" |
 | Chủ sân, nhân viên | `/chu-san/yeu-cau` | `ownerRequests` | `OwnerRequests` và `PhoneBookings` dạng hàng `req` | — |
 | Chủ sân, nhân viên | `/chu-san/lich` | `ownerCalendar` | `SchedulePage` (lịch, nhập booking khách gọi, đặt cố định) | Không thêm khóa khung giờ |
 | Chủ sân | `/chu-san/don-vi` | `ownerCourts` | `MyVenues` dạng `ov` và `tbl`, `StaffSection` | "Đăng ký đơn vị mới" |
@@ -81,12 +81,12 @@ Each criterion has one test. The test name starts with the label, for example `A
 | AC-6 | `GET /api/matches` trả trận A và B | Người dùng mở `/phong-cho?tran=<id của B>` | Khung chi tiết hiện trận B. Test: `apps/web/src/features/matches/Lobby.test.tsx` |
 | AC-7 | `GET /api/venues` trả 2 đơn vị | Khách mở `/san` | Trang hiện 2 thẻ đơn vị, mỗi thẻ là liên kết tới `/san/<id>`. Bấm một thẻ mở `SlotGrid` của đơn vị đó và câu UC-2 đầy đủ. Test: `apps/web/src/app/VenuesPage.test.tsx` (new) |
 | AC-8 | Người dùng mở `/doi` | Trang hiện ra | Có tiêu đề "Đội" và chữ "Sắp ra mắt". Bấm "Lập đội mới" hiện thông báo "Sắp ra mắt". Test: `apps/web/src/app/App.test.tsx` |
-| AC-9 | Chủ sân có 2 booking `PENDING` và 1 booking `CONFIRMED` hôm nay. `now` cố định | Chủ sân mở `/chu-san/tong-quan` | Ô "Yêu cầu chờ duyệt" ghi 2. Ô "Lượt đặt hôm nay" ghi 1. Trang không hiện số tiền. Test: `apps/web/src/app/OwnerOverview.test.tsx` (new) |
+| AC-9 | Chủ sân có 2 booking `PENDING` và 1 booking `CONFIRMED` hôm nay. `now` cố định | Chủ sân mở `/chu-san/tong-quan` | Web gọi đúng hai đường dẫn `?status=PENDING` và `?status=CONFIRMED`. Ô "Yêu cầu chờ duyệt" ghi 2. Ô "Lượt đặt hôm nay" ghi 1. Trang không hiện số tiền. Test: `apps/web/src/app/OwnerOverview.test.tsx` (new) |
 | AC-10 | Nhân viên đã đăng nhập | Nhân viên mở `/chu-san/tong-quan` | Web chuyển tới `/chu-san/lich`. Thanh bên không có "Tổng quan". Test: `apps/web/src/app/App.test.tsx` |
 | AC-11 | Admin đã đăng nhập | Admin mở `/admin`, rồi bấm "Tài khoản và đơn vị", "Báo cáo vi phạm", "Môn thể thao" | `/admin` hiện "Số liệu toàn trang". `/admin/tai-khoan` hiện tiêu đề "Chủ sân". Hai trang còn lại hiện "Sắp ra mắt". Test: `apps/web/src/app/App.test.tsx` |
 | AC-12 | Người dùng "Lan" đã đăng nhập | Người dùng mở `/ho-so` và bấm "Sửa hồ sơ" | Trang hiện tên "Lan". Thông báo "Sắp ra mắt" hiện ra. Test: `apps/web/src/app/App.test.tsx` |
 
-Kiểm bằng skill `verify-flow` ở 390px, 1024px và 1440px: không màn nào rộng hơn cửa sổ (`document.documentElement.scrollWidth <= innerWidth`). Các màn: `/`, `/phong-cho`, `/san`, `/san/:id`, `/doi`, `/lich-cua-toi`, `/ho-so`, `/dang-nhap`, `/chu-san/tong-quan`, `/chu-san/yeu-cau`, `/chu-san/lich`, `/chu-san/doanh-thu`, `/chu-san/don-vi`, `/admin`, `/admin/tai-khoan`, `/admin/bao-cao`, `/admin/mon`.
+Kiểm bằng skill `verify-flow` ở 390px, 768px, 1024px và 1440px: không màn nào rộng hơn cửa sổ (`document.documentElement.scrollWidth <= innerWidth`). Các màn: `/`, `/phong-cho`, `/san`, `/san/:id`, `/doi`, `/lich-cua-toi`, `/ho-so`, `/dang-nhap`, `/chu-san/tong-quan`, `/chu-san/yeu-cau`, `/chu-san/lich`, `/chu-san/doanh-thu`, `/chu-san/don-vi`, `/admin`, `/admin/tai-khoan`, `/admin/bao-cao`, `/admin/mon`.
 
 ## Contract
 
@@ -102,7 +102,7 @@ Người dùng muốn một pull request cho một thay đổi lớn (13/11/2026
 
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
-| 1 | Giao diện web mới | `apps/web/`, `.agents/skills/verify-flow/`, `docs/design/web-ui-v3/`, `docs/adr/0009-giao-dien-web-theo-mau-ra-san.md`, `docs/briefs/F-033-giao-dien-web-moi.md`, `DESIGN.md`, `scripts/design-tokens.mjs`, `PROGRESS.md`, `COMPLETED.md`, `HUMAN_DECISIONS.md`, `@map.md` | AC-1 đến AC-12, mọi test cũ của `apps/web`, và `verify-flow` pass trong check `image` |
+| 1 | Giao diện web mới | `apps/web/`, `.agents/skills/verify-flow/`, `docs/design/web-ui-v3/`, `docs/design/web-responsive.md`, `docs/adr/0009-giao-dien-web-theo-mau-ra-san.md`, `docs/briefs/F-033-giao-dien-web-moi.md`, `DESIGN.md`, `scripts/design-tokens.mjs`, `PROGRESS.md`, `COMPLETED.md`, `HUMAN_DECISIONS.md`, `@map.md` | AC-1 đến AC-12, mọi test cũ của `apps/web`, và `verify-flow` pass trong check `image` |
 
 ## Edit boundaries
 
@@ -127,6 +127,11 @@ Khung mới đổi chữ, vai trò và đường dẫn của vài phần tử. C
 | `apps/web/src/app/App.test.tsx` (admin) | `findByRole('heading', { name: 'Chủ sân' })` sau đăng nhập | `'Số liệu toàn trang'`, hoặc mở `/admin/tai-khoan` trước | `/admin` là "Tổng quan" |
 | `apps/web/src/features/admin/AdminPanel.test.tsx` | nút tab "Tài khoản và đơn vị", "Số liệu" | liên kết của thanh bên, hoặc prop `view` | Tab thành mục điều hướng có đường dẫn |
 | `.agents/skills/verify-flow/scripts/player-request.mjs` | bắt đầu ở `/`, bấm `.venue-card` | bắt đầu ở `/san` | Đặt sân nằm ở `/san` |
+| `.agents/skills/verify-flow/scripts/player-request.mjs` | liên kết "Lịch của tôi" | liên kết "Lịch" | Tab của thanh trên đổi tên |
+| `apps/web/src/app/App.test.tsx` (AC-16, AC-13, thanh trên) | liên kết "Phòng chờ", "Đặt sân", "Lịch của tôi" | liên kết "Ghép trận", "Sân", "Lịch" | Tab của thanh trên đổi tên. Tiêu đề "Phòng chờ" của màn giữ nguyên |
+| `apps/web/src/app/App.test.tsx` (AC-20, AC-22) | tìm thẳng nút `"Đăng xuất"` | mở menu tài khoản (`/An/`) trước khi tìm nút `"Đăng xuất"` | Nút `"Đăng xuất"` nằm trong hộp bật lên của tài khoản ở thanh trên |
+| `apps/web/src/app/App.test.tsx` (AC-25, AC-14) | tiêu đề "Đặt sân" ở `/` | tiêu đề "Đặt sân" ở `/san/<id>` | Đặt sân nằm ở `/san/<id>` |
+| `apps/web/src/pwa.test.ts` | `<meta name="theme-color" content="#082f26">` | `<meta name="theme-color" content="#101915">` | Màu nền thanh trên đổi sang `--ink` (`#101915`) |
 
 ## Risks and reviews
 
@@ -136,7 +141,7 @@ Khung mới đổi chữ, vai trò và đường dẫn của vài phần tử. C
 | Lộ dữ liệu cá nhân (BR-20) trên thẻ trận, trang chủ, hồ sơ, hoặc ảnh của `verify-flow` | Trang chủ, `/phong-cho`, `/ho-so`, `lib.mjs` | Thẻ trận chỉ hiện những gì `GET /api/matches` đã trả cho vai trò đó. `/ho-so` chỉ hiện dữ liệu của chính người dùng. Vòng review chạy thêm skill `rule-review` |
 | Nhân viên thấy màn của chủ sân (BR-55) | `router.tsx`, khung chủ sân | AC-10 và các test `AC-12` cũ của F-031 |
 | Dữ liệu giả của mẫu lọt vào sản phẩm | Mọi màn | Reviewer tìm tên và số của `data.js` trong `apps/web/src` |
-| Tràn ngang ở 390px | Mọi màn | `verify-flow` ở 3 cỡ màn |
+| Tràn ngang ở 390px | Mọi màn | `verify-flow` ở 4 cỡ màn |
 
 Không đổi tiền, khóa, schema.
 
@@ -144,7 +149,7 @@ Không đổi tiền, khóa, schema.
 
 1. Tên sản phẩm vẫn là MONSPORT, không phải "Ra Sân" (`HUMAN_DECISIONS.md`, dòng 63).
 2. Web dùng tên gọi của intake thay cho "kèo" và "cụm sân" (dòng 64).
-3. Web vẫn dùng được ở 390px, dù mẫu chỉ thu hẹp tới 720px (dòng 65).
+3. Web co giãn theo quy tắc riêng trong `docs/design/web-responsive.md`. Người dùng giao quyết định này cho agent (dòng 65, đã chốt).
 4. "Tạo trận" đưa người dùng tới `/lich-cua-toi`, vì một trận mở trên một booking (intake, "Tên gọi"). Hộp tạo trận của mẫu không được làm.
 5. Trang đầu sau đăng nhập của chủ sân vẫn là `/chu-san/yeu-cau`, vì đó là việc chờ chủ sân làm (dòng 66).
 6. "Tổng quan" của chủ sân không hiện tiền, nên nó không thêm luật về doanh thu. Doanh thu vẫn chỉ ở `/chu-san/doanh-thu`.
@@ -155,7 +160,7 @@ Không đổi tiền, khóa, schema.
 
 | Question | Owner | Blocks |
 |---|---|---|
-| Các dòng 63 đến 66 của `HUMAN_DECISIONS.md` | Người dùng | none |
+| Các dòng 63, 64 và 66 của `HUMAN_DECISIONS.md` | Người dùng | none |
 | Thứ tự làm các chức năng "Sắp ra mắt" | Người dùng | none |
 
 ## Done when
@@ -163,4 +168,4 @@ Không đổi tiền, khóa, schema.
 - Every AC has a passing test with its label in the name.
 - The check command passes on the pull request.
 - The reviews in "Risks and reviews" are complete.
-- `verify-flow` passes at 390px, 1024px and 1440px.
+- `verify-flow` passes at 390px, 768px, 1024px and 1440px.

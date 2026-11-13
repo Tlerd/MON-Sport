@@ -148,7 +148,7 @@ describe('App', () => {
     as({ id: 'x', name: 'Bình', role });
     render(<App />);
     if (heading) await screen.findByRole('heading', { name: heading });
-    else await screen.findByRole('heading', { name: 'Chủ sân' });
+    else await screen.findByRole('heading', { name: 'Số liệu toàn trang' });
     expect(screen.queryByRole('heading', { name: 'Giờ trống' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Phòng chờ' })).toBeNull();
   });
@@ -156,20 +156,20 @@ describe('App', () => {
   it('AC-16: both a guest and a USER see "Phòng chờ"', async () => {
     as(null);
     render(<App />);
-    fireEvent.click(await screen.findByRole('link', { name: 'Phòng chờ' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Ghép trận' }));
     expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
     cleanup();
 
     as({ id: 'x', name: 'An', role: 'USER' });
     render(<App />);
-    fireEvent.click(await screen.findByRole('link', { name: 'Phòng chờ' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Ghép trận' }));
     expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
   });
 
   it('AC-13: a USER sees "Trận đã vào", while guests, owners, and admins do not', async () => {
     as({ id: 'x', name: 'An', role: 'USER' });
     render(<App />);
-    fireEvent.click(await screen.findByRole('link', { name: 'Lịch của tôi' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Lịch' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Trận đã vào' }));
     expect(await screen.findByRole('heading', { name: 'Trận đã vào' })).toBeTruthy();
     cleanup();
@@ -177,7 +177,7 @@ describe('App', () => {
     window.history.pushState({}, '', '/');
     as(null);
     render(<App />);
-    fireEvent.click(await screen.findByRole('link', { name: 'Phòng chờ' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Ghép trận' }));
     expect(await screen.findByRole('heading', { name: 'Phòng chờ' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Trận đã vào' })).toBeNull();
     cleanup();
@@ -190,7 +190,7 @@ describe('App', () => {
 
     as({ id: 'x', name: 'Admin', role: 'ADMIN' });
     render(<App />);
-    await screen.findByRole('heading', { name: 'Chủ sân' });
+    await screen.findByRole('heading', { name: 'Số liệu toàn trang' });
     expect(screen.queryByRole('heading', { name: 'Trận đã vào' })).toBeNull();
   });
 
@@ -295,6 +295,7 @@ describe('App', () => {
     const { calls, subscription } = withPush();
     try {
       render(<App />);
+      fireEvent.click(await screen.findByRole('button', { name: /An/ }));
       const logoutButton = await screen.findByRole('button', { name: 'Đăng xuất' });
       // resyncPush runs once after the page load; wait for it, or a slow run can read the stored user after the logout cleared it.
       await waitFor(() => expect(calls).toContain('POST push'));
@@ -315,6 +316,7 @@ describe('App', () => {
     const { calls } = withPush({ unsubscribeFails: true, deleteStatus: 500 });
     try {
       render(<App />);
+      fireEvent.click(await screen.findByRole('button', { name: /An/ }));
       const logoutButton = await screen.findByRole('button', { name: 'Đăng xuất' });
       // resyncPush runs once after the page load; wait for it, or a slow run can read the stored user after the logout cleared it.
       await waitFor(() => expect(calls).toContain('POST push'));
@@ -332,7 +334,7 @@ describe('App', () => {
     const { calls } = withPush();
     try {
       render(<App />);
-      await screen.findByRole('button', { name: 'Đăng xuất' });
+      await screen.findByRole('button', { name: /An/ });
 
       await waitFor(() => expect(calls).toEqual(['POST push']));
     } finally {
@@ -399,9 +401,9 @@ describe('App', () => {
     const banner = screen.getByRole('banner');
     expect(await within(banner).findByText('Minh')).toBeTruthy();
     expect(within(banner).getByText('MONSPORT')).toBeTruthy();
-    expect(within(banner).getByRole('link', { name: /Đặt sân/ })).toBeTruthy();
-    expect(within(banner).getByRole('link', { name: /Phòng chờ/ })).toBeTruthy();
-    expect(within(banner).getByRole('link', { name: /Lịch của tôi/ })).toBeTruthy();
+    expect(within(banner).getByRole('link', { name: 'Sân' })).toBeTruthy();
+    expect(within(banner).getByRole('link', { name: 'Ghép trận' })).toBeTruthy();
+    expect(within(banner).getByRole('link', { name: 'Lịch' })).toBeTruthy();
     expect(within(banner).getByText('Minh')).toBeTruthy();
 
     expect(await screen.findByRole('heading', { name: 'Sân Cầu Lông B' })).toBeTruthy();
@@ -618,5 +620,98 @@ describe('App', () => {
     const banner = screen.getByRole('banner');
     expect(within(banner).getByText('Hoàng')).toBeTruthy();
     expect(within(banner).queryByRole('button', { name: /thông báo/i })).toBeNull();
+  });
+
+  it('AC-2: guest sees MONSPORT and player nav links Trang chủ, Ghép trận, Sân, Đội, Lịch', async () => {
+    as(null);
+    render(<App />);
+
+    const banner = await screen.findByRole('banner');
+    expect(within(banner).getByText('MONSPORT')).toBeTruthy();
+    expect(within(banner).getByRole('link', { name: 'Trang chủ' }).getAttribute('href')).toBe('/');
+    expect(within(banner).getByRole('link', { name: 'Ghép trận' }).getAttribute('href')).toBe('/phong-cho');
+    expect(within(banner).getByRole('link', { name: 'Sân' }).getAttribute('href')).toBe('/san');
+    expect(within(banner).getByRole('link', { name: 'Đội' }).getAttribute('href')).toBe('/doi');
+    expect(within(banner).getByRole('link', { name: 'Lịch' }).getAttribute('href')).toBe('/lich-cua-toi');
+  });
+
+  it('AC-8: /doi shows "Đội", "Sắp ra mắt", and clicking "Lập đội mới" triggers toast "Sắp ra mắt"', async () => {
+    as(null);
+    window.history.pushState({}, '', '/doi');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Đội' })).toBeTruthy();
+    expect(screen.getByText('Sắp ra mắt')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lập đội mới' }));
+    expect(within(screen.getByRole('status')).getByText('Sắp ra mắt')).toBeTruthy();
+  });
+
+  it('AC-10: a STAFF opening /chu-san/tong-quan lands on /chu-san/lich without "Tổng quan" in sidebar', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'staff-1', name: 'Hoàng', role: 'STAFF' }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/chu-san/tong-quan');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Lịch sân' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/chu-san/lich');
+    const sidebar = screen.getByRole('navigation', { name: 'Chức năng chủ sân' });
+    expect(within(sidebar).queryByText('Tổng quan')).toBeNull();
+  });
+
+  it('AC-11: an ADMIN opens /admin, /admin/tai-khoan, /admin/bao-cao, and /admin/mon', async () => {
+    const STATS = {
+      date: '2026-11-20',
+      weekStart: '2026-11-16',
+      weekEnd: '2026-11-22',
+      accounts: { ADMIN: 1, OWNER: 2, USER: 10, STAFF: 0 },
+      newUsers: 1,
+      activeUsers: 1,
+      avgConfirmMinutes: null,
+      expiryRate: 0,
+      venues: [],
+    };
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ id: 'admin-1', name: 'Admin', role: 'ADMIN' }) });
+      }
+      if (url.startsWith('/api/admin/stats')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(STATS) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+    }));
+
+    window.history.pushState({}, '', '/admin');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Số liệu toàn trang' })).toBeTruthy();
+    const nav = screen.getByRole('navigation', { name: 'Chức năng quản trị' });
+
+    fireEvent.click(within(nav).getByRole('link', { name: 'Tài khoản và đơn vị' }));
+    expect(await screen.findByRole('heading', { name: 'Chủ sân' })).toBeTruthy();
+
+    fireEvent.click(within(nav).getByRole('link', { name: 'Báo cáo vi phạm' }));
+    expect(await screen.findByRole('heading', { name: 'Báo cáo vi phạm' })).toBeTruthy();
+    expect(screen.getByText('Sắp ra mắt')).toBeTruthy();
+
+    fireEvent.click(within(nav).getByRole('link', { name: 'Môn thể thao' }));
+    expect(await screen.findByRole('heading', { name: 'Môn thể thao' })).toBeTruthy();
+    expect(screen.getByText('Sắp ra mắt')).toBeTruthy();
+  });
+
+  it('AC-12: signed-in USER "Lan" opens /ho-so and clicks "Sửa hồ sơ" to see "Sắp ra mắt"', async () => {
+    as({ id: 'u-lan', name: 'Lan', role: 'USER' });
+    window.history.pushState({}, '', '/ho-so');
+    render(<App />);
+
+    const main = await screen.findByRole('main');
+    expect(await within(main).findByRole('heading', { name: 'Lan' })).toBeTruthy();
+    fireEvent.click(within(main).getByRole('button', { name: 'Sửa hồ sơ' }));
+    expect(within(screen.getByRole('status')).getByText('Sắp ra mắt')).toBeTruthy();
   });
 });
