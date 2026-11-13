@@ -54,7 +54,7 @@ export class StatsService {
             WHERE "source" = 'APP' AND "createdAt" >= ${from}::timestamptz AND "createdAt" < ${to}::timestamptz
           UNION
           SELECT "userId" FROM "MatchPlayer"
-            WHERE "joinedAt" >= ${from}::timestamptz AND "joinedAt" < ${to}::timestamptz
+            WHERE "status" IN ('ACTIVE', 'LEFT') AND "joinedAt" >= ${from}::timestamptz AND "joinedAt" < ${to}::timestamptz
           UNION
           SELECT "hostId" AS "userId" FROM "Match"
             WHERE "createdAt" >= ${from}::timestamptz AND "createdAt" < ${to}::timestamptz
@@ -82,8 +82,10 @@ export class StatsService {
       }),
     ]);
 
-    const accounts = { ADMIN: 0, OWNER: 0, USER: 0 };
-    for (const row of accountRows) accounts[row.role] = row._count._all;
+    const accounts: Record<'ADMIN' | 'OWNER' | 'USER' | 'STAFF', number> = { ADMIN: 0, OWNER: 0, USER: 0, STAFF: 0 };
+    for (const row of accountRows) {
+      accounts[row.role] = row._count._all;
+    }
 
     const venueOfCourt = new Map(courts.map((c) => [c.id, c.venueId]));
     const sumByVenue = (rows: { courtId: string; _count: { _all: number } }[]) => {

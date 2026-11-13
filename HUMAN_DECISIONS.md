@@ -64,12 +64,24 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 46 | Đăng xuất có cần hủy phiên ở server không? Cookie bị chép dùng được 30 ngày. Cần lưu phiên hoặc đặt `sessionsValidFrom`, mọi thiết bị bị đăng xuất | Chỉ xóa cookie | Không | QA F-027 câu 2 |
 | 47 | Tài khoản bị khóa có cần câu chỉ bước tiếp theo không? | Đổi câu thành "Tài khoản đã bị khóa. Liên hệ admin của MONSPORT" | Không | QA F-027 câu 3 |
 | 48 | Admin đăng nhập trên app có cần nút "Đăng xuất" không? | Thêm nút "Đăng xuất" dưới link. Đã làm trong PR "fix: QA defects of F-027" | Không | QA F-027 câu 4 |
+| 51 | Host có đổi được chế độ vào trận ("Vào ngay" hoặc "Host duyệt") sau khi mở trận không? | Không (BR-49) | Không | F-028 |
+| 52 | Trận "Host duyệt" có tự duyệt người đã đá cùng host trước đó không? | Không | Không | F-028 |
+| 53 | Phòng chờ của app có ẩn trận "Host duyệt" tới khi có brief app không? Hiện bấm "Vào trận" trên app gửi yêu cầu, nhưng app chưa hiện "Chờ duyệt" | Không ẩn | Không | F-028 |
+| 54 | Duyệt intake V2 (`proposed`) và thứ tự W1 đến W7 của `docs/design/ke-hoach-v2.md`. W6 (thanh toán) và W7 (MCP) chưa làm khi bạn chưa duyệt | Agent làm W1 (F-028) trước, theo yêu cầu "bắt đầu làm" ngày 10/11/2026 | Không | V2 |
+| 55 | Tên ba mức trình độ (F-029) | Mới chơi, Trung bình, Khá | Không | F-029 |
+| 56 | Luồng Google có bắt chọn trình độ khi đăng ký không? | Không | Không | F-029 |
+| 57 | Đặt cố định: buổi trùng giờ bỏ và báo, hay hủy cả chuỗi? (F-030) | Bỏ và báo | Không | F-030 |
+| 58 | Số tuần tối đa của đặt cố định (F-030) | 12 | Không | F-030 |
+| 59 | Nhân viên có hủy booking và đánh dấu đã thu tiền không? (F-031) | Không | Không | F-031 |
+| 60 | Luật tính điểm uy tín và vắng mặt (F-032) | 1 đến 5 sao, hoặc Vắng mặt không sao. Điểm là trung bình sao và số lần vắng | Không | F-032 |
+| 61 | Ai thấy điểm uy tín? (F-032) | Chỉ host, trong hàng chờ | Không | F-032 |
 
 ## Việc chỉ người dùng làm được
 
 | Việc | Vì sao agent không làm được |
 |---|---|
 | Chạy `verify-flow` trên bản live và gửi kết quả | Cần máy và tài khoản của người dùng |
+| Đặt `VERIFY_PLAYER2_PHONE` và `VERIFY_PLAYER2_PASSWORD` (một tài khoản `test-` thứ hai) để chạy luồng `lobby-approval` trên live | Luồng không tự đăng ký tài khoản trên live, vì số điện thoại có thể của người thật |
 | Kiểm UC-14 (Web Push) trên máy Android thật. Lần thử ngày 21/10/2026 thất bại, sửa bởi PR #94 và #101, chưa có lần thử lại | Cần máy thật |
 | Đăng nhập lại trên bản live sau lần deploy F-004 bước 2 (mỗi cookie một khóa) | Phiên của người dùng |
 
@@ -78,4 +90,6 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | # | Quyết định | Ngày | Nguồn |
 |---|---|---|---|
 | 7 | Chấp nhận F-004 và mở rộng: "accept F-004 (Thêm đề xuất gửi mã OTP để xác minh sdt, dù đăng nhập hoặc đăng kí bằng gmail thì phải xác minh sdt hoặc nếu đăng nhập bằng Zalo thì xác minh bằng zalo)". Tài khoản Google xác minh số bằng OTP qua SMS. Tài khoản Zalo xác minh qua Zalo | 23/10/2026 | người dùng |
+| 49 | Agent không merge. Agent làm tới pull request đã review và có check xanh, kèm lệnh chạy thử local. Người dùng chạy local, thấy ổn thì merge, rồi CI/CD deploy. Lỗi sau deploy thì agent sửa trong pull request mới. Lời người dùng: "code test chạy rồi cứ tạo pull chưa merge, khi chạy local tôi thấy ổn thì mới merge vào chờ ci/cd để xem có lỗi gì mới sửa". Release, pre-release và staging hoãn tới khi người dùng yêu cầu: "phần đó lưu lại để lần sau dùng ... Khi tôi nói dùng mới add vào" | 12/11/2026 | người dùng |
+| 50 | Thay dòng 49. Agent tự merge pull request đã sẵn sàng bằng `node scripts/merge.mjs <n>`, theo thứ tự merge: check xanh và review marker sạch trên head hiện tại. `gh pr merge` vẫn bị chặn. Sau merge, agent kiểm tra deploy và service live. Lời người dùng: "tự động merge để làm cũng như các PR còn lại, tôi cho phép hết"; chọn "Cho sửa settings". | 13/11/2026 | người dùng |
 | 10a | "làm theo cách hiện tại": bảng admin vẫn đếm người dùng tạo booking `APP`, vào trận, hoặc làm host trong tuần. Số lần đăng nhập (`User.lastLoginAt`) chỉ là đề xuất, chỉ làm khi người dùng đồng ý | 23/10/2026 | người dùng, F-016 |

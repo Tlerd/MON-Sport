@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { AdminPanel } from '../features/admin/AdminPanel.tsx';
 import { FinancialDashboard } from '../features/finance/FinancialDashboard.tsx';
-import { MyVenues } from '../features/venues/MyVenues.tsx';
-import { AuthPage, BookPage, LobbyPage, MyPage, OwnerRequestsPage, SchedulePage } from './pages.tsx';
+import { AuthPage, BookPage, LobbyPage, MyPage, MyVenuesPage, OwnerRequestsPage, SchedulePage } from './pages.tsx';
 import { useSession } from './session.tsx';
 import { AdminShell, OwnerShell, PlayerShell } from './shells.tsx';
 
@@ -11,7 +10,7 @@ export function RoleGuard({
   allowed,
   children,
 }: {
-  allowed: ('GUEST' | 'USER' | 'OWNER' | 'ADMIN')[];
+  allowed: ('GUEST' | 'USER' | 'OWNER' | 'ADMIN' | 'STAFF')[];
   children: ReactNode;
 }) {
   const { user } = useSession();
@@ -22,15 +21,29 @@ export function RoleGuard({
     const home =
       currentRole === 'OWNER'
         ? '/chu-san/yeu-cau'
-        : currentRole === 'ADMIN'
-          ? '/admin'
-          : currentRole === 'USER'
-            ? '/'
-            : '/dang-nhap';
+        : currentRole === 'STAFF'
+          ? '/chu-san/lich'
+          : currentRole === 'ADMIN'
+            ? '/admin'
+            : currentRole === 'USER'
+              ? '/'
+              : '/dang-nhap';
     return <Navigate to={home} replace />;
   }
 
   return <>{children}</>;
+}
+
+function RevenueRoute() {
+  const { user } = useSession();
+  if (user?.role === 'STAFF') {
+    return <Navigate to="/chu-san/lich" replace />;
+  }
+  return (
+    <RoleGuard allowed={['OWNER']}>
+      <FinancialDashboard />
+    </RoleGuard>
+  );
 }
 
 function CatchAll() {
@@ -39,9 +52,11 @@ function CatchAll() {
   const home =
     user?.role === 'OWNER'
       ? '/chu-san/yeu-cau'
-      : user?.role === 'ADMIN'
-        ? '/admin'
-        : '/';
+      : user?.role === 'STAFF'
+        ? '/chu-san/lich'
+        : user?.role === 'ADMIN'
+          ? '/admin'
+          : '/';
   return <Navigate to={home} replace />;
 }
 
@@ -93,7 +108,7 @@ export const routes: RouteObject[] = [
   },
   {
     element: (
-      <RoleGuard allowed={['OWNER']}>
+      <RoleGuard allowed={['OWNER', 'STAFF']}>
         <OwnerShell />
       </RoleGuard>
     ),
@@ -108,11 +123,15 @@ export const routes: RouteObject[] = [
       },
       {
         path: '/chu-san/doanh-thu',
-        element: <FinancialDashboard />,
+        element: <RevenueRoute />,
       },
       {
         path: '/chu-san/don-vi',
-        element: <MyVenues />,
+        element: (
+          <RoleGuard allowed={['OWNER']}>
+            <MyVenuesPage />
+          </RoleGuard>
+        ),
       },
     ],
   },
