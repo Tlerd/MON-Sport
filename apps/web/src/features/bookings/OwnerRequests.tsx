@@ -33,7 +33,8 @@ export function OwnerRequests({ canManagePayment = true }: { canManagePayment?: 
     try {
       const updated = await api<PaidAtVenueResponse>(`/api/owner/bookings/${id}/paid`, {
         method: 'PATCH',
-        body: JSON.stringify({ paidAtVenue }),
+        // `json` makes the shared client set content-type: application/json. A plain `body` went out as text/plain, and the API answered 400.
+        json: { paidAtVenue },
       });
       setRows((list) => list?.map((r) => (r.id === id ? { ...r, paidAtVenue: updated.paidAtVenue } : r)) ?? null);
     } catch (err) {
