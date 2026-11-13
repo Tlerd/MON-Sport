@@ -4,8 +4,11 @@ import {
   minuteOfDayVN,
   vnDateString,
   addDaysYmd,
+  RECURRING_MIN_WEEKS,
+  RECURRING_MAX_WEEKS,
   type BookingView,
   type OwnerBookingView,
+  type RecurringPhoneBookingResponse,
   type VenueView,
 } from '@monsport/shared';
 import { Calendar, Check, ChevronDown, Clock, Plus, X } from 'lucide-react';
@@ -19,14 +22,14 @@ import { useSession } from './session.tsx';
 import { initial } from './shells.tsx';
 import { DURATIONS, slotAt as at } from '../features/bookings/slot.ts';
 
-function formatDeadlineRemaining(createdAt: string, startAt: string) {
+export function formatDeadlineRemaining(createdAt: string, startAt: string) {
   const dl = confirmDeadline(new Date(createdAt), new Date(startAt));
   const diffMs = dl.getTime() - Date.now();
   if (diffMs <= 0) return 'Hết hạn';
   const diffMins = Math.floor(diffMs / 60000);
   const h = Math.floor(diffMins / 60);
   const m = diffMins % 60;
-  if (h > 0) return `${h} giờ ${m > 0 ? `${m}` : ''}`.trim();
+  if (h > 0) return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
   return `${m} phút`;
 }
 
@@ -50,6 +53,8 @@ export function SchedulePage() {
   const [panelDuration, setPanelDuration] = useState(60);
   const [panelName, setPanelName] = useState('');
   const [panelPhone, setPanelPhone] = useState('');
+  const [panelRecurring, setPanelRecurring] = useState(false);
+  const [panelWeeks, setPanelWeeks] = useState(4);
   const [panelError, setPanelError] = useState('');
   const [panelBusy, setPanelBusy] = useState(false);
 
@@ -207,6 +212,8 @@ export function SchedulePage() {
     setPanelDuration(60);
     setPanelName('');
     setPanelPhone('');
+    setPanelRecurring(false);
+    setPanelWeeks(4);
     setPanelError('');
     setPanelOpen(true);
   }
@@ -219,17 +226,43 @@ export function SchedulePage() {
     setPanelBusy(true);
 
     try {
-      const booking = await api<OwnerBookingView>('/api/owner/bookings', {
-        method: 'POST',
-        json: {
-          courtId: panelCourtId,
-          startAt: at(selectedDate, panelStart),
-          endAt: at(selectedDate, panelStart + panelDuration),
-          ...(panelName.trim() && { customerName: panelName.trim() }),
-          ...(panelPhone.trim() && { customerPhone: panelPhone.trim() }),
-        },
-      });
-      setSaved(`Đã lưu booking ${formatTime(booking.startAt)}–${formatTime(booking.endAt)} ngày ${formatDay(booking.startAt)}.`);
+      const basePayload = {
+        courtId: panelCourtId,
+        startAt: at(selectedDate, panelStart),
+        endAt: at(selectedDate, panelStart + panelDuration),
+        ...(panelName.trim() && { customerName: panelName.trim() }),
+        ...(panelPhone.trim() && { customerPhone: panelPhone.trim() }),
+      };
+
+      if (panelRecurring) {
+        const res = await api<RecurringPhoneBookingResponse>('/api/owner/bookings/recurring', {
+          method: 'POST',
+          json: {
+            ...basePayload,
+            weeks: panelWeeks,
+          },
+        });
+        const createdCount = res.created.length;
+        let msg = `Đã tạo ${createdCount} buổi`;
+        if (res.skipped.length > 0) {
+          const skippedDates = res.skipped
+            .map((s) => {
+              const ymd = vnDateString(new Date(s.startAt));
+              const [, m, d] = ymd.split('-');
+              return `${d}/${m}`;
+            })
+            .join(', ');
+          msg += `. Bỏ qua ${res.skipped.length} buổi trùng giờ: ${skippedDates}`;
+        }
+        setSaved(msg);
+      } else {
+        const booking = await api<OwnerBookingView>('/api/owner/bookings', {
+          method: 'POST',
+          json: basePayload,
+        });
+        setSaved(`Đã lưu booking ${formatTime(booking.startAt)}–${formatTime(booking.endAt)} ngày ${formatDay(booking.startAt)}.`);
+      }
+
       setPanelOpen(false);
       bumpRefresh();
       loadBookings();
@@ -313,6 +346,11 @@ export function SchedulePage() {
                   setPanelCourtId(selectedVenue.courts[0].id);
                   setPanelStart(selectedVenue.opensAt);
                   setPanelDuration(60);
+                  setPanelName('');
+                  setPanelPhone('');
+                  setPanelRecurring(false);
+                  setPanelWeeks(4);
+                  setPanelError('');
                   setPanelOpen(true);
                 }
               }}
@@ -504,8 +542,37 @@ export function SchedulePage() {
             />
           </label>
 
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={panelRecurring}
+              onChange={(e) => setPanelRecurring(e.target.checked)}
+            />
+            <span>Lặp lại hằng tuần</span>
+          </label>
+
+          {panelRecurring && (
+            <label>
+              Số tuần
+              <select
+                aria-label="Số tuần"
+                value={panelWeeks}
+                onChange={(e) => setPanelWeeks(Number(e.target.value))}
+              >
+                {Array.from(
+                  { length: RECURRING_MAX_WEEKS - RECURRING_MIN_WEEKS + 1 },
+                  (_, i) => RECURRING_MIN_WEEKS + i,
+                ).map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
           <div className="total" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 'var(--space-md)' }}>
-            <span className="meta">Tạm tính</span>
+            <span className="meta">{panelRecurring ? 'Tạm tính mỗi buổi' : 'Tạm tính'}</span>
             <strong className="money tnum">{panelPrice !== null ? formatVnd(panelPrice) : '—'}</strong>
           </div>
 

@@ -1,9 +1,10 @@
-import { CALL_OWNER_MESSAGE, type MatchStatus, type MatchView, type MyBookingView, userCancelDecision } from '@monsport/shared';
+import { CALL_OWNER_MESSAGE, type JoinMode, type MatchStatus, type MatchView, type MyBookingView, RATE_WINDOW_DAYS, userCancelDecision } from '@monsport/shared';
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { api, ApiError, formatDay, formatSlot, formatTime, formatVnd } from '@monsport/client';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { CancelAsk, useCancelFlow } from './cancel.tsx';
+import { RatingPanel } from './RatingPanel.tsx';
 import { STATUS_LABEL } from './status.ts';
 
 const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
@@ -22,7 +23,9 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
   const [openingId, setOpeningId] = useState('');
   const [capacity, setCapacity] = useState('4');
   const [pricePerSlot, setPricePerSlot] = useState('50000');
+  const [joinMode, setJoinMode] = useState<JoinMode>('INSTANT');
   const [cancelMatchId, setCancelMatchId] = useState('');
+  const [ratingMatchId, setRatingMatchId] = useState('');
   const [matchBusy, setMatchBusy] = useState(false);
   const [matchError, setMatchError] = useState('');
 
@@ -44,6 +47,12 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
     setOpeningId(bookingId);
     setCapacity('4');
     setPricePerSlot('50000');
+    setJoinMode('INSTANT');
+  }
+
+  function closeOpenMatch() {
+    setOpeningId('');
+    setJoinMode('INSTANT');
   }
 
   async function submitMatch(e: FormEvent, bookingId: string) {
@@ -54,11 +63,13 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
     try {
       const created = await api<MatchView>('/api/matches', {
         method: 'POST',
-        body: JSON.stringify({
+        // `json` makes the shared client set content-type: application/json. A plain `body` went out as text/plain, and the API answered 400.
+        json: {
           bookingId,
           capacity: Number(capacity),
           pricePerSlot: Number(pricePerSlot),
-        }),
+          joinMode,
+        },
       });
       setRows((all) =>
         all?.map((r) =>
@@ -76,7 +87,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
             : r,
         ) ?? null,
       );
-      setOpeningId('');
+      closeOpenMatch();
       onMatchChanged?.();
     } catch (err) {
       setMatchError(err instanceof ApiError ? err.message : 'Không mở được trận');
@@ -130,6 +141,13 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
             const decision = userCancelDecision({ status: b.status, startAt }, now);
             const activeMatch = b.match && (b.match.status === 'OPEN' || b.match.status === 'FULL') ? b.match : null;
             const canOpenMatch = !b.match && (b.status === 'PENDING' || b.status === 'CONFIRMED') && startAt.getTime() > now.getTime();
+            const rateWindowMs = RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+            const canRate =
+              Boolean(b.match) &&
+              b.status === 'CONFIRMED' &&
+              b.match!.status !== 'CANCELLED' &&
+              now.getTime() >= startAt.getTime() &&
+              now.getTime() <= startAt.getTime() + rateWindowMs;
             const label = `${b.venueName} · ${b.courtName}, ${formatSlot(b.startAt, b.endAt)}`;
             return (
               <li key={b.id} className="ticket card-web" data-status={b.status}>
@@ -171,9 +189,34 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
                           <input type="number" min={0} max={10_000_000} required value={pricePerSlot} onChange={(e) => setPricePerSlot(e.target.value)} />
                         </label>
                       </div>
+                      <fieldset className="join-mode-fieldset">
+                        <legend>Cách vào trận</legend>
+                        <div className="join-mode-options">
+                          <label className="join-mode-option">
+                            <input
+                              type="radio"
+                              name={`joinMode-${b.id}`}
+                              value="INSTANT"
+                              checked={joinMode === 'INSTANT'}
+                              onChange={() => setJoinMode('INSTANT')}
+                            />
+                            <span>Vào ngay</span>
+                          </label>
+                          <label className="join-mode-option">
+                            <input
+                              type="radio"
+                              name={`joinMode-${b.id}`}
+                              value="APPROVAL"
+                              checked={joinMode === 'APPROVAL'}
+                              onChange={() => setJoinMode('APPROVAL')}
+                            />
+                            <span>Host duyệt</span>
+                          </label>
+                        </div>
+                      </fieldset>
                       <span className="actions">
                         <button type="submit" disabled={matchBusy}>Tạo trận</button>
-                        <button type="button" className="keep" onClick={() => setOpeningId('')}>Đóng</button>
+                        <button type="button" className="keep" onClick={closeOpenMatch}>Đóng</button>
                       </span>
                     </form>
                   )}
@@ -208,6 +251,20 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
                       <span>{CALL_OWNER_MESSAGE}</span>
                       <a className="phone" href={`tel:${b.venuePhone}`}>Gọi chủ sân</a>
                     </span>
+                  )}
+                  {canRate && (
+                    <span className="actions single">
+                      <button
+                        type="button"
+                        className="keep"
+                        onClick={() => setRatingMatchId((curr) => (curr === b.match!.id ? '' : b.match!.id))}
+                      >
+                        Chấm điểm người chơi
+                      </button>
+                    </span>
+                  )}
+                  {b.match && ratingMatchId === b.match.id && (
+                    <RatingPanel matchId={b.match.id} onClose={() => setRatingMatchId('')} />
                   )}
                 </span>
               </li>

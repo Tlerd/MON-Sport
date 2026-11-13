@@ -10,6 +10,8 @@ import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
 import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
 import { JoinedMatches } from '../features/matches/JoinedMatches.tsx';
 import { Lobby } from '../features/matches/Lobby.tsx';
+import { MyVenues } from '../features/venues/MyVenues.tsx';
+import { StaffSection } from '../features/staff/StaffSection.tsx';
 import { BookPage as InnerBookPage } from './BookPage.tsx';
 import { useSession } from './session.tsx';
 
@@ -82,12 +84,18 @@ export function BookPage() {
 }
 
 export function OwnerRequestsPage() {
+  const { user } = useSession();
+  const isStaff = user?.role === 'STAFF';
   return (
     <div className="owner-requests-page stack">
-      <OwnerRequests />
-      <PhoneBookings />
+      <OwnerRequests canManagePayment={!isStaff} />
+      <PhoneBookings canCancel={!isStaff} />
     </div>
   );
+}
+
+export function MyVenuesPage() {
+  return <MyVenues renderStaff={(v) => <StaffSection venueId={v.id} />} />;
 }
 
 export function LobbyPage() {
@@ -147,9 +155,11 @@ export function AuthPage() {
     const dest =
       u.role === 'OWNER'
         ? '/chu-san/yeu-cau'
-        : u.role === 'ADMIN'
-          ? '/admin'
-          : '/';
+        : u.role === 'STAFF'
+          ? '/chu-san/lich'
+          : u.role === 'ADMIN'
+            ? '/admin'
+            : '/';
     navigate(dest, { replace: true });
   };
 

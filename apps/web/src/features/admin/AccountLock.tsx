@@ -2,7 +2,7 @@ import type { AccountView } from '@monsport/shared';
 import { type FormEvent, useRef, useState } from 'react';
 import { api, ApiError } from '@monsport/client';
 
-const ROLE = { ADMIN: 'Admin', OWNER: 'Chủ sân', USER: 'Người dùng' } as const;
+const ROLE = { ADMIN: 'Admin', OWNER: 'Chủ sân', USER: 'Người dùng', STAFF: 'Nhân viên' } as const;
 
 /**
  * UC-10, flow 10.1 and BR-28. The admin finds one account by its exact phone number (BR-20: no list of users),

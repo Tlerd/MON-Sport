@@ -11,7 +11,7 @@ const WEEK: AdminStatsView = {
   date: '2026-11-20',
   weekStart: '2026-11-16',
   weekEnd: '2026-11-22',
-  accounts: { ADMIN: 1, OWNER: 3, USER: 40 },
+  accounts: { ADMIN: 1, OWNER: 3, USER: 40, STAFF: 2 },
   newUsers: 5,
   activeUsers: 3,
   avgConfirmMinutes: 25,
@@ -53,6 +53,7 @@ describe('AdminStats', () => {
     expect(await screen.findByText('16/11 – 22/11/2026')).toBeTruthy();
     expect(within(card('Admin')).getByText('1')).toBeTruthy();
     expect(within(card('Chủ sân')).getByText('3')).toBeTruthy();
+    expect(within(card('Nhân viên')).getByText('2')).toBeTruthy();
     expect(within(card('Người dùng')).getByText('40')).toBeTruthy();
     expect(within(card('Người dùng mới')).getByText('5')).toBeTruthy();
     expect(within(card('Người dùng hoạt động')).getByText('3')).toBeTruthy();

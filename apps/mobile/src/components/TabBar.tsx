@@ -12,7 +12,7 @@ import {
 import type { HTMLAttributes, ReactNode } from 'react';
 import { useBars } from '../app/bars.tsx';
 
-export type UserRole = 'ADMIN' | 'OWNER' | 'USER' | null;
+export type UserRole = 'ADMIN' | 'OWNER' | 'USER' | 'STAFF' | null;
 
 export interface TabItem {
   id: string;
