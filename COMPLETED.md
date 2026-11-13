@@ -34,8 +34,8 @@ This file lists the features that are done, and the done steps of a feature that
 W1 to W5 went to `main` in one pull request, #244 (owner, 2026-11-13: one new pull request in place of the stacked PRs 210, 212 to 215, 220, 222, 224, 236 to 241, which are closed). Each old pull request passed its Reviewer rounds with no finding of medium or higher open; 237, 239, and 240 also have a `rule-review` comment. Live since 2026-11-13: the deploy applied migrations f028 to f032, and `/api/health` answered `ok`.
 
 - F-028 (W1, hàng chờ và host duyệt vào trận; issue #211; brief `docs/briefs/F-028-hang-cho-host-duyet-vao-tran.md`): migration `20261110000000_f028_match_join_approval`, and the flow `lobby-approval` of `verify-flow`.
-- F-029 (W4, trình độ người chơi; issue #219): the skill level on sign-up and in the lobby filter.
-- F-030 (W2, đặt cố định hằng tuần; issue #233): the weekly repeat in the phone booking form of "Lịch sân" (`Booking.seriesId`).
-- F-031 (W3, tài khoản nhân viên; issue #234): `Role` `STAFF` and `User.staffVenueId`.
-- F-032 (W5, điểm uy tín; issue #235): `PlayerRating`.
+- F-029 (W4, trình độ người chơi; issue #219; brief `docs/briefs/F-029-trinh-do-nguoi-choi.md`): the skill level on sign-up and in the lobby filter.
+- F-030 (W2, đặt cố định hằng tuần; issue #233; brief `docs/briefs/F-030-dat-co-dinh-hang-tuan.md`): the weekly repeat in the phone booking form of "Lịch sân" (`Booking.seriesId`).
+- F-031 (W3, tài khoản nhân viên; issue #234; brief `docs/briefs/F-031-tai-khoan-nhan-vien.md`): `Role` `STAFF` and `User.staffVenueId`.
+- F-032 (W5, điểm uy tín; issue #235; brief `docs/briefs/F-032-diem-uy-tin.md`): `PlayerRating`.
 - Also merged on 2026-11-13: #209 (local Postgres starts with `fsync=off`), #216 (the owner paid toggle sends JSON), #230 (web and mobile use the `@monsport/client` helpers), #231 (the swarm step of `agent-workflow`), #232 (the AC-31 flake of `google-auth.e2e.test.ts`), #242 (`COMPLETED.md`, the 10000-character limit, agents merge).
