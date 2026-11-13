@@ -7,6 +7,9 @@ export const NotificationType = z.enum([
   'BOOKING_CONFIRMED',
   'BOOKING_REJECTED',
   'MATCH_CANCELLED',
+  'MATCH_JOIN_REQUESTED',
+  'MATCH_JOIN_APPROVED',
+  'MATCH_JOIN_REJECTED',
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -97,6 +100,21 @@ export function formatNotificationContent(params: NotificationContentParams): { 
       return {
         title: 'Trận đấu đã bị hủy',
         message: `Trận đấu tại ${params.venueName} - ${params.courtName} khung ${slotTime} đã bị hủy.`,
+      };
+    case 'MATCH_JOIN_REQUESTED':
+      return {
+        title: 'Có người xin vào trận',
+        message: `Có người xin vào trận của bạn tại ${params.venueName} - ${params.courtName} khung ${slotTime}.`,
+      };
+    case 'MATCH_JOIN_APPROVED':
+      return {
+        title: 'Bạn đã được vào trận',
+        message: `Host đã duyệt yêu cầu vào trận tại ${params.venueName} - ${params.courtName} khung ${slotTime}.`,
+      };
+    case 'MATCH_JOIN_REJECTED':
+      return {
+        title: 'Yêu cầu vào trận bị từ chối',
+        message: `Host đã từ chối yêu cầu vào trận tại ${params.venueName} - ${params.courtName} khung ${slotTime}.`,
       };
   }
 }

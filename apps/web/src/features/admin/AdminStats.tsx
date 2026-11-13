@@ -99,6 +99,7 @@ export function AdminStats() {
           <div className="metric-grid">
             <Metric label="Admin" value={data.accounts.ADMIN} />
             <Metric label="Chủ sân" value={data.accounts.OWNER} />
+            <Metric label="Nhân viên" value={data.accounts.STAFF} />
             <Metric label="Người dùng" value={data.accounts.USER} hint="Gồm cả tài khoản bị khóa" />
           </div>
 

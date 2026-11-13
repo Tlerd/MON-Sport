@@ -3,6 +3,7 @@
 // Exit code: 0 when no step failed, 1 when a step failed, 2 when the input is wrong or the app is not reachable.
 
 import { spawnSync } from 'node:child_process';
+import lobbyApproval from './lobby-approval.mjs';
 import mobileAccount from './mobile-account.mjs';
 import mobileBook from './mobile-book.mjs';
 import mobileHistory from './mobile-history.mjs';
@@ -17,7 +18,12 @@ import phoneBooking from './phone-booking.mjs';
 import playerRequest from './player-request.mjs';
 import { parseOptions, ROOT, Run } from './lib.mjs';
 
-const WEB_FLOWS = { 'player-request': playerRequest, 'owner-decide': ownerDecide, 'phone-booking': phoneBooking };
+const WEB_FLOWS = {
+  'player-request': playerRequest,
+  'owner-decide': ownerDecide,
+  'phone-booking': phoneBooking,
+  'lobby-approval': lobbyApproval,
+};
 const MOBILE_FLOWS = {
   'mobile-shell': mobileShell,
   'mobile-book': mobileBook,

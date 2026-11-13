@@ -8,12 +8,23 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Req,
   Sse,
   UseGuards,
 } from '@nestjs/common';
-import { CreateMatchRequest, type MatchDetailView, matchErrorMessage, MatchLobbyQuery, type MatchView, Messages } from '@monsport/shared';
+import {
+  CreateMatchRequest,
+  type MatchDetailView,
+  matchErrorMessage,
+  MatchLobbyQuery,
+  type MatchRequestView,
+  type MatchView,
+  Messages,
+  type PlayerRatingView,
+  RatePlayerRequest,
+} from '@monsport/shared';
 import type { Observable } from 'rxjs';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { LobbyEvents } from './lobby-events.service.js';
@@ -58,6 +69,41 @@ export class MatchesController {
     return this.matches.detail(req.user.id, id);
   }
 
+  /** Brief F-028 (UC-15, BR-20): the host reads the waiting requests with phone numbers. */
+  @Get(':id/requests')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  requests(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<MatchRequestView[]> {
+    return this.matches.listRequests(req.user.id, id);
+  }
+
+  /** Brief F-032 (UC-19, BR-56): the host reads ratings for all active members except themselves. */
+  @Get(':id/ratings')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  ratings(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<PlayerRatingView[]> {
+    return this.matches.listRatings(req.user.id, id);
+  }
+
+  /** Brief F-032 (UC-19, BR-56): the host rates an active member. */
+  @Put(':id/ratings/:userId')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  ratePlayer(
+    @Req() req: AuthedRequest,
+    @Param('id', Id) id: string,
+    @Param('userId', Id) userId: string,
+    @Body() body: unknown,
+  ): Promise<PlayerRatingView> {
+    const parsed = RatePlayerRequest.safeParse(body);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const msg = issue?.code === 'custom' ? issue.message : Messages.invalid;
+      throw new BadRequestException(msg);
+    }
+    return this.matches.ratePlayer(req.user.id, id, userId, parsed.data);
+  }
+
   /** UC-7 (brief F-011): a user opens a match on their own app booking. BR-22: OWNER and ADMIN get 403. */
   @Post()
   @UseGuards(SessionGuard)
@@ -84,6 +130,32 @@ export class MatchesController {
   @HttpCode(200)
   leave(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<MatchDetailView> {
     return this.matches.leave(req.user.id, id);
+  }
+
+  /** Brief F-028 (UC-15): the host approves a waiting request. */
+  @Post(':id/requests/:userId/approve')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  @HttpCode(200)
+  approveRequest(
+    @Req() req: AuthedRequest,
+    @Param('id', Id) id: string,
+    @Param('userId', Id) userId: string,
+  ): Promise<MatchDetailView> {
+    return this.matches.approveRequest(req.user.id, id, userId);
+  }
+
+  /** Brief F-028 (UC-15): the host rejects a waiting request. */
+  @Post(':id/requests/:userId/reject')
+  @UseGuards(SessionGuard)
+  @Roles('USER')
+  @HttpCode(200)
+  rejectRequest(
+    @Req() req: AuthedRequest,
+    @Param('id', Id) id: string,
+    @Param('userId', Id) userId: string,
+  ): Promise<MatchDetailView> {
+    return this.matches.rejectRequest(req.user.id, id, userId);
   }
 
   /** UC-9 (brief F-011): the host cancels their match and its underlying booking (BR-17). */

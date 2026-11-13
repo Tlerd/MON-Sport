@@ -36,12 +36,13 @@ describe('AuthPanel', () => {
     type('Tên của bạn', 'Lan');
     type('Số điện thoại', '0901112233');
     type('Mật khẩu', 'matkhau123');
+    fireEvent.change(screen.getByLabelText('Trình độ'), { target: { value: 'INTERMEDIATE' } });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
 
     await vi.waitFor(() => expect(onLogin).toHaveBeenCalledWith(lan));
     const registerCall = fetch.mock.calls.find((call) => call[0] === '/api/auth/register')!;
-    expect(JSON.parse(registerCall[1].body)).toEqual({ name: 'Lan', phone: '0901112233', password: 'matkhau123', consent: true });
+    expect(JSON.parse(registerCall[1].body)).toEqual({ name: 'Lan', phone: '0901112233', password: 'matkhau123', consent: true, skillLevel: 'INTERMEDIATE' });
     expect(fetch).toHaveBeenCalledWith('/api/auth/register', expect.objectContaining({ method: 'POST' }));
   });
 
@@ -52,9 +53,95 @@ describe('AuthPanel', () => {
     type('Tên của bạn', 'Lan');
     type('Số điện thoại', '0901234567');
     type('Mật khẩu', 'matkhau123');
+    fireEvent.change(screen.getByLabelText('Trình độ'), { target: { value: 'BEGINNER' } });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
     expect((await screen.findByRole('alert')).textContent).toBe('Số điện thoại này đã có tài khoản');
+  });
+
+  it('AC-7: the select shows the three labels "Mới chơi", "Trung bình", "Khá"', () => {
+    render(<AuthPanel onLogin={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    const select = screen.getByLabelText('Trình độ') as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    const options = Array.from(select.options).map((o) => o.text);
+    expect(options).toEqual(['Chọn trình độ', 'Mới chơi', 'Trung bình', 'Khá']);
+  });
+
+  it('AC-7: submit without a level shows "Chọn trình độ" and the API mock is not called', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ google: false }) });
+    vi.stubGlobal('fetch', fetch);
+    render(<AuthPanel onLogin={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    type('Tên của bạn', 'Lan');
+    type('Số điện thoại', '0901112233');
+    type('Mật khẩu', 'matkhau123');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toBe('Chọn trình độ');
+    expect(fetch).not.toHaveBeenCalledWith('/api/auth/register', expect.anything());
+  });
+
+  it('AC-7: submit with "Trung bình" sends skillLevel: "INTERMEDIATE" in the request body', async () => {
+    const lan = { id: '0199a1b2-0000-7000-8000-000000000009', name: 'Lan', role: 'USER' };
+    const fetch = vi.fn().mockResolvedValue({ ok: true, status: 201, json: () => Promise.resolve(lan) });
+    vi.stubGlobal('fetch', fetch);
+    const onLogin = vi.fn();
+    render(<AuthPanel onLogin={onLogin} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    type('Tên của bạn', 'Lan');
+    type('Số điện thoại', '0901112233');
+    type('Mật khẩu', 'matkhau123');
+    fireEvent.change(screen.getByLabelText('Trình độ'), { target: { value: 'INTERMEDIATE' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+
+    await vi.waitFor(() => expect(onLogin).toHaveBeenCalledWith(lan));
+    const registerCall = fetch.mock.calls.find((call) => call[0] === '/api/auth/register')!;
+    expect(JSON.parse(registerCall[1].body)).toEqual({
+      name: 'Lan',
+      phone: '0901112233',
+      password: 'matkhau123',
+      consent: true,
+      skillLevel: 'INTERMEDIATE',
+    });
+  });
+
+  it('AC-7: submit with no level sets aria-invalid="true", aria-describedby pointing to error text, and focuses the select', async () => {
+    render(<AuthPanel onLogin={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    type('Tên của bạn', 'Lan');
+    type('Số điện thoại', '0901112233');
+    type('Mật khẩu', 'matkhau123');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+
+    const select = screen.getByLabelText('Trình độ');
+    expect(select.getAttribute('aria-invalid')).toBe('true');
+    const errorId = select.getAttribute('aria-describedby');
+    expect(errorId).toBeTruthy();
+    expect(document.getElementById(errorId!)?.textContent).toBe('Chọn trình độ');
+    expect(document.activeElement).toBe(select);
+  });
+
+  it('AC-7: selecting a level removes the error text and removes aria-invalid', async () => {
+    render(<AuthPanel onLogin={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+    type('Tên của bạn', 'Lan');
+    type('Số điện thoại', '0901112233');
+    type('Mật khẩu', 'matkhau123');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
+
+    const select = screen.getByLabelText('Trình độ');
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(select.getAttribute('aria-invalid')).toBe('true');
+
+    fireEvent.change(select, { target: { value: 'BEGINNER' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(select.getAttribute('aria-invalid')).toBeNull();
   });
 
   it('goes back to the login form, and moves focus to its heading', () => {

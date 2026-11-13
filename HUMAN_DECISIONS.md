@@ -64,12 +64,24 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 46 | Đăng xuất có cần hủy phiên ở server không? Cookie bị chép dùng được 30 ngày. Cần lưu phiên hoặc đặt `sessionsValidFrom`, mọi thiết bị bị đăng xuất | Chỉ xóa cookie | Không | QA F-027 câu 2 |
 | 47 | Tài khoản bị khóa có cần câu chỉ bước tiếp theo không? | Đổi câu thành "Tài khoản đã bị khóa. Liên hệ admin của MONSPORT" | Không | QA F-027 câu 3 |
 | 48 | Admin đăng nhập trên app có cần nút "Đăng xuất" không? | Thêm nút "Đăng xuất" dưới link. Đã làm trong PR "fix: QA defects of F-027" | Không | QA F-027 câu 4 |
+| 51 | Host có đổi được chế độ vào trận ("Vào ngay" hoặc "Host duyệt") sau khi mở trận không? | Không (BR-49) | Không | F-028 |
+| 52 | Trận "Host duyệt" có tự duyệt người đã đá cùng host trước đó không? | Không | Không | F-028 |
+| 53 | Phòng chờ của app có ẩn trận "Host duyệt" tới khi có brief app không? Hiện bấm "Vào trận" trên app gửi yêu cầu, nhưng app chưa hiện "Chờ duyệt" | Không ẩn | Không | F-028 |
+| 54 | Duyệt intake V2 (`proposed`) và thứ tự W1 đến W7 của `docs/design/ke-hoach-v2.md`. W6 (thanh toán) và W7 (MCP) chưa làm khi bạn chưa duyệt | Agent làm W1 (F-028) trước, theo yêu cầu "bắt đầu làm" ngày 10/11/2026 | Không | V2 |
+| 55 | Tên ba mức trình độ (F-029) | Mới chơi, Trung bình, Khá | Không | F-029 |
+| 56 | Luồng Google có bắt chọn trình độ khi đăng ký không? | Không | Không | F-029 |
+| 57 | Đặt cố định: buổi trùng giờ bỏ và báo, hay hủy cả chuỗi? (F-030) | Bỏ và báo | Không | F-030 |
+| 58 | Số tuần tối đa của đặt cố định (F-030) | 12 | Không | F-030 |
+| 59 | Nhân viên có hủy booking và đánh dấu đã thu tiền không? (F-031) | Không | Không | F-031 |
+| 60 | Luật tính điểm uy tín và vắng mặt (F-032) | 1 đến 5 sao, hoặc Vắng mặt không sao. Điểm là trung bình sao và số lần vắng | Không | F-032 |
+| 61 | Ai thấy điểm uy tín? (F-032) | Chỉ host, trong hàng chờ | Không | F-032 |
 
 ## Việc chỉ người dùng làm được
 
 | Việc | Vì sao agent không làm được |
 |---|---|
 | Chạy `verify-flow` trên bản live và gửi kết quả | Cần máy và tài khoản của người dùng |
+| Đặt `VERIFY_PLAYER2_PHONE` và `VERIFY_PLAYER2_PASSWORD` (một tài khoản `test-` thứ hai) để chạy luồng `lobby-approval` trên live | Luồng không tự đăng ký tài khoản trên live, vì số điện thoại có thể của người thật |
 | Kiểm UC-14 (Web Push) trên máy Android thật. Lần thử ngày 21/10/2026 thất bại, sửa bởi PR #94 và #101, chưa có lần thử lại | Cần máy thật |
 | Đăng nhập lại trên bản live sau lần deploy F-004 bước 2 (mỗi cookie một khóa) | Phiên của người dùng |
 
