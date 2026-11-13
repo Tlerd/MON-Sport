@@ -72,6 +72,6 @@ These keep the work safe. Do not bend them to make work pass:
 
 Git and the tests hold the state: read `git log --oneline -15` and run `pnpm check`. A criterion with a passing `AC-n` test is done.
 
-`PROGRESS.md` holds the next step. Rewrite it in place when the next step changes, in the same pull request, before the merge.
+`PROGRESS.md` holds the next step. Rewrite it in place when the next step changes, in the same pull request, before the merge. When a feature is done, move its record to `COMPLETED.md`.
 
 `HUMAN_DECISIONS.md` holds each decision or step that only the user can do, with the default that agents follow. Add a row when work needs one. Move it to "Đã chốt" when the user answers, in the same pull request. Never delete a row.
