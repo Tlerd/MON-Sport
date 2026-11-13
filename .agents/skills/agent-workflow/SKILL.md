@@ -3,7 +3,7 @@ name: agent-workflow
 description: Roles, branch names, review rounds, the merge, and the deploy check of the MONSPORT agent workflow. Use before you plan a brief step, pick a coder, open or review a pull request, handle a finding still open after 2 rounds, merge a pull request, or check a deploy.
 ---
 
-Read this before you plan a step, open a pull request, review, or hand a pull request to the user.
+Read this before you plan a step, open a pull request, review, or merge a pull request.
 
 ## Roles
 
@@ -17,6 +17,30 @@ Each tool maps these roles to its own models. In Claude Code, the session model 
 | Reviewer | A fresh session. Reads `REVIEW.md` first. Reviews a brief or pull request against the intake. Rates each finding high, medium, or low | Edits, commits, or pushes |
 
 Coder order: run `node scripts/agy-run.mjs --check-usage`, then `node scripts/agy-run.mjs --mode accept-edits -p "<plan>"`. Exit code 4 means every agy model is out of quota. Then use the subagent `backend` or `frontend` (Sonnet). When Sonnet is out of quota, run it with `model: haiku`.
+
+## Swarm step (agy 3.8)
+
+Use it when a change to a shared part (`packages/shared`, `packages/client`, a shared component or hook) needs edits at many call sites. A swarm runs only on agy with `gemini-3.8-flash-high`, never on another model.
+
+1. One coder changes the shared part and its tests first, by the coder order above. Commit it on the step branch.
+2. List the call sites: the plan names them, or run `pnpm -r --no-bail --if-present run typecheck` and read the failing files.
+3. Choose the coder for the call sites:
+   - 3 or more feature folders or modules, and each needs more than an import change (new logic, new tests): run a swarm.
+   - Otherwise: one coder, by the coder order above.
+4. Run the swarm in one command, so `AGY_MODELS` holds for this run only. Bash: `AGY_MODELS=gemini-3.8-flash-high node scripts/agy-run.mjs --mode accept-edits --output-format json --print-timeout 45m -p "/swarm <task>"`. PowerShell: `$env:AGY_MODELS='gemini-3.8-flash-high'; node scripts/agy-run.mjs <same args>; $c=$LASTEXITCODE; Remove-Item Env:AGY_MODELS; exit $c`, so exit 3 and 4 reach you. Confirm the stderr line `agy-run: ran on gemini-3.8-flash-high`. The task says:
+   - Every worker and the verifier run on `gemini-3.8-flash-high`.
+   - One worker for each feature folder or module, with the files it owns. No two workers own one file.
+   - A worker runs `pnpm --filter <package> typecheck`, and the tests of its own files only in `apps/web`, `apps/mobile`, or `packages/*`. API tests share one database per checkout, so they run only in the verifier's `pnpm check`.
+   - Only the `@verifier` runs `pnpm map` and `pnpm check`, once all workers report done. It sends each failure to the worker that owns the file.
+   - Each member edits only the allowed paths of the step: list them.
+   - Never skip, delete, or weaken a test or a check.
+   - No member commits, pushes, or merges.
+5. Read the diff, commit, and go on with the tester and the Reviewer as usual.
+
+- The model of each worker is set by the task text only: the coordinator picks it. When the output names a member on another model, the run failed: one coder redoes the call sites.
+- Exit 4 (3.8 out of quota): one coder does the call sites. Never start a swarm on another model.
+- A worker that runs out of quota pauses and does not exit. Any nonzero exit after agy started, a timeout or exit 4 included, can leave a partial diff: one coder finishes the call sites from the diff in the working tree.
+- A swarm costs the quota of every worker and extra minutes of coordination. In the trial of 2026-11-12 (7 files changed their imports, 2 dropped their own copy of a helper), one coder took 13.2 minutes, and the shared step plus a swarm took 4.5 + 12.9 = 17.4 minutes. The diffs were the same.
 
 ## Fix ladder
 
