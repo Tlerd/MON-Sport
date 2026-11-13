@@ -36,7 +36,7 @@ Do not review these paths:
 
 ## Re-review (round 2 and later)
 
-- Review only the diff since the last reviewed head: `git diff <old-head>..<new-head>`.
+- Review only the diff since the last reviewed head: `git diff <old-head>..<new-head>`. For a merge commit, review `git show --remerge-diff <merge sha>`.
 - Never repeat a finding that a comment on the pull request already holds.
 - For each open finding of medium or higher, say "closed" or "open", with the evidence.
 

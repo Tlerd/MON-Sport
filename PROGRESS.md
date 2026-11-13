@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Done features are in `COMPLETED.md`. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-13 (the swarm step of `agent-workflow`; done features moved to `COMPLETED.md`).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Done features are in `COMPLETED.md`. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-14 (V2 web W1 to W5 merged in PR #244 and live; no pull request is open).
 
 ## Current state
 
@@ -17,9 +17,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 - The API is ESM and builds with SWC, because Nest needs decorator metadata. `packages/shared` ships TypeScript source.
 - Agents work without asking, under "Autonomy" in `AGENTS.md`. Since 2026-10-23 (PR #99): Opus in Claude Code plans, reviews, and checks. Since 2026-11-13 (`HUMAN_DECISIONS.md` row 50, which replaces row 49): agents merge a ready pull request with `node scripts/merge.mjs <n>`, in merge order. agy codes through `node scripts/agy-run.mjs` (every model, flash included). Exit 4 (agy out of quota) sends the step to `backend` or `frontend` on Sonnet, then Haiku. Antigravity: `.agents/rules/model-routing.md`.
 
-## Open items (2026-11-13)
-
-These items are still open:
+## Open items (2026-11-14)
 
 1. `harness/secret-scan.test.mjs` and `harness/boundaries.test.mjs` each timed out once at 5000 ms under load, and `VenueScreen.test.tsx` AC-9 fails under load: each gets one rerun (fix ladder). The AC-31 flake of `google-auth.e2e.test.ts` is fixed (PR #232).
 2. `agent-workflow` has a "Swarm step (agy 3.8)" since `chore/agent-workflow-swarm-step`: the shared part first, then `/swarm` on `gemini-3.8-flash-high` only when 3 or more feature folders need more than import changes. The trial on `chore/client-helpers-dedupe` (9 files, mostly import changes) was slower with the swarm (17.4 min) than with one coder (13.2 min). A second swarm on 2026-11-12 (`fix/progress-open-items`; 3 workers, 5 files, independent changes) ran in 11.8 min with `pnpm check` green. No one-coder baseline ran for it, so the rule stays as it is. Try it again on a larger fan-out before you widen the rule.
@@ -32,7 +30,9 @@ These items are still open:
 - The self-hosted runner `monsport-wsl` (label `monsport-local`, WSL2 Ubuntu on drive D) has run since 2026-11-07. PR `chore/runner-tu-host` moves `changes`, `check`, `image`, and `gates` to it (`deploy` stays on `ubuntu-latest`). Plan: `docs/design/ke-hoach-runner-tu-host.md`. If a job fails there for an environment reason, read its log and fix the runner or go back to `ubuntu-latest`.
 - When the agy Claude and GPT models are out of quota, code with `AGY_MODELS=gemini-4-argon-high,gemini-3.8-flash-high node scripts/agy-run.mjs ...`. Use the subagent `backend` or `frontend` (Sonnet) only on exit 4, as `agent-workflow` says.
 
-V2 on the web (plan `docs/design/ke-hoach-v2.md`, intake `docs/requirements/intake-monsport-v2.md`, still `proposed` until the owner accepts it, `HUMAN_DECISIONS.md` row 54): W1 to W5 are built and go to `main` in one pull request from `feat/v2-combined` (owner, 2026-11-13: one new pull request, close the old ones). It replaces the stacked PRs 210, 212 to 215, 220, 222, 224, 236 to 241. Each of them passed its Reviewer rounds with no medium or higher open; 237, 239, and 240 also have a `rule-review` comment. Features: F-028 (W1, hàng chờ và host duyệt, issue #211), F-029 (W4, trình độ, issue #219), F-030 (W2, đặt cố định hằng tuần, issue #233), F-031 (W3, tài khoản nhân viên, issue #234), F-032 (W5, điểm uy tín, issue #235). After the merge, move them to `COMPLETED.md`.
-- The deploy applies migrations f028, f029, f030 (`Booking.seriesId`), f031 (`Role` `STAFF`, `User.staffVenueId`), f032 (`PlayerRating`). Then run `verify-flow` web on live (needs `VERIFY_PLAYER2_PHONE` and `VERIFY_PLAYER2_PASSWORD`, see `HUMAN_DECISIONS.md`).
+## V2 on the web
+
+- W1 to W5 (F-028 to F-032) are on `main` and live since 2026-11-13 (PR #244, see `COMPLETED.md`). The intake `docs/requirements/intake-monsport-v2.md` stays `proposed` until the owner accepts it (`HUMAN_DECISIONS.md` row 54).
+- Run `verify-flow` web on live (needs `VERIFY_PLAYER2_PHONE` and `VERIFY_PLAYER2_PASSWORD`, see `HUMAN_DECISIONS.md`). On 2026-11-13 only the deploy run and `/api/health` were checked.
 - Open V2 lows, all accepted (`Lobby.tsx`: the request list is not reloaded after a failed decision, and the busy set resets when a match is closed and reopened; `lobby-approval.mjs`: the live requester name can reach the verify report; `matches.service.ts`: the sync closure is duplicated in `detail` and `listRequests`; a player who joined, left, and asked again drops out of the admin active users of the week). `REVIEW.md` still says "BR-1 to BR-32": fix it in a `chore`.
 - Not started: W6 (payment) and W7 (MCP) need the owner's approval; the app port of W1 to W5. Defaults that wait for the owner: `HUMAN_DECISIONS.md` rows 51 to 61. Still open from 2026-11-11: maintain phase 1 (`chore/maintain-detect`), the fix-ladder log, and the Stop-hook note in `docs/known-issues.md`.
