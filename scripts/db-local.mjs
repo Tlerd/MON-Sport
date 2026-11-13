@@ -42,11 +42,24 @@ if (fresh) {
 
 if (!ready()) {
   // Detached, with no inherited pipes, so this script exits while the server keeps running.
-  spawn(exe('pg_ctl'), ['-D', DATA, '-l', join(HOME, 'pg.log'), '-o', `-p ${PORT} -c listen_addresses=localhost`, 'start'], {
-    detached: true,
-    stdio: 'ignore',
-  }).unref();
-  for (let i = 0; i < 30 && !ready(); i++) spawnSync(process.execPath, ['-e', 'setTimeout(()=>{},500)']);
+  // fsync=off: this cluster holds dev and test data that migrate and seed rebuild. It also skips the
+  // startup fsync of every data file after a crash, which took minutes on Windows (docs/known-issues.md).
+  const options = `-p ${PORT} -c listen_addresses=localhost -c fsync=off -c synchronous_commit=off -c full_page_writes=off`;
+  const ctlArgs = ['-D', DATA, '-l', join(HOME, 'pg.log'), '-o', options, 'start'];
+  if (process.platform === 'win32') {
+    // Start-Process gives the server no inherited handles. A plain detached spawn leaves the server
+    // holding the caller's stdout pipe, so `pnpm db:start | tail` never returned.
+    const q = (a) => `'"${a.replaceAll("'", "''")}"'`;
+    spawnSync(
+      'powershell',
+      ['-NoProfile', '-Command', `Start-Process -WindowStyle Hidden -FilePath '${exe('pg_ctl')}' -ArgumentList ${ctlArgs.map(q).join(',')}`],
+      { stdio: 'ignore' },
+    );
+  } else {
+    spawn(exe('pg_ctl'), ctlArgs, { detached: true, stdio: 'ignore' }).unref();
+  }
+  // Crash recovery can still take a while. Wait for it; never start a second server.
+  for (let i = 0; i < 240 && !ready(); i++) spawnSync(process.execPath, ['-e', 'setTimeout(()=>{},500)']);
 }
 if (!ready()) {
   console.error(`Postgres did not start. Read ${join(HOME, 'pg.log')}.`);

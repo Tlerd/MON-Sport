@@ -24,6 +24,14 @@ Errors that happened before. When a new error looks the same, apply the fix firs
 - Seen: 2026-11-02. The git hook runs checks, so the call moved to the background and still finished with exit code 0.
 - Fix: run `git commit` and `git push` with `run_in_background`. Read the result when the notification arrives.
 
+## Local Postgres starts slowly after a crash
+
+- Seen: 2026-11-10. After the local cluster stopped without a clean shutdown (a killed session, WSL or machine stopped), `pnpm db:start` printed `Postgres did not start`, and `pnpm check` failed with `prisma migrate deploy failed`. Recovery took about 7 minutes.
+- Cause: Postgres fsyncs every data file (about 8,900) before it accepts connections. Windows with Defender is slow at this. The old script waited 15 s, and each retry started another server, so the work restarted.
+- Fix: `scripts/db-local.mjs` starts the cluster with `fsync=off`, `synchronous_commit=off`, and `full_page_writes=off`. This skips that sync. A hard kill of the postmaster now recovers in about 5 s (measured on 2026-11-10). The script waits up to 120 s and starts the server with `Start-Process`, so `pnpm db:start | tail` returns.
+- The flags apply to the dev and test cluster only. After an OS crash its files may be corrupt. Delete `%LOCALAPPDATA%/monsport/pgdata`, run `pnpm db:start`, then migrate and seed again. Cloud SQL keeps its own safe settings.
+- If the server still does not come up, read `%LOCALAPPDATA%/monsport/pg.log`. Do not run `pnpm db:start` again while the log shows recovery in progress.
+
 ## `pnpm check` prints `WARN secrets` or `FAIL secrets`
 
 - `WARN secrets: gitleaks is not installed`: `pnpm install` does not install gitleaks, because it is a Go binary. Install it once with `winget install Gitleaks.Gitleaks`. The check finds the winget folder without a new shell. CI still scans every pull request.
