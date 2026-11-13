@@ -49,7 +49,8 @@ test('VERIFY_ENV_FILE picks the file, and the default is outside the repository'
 
 test('a UTF-8 BOM before the first key does not lose that key', () => {
   const env = {};
-  loadVerifyEnv({ target: 'live', env, read: () => 'FEFFVERIFY_OWNER_PHONE=0900000001\r\nVERIFY_COURT=Sân 1\r\n' });
+  const bom = String.fromCharCode(0xfeff);
+  loadVerifyEnv({ target: 'live', env, read: () => `${bom}VERIFY_OWNER_PHONE=0900000001\r\nVERIFY_COURT=Sân 1\r\n` });
   expect(env.VERIFY_OWNER_PHONE).toBe('0900000001');
   expect(env.VERIFY_COURT).toBe('Sân 1');
 });
