@@ -68,9 +68,9 @@ export function GoogleAccountActions() {
           </button>
         </div>
       ) : (
-        <form onSubmit={handleLinkSubmit} className="google-link-form">
-          <label>
-            Mật khẩu
+        <form onSubmit={handleLinkSubmit} className="google-link-form stack">
+          <label className="fld">
+            <span>Mật khẩu</span>
             <input
               type="password"
               autoComplete="current-password"
@@ -79,7 +79,7 @@ export function GoogleAccountActions() {
               required
             />
           </label>
-          <button type="submit" disabled={busy}>
+          <button type="submit" className="btn lime sm wide" disabled={busy}>
             Liên kết Google
           </button>
           <button

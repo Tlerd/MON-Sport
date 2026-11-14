@@ -1,4 +1,5 @@
 import type { FinancialDashboardView, FinancialPeriod, VenueView } from '@monsport/shared';
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   Bar,
@@ -69,166 +70,180 @@ export function FinancialDashboard() {
   }, [selectedVenueId, period, date]);
 
   return (
-    <section className="panel financial-panel">
-      <h2>Báo cáo tài chính</h2>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1>Doanh thu</h1>
+          <p>Theo dõi doanh thu, giờ đặt và tỉ lệ lấp đầy. Khách trả tiền tại sân.</p>
+        </div>
+      </div>
 
-      {venues && venues.length === 0 && (
-        <p className="empty">Bạn chưa có đơn vị nào để xem báo cáo tài chính.</p>
-      )}
+      <section className="panel clean financial-panel">
+        <h2>Báo cáo tài chính</h2>
 
-      {venues && venues.length > 0 && (
-        <>
-          <div className="financial-controls">
-            {venues.length > 1 && (
-              <div className="control-group">
-                <label htmlFor="venue-select">Đơn vị:</label>
-                <select
-                  id="venue-select"
-                  value={selectedVenueId}
-                  onChange={(e) => setSelectedVenueId(e.target.value)}
-                >
-                  {venues.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </select>
+        {venues && venues.length === 0 && (
+          <p className="empty">Bạn chưa có đơn vị nào để xem báo cáo tài chính.</p>
+        )}
+
+        {venues && venues.length > 0 && (
+          <>
+            <div className="fbar">
+              {venues.length > 1 && (
+                <div className="fld inline-fld">
+                  <label htmlFor="venue-select">Đơn vị</label>
+                  <div className="sel">
+                    <select
+                      id="venue-select"
+                      value={selectedVenueId}
+                      onChange={(e) => setSelectedVenueId(e.target.value)}
+                    >
+                      {venues.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} className="ic" aria-hidden="true" />
+                  </div>
+                </div>
+              )}
+
+              <div className="seg" role="group" aria-label="Khoảng thời gian">
+                {(['day', 'week', 'month'] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    className={period === p ? 'on' : ''}
+                    onClick={() => setPeriod(p)}
+                  >
+                    {PERIOD_LABELS[p]}
+                  </button>
+                ))}
               </div>
+
+              <label className="fld inline-fld" htmlFor="financial-date">
+                <span>Ngày</span>
+                <input
+                  id="financial-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value || todayVN())}
+                />
+              </label>
+            </div>
+
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
             )}
 
-            <div className="period-buttons" role="group" aria-label="Khoảng thời gian">
-              {(['day', 'week', 'month'] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className={period === p ? 'active' : 'secondary'}
-                  onClick={() => setPeriod(p)}
-                >
-                  {PERIOD_LABELS[p]}
-                </button>
-              ))}
-            </div>
+            {loading && !data && <p className="empty">Đang tải báo cáo…</p>}
 
-            <div className="control-group">
-              <label htmlFor="financial-date">Ngày:</label>
-              <input
-                id="financial-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value || todayVN())}
-              />
-            </div>
-          </div>
+            {data && (
+              <div className="stack">
+                <div className="tiles">
+                  <div className="tile lime">
+                    <small>Doanh thu</small>
+                    <b className="money tnum">{formatVnd(data.revenue)}</b>
+                    <small>
+                      {data.paidBookings}/{data.totalBookings} booking đã thu tiền
+                    </small>
+                  </div>
 
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
+                  <div className="tile">
+                    <small>Giờ đã đặt</small>
+                    <b className="tnum">{data.bookedHours} giờ</b>
+                    <small>Tổng mở: {data.openingHours} giờ sân</small>
+                  </div>
 
-          {loading && !data && <p className="empty">Đang tải báo cáo…</p>}
+                  <div className="tile">
+                    <small>Tỉ lệ lấp đầy</small>
+                    <b className="tnum">
+                      {(data.occupancyRate * 100).toFixed(1)}%
+                    </b>
+                    <small>
+                      {data.bookedHours}h / {data.openingHours}h
+                    </small>
+                  </div>
 
-          {data && (
-            <>
-              <div className="metric-grid">
-                <div className="metric-card card-web">
-                  <span className="metric-label">Doanh thu</span>
-                  <strong className="metric-value">{formatVnd(data.revenue)}</strong>
-                  <span className="metric-sub">
-                    {data.paidBookings}/{data.totalBookings} booking đã thu tiền
-                  </span>
+                  <div className="tile">
+                    <small>Giờ cao điểm / thường</small>
+                    <b className="tnum">
+                      {data.peakHours}h / {data.normalHours}h
+                    </b>
+                    <small>Cao điểm: 17:00–22:00</small>
+                  </div>
+
+                  <div className="tile">
+                    <small>Tỉ lệ hủy & từ chối</small>
+                    <b className="sm-val tnum">
+                      Hủy {(data.cancellationRate * 100).toFixed(1)}% / Từ chối{' '}
+                      {(data.rejectionRate * 100).toFixed(1)}%
+                    </b>
+                    <small>
+                      {data.cancelledBookings} hủy, {data.rejectedBookings} từ chối
+                    </small>
+                  </div>
+
+                  <div className="tile">
+                    <small>Khách quay lại</small>
+                    <b className="tnum">
+                      {data.returningCustomers}/{data.totalCustomers} khách
+                    </b>
+                    <small>Đặt từ 2 lượt trở lên</small>
+                  </div>
                 </div>
 
-                <div className="metric-card card-web">
-                  <span className="metric-label">Giờ đã đặt</span>
-                  <strong className="metric-value">{data.bookedHours} giờ</strong>
-                  <span className="metric-sub">Tổng mở: {data.openingHours} giờ sân</span>
-                </div>
-
-                <div className="metric-card card-web">
-                  <span className="metric-label">Tỉ lệ lấp đầy</span>
-                  <strong className="metric-value">
-                    {(data.occupancyRate * 100).toFixed(1)}%
-                  </strong>
-                  <span className="metric-sub">
-                    {data.bookedHours}h / {data.openingHours}h
-                  </span>
-                </div>
-
-                <div className="metric-card card-web">
-                  <span className="metric-label">Giờ cao điểm / thường</span>
-                  <strong className="metric-value">
-                    {data.peakHours}h / {data.normalHours}h
-                  </strong>
-                  <span className="metric-sub">Cao điểm: 17:00–22:00</span>
-                </div>
-
-                <div className="metric-card card-web">
-                  <span className="metric-label">Tỉ lệ hủy & từ chối</span>
-                  <strong className="metric-value">
-                    Hủy {(data.cancellationRate * 100).toFixed(1)}% / Từ chối{' '}
-                    {(data.rejectionRate * 100).toFixed(1)}%
-                  </strong>
-                  <span className="metric-sub">
-                    {data.cancelledBookings} hủy, {data.rejectedBookings} từ chối
-                  </span>
-                </div>
-
-                <div className="metric-card card-web">
-                  <span className="metric-label">Khách quay lại</span>
-                  <strong className="metric-value">
-                    {data.returningCustomers}/{data.totalCustomers} khách
-                  </strong>
-                  <span className="metric-sub">Đặt từ 2 lượt trở lên</span>
-                </div>
-              </div>
-
-              <div className="chart-wrapper card-web">
-                <h3>Biểu đồ theo {PERIOD_LABELS[period].toLowerCase()}</h3>
-                <div
-                  className="chart-container"
-                  style={{ width: '100%', height: 300, minHeight: 300 }}
-                >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={data.chartData}
-                      margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" />
-                      <YAxis
-                        yAxisId="revenue"
-                        orientation="left"
-                        stroke="var(--color-primary)"
-                        tickFormatter={(v) => `${v / 1000}k`}
-                      />
-                      <YAxis
-                        yAxisId="hours"
-                        orientation="right"
-                        stroke="var(--color-peak)"
-                        tickFormatter={(v) => `${v}h`}
-                      />
-                      <Tooltip
-                        formatter={(val: unknown, name: unknown) => [
-                          name === 'revenue' ? formatVnd(Number(val)) : `${val} giờ`,
-                          name === 'revenue' ? 'Doanh thu' : 'Số giờ đặt',
-                        ]}
-                      />
-                      <Legend
-                        formatter={(value) =>
-                          value === 'revenue' ? 'Doanh thu (VND)' : 'Số giờ đặt'
-                        }
-                      />
-                      <Bar yAxisId="revenue" dataKey="revenue" name="revenue" fill="var(--color-primary)" />
-                      <Bar yAxisId="hours" dataKey="bookedHours" name="bookedHours" fill="var(--color-peak)" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="card pad chart-wrapper">
+                  <div className="sec-row">
+                    <h3>Biểu đồ theo {PERIOD_LABELS[period].toLowerCase()}</h3>
+                  </div>
+                  <div
+                    className="chart-container"
+                    style={{ width: '100%', height: 300, minHeight: 300 }}
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={data.chartData}
+                        margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" />
+                        <YAxis
+                          yAxisId="revenue"
+                          orientation="left"
+                          stroke="var(--ok)"
+                          tickFormatter={(v) => `${v / 1000}k`}
+                        />
+                        <YAxis
+                          yAxisId="hours"
+                          orientation="right"
+                          stroke="var(--amber)"
+                          tickFormatter={(v) => `${v}h`}
+                        />
+                        <Tooltip
+                          formatter={(val: unknown, name: unknown) => [
+                            name === 'revenue' ? formatVnd(Number(val)) : `${val} giờ`,
+                            name === 'revenue' ? 'Doanh thu' : 'Số giờ đặt',
+                          ]}
+                        />
+                        <Legend
+                          formatter={(value) =>
+                            value === 'revenue' ? 'Doanh thu (VND)' : 'Số giờ đặt'
+                          }
+                        />
+                        <Bar yAxisId="revenue" dataKey="revenue" name="revenue" fill="var(--ok)" />
+                        <Bar yAxisId="hours" dataKey="bookedHours" name="bookedHours" fill="var(--amber)" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
-            </>
-          )}
-        </>
-      )}
-    </section>
+            )}
+          </>
+        )}
+      </section>
+    </div>
   );
 }

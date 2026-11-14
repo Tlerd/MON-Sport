@@ -1,5 +1,6 @@
 import { bookingPrice, type BookingView, minuteOfDayVN, type OwnerBookingView, type VenueView } from '@monsport/shared';
 import { type FormEvent, useEffect, useId, useMemo, useState } from 'react';
+import { Avatar } from '../../components/Avatar.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { api, ApiError, DURATIONS, durationLabel, formatDay, formatSlot, formatTime, formatVnd, hhmm, slotAt as at } from '@monsport/client';
@@ -94,30 +95,30 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
   }
 
   return (
-    <section className="panel">
+    <section className="panel card pad">
       <h2>Nhập booking khách gọi điện</h2>
-      <p className="hint lead">Booking bạn nhập ở trạng thái "Đã xác nhận" ngay, và chặn khung giờ đó trong app.</p>
-      <form onSubmit={submit} className="stack">
-        <label>
-          Sân
+      <p className="dim small">Booking bạn nhập ở trạng thái "Đã xác nhận" ngay, và chặn khung giờ đó trong app.</p>
+      <form onSubmit={submit} className="stack-form">
+        <label className="fld">
+          <span>Sân</span>
           <select value={courtId} onChange={(e) => setCourtId(e.target.value)} required>
             <option value="">Chọn sân</option>
             {venues.flatMap((v) => v.courts.map((c) => <option key={c.id} value={c.id}>{`${v.name} · ${c.name}`}</option>))}
           </select>
         </label>
-        <div className="row">
-          <label>
-            Ngày
+        <div className="fgrid three">
+          <label className="fld">
+            <span>Ngày</span>
             <input type="date" value={date} min={todayVN()} onChange={(e) => setDate(e.target.value)} required />
           </label>
-          <label>
-            Bắt đầu
+          <label className="fld">
+            <span>Bắt đầu</span>
             <select value={begin ?? ''} onChange={(e) => setStart(Number(e.target.value))} disabled={starts.length === 0}>
               {starts.map((m) => <option key={m} value={m}>{hhmm(m)}</option>)}
             </select>
           </label>
-          <label>
-            Thời lượng
+          <label className="fld">
+            <span>Thời lượng</span>
             <select value={length} onChange={(e) => setDuration(Number(e.target.value))} disabled={durations.length === 0}>
               {durations.map((d) => <option key={d} value={d}>{durationLabel(d)}</option>)}
             </select>
@@ -125,13 +126,13 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
         </div>
         {venue && starts.length === 0 && <p className="hint">Ngày này không còn giờ nào trong giờ mở cửa {hhmm(venue.opensAt)}–{hhmm(venue.closesAt)}.</p>}
         {begin !== undefined && <SlotBar start={begin} duration={length} />}
-        <div className="row two">
-          <label>
-            Tên khách (không bắt buộc)
+        <div className="fgrid">
+          <label className="fld">
+            <span>Tên khách (không bắt buộc)</span>
             <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoComplete="off" />
           </label>
-          <label>
-            Số điện thoại khách (không bắt buộc)
+          <label className="fld">
+            <span>Số điện thoại khách (không bắt buộc)</span>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="numeric" autoComplete="off" />
           </label>
         </div>
@@ -140,9 +141,9 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
           {error && <p className="error" role="alert">{error}</p>}
           <span className="total">
             <span>Giá</span>
-            <strong className="money">{price !== null ? formatVnd(price) : '—'}</strong>
+            <strong className="money tnum">{price !== null ? formatVnd(price) : '—'}</strong>
           </span>
-          <button type="submit" disabled={!court || begin === undefined || busy}>Lưu booking</button>
+          <button type="submit" className="btn lime" disabled={!court || begin === undefined || busy}>Lưu booking</button>
         </div>
       </form>
     </section>
@@ -154,39 +155,62 @@ function ConfirmedBookings({ rows, error, canCancel = true, onCancelled }: { row
   const { list, failure, ask } = useCancelFlow(async (id) => onCancelled(await api<BookingView>(`/api/owner/bookings/${id}/cancel`, { method: 'POST' })));
 
   return (
-    <section className="panel" aria-labelledby={heading}>
+    <section className="panel clean" aria-labelledby={heading}>
       <h2 id={heading}>Booking đã xác nhận</h2>
       {(error || failure) && <p className="error" role="alert">{error || failure}</p>}
-      {rows?.length === 0 && <EmptyState message="Chưa có booking nào sắp tới." />}
-      <ul className="tickets" ref={list}>
-        {rows?.map((r) => (
-          <li key={r.id} className="ticket card-web" data-status={r.status}>
-            <span className="stub">
-              <strong>{formatTime(r.startAt)}</strong>
-              <span>đến {formatTime(r.endAt)}</span>
-            </span>
-            <span className="body">
-              <Customer customer={r.customer} />
-              <span className="meta">
-                <span>Ngày {formatDay(r.startAt)}</span>
-                <span>{r.source === 'PHONE' ? 'Qua điện thoại' : 'Đặt trong app'}</span>
-                <span className="money">{formatVnd(r.priceTotal)}</span>
-              </span>
-              {r.status !== 'CONFIRMED' ? (
-                <StatusBadge
-                  className="status"
-                  status={r.status}
-                  label={STATUS_LABEL[r.status]}
-                  tabIndex={-1}
-                  data-focus={r.id}
-                />
-              ) : canCancel && new Date(r.startAt) > new Date() ? (
-                <CancelAsk id={r.id} label={formatSlot(r.startAt, r.endAt)} ask={ask} />
-              ) : null}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {rows?.length === 0 && (
+        <div className="card">
+          <EmptyState message="Chưa có booking nào sắp tới." />
+        </div>
+      )}
+      <div className="card reqs-table" style={rows && rows.length === 0 ? { display: 'none' } : undefined}>
+        {rows && rows.length > 0 && (
+          <div className="req head" aria-hidden="true">
+            <span>Khách</span>
+            <span>Ngày</span>
+            <span>Thời gian</span>
+            <span className="r">Giá</span>
+            <span className="r">Thao tác</span>
+          </div>
+        )}
+        <ul className="tickets" ref={list}>
+          {rows?.map((r) => (
+            <li key={r.id} className="ticket req" data-status={r.status}>
+              <div className="req-who">
+                <Avatar name={r.customer.name || 'Khách'} size={34} />
+                <div>
+                  <Customer customer={r.customer} />
+                  <small>{r.source === 'PHONE' ? 'Qua điện thoại' : 'Đặt trong app'}</small>
+                </div>
+              </div>
+              <div className="req-day">
+                <b>Ngày {formatDay(r.startAt)}</b>
+                <small className="req-price-sm money tnum">{formatVnd(r.priceTotal)}</small>
+              </div>
+              <div className="stub">
+                <strong>{formatTime(r.startAt)}</strong>
+                <span>đến {formatTime(r.endAt)}</span>
+              </div>
+              <div className="req-price r">
+                <b className="money tnum">{formatVnd(r.priceTotal)}</b>
+              </div>
+              <div className="req-act">
+                {r.status !== 'CONFIRMED' ? (
+                  <StatusBadge
+                    className="status"
+                    status={r.status}
+                    label={STATUS_LABEL[r.status]}
+                    tabIndex={-1}
+                    data-focus={r.id}
+                  />
+                ) : canCancel && new Date(r.startAt) > new Date() ? (
+                  <CancelAsk id={r.id} label={formatSlot(r.startAt, r.endAt)} ask={ask} />
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }

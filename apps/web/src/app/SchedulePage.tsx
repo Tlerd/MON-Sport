@@ -11,12 +11,13 @@ import {
   type RecurringPhoneBookingResponse,
   type VenueView,
 } from '@monsport/shared';
-import { Calendar, Check, ChevronDown, Clock, Plus, X } from 'lucide-react';
+import { Calendar, Check, ChevronDown, Clock, Plus } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Avatar } from '../components/Avatar.tsx';
 import { Chip } from '../components/Chip.tsx';
-import { SportIcon } from '../components/icons.tsx';
 import { Panel } from '../components/Panel.tsx';
 import { SlotGrid, type SelectedSlot, type SlotCellInfo, type WindowId } from '../components/SlotGrid.tsx';
+import { SportIcon } from '../components/SportIcon.tsx';
 import {
   api,
   ApiError,
@@ -29,7 +30,6 @@ import {
   slotAt as at,
 } from '@monsport/client';
 import { useSession } from './session.tsx';
-import { initial } from './shells.tsx';
 
 export function formatDeadlineRemaining(createdAt: string, startAt: string) {
   const dl = confirmDeadline(new Date(createdAt), new Date(startAt));
@@ -294,35 +294,61 @@ export function SchedulePage() {
       : null;
 
   return (
-    <div className="schedule-page">
-      <div className="schedule-layout">
-        {/* Main Content Pane */}
-        <main className="pane pane-m">
-          <div className="schedule-header">
-            <h2 className="schedule-title">Lịch sân</h2>
+    <div className="page schedule-page">
+      <div className="page-head">
+        <div>
+          <h1>Lịch sân</h1>
+          <p>Theo dõi lịch từng sân và xử lý yêu cầu đang chờ xác nhận.</p>
+        </div>
+        <button
+          type="button"
+          className="btn lime"
+          onClick={() => {
+            if (selectedVenue && selectedVenue.courts.length > 0) {
+              setSaved('');
+              setPanelCourtId(selectedVenue.courts[0].id);
+              setPanelStart(selectedVenue.opensAt);
+              setPanelDuration(60);
+              setPanelName('');
+              setPanelPhone('');
+              setPanelRecurring(false);
+              setPanelWeeks(4);
+              setPanelError('');
+              setPanelOpen(true);
+            }
+          }}
+        >
+          <Plus size={16} className="ic" aria-hidden="true" />
+          <span>Booking khách gọi</span>
+        </button>
+      </div>
 
-            {/* Venue switcher */}
-            {venues.length > 1 && (
-              <div className="venue-switch">
-                <span className="sport">
-                  <SportIcon sport={selectedVenue?.courts[0]?.sport ?? 'BADMINTON'} size={18} />
-                </span>
-                <select
-                  value={selectedVenueId}
-                  onChange={(e) => setSelectedVenueId(e.target.value)}
-                  className="venue-select"
-                  aria-label="Chọn đơn vị"
-                >
-                  {venues.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+      {venues.length > 1 && (
+        <div className="fbar">
+          <div className="sel">
+            <SportIcon sport={selectedVenue?.courts[0]?.sport ?? 'BADMINTON'} size={18} />
+            <select
+              value={selectedVenueId}
+              onChange={(e) => setSelectedVenueId(e.target.value)}
+              aria-label="Chọn đơn vị"
+            >
+              {venues.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="ic" aria-hidden="true" />
+          </div>
+        </div>
+      )}
 
-            {/* Date chips */}
+      {saved && <p role="status" className="live saved">{saved}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+
+      <div className="split schedule-layout">
+        <div className="card book-main">
+          <div className="book-top">
             <div className="chips date-chips" aria-label="Chọn ngày xem lịch">
               {dateOptions.map((opt) => (
                 <Chip
@@ -341,72 +367,40 @@ export function SchedulePage() {
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                  className="sr-only"
                 />
               </label>
             </div>
 
-            <button
-              type="button"
-              className="btn btn-primary btn-phone-booking"
-              onClick={() => {
-                if (selectedVenue && selectedVenue.courts.length > 0) {
-                  setSaved('');
-                  setPanelCourtId(selectedVenue.courts[0].id);
-                  setPanelStart(selectedVenue.opensAt);
-                  setPanelDuration(60);
-                  setPanelName('');
-                  setPanelPhone('');
-                  setPanelRecurring(false);
-                  setPanelWeeks(4);
-                  setPanelError('');
-                  setPanelOpen(true);
-                }
-              }}
-            >
-              <Plus size={16} aria-hidden="true" /> Booking khách gọi
-            </button>
+            <div className="legend">
+              <span className="lg on">Đã xác nhận</span>
+              <span className="lg pending">Chờ xác nhận</span>
+              <span className="lg">Trống, bấm để nhập</span>
+            </div>
           </div>
 
-          {saved && <p role="status" className="live saved">{saved}</p>}
-          {error && <p className="error" role="alert">{error}</p>}
-
           {selectedVenue && (
-            <>
-              <SlotGrid
-                courts={selectedVenue.courts}
-                date={selectedDate}
-                cells={cells}
-                mode="manage"
-                selected={selectedSlots}
-                windowId={selectedWindowId}
-                onWindowChange={setSelectedWindowId}
-                onPick={handleCellPick}
-                opensAt={selectedVenue.opensAt}
-                closesAt={selectedVenue.closesAt}
-              />
-
-              <div className="legend">
-                <span>
-                  <i style={{ background: 'var(--color-status-ok-bg)', borderColor: 'var(--color-status-ok)' }} />
-                  Đã xác nhận
-                </span>
-                <span>
-                  <i style={{ background: 'var(--color-status-wait-bg)', borderColor: 'var(--color-status-wait)' }} />
-                  Chờ xác nhận
-                </span>
-                <span>
-                  <i />
-                  Trống, bấm để nhập
-                </span>
-              </div>
-            </>
+            <SlotGrid
+              courts={selectedVenue.courts}
+              date={selectedDate}
+              cells={cells}
+              mode="manage"
+              selected={selectedSlots}
+              windowId={selectedWindowId}
+              onWindowChange={setSelectedWindowId}
+              onPick={handleCellPick}
+              opensAt={selectedVenue.opensAt}
+              closesAt={selectedVenue.closesAt}
+            />
           )}
-        </main>
+        </div>
 
-        {/* Right Pane: Pending Requests */}
-        <aside className="pane pane-r">
-          <b>Đang chờ bạn</b>
+        {/* Pending Requests */}
+        <aside className="card pad schedule-side" aria-label="Đang chờ bạn">
+          <div className="sec-row">
+            <h2>Đang chờ bạn</h2>
+            {pendingRequests.length > 0 && <span className="count-badge">{pendingRequests.length}</span>}
+          </div>
           {pendingRequests.length === 0 ? (
             <p className="meta">Không có yêu cầu nào đang chờ duyệt.</p>
           ) : (
@@ -421,13 +415,13 @@ export function SchedulePage() {
                 return (
                   <div
                     key={req.id}
-                    className={`req ${isSelected ? 'on active' : ''}`}
+                    className={`pending-req ${isSelected ? 'on active' : ''}`}
                     onClick={() => handleRequestCardClick(req)}
                   >
                     <div className="req-row-1">
-                      <span className="avatar req-avatar">{initial(customerName)}</span>
+                      <Avatar name={customerName} size={28} />
                       <b className="req-name">{customerName}</b>
-                      <span className="badge-wait badge wait">
+                      <span className="tag warn">
                         <Clock size={12} aria-hidden="true" />
                         <span>{deadlineText}</span>
                       </span>
@@ -438,13 +432,13 @@ export function SchedulePage() {
                     </div>
 
                     <div className="req-meta">
-                      <span className="req-price">{formatVnd(req.priceTotal)}</span> · gửi lúc {formatTime(req.createdAt)}
+                      <span className="req-price money tnum">{formatVnd(req.priceTotal)}</span> · gửi lúc {formatTime(req.createdAt)}
                     </div>
 
-                    <div className="req-actions">
+                    <div className="req-act">
                       <button
                         type="button"
-                        className="button-secondary btn-secondary"
+                        className="btn sm ghost"
                         onClick={(e) => {
                           e.stopPropagation();
                           decide(req.id, 'reject');
@@ -454,7 +448,7 @@ export function SchedulePage() {
                       </button>
                       <button
                         type="button"
-                        className="button-primary btn-primary"
+                        className="btn sm lime"
                         onClick={(e) => {
                           e.stopPropagation();
                           decide(req.id, 'confirm');
@@ -478,10 +472,10 @@ export function SchedulePage() {
         title="Booking khách gọi"
         onClose={() => setPanelOpen(false)}
       >
-        <form onSubmit={submitPhoneBooking} className="stack">
+        <form onSubmit={submitPhoneBooking} className="stack-form">
           {selectedVenue && (
-            <label>
-              Sân
+            <label className="fld">
+              <span>Sân</span>
               <select
                 value={panelCourtId}
                 onChange={(e) => setPanelCourtId(e.target.value)}
@@ -496,9 +490,9 @@ export function SchedulePage() {
             </label>
           )}
 
-          <div className="row">
-            <label>
-              Bắt đầu
+          <div className="fgrid">
+            <label className="fld">
+              <span>Bắt đầu</span>
               {selectedVenue && (
                 <select
                   value={panelStart}
@@ -516,8 +510,8 @@ export function SchedulePage() {
               )}
             </label>
 
-            <label>
-              Thời lượng
+            <label className="fld">
+              <span>Thời lượng</span>
               <select
                 value={panelDuration}
                 onChange={(e) => setPanelDuration(Number(e.target.value))}
@@ -531,25 +525,27 @@ export function SchedulePage() {
             </label>
           </div>
 
-          <label>
-            Tên khách (tùy chọn)
-            <input
-              type="text"
-              value={panelName}
-              onChange={(e) => setPanelName(e.target.value)}
-              placeholder="Tên khách"
-            />
-          </label>
+          <div className="fgrid">
+            <label className="fld">
+              <span>Tên khách (tùy chọn)</span>
+              <input
+                type="text"
+                value={panelName}
+                onChange={(e) => setPanelName(e.target.value)}
+                placeholder="Tên khách"
+              />
+            </label>
 
-          <label>
-            Số điện thoại (tùy chọn)
-            <input
-              type="tel"
-              value={panelPhone}
-              onChange={(e) => setPanelPhone(e.target.value)}
-              placeholder="09..."
-            />
-          </label>
+            <label className="fld">
+              <span>Số điện thoại (tùy chọn)</span>
+              <input
+                type="tel"
+                value={panelPhone}
+                onChange={(e) => setPanelPhone(e.target.value)}
+                placeholder="09..."
+              />
+            </label>
+          </div>
 
           <label className="checkbox-row">
             <input
@@ -561,8 +557,8 @@ export function SchedulePage() {
           </label>
 
           {panelRecurring && (
-            <label>
-              Số tuần
+            <label className="fld">
+              <span>Số tuần</span>
               <select
                 aria-label="Số tuần"
                 value={panelWeeks}
@@ -580,14 +576,14 @@ export function SchedulePage() {
             </label>
           )}
 
-          <div className="total" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 'var(--space-md)' }}>
+          <div className="total">
             <span className="meta">{panelRecurring ? 'Tạm tính mỗi buổi' : 'Tạm tính'}</span>
             <strong className="money tnum">{panelPrice !== null ? formatVnd(panelPrice) : '—'}</strong>
           </div>
 
           {panelError && <p className="error" role="alert">{panelError}</p>}
 
-          <button type="submit" className="btn btn-primary" disabled={panelBusy}>
+          <button type="submit" className="btn lime wide" disabled={panelBusy}>
             Lưu booking
           </button>
         </form>

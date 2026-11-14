@@ -1,0 +1,25 @@
+:root {
+  --bg: #F3F1EA;
+  --surface: #FFFFFF;
+  --ink: #101915;
+  --ink2: #46524C;
+  --ink3: #7C8780;
+  --line: #E2DFD4;
+  --line2: #EEECE3;
+  --lime: #C9F04D;
+  --lime-soft: #EEF6DA;
+  --clay: #D9532A;
+  --clay-soft: #FCE9DF;
+  --amber: #E9A91C;
+  --amber-soft: #FBF0D3;
+  --ok: #1E7F50;
+  --ok-soft: #E1F1E7;
+  --bad: #C23B2E;
+  --bad-soft: #F9E1DE;
+  --blue: #2E66C2;
+  --body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --display: "Big Shoulders Display", "Be Vietnam Pro", Impact, sans-serif;
+  --top: 60px;
+  --r: 14px;
+  --slot-label-width: 72px;
+}

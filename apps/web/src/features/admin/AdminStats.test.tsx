@@ -38,7 +38,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-const card = (label: string) => screen.getByText(label, { selector: '.metric-label' }).closest('.metric-card') as HTMLElement;
+const card = (label: string) => screen.getByText(label, { selector: '.k' }).closest('.tile') as HTMLElement;
 
 describe('AdminStats', () => {
   afterEach(() => {

@@ -43,16 +43,16 @@ export function LoginForm({
     <>
       <h2 tabIndex={-1}>Đăng nhập</h2>
       <form onSubmit={submit} className="stack">
-        <label>
-          Số điện thoại
+        <label className="fld">
+          <span>Số điện thoại</span>
           <input inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required />
         </label>
-        <label>
-          Mật khẩu
+        <label className="fld">
+          <span>Mật khẩu</span>
           <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
-        {error && <p className="error" role="alert">{error}</p>}
-        <button type="submit">Đăng nhập</button>
+        {error && <p className="error bad" role="alert">{error}</p>}
+        <button type="submit" className="btn lime wide">Đăng nhập</button>
       </form>
       {google && <GoogleButton />}
     </>

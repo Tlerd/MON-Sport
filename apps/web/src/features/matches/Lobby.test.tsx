@@ -1,5 +1,6 @@
 import type { MatchDetailView, SessionUser } from '@monsport/shared';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Lobby } from './Lobby.tsx';
 
@@ -155,8 +156,9 @@ describe('Lobby (F-011 and F-012)', () => {
 
     expect(await screen.findByText('Còn 2 suất trống')).toBeTruthy();
     expect(screen.getByText('50.000đ/suất')).toBeTruthy();
-    expect(screen.getByText('An')).toBeTruthy();
-    expect(screen.getByText('Em')).toBeTruthy();
+    const playersSection = document.querySelector('.players-section') as HTMLElement;
+    expect(within(playersSection).getByText('An')).toBeTruthy();
+    expect(within(playersSection).getByText('Em')).toBeTruthy();
 
     // 2. Chi clicks "Vào trận" -> receives 200 and sees "Rời trận".
     fireEvent.click(screen.getByRole('button', { name: 'Vào trận' }));
@@ -1023,5 +1025,44 @@ describe('Lobby (F-011 and F-012)', () => {
     expect(within(queueRows[4]).getByText('Phúc')).toBeTruthy();
     expect(within(queueRows[4]).getByText('Chưa có đánh giá')).toBeTruthy();
     expect(within(queueRows[4]).queryByText(/★/)).toBeNull();
+  });
+
+  it('AC-6: opens detail for match B when loaded at /phong-cho?tran=<id of B>', async () => {
+    const viewerUser: SessionUser = { id: '0199a1b2-0000-7000-8000-000000000199', name: 'Bình', role: 'USER' };
+    const detailB: MatchDetailView = {
+      ...m2,
+      viewerRole: 'NONE',
+      players: [
+        { userId: m2.hostId, name: 'Chi', phone: null, joinedAt: '2026-11-20T03:00:00.000Z' },
+      ],
+    };
+
+    const fetch = vi.fn((url: string) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([m1, m2]) });
+      }
+      if (url === `/api/matches/${m2.id}`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detailB) });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const { container } = render(
+      <MemoryRouter initialEntries={[`/phong-cho?tran=${m2.id}`]}>
+        <Routes>
+          <Route path="/phong-cho" element={<Lobby user={viewerUser} />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const detailPane = container.querySelector('.match-detail') ?? (await vi.waitFor(() => {
+      const el = container.querySelector('.match-detail');
+      if (!el) throw new Error('Detail not open yet');
+      return el;
+    }));
+    expect(within(detailPane as HTMLElement).getByText('Cầu lông A · Sân 2')).toBeTruthy();
+    expect(await within(detailPane as HTMLElement).findByText('Còn 7 suất trống')).toBeTruthy();
+    expect(within(detailPane as HTMLElement).getByText('60.000đ/suất')).toBeTruthy();
   });
 });

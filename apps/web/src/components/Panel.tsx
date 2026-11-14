@@ -72,7 +72,7 @@ export function Panel({
         role="dialog"
         aria-modal="true"
         aria-label={title ?? 'Chi tiết'}
-        className={`panel-drawer card-web ${className}`.trim()}
+        className={`panel-drawer card ${className}`.trim()}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="panel-header">

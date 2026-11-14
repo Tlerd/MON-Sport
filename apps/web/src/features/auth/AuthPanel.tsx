@@ -1,5 +1,6 @@
 import type { SessionUser } from '@monsport/shared';
 import { useEffect, useRef, useState } from 'react';
+import { AuthCard } from './AuthCard.tsx';
 import { LoginForm } from './LoginForm.tsx';
 import { RegisterForm } from './RegisterForm.tsx';
 
@@ -23,18 +24,32 @@ export function AuthPanel({
   }, [mode]);
 
   return (
-    <section className="panel" ref={panel}>
+    <AuthCard cardRef={panel}>
+      <div className="seg auth-seg" role="tablist" aria-label="Chế độ tài khoản">
+        <button
+          type="button"
+          role={mode === 'login' ? 'tab' : undefined}
+          aria-selected={mode === 'login' ? true : undefined}
+          className={mode === 'login' ? 'on' : ''}
+          onClick={() => setMode('login')}
+        >
+          Đăng nhập
+        </button>
+        <button
+          type="button"
+          role={mode === 'register' ? 'tab' : undefined}
+          aria-selected={mode === 'register' ? true : undefined}
+          className={mode === 'register' ? 'on' : ''}
+          onClick={() => setMode('register')}
+        >
+          Tạo tài khoản
+        </button>
+      </div>
       {mode === 'login' ? (
         <LoginForm onLogin={onLogin} initialError={initialError} />
       ) : (
         <RegisterForm onLogin={onLogin} />
       )}
-      <p className="switch">
-        {mode === 'login' ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}
-        <button type="button" className="link" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
-          {mode === 'login' ? 'Tạo tài khoản' : 'Đăng nhập'}
-        </button>
-      </p>
-    </section>
+    </AuthCard>
   );
 }

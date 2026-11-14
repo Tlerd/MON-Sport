@@ -261,7 +261,7 @@ components:
 
 # MONSPORT design standard
 
-Every screen in `apps/web` and `apps/mobile` follows this file. The YAML front matter holds the tokens, and it is the only source of token values. The sections below explain how to use them. The file follows the DESIGN.md format of Google Labs (`version: alpha`). `AGENTS.md` and the skill `agent-workflow` hold the workflow.
+Every screen in `apps/mobile` follows this file. Since ADR 0009, `apps/web` follows `docs/design/web-ui-v3/` and `apps/web/src/app/theme.css`, and still follows the section "Words". The YAML front matter holds the tokens for `apps/mobile`, and it is the only source of mobile token values. The sections below explain how to use them. The file follows the DESIGN.md format of Google Labs (`version: alpha`). `AGENTS.md` and the skill `agent-workflow` hold the workflow.
 
 Plans and mockups: `docs/design/`. Decision on the mobile app: `docs/adr/0006-app-mobile-pwa.md`.
 
@@ -471,10 +471,7 @@ A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too
 |---|---|---|
 | < 360px | Mobile app | Not designed. Must not overflow horizontally |
 | 360–430px | Mobile app | The target. Tab bar, hide on scroll, sheets |
-| < 768px (down to 390px) | Web | **390px layout rule.** One column. The top nav becomes a bar with a menu button, and the sidebar becomes a drawer. The right pane (summary) becomes a fixed `ActionBar` at the bottom, with "Gọi chủ sân" and "Gửi yêu cầu". Lists and details open as separate screens. Slot rows scroll sideways, the page never does. Touch targets are 44px or more. No banner. A link to `/app/` may be added |
-| 768–1023px | Web | Sidebar becomes a 72px icon rail. Three panes become two: the summary moves under the grid |
-| 1024–1439px | Web | The target layouts |
-| ≥ 1440px | Web | Same layouts. Player content stays at 1280px; owner and admin use the full width |
+| All widths (360–1440px+) | Web | See [docs/design/web-responsive.md](docs/design/web-responsive.md) |
 
 - Touch targets are 44px or more on mobile.
 - On mobile, the slot row of a court scrolls sideways. The page never scrolls sideways.

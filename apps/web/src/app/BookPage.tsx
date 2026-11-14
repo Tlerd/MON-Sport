@@ -6,13 +6,11 @@ import {
   addDaysYmd,
   type BookingView,
   type VenueView,
-  type CourtView,
 } from '@monsport/shared';
-import { Calendar, Clock, MapPin, Phone } from 'lucide-react';
+import { Calendar, ChevronLeft, Clock, MapPin, Phone } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
-import { Chip } from '../components/Chip.tsx';
-import { SportIcon } from '../components/icons.tsx';
+import { Link, useNavigate, useParams } from 'react-router';
+import { CourtArt } from '../components/CourtArt.tsx';
 import { SlotGrid, type SlotCellInfo } from '../components/SlotGrid.tsx';
 import { StatusBadge } from '../components/StatusBadge.tsx';
 import {
@@ -29,25 +27,8 @@ import {
   slotAt as at,
 } from '@monsport/client';
 import { useSession } from './session.tsx';
-import { findVenues, normalizeName } from '../features/venues/search.ts';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
-
-function CourtLines() {
-  return (
-    <svg className="court-lines" viewBox="0 0 134 61" aria-hidden="true">
-      <rect x="0.5" y="0.5" width="133" height="60" fill="none" stroke="currentColor" strokeWidth="1" />
-      <line x1="67" y1="0.5" x2="67" y2="60.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="20" y1="0.5" x2="20" y2="60.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="114" y1="0.5" x2="114" y2="60.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="20" y1="30.5" x2="114" y2="30.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="0.5" y1="4.5" x2="133.5" y2="4.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="0.5" y1="56.5" x2="133.5" y2="56.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="7.5" y1="0.5" x2="7.5" y2="60.5" stroke="currentColor" strokeWidth="1" />
-      <line x1="126.5" y1="0.5" x2="126.5" y2="60.5" stroke="currentColor" strokeWidth="1" />
-    </svg>
-  );
-}
 
 function formatDayChip(ymd: string) {
   // Noon UTC falls on the same calendar day in every time zone, so the weekday never depends on the machine (BR-27).
@@ -58,25 +39,14 @@ function formatDayChip(ymd: string) {
   return `${dayOfWeek} ${parts[2]}/${parts[1]}`;
 }
 
-function formatPriceRange(courts: CourtView[]): string {
-  if (courts.length === 0) return '—';
-  const minNormal = Math.min(...courts.map((c) => c.priceNormal));
-  const maxPeak = Math.max(...courts.map((c) => c.pricePeak));
-  const minK = Math.round(minNormal / 1000);
-  const maxK = Math.round(maxPeak / 1000);
-  return minK === maxK ? `${minK}k` : `${minK}k–${maxK}k`;
-}
-
 export function BookPage() {
   const { user, bumpRefresh } = useSession();
   const navigate = useNavigate();
   const { id: routeVenueId } = useParams<{ id?: string }>();
 
   const [venues, setVenues] = useState<VenueView[]>([]);
-  const [selectedVenueId, setSelectedVenueId] = useState<string>('');
+  const [venuesLoaded, setVenuesLoaded] = useState(false);
   const [selectedCourtId, setSelectedCourtId] = useState<string>('');
-  const [search, setSearch] = useState<string>('');
-  const [sportFilter, setSportFilter] = useState<'ALL' | 'BADMINTON' | 'FOOTBALL'>('ALL');
 
   const todayStr = useMemo(() => vnDateString(new Date()), []);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -87,30 +57,42 @@ export function BookPage() {
   const [result, setResult] = useState<BookingView | null>(null);
   const [error, setError] = useState<string>('');
   const [busy, setBusy] = useState<boolean>(false);
+  const [summaryExpanded, setSummaryExpanded] = useState<boolean>(false);
 
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let active = true;
     api<VenueView[]>('/api/venues').then(
       (data) => {
+        if (!active) return;
         setVenues(data);
-        if (data.length > 0) {
-          if (routeVenueId && data.some((v) => v.id === routeVenueId)) {
-            setSelectedVenueId(routeVenueId);
-          } else if (!selectedVenueId) {
-            setSelectedVenueId(data[0].id);
-          }
-        }
+        setVenuesLoaded(true);
       },
-      () => setError('Không tải được danh sách đơn vị'),
+      () => {
+        if (!active) return;
+        setError('Không tải được danh sách đơn vị');
+        setVenuesLoaded(true);
+      },
     );
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setSelectedCourtId('');
+    setSelectedStart(null);
+    setResult(null);
+    setError('');
   }, [routeVenueId]);
 
-  const selectedVenue = venues.find((v) => v.id === selectedVenueId) ?? venues[0];
+  const selectedVenue = routeVenueId
+    ? venues.find((v) => v.id === routeVenueId)
+    : venues[0];
   const selectedCourt = selectedVenue?.courts.find((c) => c.id === selectedCourtId) ?? null;
 
-  // Fetch availability for all courts in the selected venue on selectedDate
+  // Fetch availability for all courts in the selected venue on selectedDate.
   useEffect(() => {
     if (!selectedVenue || !selectedDate) return;
     let active = true;
@@ -151,30 +133,27 @@ export function BookPage() {
 
   const gridCells = useMemo(() => {
     if (!selectedVenue) return cells;
-    const result: Record<string, SlotCellInfo[]> = {};
+    const mapped: Record<string, SlotCellInfo[]> = {};
     for (const court of selectedVenue.courts) {
       const courtCells = cells[court.id];
       if (courtCells) {
-        result[court.id] = courtCells.map((c) => {
-          if (!fitsAnyDuration(c.startMinute, selectedVenue.closesAt)) {
-            return { ...c, status: 'taken' as const };
-          }
-          return c;
-        });
+        mapped[court.id] = courtCells.map((c) =>
+          fitsAnyDuration(c.startMinute, selectedVenue.closesAt) ? c : { ...c, status: 'taken' as const },
+        );
       } else {
-        result[court.id] = [];
+        mapped[court.id] = [];
         for (let m = selectedVenue.opensAt; m < selectedVenue.closesAt; m += 30) {
-          result[court.id].push({
+          mapped[court.id].push({
             startMinute: m,
             status: fitsAnyDuration(m, selectedVenue.closesAt) ? 'free' : 'taken',
           });
         }
       }
     }
-    return result;
+    return mapped;
   }, [cells, selectedVenue]);
 
-  // Date list: today + next 6 days
+  // Date list: today + next 6 days.
   const dateOptions = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const ymd = addDaysYmd(todayStr, i);
@@ -187,22 +166,6 @@ export function BookPage() {
 
   const isOtherDate = !dateOptions.some((d) => d.ymd === selectedDate);
 
-  // Filtered venues for left pane using findVenues for court-name search
-  const filteredVenues = useMemo(() => {
-    const isSearching = normalizeName(search) !== '';
-    const matchingVenueIds = isSearching
-      ? new Set(findVenues(venues, search).map((m) => m.venue.id))
-      : null;
-
-    return venues.filter((v) => {
-      const matchSearch = matchingVenueIds ? matchingVenueIds.has(v.id) : true;
-      const matchSport =
-        sportFilter === 'ALL' || v.courts.some((c) => c.sport === sportFilter);
-      return matchSearch && matchSport;
-    });
-  }, [venues, search, sportFilter]);
-
-  // Calculated price
   const price = useMemo(() => {
     if (!selectedCourt || selectedStart === null || !selectedDate) return null;
     const startAt = new Date(at(selectedDate, selectedStart));
@@ -210,7 +173,6 @@ export function BookPage() {
     return bookingPrice(startAt, endAt, selectedCourt.priceNormal, selectedCourt.pricePeak);
   }, [selectedCourt, selectedDate, selectedStart, duration]);
 
-  // Deadline hint
   const deadlineHint = useMemo(() => {
     if (selectedStart === null || !selectedDate) return null;
     const now = new Date();
@@ -256,275 +218,237 @@ export function BookPage() {
     }
   }
 
-  return (
-    <div className="book-page">
-      {!user && (
-        <div className="hero">
-          <CourtLines />
-          <h1>Đặt sân cầu lông, bóng đá</h1>
-          <p>Chọn giờ trống, gửi yêu cầu, chủ sân xác nhận.</p>
+  if (venuesLoaded && !selectedVenue) {
+    return (
+      <div className="page">
+        <Link to="/san" className="back">
+          <ChevronLeft size={16} className="ic" aria-hidden="true" />
+          <span>Tất cả đơn vị</span>
+        </Link>
+        <div className="card empty">
+          <span className="empty-ball" aria-hidden="true">
+            <MapPin size={24} />
+          </span>
+          <h3>Không tìm thấy đơn vị này</h3>
+          <p>{error || 'Đơn vị không tồn tại hoặc tạm thời không khả dụng.'}</p>
+          <Link to="/san" className="btn lime sm">
+            Tất cả đơn vị
+          </Link>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      <div className="book-page-panes">
-        <section className="pane-left-mid" aria-labelledby="heading-gio-trong">
-          {/* Left Pane (300px): Search, Sport Chips, Venue List */}
-          <aside className="pane pane-l" aria-label="Tìm kiếm và danh sách sân">
-            <div className="search-box stack">
-              <label>
-                Tìm theo tên sân
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Tìm sân theo tên..."
-                />
-              </label>
+  return (
+    <div className="page book-page">
+      <Link to="/san" className="back">
+        <ChevronLeft size={16} className="ic" aria-hidden="true" />
+        <span>Tất cả đơn vị</span>
+      </Link>
+
+      {selectedVenue && (
+        <>
+          <div className="card vhead">
+            <div className="vhead-art">
+              <CourtArt sport={selectedVenue.courts[0]?.sport ?? 'BADMINTON'} />
             </div>
-
-            <div className="chips sport-chips">
-              <Chip
-                selected={sportFilter === 'ALL'}
-                onClick={() => setSportFilter('ALL')}
-              >
-                Tất cả
-              </Chip>
-              <Chip
-                selected={sportFilter === 'BADMINTON'}
-                icon={<SportIcon sport="BADMINTON" size={16} />}
-                onClick={() => setSportFilter('BADMINTON')}
-              >
-                Cầu lông
-              </Chip>
-              <Chip
-                selected={sportFilter === 'FOOTBALL'}
-                icon={<SportIcon sport="FOOTBALL" size={16} />}
-                onClick={() => setSportFilter('FOOTBALL')}
-              >
-                Bóng đá
-              </Chip>
+            <div className="vhead-b">
+              <h1>{selectedVenue.name}</h1>
+              <div className="vhead-f">
+                <span>
+                  <MapPin size={15} className="ic" aria-hidden="true" />
+                  <span>{selectedVenue.address}</span>
+                </span>
+                <span>
+                  <Clock size={15} className="ic" aria-hidden="true" />
+                  <span>{`Mở ${hhmm(selectedVenue.opensAt)}–${hhmm(selectedVenue.closesAt)}`}</span>
+                </span>
+                <a className="call" href={`tel:${selectedVenue.phone}`}>
+                  <Phone size={15} className="ic" aria-hidden="true" />
+                  <span>{`Gọi chủ sân ${selectedVenue.phone}`}</span>
+                </a>
+              </div>
             </div>
+          </div>
 
-            <div className="venue-list" role="list" aria-label="Danh sách đơn vị">
-              {filteredVenues.map((v) => {
-                const active = v.id === selectedVenue?.id;
-                const primarySport = v.courts[0]?.sport ?? 'BADMINTON';
-                return (
-                  <div
-                    key={v.id}
-                    role="listitem"
-                    className={`venue-card ${active ? 'on active' : ''}`}
-                    onClick={() => {
-                      setSelectedVenueId(v.id);
-                      setSelectedCourtId('');
-                      setSelectedStart(null);
-                    }}
-                  >
-                    <span className="sport">
-                      <SportIcon sport={primarySport} size={20} />
-                    </span>
-                    <div className="venue-card-body">
-                      <b>{v.name}</b>
-                      <span className="meta">
-                        {v.courts.length} sân · {formatPriceRange(v.courts)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </aside>
-
-          {/* Middle Pane: Venue Details, Date Chips, SlotGrid */}
-          <main className="pane pane-m">
-            {selectedVenue ? (
-              <>
-                <div className="v-head">
-                  <div className="grow">
-                    <h2 id="heading-gio-trong">{selectedVenue.name}</h2>
-                    <div className="meta">
-                      <span>
-                        <MapPin size={14} aria-hidden="true" /> {selectedVenue.address}
-                      </span>
-                      <span>· Mở {hhmm(selectedVenue.opensAt)}–{hhmm(selectedVenue.closesAt)}</span>
-                      <span>
-                        · <a className="call" href={`tel:${selectedVenue.phone}`}>
-                          <Phone size={14} aria-hidden="true" /> Gọi chủ sân {selectedVenue.phone}
-                        </a>
-                      </span>
-                    </div>
-                  </div>
+          <div className="book">
+            <div className="card book-main">
+              <div className="book-top">
+                <h2>Chọn giờ</h2>
+                <div className="legend">
+                  <span className="lg">Còn trống</span>
+                  <span className="lg booked">Đã có người</span>
+                  <span className="lg peak">Giờ cao điểm</span>
+                  <span className="lg on">Bạn chọn</span>
                 </div>
+              </div>
 
-                <div className="chips date-chips" aria-label="Chọn ngày">
-                  {dateOptions.map((opt) => (
-                    <Chip
+              <div className="days date-chips" role="group" aria-label="Chọn ngày">
+                {dateOptions.map((opt) => {
+                  const active = selectedDate === opt.ymd;
+                  return (
+                    <button
+                      type="button"
                       key={opt.ymd}
-                      selected={selectedDate === opt.ymd}
+                      className={active ? 'on selected' : ''}
+                      aria-pressed={active}
                       onClick={() => {
                         setSelectedDate(opt.ymd);
                         setSelectedStart(null);
                       }}
                     >
                       {opt.label}
-                    </Chip>
-                  ))}
-                  <label className={`chip ${isOtherDate ? 'on selected' : ''}`}>
-                    <Calendar size={14} aria-hidden="true" />
-                    <span>Ngày khác</span>
-                    <input
-                      ref={dateInputRef}
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => {
-                        setSelectedDate(e.target.value);
-                        setSelectedStart(null);
-                      }}
-                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-                    />
-                  </label>
+                    </button>
+                  );
+                })}
+                <label className={`day-picker ${isOtherDate ? 'on selected' : ''}`}>
+                  <Calendar size={14} className="ic" aria-hidden="true" />
+                  <span>Ngày khác</span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => {
+                      setSelectedDate(e.target.value);
+                      setSelectedStart(null);
+                    }}
+                    style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                  />
+                </label>
+              </div>
+
+              <p className="notice warnbox book-uc2-notice">{NOTICE}</p>
+
+              <SlotGrid
+                courts={selectedVenue.courts}
+                date={selectedDate}
+                cells={gridCells}
+                mode="pick"
+                selected={
+                  selectedCourtId && selectedStart !== null
+                    ? Array.from({ length: Math.floor(duration / 30) }, (_, i) => ({
+                        courtId: selectedCourtId,
+                        startMinute: selectedStart + i * 30,
+                      }))
+                    : null
+                }
+                onPick={(cId, minute) => {
+                  if (!fitsAnyDuration(minute, selectedVenue.closesAt)) return;
+                  setSelectedCourtId(cId);
+                  setSelectedStart(minute);
+                  const allowed = DURATIONS.filter((d) => minute + d <= selectedVenue.closesAt);
+                  const maxAllowed = allowed.length > 0 ? Math.max(...allowed) : 60;
+                  if (duration > maxAllowed) setDuration(maxAllowed);
+                }}
+                opensAt={selectedVenue.opensAt}
+                closesAt={selectedVenue.closesAt}
+              />
+            </div>
+
+            <aside className="book-side">
+              <section className={`card sum summary-section ${summaryExpanded ? 'expanded' : ''}`}>
+                <button
+                  type="button"
+                  className="book-sum-toggle"
+                  aria-expanded={summaryExpanded}
+                  onClick={() => setSummaryExpanded((v) => !v)}
+                >
+                  <span>Tạm tính</span>
+                  <b className="money tnum">{price !== null ? formatVnd(price) : '—'}</b>
+                  <span className="link">{summaryExpanded ? 'Thu gọn' : 'Chi tiết'}</span>
+                </button>
+                <h2>Đặt sân</h2>
+
+                <dl className="sum-list tnum">
+                  <div className="sum-row">
+                    <dt>Sân</dt>
+                    <dd>{selectedCourt ? selectedCourt.name : 'Chưa chọn'}</dd>
+                  </div>
+                  <div className="sum-row">
+                    <dt>Ngày</dt>
+                    <dd>{selectedDate ? formatDay(selectedDate) : '—'}</dd>
+                  </div>
+                  <div className="sum-row">
+                    <dt>Giờ</dt>
+                    <dd>
+                      {selectedStart !== null
+                        ? `${hhmm(selectedStart)}–${hhmm(selectedStart + duration)}`
+                        : 'Chưa chọn'}
+                    </dd>
+                  </div>
+                  <div className="sum-row">
+                    <dt>Thời lượng</dt>
+                    <dd>
+                      <select
+                        value={duration}
+                        onChange={(e) => setDuration(Number(e.target.value))}
+                        className="duration-select"
+                        aria-label="Thời lượng"
+                      >
+                        {DURATIONS.filter(
+                          (d) => (selectedStart ?? selectedVenue.opensAt) + d <= selectedVenue.closesAt,
+                        ).map((d) => (
+                          <option key={d} value={d}>
+                            {durationLabel(d)}
+                          </option>
+                        ))}
+                      </select>
+                    </dd>
+                  </div>
+                </dl>
+
+                <div className="sum-total total">
+                  <span>Tạm tính</span>
+                  <strong className="money tnum">{price !== null ? formatVnd(price) : '—'}</strong>
                 </div>
 
-                <SlotGrid
-                  courts={selectedVenue.courts}
-                  date={selectedDate}
-                  cells={gridCells}
-                  mode="pick"
-                  selected={
-                    selectedCourtId && selectedStart !== null
-                      ? Array.from({ length: Math.floor(duration / 30) }, (_, i) => ({
-                          courtId: selectedCourtId,
-                          startMinute: selectedStart + i * 30,
-                        }))
-                      : null
-                  }
-                  onPick={(cId, minute) => {
-                    if (selectedVenue && !fitsAnyDuration(minute, selectedVenue.closesAt)) {
-                      return;
-                    }
-                    setSelectedCourtId(cId);
-                    setSelectedStart(minute);
-                    if (selectedVenue) {
-                      const allowed = DURATIONS.filter((d) => minute + d <= selectedVenue.closesAt);
-                      const maxAllowed = allowed.length > 0 ? Math.max(...allowed) : 60;
-                      if (duration > maxAllowed) {
-                        setDuration(maxAllowed);
-                      }
-                    }
-                  }}
-                  opensAt={selectedVenue.opensAt}
-                  closesAt={selectedVenue.closesAt}
-                />
+                {error && <p className="error bad" role="alert">{error}</p>}
 
-                <div className="legend">
-                  <span><i />Còn trống</span>
-                  <span><i className="taken-box" />Đã có người</span>
-                  <span><i className="peak-box" />Giờ cao điểm</span>
-                  <span><i className="sel-box" />Bạn chọn</span>
-                </div>
-              </>
-            ) : (
-              <h2 id="heading-gio-trong">Giờ trống</h2>
-            )}
-          </main>
-        </section>
+                <button
+                  type="button"
+                  className="btn lime wide"
+                  disabled={!selectedCourt || selectedStart === null || busy}
+                  onClick={handleSubmitBooking}
+                >
+                  Gửi yêu cầu
+                </button>
 
-        {/* Right Pane (320px, sticky): Summary, Price, Submit */}
-        <aside className="pane pane-r">
-          <section className="summary-section">
-            <h2>Đặt sân</h2>
-            <p className="notice">{NOTICE}</p>
+                {selectedStart !== null && selectedVenue.phone && (
+                  <a
+                    className="call link call-owner-link"
+                    href={`tel:${selectedVenue.phone}`}
+                  >
+                    <Phone size={14} className="ic" aria-hidden="true" />
+                    <span>Gọi chủ sân</span>
+                  </a>
+                )}
 
-            <div className="sumbox card-web">
-              <b>Yêu cầu của bạn</b>
-              <dl className="tnum">
-                <dt>Sân</dt>
-                <dd>{selectedCourt ? selectedCourt.name : 'Chưa chọn'}</dd>
-                <dt>Ngày</dt>
-                <dd>{selectedDate ? formatDay(selectedDate) : '—'}</dd>
-                <dt>Giờ</dt>
-                <dd>
-                  {selectedStart !== null
-                    ? `${hhmm(selectedStart)}–${hhmm(selectedStart + duration)}`
-                    : 'Chưa chọn'}
-                </dd>
-                <dt>Thời lượng</dt>
-                <dd>
-                  {selectedVenue ? (
-                    <select
-                      value={duration}
-                      onChange={(e) => setDuration(Number(e.target.value))}
-                      className="duration-select"
-                      aria-label="Thời lượng"
-                    >
-                      {DURATIONS.filter(
-                        (d) => (selectedStart ?? selectedVenue.opensAt) + d <= selectedVenue.closesAt,
-                      ).map((d) => (
-                        <option key={d} value={d}>
-                          {durationLabel(d)}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    '1 giờ'
+                {deadlineHint && (
+                  <div className="hint">
+                    <Clock size={16} className="ic" aria-hidden="true" />
+                    <span>{deadlineHint}</span>
+                  </div>
+                )}
+
+                <div role="status" className="live">
+                  {result && (
+                    <div ref={resultRef} className="ticket result" data-status={result.status}>
+                      <span className="stub">
+                        <strong>{formatTime(result.startAt)}</strong>
+                        <span>đến {formatTime(result.endAt)}</span>
+                      </span>
+                      <span className="body">
+                        <StatusBadge status={result.status} />
+                        <span>{formatSlot(result.startAt, result.endAt)}</span>
+                        <strong className="money">{formatVnd(result.priceTotal)}</strong>
+                      </span>
+                    </div>
                   )}
-                </dd>
-              </dl>
-
-              <div className="total">
-                <span className="meta">Tạm tính</span>
-                <strong className="money tnum">{price !== null ? formatVnd(price) : '—'}</strong>
-              </div>
-            </div>
-
-            {error && <p className="error" role="alert">{error}</p>}
-
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '14px' }}
-              disabled={!selectedCourt || selectedStart === null || busy}
-              onClick={handleSubmitBooking}
-            >
-              Gửi yêu cầu
-            </button>
-
-            {selectedStart !== null && selectedVenue?.phone && (
-              <a
-                className="call link call-owner-link"
-                href={`tel:${selectedVenue.phone}`}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '8px' }}
-              >
-                <Phone size={14} aria-hidden="true" />
-                <span>Gọi chủ sân</span>
-              </a>
-            )}
-
-            {deadlineHint && (
-              <div className="hint">
-                <Clock size={16} aria-hidden="true" />
-                <span>{deadlineHint}</span>
-              </div>
-            )}
-
-            <div role="status" className="live">
-              {result && (
-                <div ref={resultRef} className="ticket result" data-status={result.status}>
-                  <span className="stub">
-                    <strong>{formatTime(result.startAt)}</strong>
-                    <span>đến {formatTime(result.endAt)}</span>
-                  </span>
-                  <span className="body">
-                    <StatusBadge status={result.status} />
-                    <span>{formatSlot(result.startAt, result.endAt)}</span>
-                    <strong className="money">{formatVnd(result.priceTotal)}</strong>
-                  </span>
                 </div>
-              )}
-            </div>
-          </section>
-        </aside>
-      </div>
+              </section>
+            </aside>
+          </div>
+        </>
+      )}
     </div>
   );
 }

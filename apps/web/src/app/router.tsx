@@ -1,8 +1,22 @@
 import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import { ComingSoonPage } from '../components/ComingSoon.tsx';
 import { AdminPanel } from '../features/admin/AdminPanel.tsx';
 import { FinancialDashboard } from '../features/finance/FinancialDashboard.tsx';
-import { AuthPage, BookPage, LobbyPage, MyPage, MyVenuesPage, OwnerRequestsPage, SchedulePage } from './pages.tsx';
+import {
+  AuthPage,
+  BookPage,
+  HomePage,
+  LobbyPage,
+  MyPage,
+  MyVenuesPage,
+  OwnerOverview,
+  OwnerRequestsPage,
+  ProfilePage,
+  SchedulePage,
+  TeamsPage,
+  VenuesPage,
+} from './pages.tsx';
 import { useSession } from './session.tsx';
 import { AdminShell, OwnerShell, PlayerShell } from './shells.tsx';
 
@@ -68,7 +82,15 @@ export const routes: RouteObject[] = [
         path: '/',
         element: (
           <RoleGuard allowed={['GUEST', 'USER']}>
-            <BookPage />
+            <HomePage />
+          </RoleGuard>
+        ),
+      },
+      {
+        path: '/san',
+        element: (
+          <RoleGuard allowed={['GUEST', 'USER']}>
+            <VenuesPage />
           </RoleGuard>
         ),
       },
@@ -89,10 +111,26 @@ export const routes: RouteObject[] = [
         ),
       },
       {
+        path: '/doi',
+        element: (
+          <RoleGuard allowed={['GUEST', 'USER']}>
+            <TeamsPage />
+          </RoleGuard>
+        ),
+      },
+      {
         path: '/lich-cua-toi',
         element: (
           <RoleGuard allowed={['USER']}>
             <MyPage />
+          </RoleGuard>
+        ),
+      },
+      {
+        path: '/ho-so',
+        element: (
+          <RoleGuard allowed={['USER']}>
+            <ProfilePage />
           </RoleGuard>
         ),
       },
@@ -113,6 +151,14 @@ export const routes: RouteObject[] = [
       </RoleGuard>
     ),
     children: [
+      {
+        path: '/chu-san/tong-quan',
+        element: (
+          <RoleGuard allowed={['OWNER']}>
+            <OwnerOverview />
+          </RoleGuard>
+        ),
+      },
       {
         path: '/chu-san/yeu-cau',
         element: <OwnerRequestsPage />,
@@ -144,7 +190,19 @@ export const routes: RouteObject[] = [
     children: [
       {
         path: '/admin',
-        element: <AdminPanel />,
+        element: <AdminPanel view="stats" />,
+      },
+      {
+        path: '/admin/tai-khoan',
+        element: <AdminPanel view="accounts" />,
+      },
+      {
+        path: '/admin/bao-cao',
+        element: <ComingSoonPage title="Báo cáo vi phạm" />,
+      },
+      {
+        path: '/admin/mon',
+        element: <ComingSoonPage title="Môn thể thao" />,
       },
     ],
   },

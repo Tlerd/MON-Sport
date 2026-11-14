@@ -14,6 +14,7 @@ const ZONE = 'Asia/Ho_Chi_Minh'; // BR-27
 const SEED = {
   player: { phone: '0901234567', password: 'monsport123' },
   owner: { phone: '0912345678', password: 'monsport123' },
+  admin: { phone: '0900000000', password: 'monsport123' },
 };
 
 export function parseOptions(argv) {
@@ -47,6 +48,7 @@ function accounts(target) {
   return {
     player: { phone: env('VERIFY_PLAYER_PHONE', SEED.player.phone), password: env('VERIFY_PLAYER_PASSWORD', SEED.player.password) },
     owner: { phone: env('VERIFY_OWNER_PHONE', SEED.owner.phone), password: env('VERIFY_OWNER_PASSWORD', SEED.owner.password) },
+    admin: { phone: env('VERIFY_ADMIN_PHONE', SEED.admin.phone), password: env('VERIFY_ADMIN_PASSWORD', SEED.admin.password) },
     venue: process.env.VERIFY_VENUE || 'Cầu lông A',
     court: process.env.VERIFY_COURT || 'Sân 1',
   };
@@ -101,7 +103,45 @@ export class Run {
     }
     const file = page ? join(this.dir, `${n}-${flow}-${slug(name)}${status === 'FAIL' ? '-FAIL' : ''}.png`) : '';
     // Live pages show real names and phones, and the evidence goes to a public pull request: mask them.
-    const mask = page && this.opts.target === 'live' ? [page.locator('.customer, .who, .hero h1, .call, [data-field="customer"], [data-field="phone"], a[href^="tel:"], [role="dialog"] p, #phone-booking-name, input[autocomplete="tel"], input[type="tel"], [data-testid="user-name"], [data-testid="metric-grid"], [aria-label="Biểu đồ doanh thu"]')] : [];
+    const maskSelector = [
+      '.customer',
+      '.who',
+      '.hero h1',
+      '.call',
+      '.me-btn',
+      '.pop',
+      '.pop-head',
+      '.me-card',
+      '.me-meta',
+      '.side-who',
+      '.roster',
+      '.rp',
+      '.queue-user',
+      '.queue-row',
+      '.note',
+      '.req-who',
+      '.req-name',
+      '.pending-req',
+      '.owner-overview .req',
+      '.phead',
+      '.staff-tbl tbody td',
+      '.accounts li',
+      '.notif-item-msg',
+      '.cell-text',
+      '.rating-player-name',
+      '[data-field="customer"]',
+      '[data-field="phone"]',
+      'a[href^="tel:"]',
+      '[role="dialog"] p',
+      '#phone-booking-name',
+      'input[autocomplete="tel"]',
+      'input[type="tel"]',
+      'input[inputmode="tel"]',
+      '[data-testid="user-name"]',
+      '[data-testid="metric-grid"]',
+      '[aria-label="Biểu đồ doanh thu"]',
+    ].join(', ');
+    const mask = page && this.opts.target === 'live' ? [page.locator(maskSelector)] : [];
     await page?.screenshot({ path: file, fullPage: true, mask }).catch(() => undefined);
     this.results.push({ n, flow, name, status, detail, file });
     console.log(`${status} ${flow}: ${name}${detail ? ` (${detail})` : ''}`);
@@ -213,14 +253,14 @@ async function login(run, page, account, role) {
     const { status, body } = await clickFor(page, dialog.getByRole('button', { name: 'Đăng nhập' }), 'POST', '/api/auth/login');
     assert(status !== 429, 'BR-30 blocked the login: wait 15 minutes. See .agents/skills/verify-flow/references/gotchas.md');
     assert(status === 200, `POST /api/auth/login answered ${status}: ${body.message ?? ''}`);
-    const want = role === 'owner' ? 'OWNER' : 'USER';
+    const want = role === 'admin' ? 'ADMIN' : role === 'owner' ? 'OWNER' : 'USER';
     assert(body.role === want, `the account has role ${body.role}, the flow needs ${want}`);
     await page.getByText(body.name).waitFor();
     account.name = body.name;
     return `role ${body.role}`;
   }
   await page.goto(run.base);
-  // The login form sits on the home page, or behind the "Đăng nhập" link of the top nav (F-017).
+  // The login form sits at /dang-nhap behind the "Đăng nhập" link of the top bar.
   const phone = page.getByLabel('Số điện thoại');
   if (!(await phone.isVisible({ timeout: 3_000 }).catch(() => false))) {
     await page.getByRole('link', { name: 'Đăng nhập' }).first().click();
@@ -230,11 +270,61 @@ async function login(run, page, account, role) {
   const { status, body } = await clickFor(page, page.getByRole('button', { name: 'Đăng nhập' }), 'POST', '/api/auth/login');
   assert(status !== 429, 'BR-30 blocked the login: wait 15 minutes. See .agents/skills/verify-flow/references/gotchas.md');
   assert(status === 200, `POST /api/auth/login answered ${status}: ${body.message ?? ''}`);
-  const want = role === 'owner' ? 'OWNER' : 'USER';
+  const want = role === 'admin' ? 'ADMIN' : role === 'owner' ? 'OWNER' : 'USER';
   assert(body.role === want, `the account has role ${body.role}, the flow needs ${want}`);
-  await page.locator('.who .name', { hasText: body.name }).waitFor();
+  await page.locator('.top .me-btn .name', { hasText: body.name }).waitFor();
   account.name = body.name;
   return `role ${body.role}`;
+}
+
+/** Measures document horizontal overflow and non-scroll-container descendant overflow at the given viewport width. */
+export async function checkNoHorizontalOverflow(page, width, label) {
+  await page.setViewportSize({ width, height: 900 });
+  const result = await page.evaluate(() => {
+    const innerWidth = window.innerWidth;
+    const scrollWidth = document.documentElement.scrollWidth;
+    const isScrollContainer = (el) => {
+      const ox = window.getComputedStyle(el).overflowX;
+      return ox === 'auto' || ox === 'scroll';
+    };
+    const isHiddenOrClosedDrawer = (el) => {
+      if (el.classList.contains('sr') || el.classList.contains('sr-only')) return true;
+      if ((el.classList.contains('lcol') || el.classList.contains('side')) && !el.classList.contains('open')) {
+        return el.getBoundingClientRect().right <= 0;
+      }
+      const st = window.getComputedStyle(el);
+      return st.display === 'none' || st.visibility === 'hidden';
+    };
+    const skip = (el) => {
+      for (let cur = el; cur && cur !== document.body; cur = cur.parentElement) {
+        if (isHiddenOrClosedDrawer(cur)) return true;
+        if (cur !== el && isScrollContainer(cur)) return true;
+      }
+      return false;
+    };
+    let maxRight = 0;
+    let culprit = '';
+    for (const el of document.body.querySelectorAll('*')) {
+      if (skip(el)) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      const r = Math.round(rect.right);
+      if (r > maxRight) {
+        maxRight = r;
+        culprit = `${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).trim().replace(/\s+/g, '.') : ''}`;
+      }
+    }
+    return { innerWidth, scrollWidth, maxRight, culprit };
+  });
+  assert(
+    result.scrollWidth <= result.innerWidth,
+    `${label} at ${width}px: scrollWidth (${result.scrollWidth}) > innerWidth (${result.innerWidth})`,
+  );
+  assert(
+    result.maxRight <= result.innerWidth,
+    `${label} at ${width}px: element ${result.culprit} reaches ${result.maxRight}px > ${result.innerWidth}px`,
+  );
+  return result;
 }
 
 /** Selects a date by updating the date input inside .date-chips and triggering React change events. */

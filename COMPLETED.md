@@ -39,3 +39,7 @@ W1 to W5 went to `main` in one pull request, #244 (owner, 2026-11-13: one new pu
 - F-031 (W3, tài khoản nhân viên; issue #234; brief `docs/briefs/F-031-tai-khoan-nhan-vien.md`): `Role` `STAFF` and `User.staffVenueId`.
 - F-032 (W5, điểm uy tín; issue #235; brief `docs/briefs/F-032-diem-uy-tin.md`): `PlayerRating`.
 - Also merged on 2026-11-13: #209 (local Postgres starts with `fsync=off`), #216 (the owner paid toggle sends JSON), #230 (web and mobile use the `@monsport/client` helpers), #231 (the swarm step of `agent-workflow`), #232 (the AC-31 flake of `google-auth.e2e.test.ts`), #242 (`COMPLETED.md`, the 10000-character limit, agents merge).
+
+## Web UI (F-033)
+
+- F-033 (issue #248; brief `docs/briefs/F-033-giao-dien-web-moi.md`; ADR 0009): the web follows the mock in `docs/design/web-ui-v3/` and the width rules of `docs/design/web-responsive.md`. New routes: `/san`, `/doi`, `/ho-so`, `/chu-san/tong-quan`, `/admin/tai-khoan`, `/admin/bao-cao`, `/admin/mon`. `/` is the home page, and booking is at `/san/<id>`. AC-1 to AC-12 pass. `verify-flow` local: 43 PASS, with the flow `web-responsive` (17 routes at 390, 768, 1024, and 1440px). Coded by agy `gemini-4-hydrogen-high`.

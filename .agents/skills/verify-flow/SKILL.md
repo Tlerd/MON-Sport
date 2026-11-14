@@ -34,6 +34,7 @@ The run is done when the last line says `PASSED` and each flow you picked has PA
 | "Yêu cầu đặt sân", confirm, reject, the player sees the new state (UC-4, F-002) | `owner-decide` | [references/flows/owner-decide.md](references/flows/owner-decide.md) |
 | Phone booking, schedule grid (UC-5, F-007) | `phone-booking` | [references/flows/phone-booking.md](references/flows/phone-booking.md) |
 | Phòng chờ web: mở trận Host duyệt, xin vào, duyệt (UC-7, UC-8, UC-15, F-028) | `lobby-approval` | [references/flows/lobby-approval.md](references/flows/lobby-approval.md) |
+| Web layout overflow at 390, 768, 1024, and 1440px across 17 routes (F-033) | `web-responsive` | [references/flows/web-responsive.md](references/flows/web-responsive.md) |
 | Mobile shell, tab bar scroll and hide/show (F-019) | `mobile-shell` | [references/flows/mobile-shell.md](references/flows/mobile-shell.md) |
 | Mobile booking tab, venue slot rows, request sheet (UC-2, UC-3, F-020) | `mobile-book` | [references/flows/mobile-book.md](references/flows/mobile-book.md) |
 | Mobile "Lịch của tôi" tabs, booking cancel (UC-6, UC-8, F-021) | `mobile-history` | [references/flows/mobile-history.md](references/flows/mobile-history.md) |

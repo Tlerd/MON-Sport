@@ -53,6 +53,6 @@ describe('PWA files', () => {
     const touch = html.match(/<link rel="apple-touch-icon" href="([^"]+)"\s*\/?>/);
     expect(touch).toBeTruthy();
     expect(pngSize(`../public${touch![1]}`)).toEqual({ width: 180, height: 180 });
-    expect(html).toMatch(/<meta name="theme-color" content="#082f26"\s*\/?>/);
+    expect(html).toMatch(/<meta name="theme-color" content="#101915"\s*\/?>/);
   });
 });

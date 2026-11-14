@@ -16,10 +16,10 @@ const percent = (rate: number) => `${(Math.round(rate * 1000) / 10).toLocaleStri
 
 function Metric({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
-    <div className="metric-card card-web">
-      <span className="metric-label">{label}</span>
-      <strong className="metric-value">{value}</strong>
-      {hint && <span className="metric-sub">{hint}</span>}
+    <div className="tile">
+      <small className="k">{label}</small>
+      <b className="tnum">{value}</b>
+      {hint && <small>{hint}</small>}
     </div>
   );
 }
@@ -70,79 +70,90 @@ export function AdminStats() {
   const canMove = date !== null || data !== null;
 
   return (
-    <section className="panel stats-panel" aria-busy={loading}>
-      <h2>Số liệu toàn trang</h2>
-
-      <div className="week-nav">
-        <button type="button" disabled={!canMove} onClick={() => move(-7)}>
-          Tuần trước
-        </button>
-        <strong className="week-label" aria-live="polite">
-          {data ? weekLabel(data.weekStart, data.weekEnd) : ''}
-        </strong>
-        <button type="button" disabled={!canMove} onClick={() => move(7)}>
-          Tuần sau
-        </button>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1>Tổng quan</h1>
+          <p>Số liệu vận hành toàn trang theo tuần.</p>
+        </div>
       </div>
 
-      {error && (
-        <>
-          <p className="error" role="alert">{error}</p>
-          <button type="button" onClick={() => setReload((n) => n + 1)}>Thử lại</button>
-        </>
-      )}
-      {loading && !data && !error && <p className="empty">Đang tải số liệu…</p>}
+      <section className="panel clean stats-panel" aria-busy={loading}>
+        <h2>Số liệu toàn trang</h2>
 
-      {data && (
-        <div className={loading ? 'stats-body loading' : 'stats-body'}>
-          <h3>Tài khoản theo vai trò</h3>
-          <div className="metric-grid">
-            <Metric label="Admin" value={data.accounts.ADMIN} />
-            <Metric label="Chủ sân" value={data.accounts.OWNER} />
-            <Metric label="Nhân viên" value={data.accounts.STAFF} />
-            <Metric label="Người dùng" value={data.accounts.USER} hint="Gồm cả tài khoản bị khóa" />
-          </div>
-
-          <h3>Trong tuần</h3>
-          <div className="metric-grid">
-            <Metric label="Người dùng mới" value={data.newUsers} hint="Đăng ký trong tuần" />
-            <Metric label="Người dùng hoạt động" value={data.activeUsers} hint="Đặt sân, vào trận hoặc mở trận" />
-            <Metric
-              label="Thời gian xác nhận trung bình"
-              value={data.avgConfirmMinutes === null ? NO_DATA : `${data.avgConfirmMinutes} phút`}
-              hint="Từ lúc gửi yêu cầu đến lúc chủ sân xác nhận"
-            />
-            <Metric label="Tỉ lệ hết hạn" value={percent(data.expiryRate)} hint="Yêu cầu hết hạn vì chủ sân không xác nhận" />
-          </div>
-
-          <h3>Theo đơn vị</h3>
-          {data.venues.length === 0 ? (
-            <p className="empty">Chưa có đơn vị nào.</p>
-          ) : (
-            <div className="table-scroll">
-              <table className="stats-table">
-                <caption>Booking và trận theo đơn vị</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Đơn vị</th>
-                    <th scope="col">Booking</th>
-                    <th scope="col">Trận</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.venues.map((v) => (
-                    <tr key={v.venueId}>
-                      <th scope="row">{v.venueName}</th>
-                      <td>{v.bookingCount}</td>
-                      <td>{v.matchCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <div className="fbar week-nav">
+          <button type="button" className="btn sm ghost" disabled={!canMove} onClick={() => move(-7)}>
+            Tuần trước
+          </button>
+          <strong className="week-label tnum" aria-live="polite">
+            {data ? weekLabel(data.weekStart, data.weekEnd) : ''}
+          </strong>
+          <button type="button" className="btn sm ghost" disabled={!canMove} onClick={() => move(7)}>
+            Tuần sau
+          </button>
         </div>
-      )}
-    </section>
+
+        {error && (
+          <>
+            <p className="error" role="alert">{error}</p>
+            <button type="button" className="btn sm ghost" onClick={() => setReload((n) => n + 1)}>Thử lại</button>
+          </>
+        )}
+        {loading && !data && !error && <p className="empty">Đang tải số liệu…</p>}
+
+        {data && (
+          <div className={loading ? 'stats-body stack loading' : 'stats-body stack'}>
+            <h3>Tài khoản theo vai trò</h3>
+            <div className="tiles">
+              <Metric label="Admin" value={data.accounts.ADMIN} />
+              <Metric label="Chủ sân" value={data.accounts.OWNER} />
+              <Metric label="Nhân viên" value={data.accounts.STAFF} />
+              <Metric label="Người dùng" value={data.accounts.USER} hint="Gồm cả tài khoản bị khóa" />
+            </div>
+
+            <h3>Trong tuần</h3>
+            <div className="tiles">
+              <Metric label="Người dùng mới" value={data.newUsers} hint="Đăng ký trong tuần" />
+              <Metric label="Người dùng hoạt động" value={data.activeUsers} hint="Đặt sân, vào trận hoặc mở trận" />
+              <Metric
+                label="Thời gian xác nhận trung bình"
+                value={data.avgConfirmMinutes === null ? NO_DATA : `${data.avgConfirmMinutes} phút`}
+                hint="Từ lúc gửi yêu cầu đến lúc chủ sân xác nhận"
+              />
+              <Metric label="Tỉ lệ hết hạn" value={percent(data.expiryRate)} hint="Yêu cầu hết hạn vì chủ sân không xác nhận" />
+            </div>
+
+            <h3>Theo đơn vị</h3>
+            {data.venues.length === 0 ? (
+              <p className="empty">Chưa có đơn vị nào.</p>
+            ) : (
+              <div className="card">
+                <div className="table-scroll">
+                  <table className="tbl stats-table">
+                    <caption>Booking và trận theo đơn vị</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Đơn vị</th>
+                        <th scope="col" className="r">Booking</th>
+                        <th scope="col" className="r">Trận</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.venues.map((v) => (
+                        <tr key={v.venueId}>
+                          <th scope="row" data-label="Đơn vị">{v.venueName}</th>
+                          <td data-label="Booking" className="r tnum">{v.bookingCount}</td>
+                          <td data-label="Trận" className="r tnum">{v.matchCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { BookingView, OwnerBookingView, PaidAtVenueResponse } from '@monsport/shared';
 import { useEffect, useState } from 'react';
 import { api, ApiError, formatDay, formatTime, formatVnd } from '@monsport/client';
+import { Avatar } from '../../components/Avatar.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { Customer } from './customer.tsx';
@@ -50,55 +51,90 @@ export function OwnerRequests({ canManagePayment = true }: { canManagePayment?: 
 
   const waiting = rows?.filter((r) => r.status === 'PENDING').length ?? 0;
   return (
-    <section className="panel">
-      <h2>Yêu cầu đặt sân</h2>
-      {rows && rows.length > 0 && <p className="count">{waiting > 0 ? `${waiting} yêu cầu đang chờ bạn xác nhận.` : 'Không còn yêu cầu nào đang chờ.'}</p>}
+    <section className="panel clean">
+      <div className="page-head">
+        <div>
+          <h2>Yêu cầu đặt sân</h2>
+          <p>Xác nhận hoặc từ chối yêu cầu đặt sân từ khách hàng.</p>
+        </div>
+        {rows && rows.length > 0 && (
+          <p className="count">
+            {waiting > 0 ? `${waiting} yêu cầu đang chờ bạn xác nhận.` : 'Không còn yêu cầu nào đang chờ.'}
+          </p>
+        )}
+      </div>
       {error && <p className="error" role="alert">{error}</p>}
       {rows?.length === 0 && (
-        <EmptyState message="Chưa có yêu cầu nào đang chờ. Tải lại trang để xem yêu cầu mới." />
+        <div className="card">
+          <EmptyState message="Chưa có yêu cầu nào đang chờ. Tải lại trang để xem yêu cầu mới." />
+        </div>
       )}
-      <ul className="tickets">
-        {rows?.map((r) => (
-          <li key={r.id} className="ticket card-web" data-status={r.status}>
-            <span className="stub">
-              <strong>{formatTime(r.startAt)}</strong>
-              <span>đến {formatTime(r.endAt)}</span>
-            </span>
-            <span className="body">
-              <Customer customer={r.customer} />
-              <span className="meta">
-                <span>Ngày {formatDay(r.startAt)}</span>
-                <span className="money">{formatVnd(r.priceTotal)}</span>
-              </span>
-              {r.status === 'PENDING' ? (
-                <span className="actions">
-                  <button type="button" onClick={() => decide(r.id, 'confirm')}>Xác nhận</button>
-                  <button type="button" className="secondary" onClick={() => decide(r.id, 'reject')}>Từ chối</button>
-                </span>
-              ) : (
-                <span className="status-wrap">
-                  <StatusBadge className="status" status={r.status} label={STATUS_LABEL[r.status]} />
-                  {canManagePayment && r.status === 'CONFIRMED' && (
-                    <span className="payment-action">
-                      <span className={`paid-tag ${r.paidAtVenue ? 'paid' : 'unpaid'}`}>
-                        {r.paidAtVenue ? 'Đã thu tiền' : 'Chưa thu tiền'}
-                      </span>
-                      <button
-                        type="button"
-                        className={`btn-toggle-paid ${r.paidAtVenue ? 'secondary' : ''}`}
-                        disabled={togglingIds.has(r.id)}
-                        onClick={() => togglePaid(r.id, !r.paidAtVenue)}
-                      >
-                        {r.paidAtVenue ? 'Đánh dấu chưa thu' : 'Đã thu tiền'}
+      {rows && rows.length > 0 && (
+        <div className="card reqs-table">
+          <div className="req head" aria-hidden="true">
+            <span>Khách</span>
+            <span>Ngày</span>
+            <span>Thời gian</span>
+            <span className="r">Giá</span>
+            <span className="r">Thao tác</span>
+          </div>
+          <ul className="tickets">
+            {rows.map((r) => (
+              <li key={r.id} className="ticket req" data-status={r.status}>
+                <div className="req-who">
+                  <Avatar name={r.customer.name || 'Khách'} size={34} />
+                  <div>
+                    <Customer customer={r.customer} />
+                    <small>{r.source === 'PHONE' ? 'Qua điện thoại' : 'Đặt trong app'}</small>
+                  </div>
+                </div>
+                <div className="req-day">
+                  <b>Ngày {formatDay(r.startAt)}</b>
+                  <small className="req-price-sm money tnum">{formatVnd(r.priceTotal)}</small>
+                </div>
+                <div className="stub">
+                  <strong>{formatTime(r.startAt)}</strong>
+                  <span>đến {formatTime(r.endAt)}</span>
+                </div>
+                <div className="req-price r">
+                  <b className="money tnum">{formatVnd(r.priceTotal)}</b>
+                </div>
+                <div className="req-act">
+                  {r.status === 'PENDING' ? (
+                    <>
+                      <button type="button" className="btn sm lime" onClick={() => decide(r.id, 'confirm')}>
+                        Xác nhận
                       </button>
-                    </span>
+                      <button type="button" className="btn sm ghost" onClick={() => decide(r.id, 'reject')}>
+                        Từ chối
+                      </button>
+                    </>
+                  ) : (
+                    <div className="status-wrap">
+                      <StatusBadge className="status" status={r.status} label={STATUS_LABEL[r.status]} />
+                      {canManagePayment && r.status === 'CONFIRMED' && (
+                        <span className="payment-action">
+                          <span className={`tag ${r.paidAtVenue ? 'ok' : 'warn'}`}>
+                            {r.paidAtVenue ? 'Đã thu tiền' : 'Chưa thu tiền'}
+                          </span>
+                          <button
+                            type="button"
+                            className={`btn sm ${r.paidAtVenue ? 'ghost' : 'lime'}`}
+                            disabled={togglingIds.has(r.id)}
+                            onClick={() => togglePaid(r.id, !r.paidAtVenue)}
+                          >
+                            {r.paidAtVenue ? 'Đánh dấu chưa thu' : 'Đã thu tiền'}
+                          </button>
+                        </span>
+                      )}
+                    </div>
                   )}
-                </span>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

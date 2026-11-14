@@ -45,21 +45,34 @@ export function JoinedMatches({ refresh = 0 }: { refresh?: number }) {
         {matches?.length === 0 && !error && <EmptyState message="Bạn chưa vào trận nào" />}
       </div>
       {matches && matches.length > 0 && (
-        <ul className="tickets joined-matches-list">
-          {matches.map((m) => (
-            <li key={m.id} className="ticket card-web" data-status={m.status}>
-              <span className="stub">
-                <strong>{formatTime(m.startAt)}</strong>
-                <span>đến {formatTime(m.endAt)}</span>
-              </span>
-              <span className="body">
-                <span className="where">{`${m.venueName} · ${m.courtName}`}</span>
-                <span>{`Ngày ${formatDay(m.startAt)} · ${formatTime(m.startAt)}–${formatTime(m.endAt)}`}</span>
-                <span>{`${m.joinedCount}/${m.capacity} suất`}</span>
-                <StatusBadge className="status" status={m.status} label={STATUS_LABEL[m.status]} />
-              </span>
-            </li>
-          ))}
+        <ul className="tickets joined-matches-list schedule-list">
+          {matches.map((m) => {
+            const isMuted =
+              new Date(m.endAt).getTime() <= Date.now() ||
+              m.status === 'CANCELLED' ||
+              m.status === 'FINISHED';
+            return (
+              <li key={m.id} className={`card ticket si-item ${isMuted ? 'is-muted' : ''}`.trim()} data-status={m.status}>
+                <div className="si">
+                  <div className="stub si-t">
+                    <strong>{formatTime(m.startAt)}</strong>
+                    <span>đến {formatTime(m.endAt)}</span>
+                  </div>
+                  <div className="body si-b">
+                    <b className="where">{`${m.venueName} · ${m.courtName}`}</b>
+                    <div className="si-meta">
+                      <span>{`Ngày ${formatDay(m.startAt)} · ${formatTime(m.startAt)}–${formatTime(m.endAt)}`}</span>
+                      <span aria-hidden="true"> · </span>
+                      <span>{`${m.joinedCount}/${m.capacity} suất`}</span>
+                    </div>
+                  </div>
+                  <div className="si-r">
+                    <StatusBadge className="status" status={m.status} label={STATUS_LABEL[m.status]} />
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
