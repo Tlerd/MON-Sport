@@ -59,12 +59,43 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Đặt sân' })).toBeTruthy();
   });
 
-  it('shows the owner requests to an owner', async () => {
+  it('AC-13: an owner who opens / or /admin lands on /chu-san/tong-quan, and the logo links there', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) =>
       Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(url === '/api/auth/me' ? { id: 'x', name: 'Bình', role: 'OWNER' } : []) }),
     ));
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Tổng quan' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/chu-san/tong-quan');
+    expect(within(screen.getByRole('banner')).getByRole('link', { name: 'MONSPORT' }).getAttribute('href')).toBe('/chu-san/tong-quan');
+
+    cleanup();
+    window.history.pushState({}, '', '/admin');
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Tổng quan' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/chu-san/tong-quan');
+  });
+
+  it('AC-13: an owner who logs in lands on /chu-san/tong-quan', async () => {
+    let signedIn = false;
+    const owner = { id: 'x', name: 'Bình', role: 'OWNER' };
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/api/auth/login') {
+        signedIn = true;
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(owner) });
+      }
+      if (url === '/api/auth/me' && !signedIn) {
+        return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ message: 'Bạn cần đăng nhập' }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(url === '/api/auth/me' ? owner : []) });
+    }));
+    window.history.pushState({}, '', '/dang-nhap');
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Số điện thoại'), { target: { value: '0901112233' } });
+    fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'matkhau123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
+
+    expect(await screen.findByRole('heading', { name: 'Tổng quan' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/chu-san/tong-quan');
   });
 
   it('owner opens /chu-san/yeu-cau, a confirmed booking shows, click "Hủy", and fetch is called with POST /api/owner/bookings/<id>/cancel', async () => {
@@ -170,7 +201,7 @@ describe('App', () => {
     expect(within(bookingForm).queryByLabelText('Tìm theo tên sân')).toBeNull();
   });
 
-  it.each([['OWNER', 'Yêu cầu đặt sân'], ['ADMIN', null]] as const)('AC-14: a %s does not see the free hours', async (role, heading) => {
+  it.each([['OWNER', 'Tổng quan'], ['ADMIN', null]] as const)('AC-14: a %s does not see the free hours', async (role, heading) => {
     as({ id: 'x', name: 'Bình', role });
     render(<App />);
     if (heading) await screen.findByRole('heading', { name: heading });
@@ -210,7 +241,7 @@ describe('App', () => {
 
     as({ id: 'x', name: 'Bình', role: 'OWNER' });
     render(<App />);
-    await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' });
+    await screen.findByRole('heading', { name: 'Tổng quan' });
     expect(screen.queryByRole('heading', { name: 'Trận đã vào' })).toBeNull();
     cleanup();
 
@@ -250,7 +281,7 @@ describe('App', () => {
     }));
 
     render(<App />);
-    await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' });
+    await screen.findByRole('heading', { name: 'Tổng quan' });
     const bell = await within(screen.getByRole('banner')).findByRole('button', { name: /Thông báo/ });
     expect(await within(screen.getByRole('banner')).findByText('1')).toBeTruthy();
 
@@ -403,7 +434,7 @@ describe('App', () => {
     }));
 
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Yêu cầu đặt sân' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Tổng quan' })).toBeTruthy();
 
     const financeTab = await screen.findByRole('link', { name: /Doanh thu/ });
     fireEvent.click(financeTab);

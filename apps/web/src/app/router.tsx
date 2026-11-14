@@ -34,7 +34,7 @@ export function RoleGuard({
   if (!allowed.includes(currentRole)) {
     const home =
       currentRole === 'OWNER'
-        ? '/chu-san/yeu-cau'
+        ? '/chu-san/tong-quan'
         : currentRole === 'STAFF'
           ? '/chu-san/lich'
           : currentRole === 'ADMIN'
@@ -65,7 +65,7 @@ function CatchAll() {
   if (user === undefined) return null;
   const home =
     user?.role === 'OWNER'
-      ? '/chu-san/yeu-cau'
+      ? '/chu-san/tong-quan'
       : user?.role === 'STAFF'
         ? '/chu-san/lich'
         : user?.role === 'ADMIN'
