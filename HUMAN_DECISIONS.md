@@ -78,6 +78,7 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 63 | Web mới dùng tên "MONSPORT" hay "Ra Sân" như mẫu? | Giữ "MONSPORT" | Không | F-033 |
 | 64 | Web mới dùng "kèo", "cụm sân" như mẫu, hay "trận", "đơn vị" như intake? | "Trận", "đơn vị" theo intake | Không | F-033 |
 | 66 | Trang đầu của chủ sân sau đăng nhập là "Yêu cầu" hay "Tổng quan"? | "Yêu cầu" | Không | F-033 |
+| 68 | `gemini-4-hydrogen-high` đứng ở đâu trong danh sách model của `scripts/agy-run.mjs`: đầu danh sách, hay đúng chỗ của 3.8 (cuối)? | Đúng chỗ của 3.8. Swarm chạy trên Hydrogen | Không | chore/agy-hydrogen |
 
 ## Việc chỉ người dùng làm được
 
@@ -97,4 +98,5 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 50 | Thay dòng 49. Agent tự merge pull request đã sẵn sàng bằng `node scripts/merge.mjs <n>`, theo thứ tự merge: check xanh và review marker sạch trên head hiện tại. `gh pr merge` vẫn bị chặn. Sau merge, agent kiểm tra deploy và service live. Lời người dùng: "tự động merge để làm cũng như các PR còn lại, tôi cho phép hết"; chọn "Cho sửa settings". | 13/11/2026 | người dùng |
 | 62 | Web bỏ giao diện cũ và theo mẫu ở `docs/design/web-ui-v3/` (ADR 0009). App mobile giữ `DESIGN.md`. Nút chưa có chức năng hiện "Sắp ra mắt". Lời người dùng: "xóa sạch giao diện cũ, dùng giao diện mới này (chỉ web), những tính năng chưa làm khi ấn nút cứ ghi là sắp ra mắt". | 14/11/2026 | người dùng |
 | 65 | Web co giãn theo quy tắc do agent tự viết trong `docs/design/web-responsive.md`. Bỏ quy tắc 390px cũ của `DESIGN.md` cho web và các `@media` của mẫu. Câu hỏi cũ: "Web có còn phải dùng được ở màn rộng 390px không? Mẫu chỉ thu hẹp tới 720px". Lời người dùng: "Bỏ hết các quy tắc cũ, dùng quy tắc của bạn mà không phụ thuộc vào khuôn mẫu rồi viết lại ý tưởng đó ra là được". | 14/11/2026 | người dùng |
+| 67 | agy dùng `gemini-4-hydrogen-high` thay `gemini-3.8-flash-high`. Lời người dùng: "hiện tại có agy hydrogen nên dùng nó effort high thay thì 3.8". | 14/11/2026 | người dùng |
 | 10a | "làm theo cách hiện tại": bảng admin vẫn đếm người dùng tạo booking `APP`, vào trận, hoặc làm host trong tuần. Số lần đăng nhập (`User.lastLoginAt`) chỉ là đề xuất, chỉ làm khi người dùng đồng ý | 23/10/2026 | người dùng, F-016 |

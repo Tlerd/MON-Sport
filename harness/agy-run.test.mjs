@@ -52,7 +52,7 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
       return { status: 1, output: 'quota exceeded' };
     });
     expect(tried).toEqual(STRONG);
-    expect(STRONG).not.toContain('gemini-3.8-flash-high');
+    expect(STRONG).not.toContain('gemini-4-hydrogen-high');
     expect(result.status).toBe(OUT_OF_QUOTA);
   });
 

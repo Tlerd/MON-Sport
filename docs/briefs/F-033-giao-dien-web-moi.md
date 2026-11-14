@@ -142,7 +142,7 @@ Khung mới đổi chữ, vai trò và đường dẫn của vài phần tử. C
 | `apps/web/src/features/admin/AdminStats.test.tsx` (AC-28) | `.metric-label` / `.metric-card` | `.k` / `.tile` | Thẻ số liệu toàn trang chuyển sang `.tiles` / `.tile` / `.k` theo mẫu `adminOverview` |
 | `.agents/skills/verify-flow/scripts/lobby-approval.mjs` | `[390, 1024, 1440]` | `[390, 768, 1024, 1440]` | Bổ sung kiểm tra tràn ngang ở chiều rộng 768px theo `docs/design/web-responsive.md` |
 | `.agents/skills/verify-flow/scripts/web-responsive.mjs` (mới) | Chưa có | Kiểm tra 17 đường dẫn web ở 390, 768, 1024 và 1440px | Bảo đảm không đường dẫn nào cuộn ngang theo tiêu chí F-033 |
-| `.agents/skills/verify-flow/scripts/lib.mjs` | `.who .name` | `.top .me-btn .name` | the name sits in the account button of the top bar |
+| `.agents/skills/verify-flow/scripts/lib.mjs` | `.who .name` | `.top .me-btn .name` | Tên nằm trong nút tài khoản ở thanh trên |
 
 ## Risks and reviews
 

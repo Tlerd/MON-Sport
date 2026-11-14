@@ -14,7 +14,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const MODELS = (process.env.AGY_MODELS || 'claude-sonnet-5-5-medium,claude-opus-5-5-high,gemini-4-argon-high,claude-sonnet-5-5-high,gemini-3.8-flash-high')
+export const MODELS = (process.env.AGY_MODELS || 'claude-sonnet-5-5-medium,claude-opus-5-5-high,gemini-4-argon-high,claude-sonnet-5-5-high,gemini-4-hydrogen-high')
   .split(',')
   .map((model) => model.trim())
   .filter(Boolean);
