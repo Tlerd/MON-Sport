@@ -19,18 +19,18 @@ export function EmptyState({
   className = '',
 }: EmptyStateProps) {
   return (
-    <div className={`empty empty-state ${className}`.trim()}>
-      {icon && <div className="empty-ball empty-state-icon" aria-hidden="true">{icon}</div>}
-      <p className="empty-state-message text-muted">{message}</p>
+    <div className={`empty ${className}`.trim()}>
+      {icon && <div className="empty-ball" aria-hidden="true">{icon}</div>}
+      <p>{message}</p>
       {actionText && (
         actionHref ? (
-          <NavLink to={actionHref} className="btn btn-primary empty-state-btn">
+          <NavLink to={actionHref} className="btn lime">
             {actionText}
           </NavLink>
         ) : (
           <button
             type="button"
-            className="btn btn-primary empty-state-btn"
+            className="btn lime"
             onClick={onAction}
           >
             {actionText}

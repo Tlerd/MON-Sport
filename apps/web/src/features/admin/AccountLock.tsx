@@ -40,28 +40,34 @@ export function AccountLock({ onChanged }: { onChanged: (account: AccountView) =
   }
 
   return (
-    <section className="panel">
+    <section className="panel card pad">
       <h2>Khóa tài khoản</h2>
-      <form onSubmit={search} className="search">
-        <label>
-          Số điện thoại cần tìm
+      <form onSubmit={search} className="fbar">
+        <label className="fld">
+          <span>Số điện thoại cần tìm</span>
           <input inputMode="tel" maxLength={10} value={phone} onChange={(e) => { setPhone(e.target.value); setFound(null); latest.current++; }} required />
         </label>
-        <button type="submit">Tìm</button>
+        <button type="submit" className="btn lime">Tìm</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
       <p className="live empty" role="status">
         {found?.length === 0 ? 'Không có tài khoản nào dùng số này.' : found?.[0]?.lockedAt ? `${found[0].name} đã bị khóa.` : ''}
       </p>
-      <ul className="accounts">
+      <ul className="tickets accounts">
         {found?.map((a) => (
-          <li key={a.id} className="card-web">
+          <li key={a.id} className="card si">
             <span className="customer">{a.name}</span>
-            <span className="phone">{a.phone}</span>
+            <span className="phone tnum">{a.phone}</span>
             <span>{ROLE[a.role]}</span>
-            {a.lockedAt && <span className="status locked">Đã khóa</span>}
+            <span className={`tag ${a.lockedAt ? 'bad' : 'ok'}`}>
+              {a.lockedAt ? 'Đã khóa' : 'Hoạt động'}
+            </span>
             {a.role !== 'ADMIN' && (
-              <button type="button" className={a.lockedAt ? undefined : 'secondary'} onClick={() => toggle(a)}>
+              <button
+                type="button"
+                className={a.lockedAt ? 'btn sm lime' : 'btn sm danger'}
+                onClick={() => toggle(a)}
+              >
                 {a.lockedAt ? 'Mở khóa' : 'Khóa'}
               </button>
             )}

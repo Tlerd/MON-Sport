@@ -340,7 +340,6 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
       <div className="page-head">
         <div>
           <h1>Ghép trận</h1>
-          <h2 id={heading}>Phòng chờ</h2>
         </div>
         <button type="button" className="btn lime" onClick={handleCreateMatch}>
           <Plus size={18} className="ic" aria-hidden="true" />
@@ -349,66 +348,75 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
       </div>
 
       <div className="filter-chips-row">
-        <div role="group" aria-label="Môn thể thao" className="chips sport-chips">
-          <Chip selected={sport === ''} onClick={() => setSport('')}>
-            Tất cả
-          </Chip>
-          <Chip
-            selected={sport === 'BADMINTON'}
-            icon={<SportIcon sport="BADMINTON" size={16} />}
-            onClick={() => setSport('BADMINTON')}
-          >
-            Cầu lông
-          </Chip>
-          <Chip
-            selected={sport === 'FOOTBALL'}
-            icon={<SportIcon sport="FOOTBALL" size={16} />}
-            onClick={() => setSport('FOOTBALL')}
-          >
-            Bóng đá
-          </Chip>
+        <div className="filter-row">
+          <span className="filter-label">Môn</span>
+          <div role="group" aria-label="Môn thể thao" className="chips sport-chips">
+            <Chip selected={sport === ''} onClick={() => setSport('')}>
+              Tất cả
+            </Chip>
+            <Chip
+              selected={sport === 'BADMINTON'}
+              icon={<SportIcon sport="BADMINTON" size={16} />}
+              onClick={() => setSport('BADMINTON')}
+            >
+              Cầu lông
+            </Chip>
+            <Chip
+              selected={sport === 'FOOTBALL'}
+              icon={<SportIcon sport="FOOTBALL" size={16} />}
+              onClick={() => setSport('FOOTBALL')}
+            >
+              Bóng đá
+            </Chip>
+          </div>
         </div>
 
-        <div role="group" aria-label="Trình độ" className="chips level-chips">
-          <Chip selected={level === ''} onClick={() => setLevel('')}>
-            Tất cả
-          </Chip>
-          {(Object.entries(SKILL_LEVEL_LABELS) as [SkillLevel, string][]).map(([key, label]) => (
-            <Chip
-              key={key}
-              selected={level === key}
-              onClick={() => setLevel(key)}
-            >
-              {label}
+        <div className="filter-row">
+          <span className="filter-label">Trình độ</span>
+          <div role="group" aria-label="Trình độ" className="chips level-chips">
+            <Chip selected={level === ''} onClick={() => setLevel('')}>
+              Tất cả
             </Chip>
-          ))}
+            {(Object.entries(SKILL_LEVEL_LABELS) as [SkillLevel, string][]).map(([key, label]) => (
+              <Chip
+                key={key}
+                selected={level === key}
+                onClick={() => setLevel(key)}
+              >
+                {label}
+              </Chip>
+            ))}
+          </div>
         </div>
 
-        <div role="group" aria-label="Ngày chơi" className="chips date-chips">
-          <Chip selected={date === ''} onClick={() => setDate('')}>
-            Tất cả ngày
-          </Chip>
-          {dateOptions.map((opt) => (
-            <Chip
-              key={opt.ymd}
-              selected={date === opt.ymd}
-              onClick={() => setDate(opt.ymd)}
-            >
-              {opt.label}
+        <div className="filter-row">
+          <span className="filter-label">Ngày</span>
+          <div role="group" aria-label="Ngày chơi" className="chips date-chips">
+            <Chip selected={date === ''} onClick={() => setDate('')}>
+              Tất cả ngày
             </Chip>
-          ))}
-          <label className={`chip ${isOtherDate ? 'on selected' : ''}`}>
-            <CalendarDays size={14} aria-hidden="true" />
-            <span>Ngày khác</span>
-            <input
-              ref={dateInputRef}
-              type="date"
-              aria-label="Ngày khác"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-            />
-          </label>
+            {dateOptions.map((opt) => (
+              <Chip
+                key={opt.ymd}
+                selected={date === opt.ymd}
+                onClick={() => setDate(opt.ymd)}
+              >
+                {opt.label}
+              </Chip>
+            ))}
+            <label className={`chip ${isOtherDate ? 'on selected' : ''}`}>
+              <CalendarDays size={14} aria-hidden="true" />
+              <span>Ngày khác</span>
+              <input
+                ref={dateInputRef}
+                type="date"
+                aria-label="Ngày khác"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+              />
+            </label>
+          </div>
         </div>
 
         <div className="fbar">
@@ -435,6 +443,7 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
         </div>
       </div>
 
+      <h2 id={heading} className="sec lobby-sec">Phòng chờ</h2>
       <div className="lobby-split md">
         <div className="lobby-list-pane md-list">
           {error && <p className="error" role="alert">{error}</p>}
@@ -621,7 +630,7 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
                                     </button>
                                     <button
                                       type="button"
-                                      className="btn sm ghost secondary"
+                                      className="btn sm ghost"
                                       disabled={rowBusy}
                                       onClick={() => void handleRequestDecision(selectedMatch.id, r.userId, 'reject')}
                                     >
@@ -656,7 +665,7 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
                     {detail.viewerRole === 'PLAYER' && (
                       <button
                         type="button"
-                        className="btn ghost secondary"
+                        className="btn ghost"
                         disabled={loadingAction}
                         onClick={() => handleLeave(selectedMatch.id)}
                       >
@@ -671,7 +680,7 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
                           <p className="hint" role="status">Đã gửi yêu cầu. Chờ host duyệt</p>
                           <button
                             type="button"
-                            className="btn ghost secondary"
+                            className="btn ghost"
                             disabled={loadingAction}
                             onClick={() => handleLeave(selectedMatch.id)}
                           >

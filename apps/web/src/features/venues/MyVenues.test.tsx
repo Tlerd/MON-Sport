@@ -24,7 +24,7 @@ describe('MyVenues', () => {
     expect(screen.getAllByRole('article')).toHaveLength(1);
     expect(within(venue).getByText('06:00–23:00')).toBeTruthy();
     for (const name of ['Sân 1', 'Sân 2']) {
-      const row = within(venue).getByText(name).closest('li')!;
+      const row = within(venue).getByText(name).closest('tr')!;
       expect(within(row as HTMLElement).getByText('80.000đ')).toBeTruthy();
       expect(within(row as HTMLElement).getByText('120.000đ')).toBeTruthy();
     }
@@ -35,7 +35,7 @@ describe('MyVenues', () => {
     const venue = { ...CAU_LONG_A, courts: [CAU_LONG_A.courts[0], { ...CAU_LONG_A.courts[1], priceNormal: 70_000, pricePeak: 100_000 }] };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve([venue]) }));
     render(<MyVenues />);
-    const row = (await screen.findByText('Sân 2')).closest('li') as HTMLElement;
+    const row = (await screen.findByText('Sân 2')).closest('tr') as HTMLElement;
     expect(within(row).getByText('70.000đ')).toBeTruthy();
     expect(within(row).getByText('100.000đ')).toBeTruthy();
   });
@@ -88,7 +88,7 @@ describe('MyVenues', () => {
       fireEvent.change(within(venue).getByLabelText('Giá cao điểm (đ)'), { target: { value: '150000' } });
       fireEvent.click(within(venue).getByRole('button', { name: 'Lưu' }));
 
-      const row = (await within(venue).findByText('150.000đ')).closest('li') as HTMLElement;
+      const row = (await within(venue).findByText('150.000đ')).closest('tr') as HTMLElement;
       expect(within(row).getByText('Sân 1')).toBeTruthy();
       const [path, init] = fetch.mock.calls[1];
       expect(path).toBe(`/api/owner/courts/${CAU_LONG_A.courts[0].id}`);

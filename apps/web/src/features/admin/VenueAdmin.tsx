@@ -1,5 +1,6 @@
 import type { AccountView, AdminVenueView, CourtView, Sport } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
+import { CourtArt } from '../../components/CourtArt.tsx';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { api, ApiError, HALF_HOURS, hhmm } from '@monsport/client';
@@ -34,60 +35,72 @@ export function VenueAdmin({ owners }: { owners: AccountView[] }) {
     );
 
   return (
-    <section className="panel">
+    <section className="panel clean">
       <h2>Đơn vị</h2>
       {error && <p className="error" role="alert">{error}</p>}
       {venues.length === 0 && !error && <EmptyState message="Chưa có đơn vị nào." />}
-      <div className="venues">
+      <div className="venues stack">
         {venues.map((v) => (
-          <article key={v.id} className="venue card-web" aria-labelledby={`admin-venue-${v.id}`}>
-            <h3 id={`admin-venue-${v.id}`}>{v.name}</h3>
-            <p className="venue-meta">
-              <span>{`${hhmm(v.opensAt)}–${hhmm(v.closesAt)}`}</span>
-              <span>Chủ sân: {v.owner.name}</span>
-            </p>
+          <article key={v.id} className="card ov" aria-labelledby={`admin-venue-${v.id}`}>
+            <header>
+              <span className="near-art">
+                <CourtArt sport={v.courts[0]?.sport ?? 'BADMINTON'} />
+              </span>
+              <div>
+                <h3 id={`admin-venue-${v.id}`}>{v.name}</h3>
+                <p className="venue-meta">
+                  <span>{`${hhmm(v.opensAt)}–${hhmm(v.closesAt)}`}</span>
+                  <span>Chủ sân: {v.owner.name}</span>
+                </p>
+              </div>
+              <span className="tag ok">Đang hoạt động</span>
+            </header>
             <CourtPrices courts={v.courts} />
-            <details className="drawer">
-              <summary>{`Sửa ${v.name}`}</summary>
-              <VenueForm
-                owners={owners}
-                initial={{ ownerId: v.owner.id, name: v.name, address: v.address, phone: v.phone, opensAt: v.opensAt, closesAt: v.closesAt }}
-                submitLabel="Lưu đơn vị"
-                save={(draft) => api<AdminVenueView>(`/api/admin/venues/${v.id}`, { method: 'PATCH', json: changed(draft, v) }).then(put)}
-              />
-              {v.courts.map((c) => (
-                <CourtForm
-                  key={c.id}
-                  legend={`Sửa ${c.name}`}
-                  initial={{ name: c.name, sport: c.sport, priceNormal: c.priceNormal, pricePeak: c.pricePeak }}
-                  fixedSport
-                  submitLabel={`Lưu ${c.name}`}
-                  save={({ name, priceNormal, pricePeak }) =>
-                    api<CourtView>(`/api/admin/courts/${c.id}`, { method: 'PATCH', json: { name, priceNormal, pricePeak } }).then((x) => putCourt(v.id, x))
-                  }
+            <div className="pad">
+              <details className="drawer">
+                <summary>{`Sửa ${v.name}`}</summary>
+                <VenueForm
+                  owners={owners}
+                  initial={{ ownerId: v.owner.id, name: v.name, address: v.address, phone: v.phone, opensAt: v.opensAt, closesAt: v.closesAt }}
+                  submitLabel="Lưu đơn vị"
+                  save={(draft) => api<AdminVenueView>(`/api/admin/venues/${v.id}`, { method: 'PATCH', json: changed(draft, v) }).then(put)}
                 />
-              ))}
-              <CourtForm
-                legend={`Thêm sân vào ${v.name}`}
-                initial={{ name: '', sport: v.courts[0]?.sport ?? 'BADMINTON', priceNormal: 0, pricePeak: 0 }}
-                submitLabel="Thêm sân"
-                resetOnSave
-                save={(draft) => api<CourtView>(`/api/admin/venues/${v.id}/courts`, { method: 'POST', json: draft }).then((x) => putCourt(v.id, x))}
-              />
-            </details>
+                {v.courts.map((c) => (
+                  <CourtForm
+                    key={c.id}
+                    legend={`Sửa ${c.name}`}
+                    initial={{ name: c.name, sport: c.sport, priceNormal: c.priceNormal, pricePeak: c.pricePeak }}
+                    fixedSport
+                    submitLabel={`Lưu ${c.name}`}
+                    save={({ name, priceNormal, pricePeak }) =>
+                      api<CourtView>(`/api/admin/courts/${c.id}`, { method: 'PATCH', json: { name, priceNormal, pricePeak } }).then((x) => putCourt(v.id, x))
+                    }
+                  />
+                ))}
+                <CourtForm
+                  legend={`Thêm sân vào ${v.name}`}
+                  initial={{ name: '', sport: v.courts[0]?.sport ?? 'BADMINTON', priceNormal: 0, pricePeak: 0 }}
+                  submitLabel="Thêm sân"
+                  resetOnSave
+                  save={(draft) => api<CourtView>(`/api/admin/venues/${v.id}/courts`, { method: 'POST', json: draft }).then((x) => putCourt(v.id, x))}
+                />
+              </details>
+            </div>
           </article>
         ))}
       </div>
-      <details className="drawer">
-        <summary>Tạo đơn vị</summary>
-        <VenueForm
-          owners={owners}
-          initial={{ ownerId: '', name: '', address: '', phone: '', opensAt: 360, closesAt: 1380 }}
-          submitLabel="Tạo đơn vị"
-          resetOnSave
-          save={(draft) => api<AdminVenueView>('/api/admin/venues', { method: 'POST', json: draft }).then(put)}
-        />
-      </details>
+      <div className="card pad">
+        <details className="drawer">
+          <summary>Tạo đơn vị</summary>
+          <VenueForm
+            owners={owners}
+            initial={{ ownerId: '', name: '', address: '', phone: '', opensAt: 360, closesAt: 1380 }}
+            submitLabel="Tạo đơn vị"
+            resetOnSave
+            save={(draft) => api<AdminVenueView>('/api/admin/venues', { method: 'POST', json: draft }).then(put)}
+          />
+        </details>
+      </div>
     </section>
   );
 }
@@ -112,37 +125,41 @@ function VenueForm(props: { owners: AccountView[]; initial: VenueDraft; submitLa
   }
 
   return (
-    <form onSubmit={submit} className="stack">
-      <label>
-        Tên đơn vị
-        <input value={draft.name} maxLength={100} onChange={(e) => set('name', e.target.value)} required />
-      </label>
-      <label>
-        Chủ sân của đơn vị
-        <select value={draft.ownerId} onChange={(e) => set('ownerId', e.target.value)} required>
-          <option value="" disabled>Chọn chủ sân</option>
-          {props.owners.map((o) => (
-            <option key={o.id} value={o.id} disabled={!!o.lockedAt}>{`${o.name} (${o.phone})${o.lockedAt ? ' (đã khóa)' : ''}`}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Địa chỉ
-        <input value={draft.address} maxLength={200} onChange={(e) => set('address', e.target.value)} required />
-      </label>
-      <label>
-        Số điện thoại cho nút Gọi chủ sân
-        <input inputMode="tel" maxLength={10} value={draft.phone} onChange={(e) => set('phone', e.target.value)} required />
-      </label>
-      <div className="row two">
-        <label>
-          Mở cửa
+    <form onSubmit={submit} className="stack-form">
+      <div className="fgrid">
+        <label className="fld">
+          <span>Tên đơn vị</span>
+          <input value={draft.name} maxLength={100} onChange={(e) => set('name', e.target.value)} required />
+        </label>
+        <label className="fld">
+          <span>Chủ sân của đơn vị</span>
+          <select value={draft.ownerId} onChange={(e) => set('ownerId', e.target.value)} required>
+            <option value="" disabled>Chọn chủ sân</option>
+            {props.owners.map((o) => (
+              <option key={o.id} value={o.id} disabled={!!o.lockedAt}>{`${o.name} (${o.phone})${o.lockedAt ? ' (đã khóa)' : ''}`}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="fgrid">
+        <label className="fld">
+          <span>Địa chỉ</span>
+          <input value={draft.address} maxLength={200} onChange={(e) => set('address', e.target.value)} required />
+        </label>
+        <label className="fld">
+          <span>Số điện thoại cho nút Gọi chủ sân</span>
+          <input inputMode="tel" maxLength={10} value={draft.phone} onChange={(e) => set('phone', e.target.value)} required />
+        </label>
+      </div>
+      <div className="fgrid">
+        <label className="fld">
+          <span>Mở cửa</span>
           <select value={draft.opensAt} onChange={(e) => set('opensAt', Number(e.target.value))}>
             {HALF_HOURS.slice(0, -1).map((m) => <option key={m} value={m}>{hhmm(m)}</option>)}
           </select>
         </label>
-        <label>
-          Đóng cửa
+        <label className="fld">
+          <span>Đóng cửa</span>
           <select value={draft.closesAt} onChange={(e) => set('closesAt', Number(e.target.value))}>
             {HALF_HOURS.slice(1).map((m) => <option key={m} value={m}>{hhmm(m)}</option>)}
           </select>
@@ -150,7 +167,9 @@ function VenueForm(props: { owners: AccountView[]; initial: VenueDraft; submitLa
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       <p className="live hint" role="status">{done}</p>
-      <button type="submit">{props.submitLabel}</button>
+      <div className="actions">
+        <button type="submit" className="btn lime">{props.submitLabel}</button>
+      </div>
     </form>
   );
 }
@@ -177,26 +196,26 @@ function CourtForm(props: {
   }
 
   return (
-    <form onSubmit={submit} className="court-form">
+    <form onSubmit={submit} className="court-form stack-form">
       <fieldset className="step">
         <legend>{props.legend}</legend>
-        <div className="row">
-          <label>
-            Tên sân
+        <div className="fgrid three">
+          <label className="fld">
+            <span>Tên sân</span>
             <input value={draft.name} maxLength={50} onChange={(e) => set('name', e.target.value)} required />
           </label>
-          <label>
-            Giờ thường (đ)
+          <label className="fld">
+            <span>Giờ thường (đ)</span>
             <input type="number" inputMode="numeric" min={1} step={1} value={draft.priceNormal || ''} onChange={(e) => set('priceNormal', Number(e.target.value))} required />
           </label>
-          <label>
-            Cao điểm (đ)
+          <label className="fld">
+            <span>Cao điểm (đ)</span>
             <input type="number" inputMode="numeric" min={1} step={1} value={draft.pricePeak || ''} onChange={(e) => set('pricePeak', Number(e.target.value))} required />
           </label>
         </div>
         {!props.fixedSport && (
-          <label>
-            Môn
+          <label className="fld">
+            <span>Môn</span>
             <select value={draft.sport} onChange={(e) => set('sport', e.target.value as Sport)}>
               <option value="BADMINTON">Cầu lông</option>
               <option value="FOOTBALL">Bóng đá</option>
@@ -205,7 +224,9 @@ function CourtForm(props: {
         )}
         {error && <p className="error" role="alert">{error}</p>}
         <p className="live hint" role="status">{done}</p>
-        <button type="submit">{props.submitLabel}</button>
+        <div className="actions">
+          <button type="submit" className="btn sm lime">{props.submitLabel}</button>
+        </div>
       </fieldset>
     </form>
   );

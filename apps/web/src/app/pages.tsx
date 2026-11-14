@@ -94,7 +94,7 @@ export function OwnerRequestsPage() {
   const { user } = useSession();
   const isStaff = user?.role === 'STAFF';
   return (
-    <div className="owner-requests-page stack">
+    <div className="page stack">
       <OwnerRequests canManagePayment={!isStaff} />
       <PhoneBookings canCancel={!isStaff} />
     </div>
@@ -222,7 +222,7 @@ export function ProfilePage() {
     <div className="page narrow">
       <section className="card phead">
         <span
-          className="av avatar"
+          className="av"
           style={{ '--s': '68px', '--c': 'var(--ok)' } as CSSProperties}
           aria-hidden="true"
         >

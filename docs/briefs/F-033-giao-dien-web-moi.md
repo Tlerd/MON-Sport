@@ -137,6 +137,10 @@ Khung mới đổi chữ, vai trò và đường dẫn của vài phần tử. C
 | `apps/web/src/app/App.test.tsx` (F-004 review) | `findByRole('heading', { name: 'Đặt sân' })` tại `/?google_error=taken` | `findByRole('heading', { name: 'Trận đang mở' })` tại `/?google_error=taken` | Trang `/` là trang chủ (`HomePage`) |
 | `apps/web/src/app/App.test.tsx` (AC-20, AC-22) | `findByRole('button', { name: /An/ })` trên toàn trang | `within(screen.getByRole('banner')).findByRole('button', { name: /An/ })` | Trang chủ có thêm nút khung soạn "Hôm nay ra sân môn gì, An?" |
 | `apps/web/src/features/matches/Lobby.test.tsx` (AC-11) | `screen.getByText('An')` trên toàn trang | `within(playersSection).getByText('An')` trong `.players-section` | Chi tiết trận hiển thị tên host trong mục thông tin chung (`facts`) và trong danh sách người chơi |
+| `apps/web/src/features/venues/MyVenues.test.tsx` (AC-13, AC-14, AC-15) | `.closest('li')` trên tên sân | `.closest('tr')` | Bảng sân của chủ sân chuyển từ danh sách `<ul>` sang bảng `.tbl.courts-tbl` theo mẫu `ownerCourts` |
+| `apps/web/src/features/admin/AdminStats.test.tsx` (AC-28) | `.metric-label` / `.metric-card` | `.k` / `.tile` | Thẻ số liệu toàn trang chuyển sang `.tiles` / `.tile` / `.k` theo mẫu `adminOverview` |
+| `.agents/skills/verify-flow/scripts/lobby-approval.mjs` | `[390, 1024, 1440]` | `[390, 768, 1024, 1440]` | Bổ sung kiểm tra tràn ngang ở chiều rộng 768px theo `docs/design/web-responsive.md` |
+| `.agents/skills/verify-flow/scripts/web-responsive.mjs` (mới) | Chưa có | Kiểm tra 17 đường dẫn web ở 390, 768, 1024 và 1440px | Bảo đảm không đường dẫn nào cuộn ngang theo tiêu chí F-033 |
 
 ## Risks and reviews
 

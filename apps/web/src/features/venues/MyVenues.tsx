@@ -1,6 +1,9 @@
 import type { CourtView, VenueView } from '@monsport/shared';
+import { Plus } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { api, ApiError, hhmm } from '@monsport/client';
+import { ComingSoonButton } from '../../components/ComingSoon.tsx';
+import { CourtArt } from '../../components/CourtArt.tsx';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { HoursForm, PriceForm } from './OwnerEdits.tsx';
@@ -17,17 +20,30 @@ export function MyVenues({ renderStaff }: { renderStaff?: (venue: VenueView) => 
   const put = (v: VenueView) => setVenues((list) => list?.map((x) => (x.id === v.id ? v : x)) ?? null);
 
   return (
-    <section className="panel">
-      <h2>Đơn vị của tôi</h2>
-      {error && <p className="error" role="alert">{error}</p>}
-      {venues === null && !error && <p className="empty">Đang tải…</p>}
-      {venues?.length === 0 && (
-        <EmptyState message="Bạn chưa có đơn vị nào. Admin gắn đơn vị cho tài khoản của bạn." />
-      )}
-      <div className="venues">
-        {venues?.map((v) => <VenueCard key={v.id} venue={v} onSaved={put} renderStaff={renderStaff} />)}
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1>Đơn vị và giá</h1>
+          <p>Quản lý cụm sân, giờ mở cửa, bảng giá và tài khoản nhân viên.</p>
+        </div>
+        <ComingSoonButton className="btn lime">
+          <Plus size={18} className="ic" aria-hidden="true" />
+          <span>Đăng ký đơn vị mới</span>
+        </ComingSoonButton>
       </div>
-    </section>
+
+      <section className="panel clean">
+        <h2>Đơn vị của tôi</h2>
+        {error && <p className="error" role="alert">{error}</p>}
+        {venues === null && !error && <p className="empty">Đang tải…</p>}
+        {venues?.length === 0 && (
+          <EmptyState message="Bạn chưa có đơn vị nào. Admin gắn đơn vị cho tài khoản của bạn." />
+        )}
+        <div className="venues stack">
+          {venues?.map((v) => <VenueCard key={v.id} venue={v} onSaved={put} renderStaff={renderStaff} />)}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -61,36 +77,46 @@ function VenueCard({
   const court = v.courts.find((c) => c.id === editing);
 
   return (
-    <article className="venue card-web" aria-labelledby={`venue-${v.id}`}>
-      <h3 id={`venue-${v.id}`}>{v.name}</h3>
-      <p className="venue-meta">
-        <span>{`${hhmm(v.opensAt)}–${hhmm(v.closesAt)}`}</span>
-        <span>{v.address}</span>
-      </p>
-      <CourtPrices courts={v.courts} />
-      {editing === null && (
-        <div className="edit-links">
-          <button ref={keep('hours')} type="button" className="link" onClick={() => open('hours')}>Sửa giờ mở cửa</button>
-          {v.courts.map((c) => (
-            <button key={c.id} ref={keep(c.id)} type="button" className="link" onClick={() => open(c.id)}>{`Sửa giá ${c.name}`}</button>
-          ))}
+    <article className="card ov" aria-labelledby={`venue-${v.id}`}>
+      <header>
+        <span className="near-art">
+          <CourtArt sport={v.courts[0]?.sport ?? 'BADMINTON'} />
+        </span>
+        <div>
+          <h3 id={`venue-${v.id}`}>{v.name}</h3>
+          <p className="venue-meta">
+            <span>{`${hhmm(v.opensAt)}–${hhmm(v.closesAt)}`}</span>
+            <span>{v.address}</span>
+          </p>
         </div>
-      )}
-      {editing === 'hours' && (
-        <HoursForm
-          initial={{ opensAt: v.opensAt, closesAt: v.closesAt }}
-          save={(hours) => api<VenueView>(`/api/owner/venues/${v.id}`, { method: 'PATCH', json: hours }).then(onSaved)}
-          close={close}
-        />
-      )}
-      {court && (
-        <PriceForm
-          legend={`Giá ${court.name}`}
-          initial={{ priceNormal: court.priceNormal, pricePeak: court.pricePeak }}
-          save={(prices) => api<CourtView>(`/api/owner/courts/${court.id}`, { method: 'PATCH', json: prices }).then(putCourt)}
-          close={close}
-        />
-      )}
+        <span className="tag ok">Đang hoạt động</span>
+      </header>
+      <CourtPrices courts={v.courts} />
+      <div className="pad ov-foot">
+        {editing === null && (
+          <div className="edit-links">
+            <button ref={keep('hours')} type="button" className="btn sm ghost" onClick={() => open('hours')}>Sửa giờ mở cửa</button>
+            {v.courts.map((c) => (
+              <button key={c.id} ref={keep(c.id)} type="button" className="btn sm ghost" onClick={() => open(c.id)}>{`Sửa giá ${c.name}`}</button>
+            ))}
+          </div>
+        )}
+        {editing === 'hours' && (
+          <HoursForm
+            initial={{ opensAt: v.opensAt, closesAt: v.closesAt }}
+            save={(hours) => api<VenueView>(`/api/owner/venues/${v.id}`, { method: 'PATCH', json: hours }).then(onSaved)}
+            close={close}
+          />
+        )}
+        {court && (
+          <PriceForm
+            legend={`Giá ${court.name}`}
+            initial={{ priceNormal: court.priceNormal, pricePeak: court.pricePeak }}
+            save={(prices) => api<CourtView>(`/api/owner/courts/${court.id}`, { method: 'PATCH', json: prices }).then(putCourt)}
+            close={close}
+          />
+        )}
+      </div>
       {renderStaff ? renderStaff(v) : null}
     </article>
   );

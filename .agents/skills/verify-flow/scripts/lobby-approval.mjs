@@ -153,7 +153,7 @@ export default async function lobbyApproval(run) {
       return `Hàng chờ (1): ${requesterName}`;
     });
 
-    for (const width of [390, 1024, 1440]) {
+    for (const width of [390, 768, 1024, 1440]) {
       await run.step(FLOW, `host queue at ${width}px: no sideways scroll, buttons >= 44px`, host.page, async () => {
         await host.page.setViewportSize({ width, height: 900 });
         const { scrollWidth, innerWidth } = await host.page.evaluate(() => ({

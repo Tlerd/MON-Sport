@@ -297,6 +297,7 @@ export function SlotGrid({
                 'cell',
                 'slot-cell',
                 'g-cell',
+                mode === 'manage' ? 'owner' : '',
                 mockStateClass,
                 peak ? 'peak' : '',
                 past ? 'past' : '',

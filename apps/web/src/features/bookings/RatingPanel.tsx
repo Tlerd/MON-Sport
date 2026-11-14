@@ -82,7 +82,7 @@ function PlayerRatingRow({ matchId, player }: { matchId: string; player: PlayerR
       >
         Lưu
       </button>
-      {saved && <span className="rating-saved-badge" role="status">Đã lưu</span>}
+      {saved && <span className="tag ok rating-saved-badge" role="status">Đã lưu</span>}
       {error && <span className="error rating-row-error" role="alert">{error}</span>}
     </li>
   );
@@ -124,7 +124,7 @@ export function RatingPanel({ matchId, onClose }: RatingPanelProps) {
       <div className="rating-header">
         <strong>Chấm điểm người chơi</strong>
         {onClose && (
-          <button type="button" className="btn sm ghost keep" onClick={onClose}>
+          <button type="button" className="btn sm ghost" onClick={onClose}>
             Đóng
           </button>
         )}

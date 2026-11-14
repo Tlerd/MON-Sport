@@ -16,6 +16,7 @@ import mobileShell from './mobile-shell.mjs';
 import ownerDecide from './owner-decide.mjs';
 import phoneBooking from './phone-booking.mjs';
 import playerRequest from './player-request.mjs';
+import webResponsive from './web-responsive.mjs';
 import { parseOptions, ROOT, Run } from './lib.mjs';
 import { envFilePath, loadVerifyEnv } from './verify-env.mjs';
 
@@ -24,6 +25,7 @@ const WEB_FLOWS = {
   'owner-decide': ownerDecide,
   'phone-booking': phoneBooking,
   'lobby-approval': lobbyApproval,
+  'web-responsive': webResponsive,
 };
 const MOBILE_FLOWS = {
   'mobile-shell': mobileShell,

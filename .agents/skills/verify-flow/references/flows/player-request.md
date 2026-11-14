@@ -1,11 +1,11 @@
 # Flow player-request
 
-UC-3 "Gửi yêu cầu đặt sân", brief F-002. Script: `scripts/player-request.mjs`. Screens: the login form (`/dang-nhap`), "Đặt sân" (`/`), "Lịch của tôi" (`/lich-cua-toi`).
+UC-3 "Gửi yêu cầu đặt sân", brief F-002. Script: `scripts/player-request.mjs`. Screens: the login form (`/dang-nhap`), venues list (`/san`), venue booking (`/san/:id`), "Lịch của tôi" (`/lich-cua-toi`).
 
 | Step | Asserts |
 |---|---|
-| setup: log in as player | `POST /api/auth/login` answers 200 with role `USER`. The user name shows in the top bar |
-| send a booking request | `POST /api/bookings` answers 201 with status `PENDING`. `startAt` and `endAt` are the chosen slot in Vietnam time. `priceTotal` and "Tạm tính" both equal the BR-4 and BR-5 price from `GET /api/venues`. The ticket shows "Chờ xác nhận" and the slot. "Booking của tôi" has one ticket for that slot, "Chờ xác nhận" |
+| setup: log in as player | `POST /api/auth/login` answers 200 with role `USER`. `.top .me-btn .name` shows the user name in the top bar |
+| send a booking request | From `/san`, the player opens the venue (`/san/:id`). `POST /api/bookings` answers 201 with status `PENDING`. `startAt` and `endAt` are the chosen slot in Vietnam time. `priceTotal` and "Tạm tính" both equal the BR-4 and BR-5 price from `GET /api/venues`. The ticket shows "Chờ xác nhận" and the slot. Navigating via top nav "Lịch" to `/lich-cua-toi`, "Booking của tôi" has one ticket for that slot, "Chờ xác nhận" |
 
 ## When it fails
 

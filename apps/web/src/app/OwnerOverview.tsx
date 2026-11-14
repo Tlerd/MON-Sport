@@ -78,7 +78,7 @@ export function OwnerOverview({ now }: { now?: Date } = {}) {
           ) : (
             <ul className="tickets">
               {latestPending.map((r) => (
-                <li key={r.id} className="ticket card-web" data-status={r.status}>
+                <li key={r.id} className="ticket card" data-status={r.status}>
                   <span className="stub">
                     <strong>{formatTime(r.startAt)}</strong>
                     <span>đến {formatTime(r.endAt)}</span>

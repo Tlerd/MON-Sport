@@ -50,12 +50,12 @@ export type CancelAskState = ReturnType<typeof useCancelFlow>['ask'];
 export function CancelAsk({ id, label, ask }: { id: string; label: string; ask: CancelAskState }) {
   return ask.asking === id ? (
     <span className="actions">
-      <button type="button" className="btn sm danger secondary" autoFocus data-focus={id} disabled={ask.busy} aria-label={`Xác nhận hủy booking ${label}`} onClick={() => ask.onConfirm(id)}>Xác nhận hủy</button>
-      <button type="button" className="btn sm ghost keep" onClick={() => ask.onKeep(id)}>Giữ booking</button>
+      <button type="button" className="btn sm danger" autoFocus data-focus={id} disabled={ask.busy} aria-label={`Xác nhận hủy booking ${label}`} onClick={() => ask.onConfirm(id)}>Xác nhận hủy</button>
+      <button type="button" className="btn sm ghost" onClick={() => ask.onKeep(id)}>Giữ booking</button>
     </span>
   ) : (
     <span className="actions single">
-      <button type="button" className="btn sm ghost keep" data-focus={id} aria-label={`Hủy booking ${label}`} onClick={() => ask.onAsk(id)}>Hủy</button>
+      <button type="button" className="btn sm ghost" data-focus={id} aria-label={`Hủy booking ${label}`} onClick={() => ask.onAsk(id)}>Hủy</button>
     </span>
   );
 }

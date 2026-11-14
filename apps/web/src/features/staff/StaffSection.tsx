@@ -67,92 +67,114 @@ export function StaffSection({ venueId }: { venueId: string }) {
   }
 
   return (
-    <section className="staff-section" aria-label="Nhân viên">
+    <section className="card pad staff-section" aria-label="Nhân viên">
       <h4>Nhân viên</h4>
       {error && <p className="error" role="alert">{error}</p>}
       {staffList === null && !error && <p className="empty">Đang tải nhân viên…</p>}
-      {staffList?.length === 0 && <p className="empty-staff">Chưa có nhân viên nào.</p>}
+      {staffList?.length === 0 && <p className="empty">Chưa có nhân viên nào.</p>}
 
       {staffList && staffList.length > 0 && (
-        <ul className="staff-list">
-          {staffList.map((s) => (
-            <li key={s.id} className="staff-item">
-              <span className="staff-name">{s.name}</span>
-              <span className="staff-phone">{s.phone}</span>
-              <span className={`staff-status ${s.lockedAt ? 'locked' : 'active'}`}>
-                {s.lockedAt ? 'Đã khóa' : 'Đang làm'}
-              </span>
-              {!s.lockedAt && (
-                confirmLockId === s.id ? (
-                  <span role="dialog" aria-label={`Xác nhận khóa ${s.name}`} className="confirm-lock">
-                    <span>Khóa {s.name}?</span>
-                    <button
-                      ref={confirmBtnRef}
-                      type="button"
-                      className="btn-confirm-lock"
-                      onClick={() => handleLock(s.id)}
-                    >
-                      Xác nhận khóa
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary btn-cancel-lock"
-                      onClick={() => setConfirmLockId(null)}
-                    >
-                      Hủy
-                    </button>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="secondary btn-lock"
-                    onClick={() => setConfirmLockId(s.id)}
-                  >
-                    Khóa
-                  </button>
-                )
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="table-scroll">
+          <table className="tbl staff-tbl">
+            <thead>
+              <tr>
+                <th scope="col">Nhân viên</th>
+                <th scope="col">Số điện thoại</th>
+                <th scope="col">Trạng thái</th>
+                <th scope="col" className="r">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {staffList.map((s) => (
+                <tr key={s.id} className={s.lockedAt ? 'muted' : undefined}>
+                  <td data-label="Nhân viên">
+                    <b>{s.name}</b>
+                  </td>
+                  <td data-label="Số điện thoại" className="phone tnum">
+                    {s.phone}
+                  </td>
+                  <td data-label="Trạng thái">
+                    <span className={`tag ${s.lockedAt ? 'bad' : 'ok'}`}>
+                      {s.lockedAt ? 'Đã khóa' : 'Đang làm'}
+                    </span>
+                  </td>
+                  <td data-label="Thao tác" className="r">
+                    {!s.lockedAt && (
+                      confirmLockId === s.id ? (
+                        <span role="dialog" aria-label={`Xác nhận khóa ${s.name}`} className="confirm-lock">
+                          <span>Khóa {s.name}?</span>
+                          <button
+                            ref={confirmBtnRef}
+                            type="button"
+                            className="btn sm danger"
+                            onClick={() => handleLock(s.id)}
+                          >
+                            Xác nhận khóa
+                          </button>
+                          <button
+                            type="button"
+                            className="btn sm ghost"
+                            onClick={() => setConfirmLockId(null)}
+                          >
+                            Hủy
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn sm ghost"
+                          onClick={() => setConfirmLockId(s.id)}
+                        >
+                          Khóa
+                        </button>
+                      )
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      <form onSubmit={handleCreate} className="staff-form">
+      <form onSubmit={handleCreate} className="staff-form stack-form">
         <h5>Thêm nhân viên</h5>
         {formError && <p className="error" role="alert">{formError}</p>}
-        <label>
-          Tên nhân viên
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            placeholder="Tên nhân viên"
-          />
-        </label>
-        <label>
-          Số điện thoại
-          <input
-            type="tel"
-            inputMode="tel"
-            autoComplete="off"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-            placeholder="09..."
-          />
-        </label>
-        <label>
-          Mật khẩu
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            placeholder="Mật khẩu"
-          />
-        </label>
+        <div className="fgrid three">
+          <label className="fld">
+            <span>Tên nhân viên</span>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              placeholder="Tên nhân viên"
+            />
+          </label>
+          <label className="fld">
+            <span>Số điện thoại</span>
+            <input
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+              placeholder="09..."
+            />
+          </label>
+          <label className="fld">
+            <span>Mật khẩu</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="Mật khẩu"
+            />
+          </label>
+        </div>
         <label className="checkbox-row">
           <input
             type="checkbox"
@@ -162,9 +184,11 @@ export function StaffSection({ venueId }: { venueId: string }) {
           />
           <span>Nhân viên đã đồng ý với thông báo về dữ liệu cá nhân</span>
         </label>
-        <button type="submit" disabled={submitting || !consent}>
-          Thêm nhân viên
-        </button>
+        <div className="actions">
+          <button type="submit" className="btn lime" disabled={submitting || !consent}>
+            Thêm nhân viên
+          </button>
+        </div>
       </form>
     </section>
   );

@@ -174,6 +174,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - shells.tsx: initial, MobileBanner, PlayerShell, OwnerShell, AdminShell
 
 ## apps/web/src/components/
+- Avatar.tsx: initial, Avatar
 - Chip.tsx: ChipProps, Chip
 - ComingSoon.tsx: ComingSoonButtonProps, ComingSoonButton, ComingSoonPageProps, ComingSoonPage
 - CourtArt.tsx: CourtArtProps, CourtArt
@@ -185,7 +186,6 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - SportIcon.tsx: KnownSportId, normalizeSportId, SportIconProps, SportIcon
 - StatusBadge.tsx: StatusValue, StatusBadgeProps, StatusBadge
 - Toast.tsx: ToastTone, ToastContextValue, ToastProvider, useToast
-- icons.tsx: IconProps, IconBadminton, IconFootball, SportIcon
 
 ## apps/web/src/features/admin/
 - AccountLock.tsx: AccountLock

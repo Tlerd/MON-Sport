@@ -471,10 +471,7 @@ A day from 06:00 to 23:00 has 34 cells of 30 minutes. One row of 34 cells is too
 |---|---|---|
 | < 360px | Mobile app | Not designed. Must not overflow horizontally |
 | 360–430px | Mobile app | The target. Tab bar, hide on scroll, sheets |
-| < 768px (down to 390px) | Web | **390px layout rule.** One column. The top nav becomes a bar with a menu button, and the sidebar becomes a drawer. The right pane (summary) becomes a fixed `ActionBar` at the bottom, with "Gọi chủ sân" and "Gửi yêu cầu". Lists and details open as separate screens. Slot rows scroll sideways, the page never does. Touch targets are 44px or more. No banner. A link to `/app/` may be added |
-| 768–1023px | Web | Sidebar becomes a 72px icon rail. Three panes become two: the summary moves under the grid |
-| 1024–1439px | Web | The target layouts |
-| ≥ 1440px | Web | Same layouts. Player content stays at 1280px; owner and admin use the full width |
+| All widths (360–1440px+) | Web | See [docs/design/web-responsive.md](docs/design/web-responsive.md) |
 
 - Touch targets are 44px or more on mobile.
 - On mobile, the slot row of a court scrolls sideways. The page never scrolls sideways.

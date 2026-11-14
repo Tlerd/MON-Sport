@@ -19,7 +19,7 @@ import {
   User,
   Users,
 } from 'lucide-react';
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useToast } from '../components/Toast.tsx';
 import { GoogleAccountActions } from '../features/auth/GoogleAccountActions.tsx';
@@ -43,11 +43,32 @@ const ROLE_LABEL: Record<Role, string> = {
 
 const navClass = ({ isActive }: { isActive: boolean }) => (isActive ? 'on active' : '');
 
+function useDrawerFocus(
+  drawerOpen: boolean,
+  drawerRef: RefObject<HTMLElement | null>,
+  menuBtnRef: RefObject<HTMLButtonElement | null>,
+) {
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (drawerOpen) {
+      wasOpen.current = true;
+      const first = drawerRef.current?.querySelector<HTMLElement>(
+        'input, a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      first?.focus();
+    } else if (wasOpen.current) {
+      wasOpen.current = false;
+      menuBtnRef.current?.focus();
+    }
+  }, [drawerOpen, drawerRef, menuBtnRef]);
+}
+
 function TopBar({
   homeTo,
   hasSidebar = false,
   drawerOpen = false,
   onToggleDrawer,
+  menuBtnRef,
   leftExtra,
   center,
   rightExtra,
@@ -56,6 +77,7 @@ function TopBar({
   hasSidebar?: boolean;
   drawerOpen?: boolean;
   onToggleDrawer?: () => void;
+  menuBtnRef?: RefObject<HTMLButtonElement | null>;
   leftExtra?: ReactNode;
   center: ReactNode;
   rightExtra?: ReactNode;
@@ -88,6 +110,7 @@ function TopBar({
       <div className="top-l">
         {hasSidebar && (
           <button
+            ref={menuBtnRef}
             type="button"
             className="ib menu-btn"
             aria-label={drawerOpen ? 'Đóng menu' : 'Mở menu'}
@@ -120,7 +143,7 @@ function TopBar({
                 onClick={() => setPopOpen((open) => !open)}
               >
                 <span
-                  className="av avatar"
+                  className="av"
                   style={{ '--s': '34px', '--c': 'var(--ok)' } as CSSProperties}
                   aria-hidden="true"
                 >
@@ -186,6 +209,10 @@ export function PlayerShell() {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+
+  useDrawerFocus(drawerOpen, drawerRef, menuBtnRef);
 
   const handleSearch = () => {
     const q = searchText.trim();
@@ -207,12 +234,13 @@ export function PlayerShell() {
   }, [drawerOpen]);
 
   return (
-    <div className="shell player-shell">
+    <div>
       <TopBar
         homeTo="/"
         hasSidebar
         drawerOpen={drawerOpen}
         onToggleDrawer={() => setDrawerOpen((v) => !v)}
+        menuBtnRef={menuBtnRef}
         leftExtra={
           <div className="search" role="search">
             <Search size={16} className="ic" aria-hidden="true" />
@@ -233,23 +261,23 @@ export function PlayerShell() {
         }
         center={
           <nav className="top-c" aria-label="Điều hướng chính">
-            <NavLink to="/" end className={navClass}>
+            <NavLink to="/" end className={navClass} title="Trang chủ" aria-label="Trang chủ">
               <Home size={18} className="ic" aria-hidden="true" />
               <span>Trang chủ</span>
             </NavLink>
-            <NavLink to="/phong-cho" className={navClass}>
+            <NavLink to="/phong-cho" className={navClass} title="Ghép trận" aria-label="Ghép trận">
               <Users size={18} className="ic" aria-hidden="true" />
               <span>Ghép trận</span>
             </NavLink>
-            <NavLink to="/san" className={navClass}>
+            <NavLink to="/san" className={navClass} title="Sân" aria-label="Sân">
               <MapPin size={18} className="ic" aria-hidden="true" />
               <span>Sân</span>
             </NavLink>
-            <NavLink to="/doi" className={navClass}>
+            <NavLink to="/doi" className={navClass} title="Đội" aria-label="Đội">
               <Shield size={18} className="ic" aria-hidden="true" />
               <span>Đội</span>
             </NavLink>
-            <NavLink to="/lich-cua-toi" className={navClass}>
+            <NavLink to="/lich-cua-toi" className={navClass} title="Lịch" aria-label="Lịch">
               <Calendar size={18} className="ic" aria-hidden="true" />
               <span>Lịch</span>
             </NavLink>
@@ -260,6 +288,8 @@ export function PlayerShell() {
             <button
               type="button"
               className="btn lime sm create-match-btn"
+              aria-label="Tạo trận"
+              title="Tạo trận"
               onClick={() => navigate(user ? '/lich-cua-toi' : '/dang-nhap')}
             >
               <Plus size={16} className="ic" aria-hidden="true" />
@@ -283,7 +313,7 @@ export function PlayerShell() {
             aria-hidden="true"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className="lcol float open" aria-label="Menu điều hướng">
+          <aside ref={drawerRef} className="lcol float open" aria-label="Menu điều hướng">
             <div className="search drawer-search" role="search">
               <Search size={16} className="ic" aria-hidden="true" />
               <input
@@ -303,7 +333,7 @@ export function PlayerShell() {
             <div className="card me-card">
               {user ? (
                 <NavLink to="/ho-so" className="me-link" onClick={() => setDrawerOpen(false)}>
-                  <span className="av avatar" style={{ '--s': '44px', '--c': 'var(--ok)' } as CSSProperties} aria-hidden="true">
+                  <span className="av" style={{ '--s': '44px', '--c': 'var(--ok)' } as CSSProperties} aria-hidden="true">
                     {initial(user.name)}
                   </span>
                   <span className="me-meta">
@@ -371,6 +401,10 @@ export function OwnerShell() {
   const { pathname } = useLocation();
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+
+  useDrawerFocus(drawerOpen, drawerRef, menuBtnRef);
 
   useEffect(() => {
     api<Array<{ status: string }>>('/api/owner/bookings')
@@ -392,12 +426,13 @@ export function OwnerShell() {
   }, [drawerOpen]);
 
   return (
-    <div className="shell owner-shell" data-role={user?.role}>
+    <div data-role={user?.role}>
       <TopBar
         homeTo={user?.role === 'STAFF' ? '/chu-san/lich' : '/chu-san/yeu-cau'}
         hasSidebar
         drawerOpen={drawerOpen}
         onToggleDrawer={() => setDrawerOpen((v) => !v)}
+        menuBtnRef={menuBtnRef}
         center={<span className="role-pill">Kênh chủ sân</span>}
       />
       <div className="dash">
@@ -409,12 +444,13 @@ export function OwnerShell() {
           />
         )}
         <aside
-          className={drawerOpen ? 'side sidebar open' : 'side sidebar'}
+          ref={drawerRef}
+          className={drawerOpen ? 'side open' : 'side'}
           aria-label="Menu chủ sân"
         >
           <div className="side-who">
             <span
-              className="av avatar"
+              className="av"
               style={{ '--s': '38px', '--c': 'var(--ok)' } as CSSProperties}
               aria-hidden="true"
             >
@@ -425,7 +461,7 @@ export function OwnerShell() {
               <small>{user?.role === 'STAFF' ? 'Nhân viên' : 'Chủ sân'}</small>
             </div>
           </div>
-          <nav className="sidebar-nav" aria-label="Chức năng chủ sân">
+          <nav aria-label="Chức năng chủ sân">
             {user?.role !== 'STAFF' && (
               <NavLink to="/chu-san/tong-quan" className={navClass}>
                 <LayoutDashboard size={18} className="ic" aria-hidden="true" />
@@ -455,7 +491,7 @@ export function OwnerShell() {
             )}
           </nav>
         </aside>
-        <main className="dash-main owner-main">
+        <main className="dash-main">
           <Outlet />
         </main>
       </div>
@@ -467,6 +503,10 @@ export function AdminShell() {
   const { user } = useSession();
   const { pathname } = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+
+  useDrawerFocus(drawerOpen, drawerRef, menuBtnRef);
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -482,12 +522,13 @@ export function AdminShell() {
   }, [drawerOpen]);
 
   return (
-    <div className="shell admin-shell">
+    <div>
       <TopBar
         homeTo="/admin"
         hasSidebar
         drawerOpen={drawerOpen}
         onToggleDrawer={() => setDrawerOpen((v) => !v)}
+        menuBtnRef={menuBtnRef}
         center={<span className="role-pill">Trang quản trị</span>}
       />
       <div className="dash">
@@ -499,12 +540,13 @@ export function AdminShell() {
           />
         )}
         <aside
-          className={drawerOpen ? 'side sidebar open' : 'side sidebar'}
+          ref={drawerRef}
+          className={drawerOpen ? 'side open' : 'side'}
           aria-label="Menu quản trị"
         >
           <div className="side-who">
             <span
-              className="av avatar"
+              className="av"
               style={{ '--s': '38px', '--c': 'var(--ok)' } as CSSProperties}
               aria-hidden="true"
             >
@@ -515,7 +557,7 @@ export function AdminShell() {
               <small>Quản trị viên</small>
             </div>
           </div>
-          <nav className="sidebar-nav" aria-label="Chức năng quản trị">
+          <nav aria-label="Chức năng quản trị">
             <NavLink to="/admin" end className={navClass}>
               <LayoutDashboard size={18} className="ic" aria-hidden="true" />
               <span>Tổng quan</span>
@@ -534,7 +576,7 @@ export function AdminShell() {
             </NavLink>
           </nav>
         </aside>
-        <main className="dash-main admin-main">
+        <main className="dash-main">
           <Outlet />
         </main>
       </div>

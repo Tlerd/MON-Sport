@@ -22,7 +22,7 @@ export async function requestBooking(run, flow, label = 'send a booking request'
   assert(court, `"${venueName}" has no court "${courtName}". Set VERIFY_COURT`);
 
   return run.step(flow, label, page, async () => {
-    await page.goto(run.base);
+    await page.goto(`${run.base}/san`);
     await page.locator('.venue-card', { hasText: venueName }).click();
     await page.getByRole('heading', { name: venueName }).waitFor();
 
@@ -75,7 +75,7 @@ export async function requestBooking(run, flow, label = 'send a booking request'
       const slotText = `${showTime(body.startAt)}–${showTime(body.endAt)} ngày ${showDay(body.startAt)}`;
       assert((await ticket.innerText()).includes(slotText), `the ticket does not show ${slotText}`);
 
-      await page.getByRole('link', { name: 'Lịch của tôi' }).click();
+      await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Lịch' }).click();
       const row = await rowIn(page, 'Booking của tôi', body);
       await row.getByText('Chờ xác nhận').waitFor();
       body.slotText = slotText;
