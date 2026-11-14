@@ -54,6 +54,46 @@ function accounts(target) {
   };
 }
 
+// Live pages show real names and phones, and the evidence goes to a public pull request: mask them.
+const MASK_SELECTOR = [
+  '.customer',
+  '.who',
+  '.hero h1',
+  '.call',
+  '.me-btn',
+  '.pop',
+  '.pop-head',
+  '.me-card',
+  '.me-meta',
+  '.side-who',
+  '.roster',
+  '.rp',
+  '.queue-user',
+  '.queue-row',
+  '.note',
+  '.req-who',
+  '.req-name',
+  '.pending-req',
+  '.owner-overview .req',
+  '.phead',
+  '.staff-tbl tbody td',
+  '.accounts li',
+  '.notif-item-msg',
+  '.cell-text',
+  '.rating-player-name',
+  '[data-field="customer"]',
+  '[data-field="phone"]',
+  'a[href^="tel:"]',
+  '[role="dialog"] p',
+  '#phone-booking-name',
+  'input[autocomplete="tel"]',
+  'input[type="tel"]',
+  'input[inputmode="tel"]',
+  '[data-testid="user-name"]',
+  '[data-testid="metric-grid"]',
+  '[aria-label="Biểu đồ doanh thu"]',
+].join(', ');
+
 export class SkipFlow extends Error {}
 
 export class Run {
@@ -102,46 +142,7 @@ export class Run {
       if (account.phone) detail = detail.replaceAll(account.phone, `<${role} phone>`);
     }
     const file = page ? join(this.dir, `${n}-${flow}-${slug(name)}${status === 'FAIL' ? '-FAIL' : ''}.png`) : '';
-    // Live pages show real names and phones, and the evidence goes to a public pull request: mask them.
-    const maskSelector = [
-      '.customer',
-      '.who',
-      '.hero h1',
-      '.call',
-      '.me-btn',
-      '.pop',
-      '.pop-head',
-      '.me-card',
-      '.me-meta',
-      '.side-who',
-      '.roster',
-      '.rp',
-      '.queue-user',
-      '.queue-row',
-      '.note',
-      '.req-who',
-      '.req-name',
-      '.pending-req',
-      '.owner-overview .req',
-      '.phead',
-      '.staff-tbl tbody td',
-      '.accounts li',
-      '.notif-item-msg',
-      '.cell-text',
-      '.rating-player-name',
-      '[data-field="customer"]',
-      '[data-field="phone"]',
-      'a[href^="tel:"]',
-      '[role="dialog"] p',
-      '#phone-booking-name',
-      'input[autocomplete="tel"]',
-      'input[type="tel"]',
-      'input[inputmode="tel"]',
-      '[data-testid="user-name"]',
-      '[data-testid="metric-grid"]',
-      '[aria-label="Biểu đồ doanh thu"]',
-    ].join(', ');
-    const mask = page && this.opts.target === 'live' ? [page.locator(maskSelector)] : [];
+    const mask = page && this.opts.target === 'live' ? [page.locator(MASK_SELECTOR)] : [];
     await page?.screenshot({ path: file, fullPage: true, mask }).catch(() => undefined);
     this.results.push({ n, flow, name, status, detail, file });
     console.log(`${status} ${flow}: ${name}${detail ? ` (${detail})` : ''}`);
@@ -280,7 +281,8 @@ async function login(run, page, account, role) {
 /** Measures document horizontal overflow and non-scroll-container descendant overflow at the given viewport width. */
 export async function checkNoHorizontalOverflow(page, width, label) {
   await page.setViewportSize({ width, height: 900 });
-  const result = await page.evaluate(() => {
+  await page.waitForTimeout(350);
+  const result = await page.evaluate((maskSelector) => {
     const innerWidth = window.innerWidth;
     const scrollWidth = document.documentElement.scrollWidth;
     const isScrollContainer = (el) => {
@@ -309,16 +311,20 @@ export async function checkNoHorizontalOverflow(page, width, label) {
       const rect = el.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) continue;
       const r = Math.round(rect.right);
-      if (r > maxRight) {
+      if (r >= maxRight) {
         maxRight = r;
-        culprit = `${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).trim().replace(/\s+/g, '.') : ''}`;
+        const cls = (el.getAttribute('class') ?? '').trim();
+        const tagClass = `${el.tagName.toLowerCase()}${cls ? '.' + cls.replace(/\s+/g, '.') : ''}`;
+        const masked = Boolean(maskSelector && el.closest(maskSelector));
+        const text = masked ? '' : (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
+        culprit = text ? `${tagClass} "${text}"` : tagClass;
       }
     }
     return { innerWidth, scrollWidth, maxRight, culprit };
-  });
+  }, MASK_SELECTOR);
   assert(
     result.scrollWidth <= result.innerWidth,
-    `${label} at ${width}px: scrollWidth (${result.scrollWidth}) > innerWidth (${result.innerWidth})`,
+    `${label} at ${width}px: scrollWidth (${result.scrollWidth}) > innerWidth (${result.innerWidth})${result.culprit ? ` (widest: ${result.culprit} at ${result.maxRight}px)` : ''}`,
   );
   assert(
     result.maxRight <= result.innerWidth,

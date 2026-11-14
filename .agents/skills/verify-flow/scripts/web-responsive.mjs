@@ -27,6 +27,7 @@ async function checkRoute(run, page, path) {
       if (failures.length) {
         if (firstFailedWidth !== null) {
           await page.setViewportSize({ width: firstFailedWidth, height: 900 }).catch(() => {});
+          await page.waitForTimeout(350).catch(() => {});
         }
         throw new Error(failures.join(' | '));
       }
