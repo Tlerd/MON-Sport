@@ -221,6 +221,28 @@ describe('HomePage (F-033)', () => {
     expect(screen.queryByText(/0912345678/)).toBeNull();
   });
 
+  it('AC-4: a match with a long venue, court, and host name renders every meta part', async () => {
+    const longVenueName = 'Trung tâm Thể dục Thể thao Liên hiệp Quận Tân Bình Thành phố';
+    const longCourtName = 'Sân thi đấu tiêu chuẩn quốc tế số 01';
+    const longHostName = 'Nguyễn Trần Hoàng Minh Quân Anh Dũng Lộc';
+    expect(longVenueName).toHaveLength(60);
+    expect(longHostName).toHaveLength(40);
+
+    const longMatch: MatchView = {
+      ...matchA,
+      venueName: longVenueName,
+      courtName: longCourtName,
+      hostName: longHostName,
+    };
+    setupFetch({ authed: false, matches: [longMatch] });
+    renderHome();
+
+    expect(await screen.findByText(`${longVenueName} · ${longCourtName}`)).toBeTruthy();
+    expect(screen.getByText('Cầu lông · Ngày 20/11/2026')).toBeTruthy();
+    expect(screen.getByText('18:00–19:00')).toBeTruthy();
+    expect(screen.getByText(`Host: ${longHostName}`)).toBeTruthy();
+  });
+
   it('AC-5: clicking "Tạo trận" sends guest to /dang-nhap and signed-in user to /lich-cua-toi', async () => {
     setupFetch({ authed: false });
     const firstRender = renderHome();
