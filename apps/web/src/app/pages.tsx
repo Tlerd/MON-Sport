@@ -167,7 +167,7 @@ export function AuthPage() {
     setUser(u);
     const dest =
       u.role === 'OWNER'
-        ? '/chu-san/yeu-cau'
+        ? '/chu-san/tong-quan'
         : u.role === 'STAFF'
           ? '/chu-san/lich'
           : u.role === 'ADMIN'

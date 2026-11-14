@@ -428,7 +428,7 @@ export function OwnerShell() {
   return (
     <div data-role={user?.role}>
       <TopBar
-        homeTo={user?.role === 'STAFF' ? '/chu-san/lich' : '/chu-san/yeu-cau'}
+        homeTo={user?.role === 'STAFF' ? '/chu-san/lich' : '/chu-san/tong-quan'}
         hasSidebar
         drawerOpen={drawerOpen}
         onToggleDrawer={() => setDrawerOpen((v) => !v)}

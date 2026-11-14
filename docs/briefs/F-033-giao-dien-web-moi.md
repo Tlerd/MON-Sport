@@ -65,7 +65,7 @@ Người dùng, chủ sân, nhân viên và admin dùng web với khung, màu, c
 | Admin | `/admin/tai-khoan` | `adminUsers`, `adminVenues` | Phần chủ sân, khóa tài khoản và đơn vị của `AdminPanel` | — |
 | Admin | `/admin/bao-cao`, `/admin/mon` | `adminReports`, `adminSports` | Tiêu đề trang | Cả trang: trạng thái rỗng "Sắp ra mắt" |
 
-Trang đầu sau đăng nhập giữ nguyên: người dùng `/`, chủ sân `/chu-san/yeu-cau`, nhân viên `/chu-san/lich`, admin `/admin`.
+Trang đầu sau đăng nhập: người dùng `/`, chủ sân `/chu-san/tong-quan` (dòng 66, đã chốt ngày 14/11/2026), nhân viên `/chu-san/lich`, admin `/admin`.
 
 ## Acceptance criteria
 
@@ -85,6 +85,7 @@ Each criterion has one test. The test name starts with the label, for example `A
 | AC-10 | Nhân viên đã đăng nhập | Nhân viên mở `/chu-san/tong-quan` | Web chuyển tới `/chu-san/lich`. Thanh bên không có "Tổng quan". Test: `apps/web/src/app/App.test.tsx` |
 | AC-11 | Admin đã đăng nhập | Admin mở `/admin`, rồi bấm "Tài khoản và đơn vị", "Báo cáo vi phạm", "Môn thể thao" | `/admin` hiện "Số liệu toàn trang". `/admin/tai-khoan` hiện tiêu đề "Chủ sân". Hai trang còn lại hiện "Sắp ra mắt". Test: `apps/web/src/app/App.test.tsx` |
 | AC-12 | Người dùng "Lan" đã đăng nhập | Người dùng mở `/ho-so` và bấm "Sửa hồ sơ" | Trang hiện tên "Lan". Thông báo "Sắp ra mắt" hiện ra. Test: `apps/web/src/app/App.test.tsx` |
+| AC-13 | Chủ sân | Chủ sân đăng nhập, hoặc mở `/`, hoặc mở `/admin` | Web chuyển tới `/chu-san/tong-quan` và hiện tiêu đề "Tổng quan". Logo của thanh trên dẫn tới `/chu-san/tong-quan`. Test: `apps/web/src/app/App.test.tsx` |
 
 Kiểm bằng skill `verify-flow` ở 390px, 768px, 1024px và 1440px: không màn nào rộng hơn cửa sổ (`document.documentElement.scrollWidth <= innerWidth`). Các màn: `/`, `/phong-cho`, `/san`, `/san/:id`, `/doi`, `/lich-cua-toi`, `/ho-so`, `/dang-nhap`, `/chu-san/tong-quan`, `/chu-san/yeu-cau`, `/chu-san/lich`, `/chu-san/doanh-thu`, `/chu-san/don-vi`, `/admin`, `/admin/tai-khoan`, `/admin/bao-cao`, `/admin/mon`.
 
@@ -143,6 +144,7 @@ Khung mới đổi chữ, vai trò và đường dẫn của vài phần tử. C
 | `.agents/skills/verify-flow/scripts/lobby-approval.mjs` | `[390, 1024, 1440]` | `[390, 768, 1024, 1440]` | Bổ sung kiểm tra tràn ngang ở chiều rộng 768px theo `docs/design/web-responsive.md` |
 | `.agents/skills/verify-flow/scripts/web-responsive.mjs` (mới) | Chưa có | Kiểm tra 17 đường dẫn web ở 390, 768, 1024 và 1440px | Bảo đảm không đường dẫn nào cuộn ngang theo tiêu chí F-033 |
 | `.agents/skills/verify-flow/scripts/lib.mjs` | `.who .name` | `.top .me-btn .name` | Tên nằm trong nút tài khoản ở thanh trên |
+| `apps/web/src/app/App.test.tsx` ("shows the owner requests to an owner", AC-14, AC-13, AC-10, AC-11 của chủ sân) | chủ sân mở `/` rồi chờ tiêu đề "Yêu cầu đặt sân" | chờ tiêu đề "Tổng quan". Test đầu thành `AC-13` và kiểm thêm đường dẫn | Trang đầu của chủ sân là `/chu-san/tong-quan` (dòng 66, đã chốt) |
 
 ## Risks and reviews
 
@@ -158,11 +160,11 @@ Không đổi tiền, khóa, schema.
 
 ## Assumptions
 
-1. Tên sản phẩm vẫn là MONSPORT, không phải "Ra Sân" (`HUMAN_DECISIONS.md`, dòng 63).
-2. Web dùng tên gọi của intake thay cho "kèo" và "cụm sân" (dòng 64).
+1. Tên sản phẩm vẫn là MONSPORT, không phải "Ra Sân" (`HUMAN_DECISIONS.md`, dòng 63, đã chốt).
+2. Web dùng tên gọi của intake thay cho "kèo" và "cụm sân" (dòng 64, đã chốt).
 3. Web co giãn theo quy tắc riêng trong `docs/design/web-responsive.md`. Người dùng giao quyết định này cho agent (dòng 65, đã chốt).
 4. "Tạo trận" đưa người dùng tới `/lich-cua-toi`, vì một trận mở trên một booking (intake, "Tên gọi"). Hộp tạo trận của mẫu không được làm.
-5. Trang đầu sau đăng nhập của chủ sân vẫn là `/chu-san/yeu-cau`, vì đó là việc chờ chủ sân làm (dòng 66).
+5. Đã thay ngày 14/11/2026: người dùng chốt trang đầu của chủ sân là `/chu-san/tong-quan` (dòng 66). Giả định cũ là `/chu-san/yeu-cau`.
 6. "Tổng quan" của chủ sân không hiện tiền, nên nó không thêm luật về doanh thu. Doanh thu vẫn chỉ ở `/chu-san/doanh-thu`.
 7. "Duyệt sân" của mẫu không có trong MONSPORT: admin tạo đơn vị và sân. Màn admin giữ chức năng hiện có dưới tên "Tài khoản và đơn vị".
 8. Một bước lớn hơn 400 dòng, vì phần lớn là CSS và JSX của màn có sẵn. Tách nhỏ hơn làm hỏng màn giữa chừng.
@@ -171,7 +173,6 @@ Không đổi tiền, khóa, schema.
 
 | Question | Owner | Blocks |
 |---|---|---|
-| Các dòng 63, 64 và 66 của `HUMAN_DECISIONS.md` | Người dùng | none |
 | Thứ tự làm các chức năng "Sắp ra mắt" | Người dùng | none |
 
 ## Done when
