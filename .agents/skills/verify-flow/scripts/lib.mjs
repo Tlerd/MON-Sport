@@ -282,7 +282,7 @@ async function login(run, page, account, role) {
 export async function checkNoHorizontalOverflow(page, width, label) {
   await page.setViewportSize({ width, height: 900 });
   await page.waitForTimeout(350);
-  const result = await page.evaluate((maskSelector) => {
+  const result = await page.evaluate(() => {
     const innerWidth = window.innerWidth;
     const scrollWidth = document.documentElement.scrollWidth;
     const isScrollContainer = (el) => {
@@ -314,14 +314,12 @@ export async function checkNoHorizontalOverflow(page, width, label) {
       if (r >= maxRight) {
         maxRight = r;
         const cls = (el.getAttribute('class') ?? '').trim();
-        const tagClass = `${el.tagName.toLowerCase()}${cls ? '.' + cls.replace(/\s+/g, '.') : ''}`;
-        const masked = Boolean(maskSelector && el.closest(maskSelector));
-        const text = masked ? '' : (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
-        culprit = text ? `${tagClass} "${text}"` : tagClass;
+        const field = (el.getAttribute('data-field') ?? '').trim();
+        culprit = `${el.tagName.toLowerCase()}${cls ? '.' + cls.replace(/\s+/g, '.') : ''}${field ? `[data-field="${field}"]` : ''}`;
       }
     }
     return { innerWidth, scrollWidth, maxRight, culprit };
-  }, MASK_SELECTOR);
+  });
   assert(
     result.scrollWidth <= result.innerWidth,
     `${label} at ${width}px: scrollWidth (${result.scrollWidth}) > innerWidth (${result.innerWidth})${result.culprit ? ` (widest: ${result.culprit} at ${result.maxRight}px)` : ''}`,
