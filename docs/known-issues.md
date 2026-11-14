@@ -41,9 +41,7 @@ Errors that happened before. When a new error looks the same, apply the fix firs
 
 ## agy cannot run `node`: "Access is denied", then a hook stops the run
 
-- Seen: 2026-11-14, agy 1.5.8 on `gemini-4-hydrogen-high`, `--mode accept-edits`. A command in the terminal sandbox failed with `'node' is not recognized` and `C:\Program Files
-odejs
-ode.exe: Access is denied`. agy tried again with `BypassSandbox: true`, and a pre-tool hook stopped the whole run. The run ended with exit 0 and no file changed.
+- Seen: 2026-11-14, agy 1.5.8 on `gemini-4-hydrogen-high`, `--mode accept-edits`. A command in the terminal sandbox failed with `'node' is not recognized` and `C:/Program Files/nodejs/node.exe: Access is denied`. agy tried again with `BypassSandbox: true`, and a pre-tool hook stopped the whole run. The run ended with exit 0 and no file changed.
 - Cause: `enableTerminalSandbox` is `true` in `~/.gemini/antigravity-cli/settings.json`, and the sandbox cannot read the Node folder.
 - Fix: do not change that setting and do not bypass the sandbox. It is the owner's security setting. Start the task with: "Your terminal sandbox has no Node.js. Do not run any terminal command. Only read and write files. The Planner runs `pnpm map` and `pnpm check` and sends you each failure." Then run the checks yourself and send the failures back in a new run.
 - agy has no tool to delete a file. Read its final report: it lists each file the Planner must delete.
