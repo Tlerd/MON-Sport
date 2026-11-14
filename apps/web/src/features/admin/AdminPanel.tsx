@@ -54,7 +54,7 @@ function AccountsTab() {
                       <span className="customer">{o.name}</span>
                     </td>
                     <td data-label="Số điện thoại">
-                      <span className="phone tnum">{o.phone}</span>
+                      <span className="phone tnum" data-field="phone">{o.phone}</span>
                     </td>
                     <td data-label="Trạng thái">
                       <span className={`tag ${o.lockedAt ? 'bad' : 'ok'}`}>

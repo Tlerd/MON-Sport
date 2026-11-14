@@ -50,7 +50,7 @@ export function AccountLock({ onChanged }: { onChanged: (account: AccountView) =
         <button type="submit" className="btn lime">Tìm</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
-      <p className="live empty" role="status">
+      <p className="live empty" role="status" data-field={found?.[0]?.lockedAt ? 'customer' : undefined}>
         {found?.length === 0 ? 'Không có tài khoản nào dùng số này.' : found?.[0]?.lockedAt ? `${found[0].name} đã bị khóa.` : ''}
       </p>
       <ul className="tickets accounts">

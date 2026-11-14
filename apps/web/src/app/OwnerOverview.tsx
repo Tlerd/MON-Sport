@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router';
 import { Customer } from '../features/bookings/customer.tsx';
 
-/** Owner overview screen (/chu-san/tong-quan): pending counts, today's confirmed count, and latest requests. */
+/** Owner overview screen (/chu-san/tong-quan): pending counts, today's confirmed count, and upcoming requests. */
 export function OwnerOverview({ now }: { now?: Date } = {}) {
   const [pending, setPending] = useState<OwnerBookingView[]>([]);
   const [confirmed, setConfirmed] = useState<OwnerBookingView[]>([]);
@@ -66,7 +66,7 @@ export function OwnerOverview({ now }: { now?: Date } = {}) {
       <div className="split even">
         <section className="card pad">
           <div className="sec-row">
-            <h2>Yêu cầu mới nhất</h2>
+            <h2>Yêu cầu sắp tới</h2>
             <NavLink to="/chu-san/yeu-cau" className="link">
               Xử lý yêu cầu
             </NavLink>

@@ -343,7 +343,7 @@ export function SlotGrid({
                   onClick={() => onPick?.(court.id, minute, cell)}
                   onKeyDown={(e) => handleKeyDown(e, courtIdx, colIdx)}
                 >
-                  {displayText && <span className="cell-text">{displayText}</span>}
+                  {displayText && <span className="cell-text" data-field="customer">{displayText}</span>}
                 </button>
               );
             })}

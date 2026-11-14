@@ -55,7 +55,7 @@ Người dùng, chủ sân, nhân viên và admin dùng web với khung, màu, c
 | Người dùng | `/ho-so` (mới) | `profilePage` | Tên, số điện thoại của chính người dùng, trình độ nếu phiên có | "Sửa hồ sơ", các ô số liệu, "Trận gần đây" |
 | Khách | `/dang-nhap` | thẻ `card` giữa trang | `AuthPanel` và các màn Google | — |
 | Chủ sân, nhân viên | khung | `dash` | Thanh bên: "Tổng quan" (chỉ chủ sân), "Yêu cầu" (kèm số), "Lịch sân", "Doanh thu" (chỉ chủ sân), "Đơn vị và giá" (chỉ chủ sân). Thanh trên có nhãn "Kênh chủ sân" | — |
-| Chủ sân | `/chu-san/tong-quan` (mới) | `ownerOverview` | Hai lời gọi: `GET /api/owner/bookings?status=PENDING` và `GET /api/owner/bookings?status=CONFIRMED` (không có `status`, API chỉ trả `PENDING`). Ô "Yêu cầu chờ duyệt" đếm lời gọi đầu. Ô "Lượt đặt hôm nay" đếm booking của lời gọi sau có `vnDateString(startAt) === vnDateString(now)`, 3 yêu cầu chờ mới nhất với liên kết tới `/chu-san/yeu-cau`. Không có số tiền ở màn này | Biểu đồ "Doanh thu 7 ngày", ô "Lấp đầy giờ vàng", "Lịch hôm nay" |
+| Chủ sân | `/chu-san/tong-quan` (mới) | `ownerOverview` | Hai lời gọi: `GET /api/owner/bookings?status=PENDING` và `GET /api/owner/bookings?status=CONFIRMED` (không có `status`, API chỉ trả `PENDING`). Ô "Yêu cầu chờ duyệt" đếm lời gọi đầu. Ô "Lượt đặt hôm nay" đếm booking của lời gọi sau có `vnDateString(startAt) === vnDateString(now)`, 3 yêu cầu chờ có giờ bắt đầu sớm nhất với liên kết tới `/chu-san/yeu-cau`. Không có số tiền ở màn này | Biểu đồ "Doanh thu 7 ngày", ô "Lấp đầy giờ vàng", "Lịch hôm nay" |
 | Chủ sân, nhân viên | `/chu-san/yeu-cau` | `ownerRequests` | `OwnerRequests` và `PhoneBookings` dạng hàng `req` | — |
 | Chủ sân, nhân viên | `/chu-san/lich` | `ownerCalendar` | `SchedulePage` (lịch, nhập booking khách gọi, đặt cố định) | Không thêm khóa khung giờ |
 | Chủ sân | `/chu-san/don-vi` | `ownerCourts` | `MyVenues` dạng `ov` và `tbl`, `StaffSection` | "Đăng ký đơn vị mới" |
@@ -116,6 +116,7 @@ Các flow `verify-flow` và các test đọc những class sau. Coder giữ chú
 - Test: `.slot-grid`, `.slot-grid-scroll`, `.slot-grid-h`, `.status`, `.filter-chips-row`, `.lobby-split`, `.lobby-list-pane`, `.lobby-detail-pane`, `.icon-button`, `.count-badge`, `active` trên nút đang chọn.
 - Flow: `.who .name`, `.venue-card`, `.slot-cell[data-court-id]`, `.slot-windows`, `.slot-grid-court-label`, `.date-chips`, `.total strong`, `.ticket`, `.ticket.result[data-status]`, `.stub strong`, `section.panel`, `.match-detail`, `.queue-section`, `.players-section`, `li.match-ticket`, `.lobby-page`.
 - `lib.mjs` che dữ liệu cá nhân trong ảnh của `verify-flow` (dòng có `.customer, .who, .hero h1, .call`). Thêm vào danh sách che mọi phần tử mới hiện tên, số điện thoại hoặc lời nhắn của một người.
+- Đã thêm che dữ liệu cá nhân: `data-field="phone"` trên `span.phone` bảng chủ sân admin (`AdminPanel.tsx`), `data-field="customer"` trên `"Chủ sân: ..."` (`VenueAdmin.tsx`), `.composer-in` (`HomePage.tsx`), host trong `dl.facts` (`Lobby.tsx`), `"Host: ..."` (`MatchCard.tsx`), `.cell-text` (`SlotGrid.tsx`), `.rating-player-name` (`RatingPanel.tsx`), thông báo khóa (`AccountLock.tsx`), `GoogleComplete.tsx`, và `.cell-text`, `.rating-player-name`, `input[inputmode="tel"]` trong `lib.mjs`.
 
 ## Test và flow được đổi bộ chọn
 
@@ -141,6 +142,7 @@ Khung mới đổi chữ, vai trò và đường dẫn của vài phần tử. C
 | `apps/web/src/features/admin/AdminStats.test.tsx` (AC-28) | `.metric-label` / `.metric-card` | `.k` / `.tile` | Thẻ số liệu toàn trang chuyển sang `.tiles` / `.tile` / `.k` theo mẫu `adminOverview` |
 | `.agents/skills/verify-flow/scripts/lobby-approval.mjs` | `[390, 1024, 1440]` | `[390, 768, 1024, 1440]` | Bổ sung kiểm tra tràn ngang ở chiều rộng 768px theo `docs/design/web-responsive.md` |
 | `.agents/skills/verify-flow/scripts/web-responsive.mjs` (mới) | Chưa có | Kiểm tra 17 đường dẫn web ở 390, 768, 1024 và 1440px | Bảo đảm không đường dẫn nào cuộn ngang theo tiêu chí F-033 |
+| `.agents/skills/verify-flow/scripts/lib.mjs` | `.who .name` | `.top .me-btn .name` | the name sits in the account button of the top bar |
 
 ## Risks and reviews
 

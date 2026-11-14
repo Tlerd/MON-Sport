@@ -552,7 +552,7 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
                   </div>
                   <div>
                     <dt>Host</dt>
-                    <dd>{selectedMatch.hostName}</dd>
+                    <dd data-field="customer">{selectedMatch.hostName}</dd>
                   </div>
                 </dl>
 

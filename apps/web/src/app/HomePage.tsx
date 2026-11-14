@@ -138,6 +138,7 @@ export function HomePage() {
             <button
               type="button"
               className="composer-in"
+              data-field={user ? 'customer' : undefined}
               onClick={() => navigate(createMatchTarget)}
             >
               {user ? `Hôm nay ra sân môn gì, ${givenName(user.name)}?` : 'Hôm nay ra sân môn gì?'}

@@ -38,7 +38,7 @@ function PlayerRatingRow({ matchId, player }: { matchId: string; player: PlayerR
 
   return (
     <li className="rating-player-row">
-      <span className="rating-player-name">{player.name}</span>
+      <span className="rating-player-name" data-field="customer">{player.name}</span>
       <select
         aria-label={`Số sao cho ${player.name}`}
         value={stars ?? ''}

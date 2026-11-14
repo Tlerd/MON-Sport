@@ -717,17 +717,30 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Số liệu toàn trang' })).toBeTruthy();
     const nav = screen.getByRole('navigation', { name: 'Chức năng quản trị' });
+    const expectActiveNav = (activeName: string) => {
+      const target = within(nav).getByRole('link', { name: activeName });
+      for (const link of within(nav).getAllByRole('link')) {
+        const isTarget = link === target;
+        expect(link.classList.contains('on')).toBe(isTarget);
+        expect(link.classList.contains('active')).toBe(isTarget);
+        expect(link.getAttribute('aria-current')).toBe(isTarget ? 'page' : null);
+      }
+    };
+    expectActiveNav('Tổng quan');
 
     fireEvent.click(within(nav).getByRole('link', { name: 'Tài khoản và đơn vị' }));
     expect(await screen.findByRole('heading', { name: 'Chủ sân' })).toBeTruthy();
+    expectActiveNav('Tài khoản và đơn vị');
 
     fireEvent.click(within(nav).getByRole('link', { name: 'Báo cáo vi phạm' }));
     expect(await screen.findByRole('heading', { name: 'Báo cáo vi phạm' })).toBeTruthy();
     expect(screen.getByText('Sắp ra mắt')).toBeTruthy();
+    expectActiveNav('Báo cáo vi phạm');
 
     fireEvent.click(within(nav).getByRole('link', { name: 'Môn thể thao' }));
     expect(await screen.findByRole('heading', { name: 'Môn thể thao' })).toBeTruthy();
     expect(screen.getByText('Sắp ra mắt')).toBeTruthy();
+    expectActiveNav('Môn thể thao');
   });
 
   it('AC-12: signed-in USER "Lan" opens /ho-so and clicks "Sửa hồ sơ" to see "Sắp ra mắt"', async () => {

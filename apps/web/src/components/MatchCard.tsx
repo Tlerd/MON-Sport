@@ -64,7 +64,7 @@ export function MatchCardContent({
           <span aria-hidden="true"> · </span>
           <span>{`${formatTime(m.startAt)}–${formatTime(m.endAt)}`}</span>
           <span aria-hidden="true"> · </span>
-          <span>Host: {m.hostName}</span>
+          <span data-field="customer">Host: {m.hostName}</span>
         </p>
         <div className="mc-f">
           <span className="match-slots fee">{`${m.joinedCount}/${m.capacity} suất · ${formatVnd(m.pricePerSlot)}/suất`}</span>

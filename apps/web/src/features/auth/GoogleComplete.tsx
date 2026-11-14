@@ -146,11 +146,11 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
       {pending && (
         <div className="google-user-info">
           {pending.name && (
-            <p className="google-name">
+            <p className="google-name" data-field="customer">
               <strong>{pending.name}</strong>
             </p>
           )}
-          {pending.email && <p className="meta">{pending.email}</p>}
+          {pending.email && <p className="meta" data-field="customer">{pending.email}</p>}
         </div>
       )}
       <form onSubmit={handleSubmit} className="stack">

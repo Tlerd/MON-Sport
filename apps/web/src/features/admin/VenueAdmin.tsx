@@ -50,7 +50,7 @@ export function VenueAdmin({ owners }: { owners: AccountView[] }) {
                 <h3 id={`admin-venue-${v.id}`}>{v.name}</h3>
                 <p className="venue-meta">
                   <span>{`${hhmm(v.opensAt)}–${hhmm(v.closesAt)}`}</span>
-                  <span>Chủ sân: {v.owner.name}</span>
+                  <span data-field="customer">Chủ sân: {v.owner.name}</span>
                 </p>
               </div>
               <span className="tag ok">Đang hoạt động</span>

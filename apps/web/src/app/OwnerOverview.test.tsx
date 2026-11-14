@@ -113,6 +113,8 @@ describe('OwnerOverview', () => {
     expect(todayTile).toBeTruthy();
     expect(within(todayTile).getByText('1')).toBeTruthy();
 
+    expect(screen.getByRole('heading', { name: 'Yêu cầu sắp tới' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Yêu cầu mới nhất' })).toBeNull();
     expect(screen.getByText(/Nguyễn An/)).toBeTruthy();
     expect(screen.getByText(/Trần Bình/)).toBeTruthy();
 

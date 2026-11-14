@@ -24,7 +24,7 @@ export function MyVenues({ renderStaff }: { renderStaff?: (venue: VenueView) => 
       <div className="page-head">
         <div>
           <h1>Đơn vị và giá</h1>
-          <p>Quản lý cụm sân, giờ mở cửa, bảng giá và tài khoản nhân viên.</p>
+          <p>Quản lý đơn vị, giờ mở cửa, bảng giá và tài khoản nhân viên.</p>
         </div>
         <ComingSoonButton className="btn lime">
           <Plus size={18} className="ic" aria-hidden="true" />
