@@ -5,6 +5,7 @@ import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.j
 import { venueScope } from '../bookings/venue-scope.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { toCourtView, toVenueView } from './venue-view.js';
+import { VenuesService } from './venues.service.js';
 
 const VENUE_NOT_FOUND = 'Không tìm thấy đơn vị';
 const COURT_NOT_FOUND = 'Không tìm thấy sân';
@@ -15,12 +16,11 @@ const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(M
 
 @Controller('venues')
 export class VenuesController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly venues: VenuesService) {}
 
   @Get()
-  async list(): Promise<VenueView[]> {
-    const venues = await this.prisma.venue.findMany({ include: WITH_COURTS, orderBy: { name: 'asc' } });
-    return venues.map(toVenueView);
+  list(): Promise<VenueView[]> {
+    return this.venues.search();
   }
 }
 
