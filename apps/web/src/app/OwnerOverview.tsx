@@ -1,6 +1,7 @@
 import { type OwnerBookingView, vnDateString } from '@monsport/shared';
 import { api, formatDay, formatTime } from '@monsport/client';
 import { useEffect, useState } from 'react';
+import { ChevronRight, Inbox } from 'lucide-react';
 import { NavLink } from 'react-router';
 import { Customer } from '../features/bookings/customer.tsx';
 
@@ -44,6 +45,10 @@ export function OwnerOverview({ now }: { now?: Date } = {}) {
           <h1>Tổng quan</h1>
           <p>Theo dõi yêu cầu chờ duyệt và lượt đặt trong ngày.</p>
         </div>
+        <NavLink to="/chu-san/yeu-cau" className="btn lime">
+          <Inbox size={18} className="ic" aria-hidden="true" />
+          Xử lý yêu cầu
+        </NavLink>
       </div>
 
       {error && (
@@ -67,8 +72,9 @@ export function OwnerOverview({ now }: { now?: Date } = {}) {
         <section className="card pad">
           <div className="sec-row">
             <h2>Yêu cầu sắp tới</h2>
-            <NavLink to="/chu-san/yeu-cau" className="link">
-              Xử lý yêu cầu
+            <NavLink to="/chu-san/yeu-cau" className="more">
+              Tất cả
+              <ChevronRight size={14} className="ic" aria-hidden="true" />
             </NavLink>
           </div>
           {latestPending.length === 0 ? (

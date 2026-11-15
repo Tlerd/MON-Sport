@@ -180,7 +180,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - CourtArt.tsx: CourtArtProps, CourtArt
 - CourtPrices.tsx: CourtPrices
 - EmptyState.tsx: EmptyStateProps, EmptyState
-- MatchCard.tsx: SPORT_LABEL, BOOKING_BADGE, MatchCardContent
+- MatchCard.tsx: SPORT_LABEL, BOOKING_BADGE, stubDay, formatPriceK, MatchCardContent
 - Panel.tsx: PanelProps, Panel
 - SlotGrid.tsx: SlotCellStatus, SlotCellInfo, CourtItem, SelectedSlot, SlotGridProps, WindowId, …
 - SportIcon.tsx: KnownSportId, normalizeSportId, SportIconProps, SportIcon

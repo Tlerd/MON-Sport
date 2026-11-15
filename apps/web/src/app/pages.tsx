@@ -130,23 +130,23 @@ export function MyPage() {
           <h1>Lịch của tôi</h1>
           <p>Mọi booking và mọi trận bạn tham gia.</p>
         </div>
-        <nav className="seg tabs" aria-label="Lịch của tôi">
-          <button
-            type="button"
-            className={tab === 'upcoming' ? 'on active' : ''}
-            onClick={() => setTab('upcoming')}
-          >
-            Sắp tới
-          </button>
-          <button
-            type="button"
-            className={tab === 'joined' ? 'on active' : ''}
-            onClick={() => setTab('joined')}
-          >
-            Trận đã vào
-          </button>
-        </nav>
       </div>
+      <nav className="seg tabs" aria-label="Lịch của tôi">
+        <button
+          type="button"
+          className={tab === 'upcoming' ? 'on active' : ''}
+          onClick={() => setTab('upcoming')}
+        >
+          Sắp tới
+        </button>
+        <button
+          type="button"
+          className={tab === 'joined' ? 'on active' : ''}
+          onClick={() => setTab('joined')}
+        >
+          Trận đã vào
+        </button>
+      </nav>
       {tab === 'upcoming' ? (
         <MyBookings refresh={refreshKey} onMatchChanged={bumpRefresh} />
       ) : (
@@ -208,6 +208,7 @@ export function TeamsPage() {
       title="Đội"
       description="Lập đội để nhận trận đội, theo dõi thành tích và rủ nhau ra sân."
       actionLabel="Lập đội mới"
+      wide
     />
   );
 }
@@ -223,7 +224,7 @@ export function ProfilePage() {
       <section className="card phead">
         <span
           className="av"
-          style={{ '--s': '68px', '--c': 'var(--ok)' } as CSSProperties}
+          style={{ '--s': '88px', '--c': 'var(--ok)' } as CSSProperties}
           aria-hidden="true"
         >
           {avatarInitial}

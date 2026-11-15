@@ -74,15 +74,12 @@ export function VenuesPage() {
       </div>
 
       <section className="venues-section" aria-labelledby={headingId}>
-        <div className="sec-row">
-          <h2 id={headingId}>Giờ trống</h2>
-        </div>
-        <p className="notice warnbox">{NOTICE}</p>
+        <h2 id={headingId} className="sr">Giờ trống</h2>
 
         <div className="fbar">
           <div className="chips tight sport-chips" role="group" aria-label="Môn thể thao">
             <Chip selected={sportFilter === 'ALL'} onClick={() => setSportFilter('ALL')}>
-              Tất cả
+              Tất cả môn
             </Chip>
             {Sport.options.map((sp) => (
               <Chip
@@ -108,6 +105,8 @@ export function VenuesPage() {
             />
           </label>
         </div>
+
+        <p className="notice warnbox">{NOTICE}</p>
 
         {error && (
           <p className="error" role="alert">
