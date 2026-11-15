@@ -249,6 +249,69 @@ describe('LobbyScreen: host queue (F-035 step 2)', () => {
     expect(callsTo(reqPath)).toHaveLength(2);
   });
 
+  it('AC-7: an approve that ends after the sheet closed does not change the queue of another match', async () => {
+    const other = { ...approval, id: '00000000-0000-4000-8000-000000000003', venueName: 'Đơn vị 3' } as MatchView;
+    const otherPath = `/api/matches/${other.id}`;
+    let release: (v: unknown) => void = () => undefined;
+    api().mockImplementation(async (path: string) => {
+      if (path === detailPath) return detailOf();
+      if (path === otherPath) return detailOf({ id: other.id });
+      if (path === reqPath || path === `${otherPath}/requests`) return [lan];
+      if (path === `${reqPath}/${LAN}/approve`) return new Promise((r) => (release = r));
+      if (path.startsWith('/api/matches/joined')) return [];
+      if (path === '/api/matches') return [approval, other];
+      throw new Error(`unexpected ${path}`);
+    });
+    const { container } = renderScreen();
+    const dialog = await openSheet(container);
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Duyệt' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chi tiết trận' })).toBeNull());
+
+    const c = container.querySelector<HTMLElement>(`[data-match-id="${other.id}"]`)!;
+    fireEvent.click(within(c).getByRole('button', { name: /^Chi tiết/ }));
+    const second = await screen.findByRole('dialog', { name: 'Chi tiết trận' });
+    expect(await within(second).findByText('Hàng chờ (1)')).toBeDefined();
+    await act(async () => release(detailOf()));
+    expect(within(second).getByText('Hàng chờ (1)')).toBeDefined();
+  });
+
+  it('AC-9: a stream event during the first detail load shows the error when that load fails', async () => {
+    let calls = 0;
+    mockApi({
+      [detailPath]: () => {
+        calls += 1;
+        if (calls === 1) return new Promise(() => undefined);
+        throw new ApiError(500, 'Lỗi máy chủ');
+      },
+    });
+    const { container } = renderScreen();
+    const dialog = await openSheet(container);
+    await waitFor(() => expect(calls).toBe(1));
+
+    act(() => stream.onChange?.());
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert.textContent).toBe('Lỗi máy chủ');
+  });
+
+  it('AC-4: a stream event refreshes a PENDING request and the card shows the rejection', async () => {
+    let rejected = false;
+    mockApi({
+      [detailPath]: () => detailOf({ viewerRole: 'NONE', myRequest: rejected ? 'REJECTED' : null }),
+      [`${detailPath}/join`]: () => detailOf({ viewerRole: 'NONE', myRequest: 'PENDING' }),
+    });
+    const { container } = renderScreen('00000000-0000-4000-8000-0000000000a9');
+    await waitFor(() => expect(container.querySelector(`[data-match-id="${approval.id}"]`)).not.toBeNull());
+    const c = () => container.querySelector<HTMLElement>(`[data-match-id="${approval.id}"]`)!;
+    fireEvent.click(within(c()).getByRole('button', { name: 'Xin vào' }));
+    await within(c()).findByRole('button', { name: 'Hủy yêu cầu' });
+
+    rejected = true;
+    act(() => stream.onChange?.());
+    expect(await within(c()).findByText('Host đã từ chối yêu cầu của bạn')).toBeDefined();
+    expect(within(c()).queryByRole('button', { name: 'Hủy yêu cầu' })).toBeNull();
+  });
+
   it('AC-11: "Duyệt", "Từ chối" and the phone link are at least 44px tall', async () => {
     mockApi({ [detailPath]: () => detailOf(), [reqPath]: () => [lan] });
     const { container } = renderScreen();

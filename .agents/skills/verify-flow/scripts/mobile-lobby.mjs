@@ -235,7 +235,17 @@ export default async function mobileLobby(run) {
             await matchCards.getByRole('button', { name: /^Chi tiết/ }).click();
             const sheet = page.getByRole('dialog', { name: 'Chi tiết trận' });
             await sheet.getByText('Hàng chờ (1)').waitFor({ state: 'visible' });
-            await sheet.getByText(p2.name).waitFor({ state: 'visible' });
+            // Find the row by structure: on live a Playwright error must not quote the real name (the class is masked).
+            const queueUser = sheet.locator('.queue-user');
+            try {
+              await queueUser.first().waitFor({ state: 'visible' });
+            } catch {
+              throw new Error('Hàng chờ shows no requester row (.queue-user)');
+            }
+            if (run.opts.target === 'local') {
+              const names = await queueUser.allTextContents();
+              assert(names.includes(p2.name), `Hàng chờ lists ${names.join(', ')}, not ${p2.name}`);
+            }
             await sheet.getByRole('button', { name: 'Duyệt', exact: true }).waitFor({ state: 'visible' });
             await sheet.getByRole('button', { name: 'Từ chối', exact: true }).waitFor({ state: 'visible' });
 

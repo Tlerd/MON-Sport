@@ -95,7 +95,11 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const detailTargetIdRef = useRef<string | null>(null);
   const leaveTargetIdRef = useRef<string | null>(null);
   const cancelTargetIdRef = useRef<string | null>(null);
+  const detailRef = useRef<MatchDetailView | null>(null);
+  const requestsRef = useRef<Record<string, 'PENDING' | 'REJECTED'>>({});
   useLayoutEffect(() => {
+    detailRef.current = detail;
+    requestsRef.current = requests;
     roleRef.current = role;
     userIdRef.current = userId;
     detailTargetIdRef.current = detailTarget?.id ?? null;
@@ -249,6 +253,33 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
     });
   }, []);
 
+  /** Reads the real request state of one match. A failure keeps the cached state. */
+  const refreshRequest = useCallback(
+    async (id: string) => {
+      const startUserId = userIdRef.current;
+      try {
+        const d = await api<MatchDetailView>(`/api/matches/${id}`);
+        if (userIdRef.current !== startUserId) return;
+        applyRequest(d.id, d.myRequest);
+      } catch {
+        // keep the cached state
+      }
+    },
+    [applyRequest],
+  );
+
+  // A match that shows up in the joined rows has no request any more.
+  useEffect(() => {
+    const ids = new Set(joinedRows.map((m) => m.id));
+    setRequests((prev) => {
+      const stale = Object.keys(prev).filter((id) => ids.has(id));
+      if (stale.length === 0) return prev;
+      const next = { ...prev };
+      for (const id of stale) delete next[id];
+      return next;
+    });
+  }, [joinedRows]);
+
   /**
    * Loads the detail and, for the host of a "Host duyệt" match, the queue.
    * Every open, close and decision bumps the counter, so a late response is dropped.
@@ -351,7 +382,11 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
           const msg = err instanceof ApiError ? err.message : 'Không kết nối được. Thử lại sau';
           setCardErrors((prev) => ({ ...prev, [id]: msg }));
           if (detailTargetIdRef.current === id) setDetailError(msg);
-          if (err instanceof ApiError && err.status === 409) reload();
+          if (err instanceof ApiError && err.status === 409) {
+            // The host may have decided: read the real request state.
+            void refreshRequest(id);
+            reload();
+          }
         }
       } finally {
         setJoiningIds((prev) => {
@@ -361,7 +396,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         });
       }
     },
-    [reload, closeDetail, openSessionLogin, applyRequest],
+    [reload, closeDetail, openSessionLogin, applyRequest, refreshRequest],
   );
 
   useEffect(() => {
@@ -388,8 +423,10 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
       try {
         await api(`/api/matches/${matchId}/requests/${requestUserId}/${action}`, { method: 'POST' });
         if (userIdRef.current !== startUserId) return;
-        setQueue((prev) => prev?.filter((r) => r.userId !== requestUserId) ?? prev);
-        if (detailTargetIdRef.current === matchId) void loadDetail(matchId, true, false);
+        if (detailTargetIdRef.current === matchId) {
+          setQueue((prev) => prev?.filter((r) => r.userId !== requestUserId) ?? prev);
+          void loadDetail(matchId, true, false);
+        }
         reload();
       } catch (err) {
         if (userIdRef.current !== startUserId) return;
@@ -416,8 +453,15 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const onStreamChange = useCallback(() => {
     reload();
     const id = detailTargetIdRef.current;
-    if (id && roleRef.current !== undefined && userIdRef.current) void loadDetail(id, true, false);
-  }, [reload, loadDetail]);
+    const signedIn = roleRef.current !== undefined && Boolean(userIdRef.current);
+    // With no detail yet, the load is the first one: a failure shows its error.
+    if (id && signedIn) void loadDetail(id, true, detailRef.current === null);
+    if (signedIn) {
+      for (const [pendingId, state] of Object.entries(requestsRef.current)) {
+        if (state === 'PENDING' && pendingId !== id) void refreshRequest(pendingId);
+      }
+    }
+  }, [reload, loadDetail, refreshRequest]);
   useLobbyStream(onStreamChange, user !== undefined);
 
   const handleOpen = (match: MatchView) => {
@@ -483,6 +527,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
           ? res
           : { ...target, status: 'OPEN', joinedCount: Math.max(0, target.joinedCount - 1) };
       setJoinedRows((prev) => prev.filter((m) => m.id !== target.id));
+      applyRequest(target.id, res && typeof res === 'object' && 'id' in res ? (res.myRequest ?? null) : null);
       setRows((prev) => {
         if (!prev) return [updated];
         return prev.some((m) => m.id === target.id)
@@ -780,7 +825,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                             minWidth: 0,
                           }}
                         >
-                          <span style={{ font: 'var(--font-body)', overflowWrap: 'anywhere', minWidth: 0 }}>
+                          <span className="queue-user" style={{ font: 'var(--font-body)', overflowWrap: 'anywhere', minWidth: 0 }}>
                             {p.name}
                           </span>
                           {detail.viewerRole === 'HOST' && p.phone && (
@@ -844,7 +889,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                                   minWidth: 0,
                                 }}
                               >
-                                <span style={{ font: 'var(--font-body)', overflowWrap: 'anywhere', minWidth: 0 }}>
+                                <span className="queue-user" style={{ font: 'var(--font-body)', overflowWrap: 'anywhere', minWidth: 0 }}>
                                   {r.name}
                                 </span>
                                 <a

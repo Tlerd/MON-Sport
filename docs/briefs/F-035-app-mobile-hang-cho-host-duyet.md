@@ -44,7 +44,7 @@ Each criterion has one test. The test name starts with the label, for example `A
 | AC-8 | Duyệt trả 409 "Trận đã đủ người". Một lần khác 409 "Yêu cầu này đã hết hạn" | Host bấm "Duyệt" | Sheet hiện đúng chữ của API và tải lại chi tiết và hàng chờ |
 | AC-9 | Sheet chi tiết của host đang mở. Luồng SSE gửi sự kiện `match` cho trận đó | Sự kiện tới | Chi tiết và hàng chờ tải lại một lần |
 | AC-10 | Thông báo `MATCH_JOIN_REQUESTED`, `MATCH_JOIN_APPROVED`, `MATCH_JOIN_REJECTED` | Mở tab Thông báo | Mỗi thẻ hiện tiêu đề và nội dung từ `packages/shared`. Bấm thẻ mở trận hoặc danh sách như `MATCH_CANCELLED` |
-| AC-11 | Màn 360px và 390px | Mở phòng chờ, sheet chi tiết và hàng chờ | Trang không cuộn ngang. Nút cao từ 44px |
+| AC-11 | Màn 360px và 390px | Mở phòng chờ, sheet chi tiết và hàng chờ | Trang không cuộn ngang. Nút cao từ 44px. `verify-flow` `mobile-lobby` kiểm tra tiêu chí này ở 390x812 và 360x800, ở các bước "open Phòng chờ", "host sees Hàng chờ (1) in Chi tiết" và "host taps Duyệt". Test đơn vị chỉ kiểm tra `minHeight` 44px |
 | AC-12 | `verify-flow` luồng `mobile-lobby` (mở rộng) | Chạy local | Host mở trận "Host duyệt", người chơi xin vào, host duyệt, người chơi thấy suất. Pass ở 360px và 390px |
 
 ## Allowed paths

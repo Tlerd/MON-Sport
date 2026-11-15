@@ -192,6 +192,50 @@ describe('LobbyScreen: host approval (F-035 step 1)', () => {
     expect(within(dialog).getByText(/4\/10 suất/)).toBeDefined();
   });
 
+  it('AC-4: a 409 on "Hủy yêu cầu" reads the detail and the card shows the rejection', async () => {
+    mockApi({
+      [`/api/matches/${approval.id}`]: () => detailOf(approval, { myRequest: 'REJECTED' }),
+      [`/api/matches/${approval.id}/join`]: () => detailOf(approval, { myRequest: 'PENDING' }),
+      [`/api/matches/${approval.id}/leave`]: () => {
+        throw new ApiError(409, 'Bạn không ở trong trận');
+      },
+    });
+    const { container } = renderScreen();
+    await waitFor(() => expect(card(container, approval)).not.toBeNull());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: 'Xin vào' }));
+    fireEvent.click(await within(card(container, approval)).findByRole('button', { name: 'Hủy yêu cầu' }));
+
+    await waitFor(() => expect(buttonNames(card(container, approval))).not.toContain('Hủy yêu cầu'));
+    expect(card(container, approval).textContent).toContain('Host đã từ chối yêu cầu của bạn');
+    expect(buttonNames(card(container, approval))).not.toContain('Xin vào');
+  });
+
+  it('AC-4: a successful leave clears a stale PENDING request of that match', async () => {
+    let left = false;
+    api().mockImplementation(async (path: string) => {
+      if (path === `/api/matches/${approval.id}`) return detailOf(approval, { viewerRole: 'PLAYER', myRequest: 'PENDING' });
+      if (path === `/api/matches/${approval.id}/leave`) {
+        left = true;
+        return detailOf(approval, { myRequest: null });
+      }
+      if (path.startsWith('/api/matches/joined')) return left ? [] : [approval];
+      if (path === '/api/matches') return [approval];
+      throw new Error(`unexpected ${path}`);
+    });
+    const { container } = renderScreen();
+    await waitFor(() => expect(buttonNames(card(container, approval))).toContain('Rời trận'));
+
+    // The detail brings the stale PENDING into the cache.
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: /^Chi tiết/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết trận' });
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Rời trận' }));
+    const leave = await screen.findByRole('dialog', { name: 'Rời trận này?' });
+    fireEvent.click(within(leave).getByRole('button', { name: 'Rời trận' }));
+
+    await waitFor(() => expect(buttonNames(card(container, approval))).toContain('Xin vào'));
+    expect(buttonNames(card(container, approval))).not.toContain('Hủy yêu cầu');
+  });
+
   it('AC-2: the tap targets of the request buttons are at least 44px', async () => {
     mockApi({
       [`/api/matches/${approval.id}/join`]: () => detailOf(approval, { myRequest: 'PENDING' }),
