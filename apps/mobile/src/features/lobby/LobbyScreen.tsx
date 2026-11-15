@@ -16,7 +16,12 @@ import { EmptyState } from '../../components/EmptyState.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
 import { IconBadminton, IconFootball, SPORT_LABEL } from '../../components/SportIcon.tsx';
 import { LoginSheet } from '../auth/LoginSheet.tsx';
-import { CALL_OWNER_TO_CANCEL_HINT, LobbyMatchCard } from './LobbyMatchCard.tsx';
+import {
+  CALL_OWNER_TO_CANCEL_HINT,
+  LobbyMatchCard,
+  REQUEST_PENDING_TEXT,
+  REQUEST_REJECTED_TEXT,
+} from './LobbyMatchCard.tsx';
 import { useLobbyStream } from './useLobbyStream.ts';
 
 export interface LobbyScreenProps {
@@ -49,6 +54,8 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
 
   const [joiningIds, setJoiningIds] = useState<Record<string, boolean>>({});
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
+  // The request of the viewer on a "Host duyệt" match. A PENDING request holds no slot (BR-50).
+  const [requests, setRequests] = useState<Record<string, 'PENDING' | 'REJECTED'>>({});
 
   const [detailTarget, setDetailTarget] = useState<MatchView | null>(null);
   const [detail, setDetail] = useState<MatchDetailView | null>(null);
@@ -195,6 +202,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
     setJoinedRows([]);
     setJoinedFailed(false);
     setCardErrors({});
+    setRequests({});
     setDetailTarget(null);
     setDetail(null);
     setDetailError('');
@@ -222,6 +230,15 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
     fetchRef.current();
   }, [loginTick]);
 
+  const applyRequest = useCallback((id: string, myRequest: 'PENDING' | 'REJECTED' | null | undefined) => {
+    setRequests((prev) => {
+      const next = { ...prev };
+      if (myRequest === 'PENDING' || myRequest === 'REJECTED') next[id] = myRequest;
+      else delete next[id];
+      return next;
+    });
+  }, []);
+
   const joinMatch = useCallback(
     async (id: string) => {
       const startUserId = userIdRef.current;
@@ -232,7 +249,11 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         const res = await api<MatchDetailView>(`/api/matches/${id}/join`, { method: 'POST' });
         if (userIdRef.current !== startUserId) return;
         if (res && typeof res === 'object' && 'id' in res) {
-          setJoinedRows((prev) => [...prev.filter((m) => m.id !== res.id), res]);
+          applyRequest(res.id, res.myRequest);
+          // A PENDING request is not a slot: the match does not join the joined list (BR-50).
+          if (res.myRequest !== 'PENDING') {
+            setJoinedRows((prev) => [...prev.filter((m) => m.id !== res.id), res]);
+          }
           setRows((prev) => prev?.map((m) => (m.id === res.id ? res : m)));
           setDetail((prev) => (prev && prev.id === res.id ? res : prev));
         }
@@ -245,6 +266,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         } else if (err instanceof ApiError) {
           setCardErrors((prev) => ({ ...prev, [id]: err.message }));
           if (detailTargetIdRef.current === id) setDetailError(err.message);
+          if (err.status === 409 && err.message === REQUEST_REJECTED_TEXT) applyRequest(id, 'REJECTED');
           if (err.status === 409) reload();
         } else {
           const msg = 'Không kết nối được. Thử lại sau';
@@ -259,7 +281,42 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         });
       }
     },
-    [reload, closeDetail, openSessionLogin],
+    [reload, closeDetail, openSessionLogin, applyRequest],
+  );
+
+  const cancelRequest = useCallback(
+    async (id: string) => {
+      const startUserId = userIdRef.current;
+      setJoiningIds((prev) => ({ ...prev, [id]: true }));
+      setCardErrors({});
+      if (detailTargetIdRef.current === id) setDetailError('');
+      try {
+        // The leave call also cancels a pending request.
+        await api(`/api/matches/${id}/leave`, { method: 'POST' });
+        if (userIdRef.current !== startUserId) return;
+        applyRequest(id, null);
+        setDetail((prev) => (prev && prev.id === id ? { ...prev, myRequest: null } : prev));
+        reload();
+      } catch (err) {
+        if (userIdRef.current !== startUserId) return;
+        if (err instanceof ApiError && err.status === 401) {
+          if (detailTargetIdRef.current === id) closeDetail();
+          openSessionLogin();
+        } else {
+          const msg = err instanceof ApiError ? err.message : 'Không kết nối được. Thử lại sau';
+          setCardErrors((prev) => ({ ...prev, [id]: msg }));
+          if (detailTargetIdRef.current === id) setDetailError(msg);
+          if (err instanceof ApiError && err.status === 409) reload();
+        }
+      } finally {
+        setJoiningIds((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      }
+    },
+    [reload, closeDetail, openSessionLogin, applyRequest],
   );
 
   useEffect(() => {
@@ -299,6 +356,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
       (d) => {
         if (reqId !== detailReqCounter.current) return;
         setDetail(d);
+        applyRequest(d.id, d.myRequest);
         setDetailLoading(false);
       },
       (err: unknown) => {
@@ -433,6 +491,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const cards = mergedFeed ? lobbyMatches(mergedFeed, joinedRows, now, { sport, date }, userId) : undefined;
   const detailOpen = detailTarget !== null && leaveTarget === null && cancelTarget === null;
   const shownMatch = detail ?? detailTarget;
+  const detailApproval = (detail?.joinMode ?? detailTarget?.joinMode) === 'APPROVAL';
   const orphanError =
     !detailOpen && cards
       ? Object.entries(cardErrors).find(([id]) => !cards.some((c) => c.match.id === id))?.[1]
@@ -573,6 +632,8 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                       }
                       now={now}
                       onJoin={handleJoin}
+                      request={requests[card.match.id]}
+                      onCancelRequest={(m) => void cancelRequest(m.id)}
                       onLeave={openLeave}
                       onCancel={openCancel}
                       onOpen={handleOpen}
@@ -667,7 +728,40 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                         </li>
                       ))}
                   </ul>
-                  {detail.viewerRole === 'NONE' && detail.status === 'OPEN' && (
+                  {detailApproval && detail.viewerRole === 'NONE' && requests[detail.id] === 'PENDING' && (
+                    <>
+                      <p role="status" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
+                        {REQUEST_PENDING_TEXT}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={Boolean(joiningIds[detail.id])}
+                        onClick={() => void cancelRequest(detail.id)}
+                        style={{
+                          ...sheetBtnStyle,
+                          border: '1px solid var(--color-line)',
+                          backgroundColor: 'var(--color-surface)',
+                          color: 'var(--color-ink)',
+                          alignSelf: 'flex-start',
+                          cursor: joiningIds[detail.id] ? 'not-allowed' : 'pointer',
+                          opacity: joiningIds[detail.id] ? 0.6 : 1,
+                        }}
+                      >
+                        Hủy yêu cầu
+                      </button>
+                    </>
+                  )}
+                  {detailApproval &&
+                    detail.viewerRole === 'NONE' &&
+                    requests[detail.id] === 'REJECTED' &&
+                    detailError !== REQUEST_REJECTED_TEXT && (
+                      <p role="status" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}>
+                        {REQUEST_REJECTED_TEXT}
+                      </p>
+                    )}
+                  {detail.viewerRole === 'NONE' &&
+                    (detailApproval ? detail.status !== 'CANCELLED' : detail.status === 'OPEN') &&
+                    !(detailApproval && requests[detail.id]) && (
                     <button
                       type="button"
                       disabled={Boolean(joiningIds[detail.id])}
@@ -682,7 +776,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                         opacity: joiningIds[detail.id] ? 0.6 : 1,
                       }}
                     >
-                      Vào trận
+                      {detailApproval ? 'Xin vào' : 'Vào trận'}
                     </button>
                   )}
                   {detail.viewerRole === 'PLAYER' && Date.parse(detail.startAt) > now.getTime() && (

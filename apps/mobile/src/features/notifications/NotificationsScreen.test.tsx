@@ -3,7 +3,7 @@ import { MemoryRouter, Outlet, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
 import { ApiError } from '@monsport/client';
-import type { NotificationItemView, NotificationsListResponse } from '@monsport/shared';
+import { formatNotificationContent, type NotificationItemView, type NotificationsListResponse } from '@monsport/shared';
 import * as sessionModule from '../../app/session';
 import { NotificationsScreen } from './NotificationsScreen';
 
@@ -200,6 +200,37 @@ describe('NotificationsScreen', () => {
     expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeDefined();
     expect(clientModule.api).not.toHaveBeenCalled();
   });
+
+  it.each(['MATCH_JOIN_REQUESTED', 'MATCH_JOIN_APPROVED', 'MATCH_JOIN_REJECTED'] as const)(
+    'AC-10: a %s card shows the title and message of packages/shared, and a tap opens the same target as MATCH_CANCELLED',
+    async (type) => {
+      const params = {
+        type,
+        venueName: 'Đơn vị 1',
+        courtName: 'Sân 1',
+        startAt: '2026-11-03T00:00:00.000Z',
+        endAt: '2026-11-03T01:00:00.000Z',
+      };
+      const { title, message } = formatNotificationContent(params);
+      vi.mocked(clientModule.api).mockImplementation(async (p: string) => {
+        if (p === '/api/notifications') {
+          return {
+            unreadCount: 1,
+            items: [item(1, { type, title, message, matchId: id(7) })],
+          } satisfies NotificationsListResponse;
+        }
+        if (p === `/api/notifications/${id(1)}/read`) return { id: id(1), readAt: READ_AT };
+        throw new Error(`unexpected ${p}`);
+      });
+      renderScreen(USER);
+
+      await screen.findByText(title);
+      const card = cardOf(title);
+      expect(card.textContent).toContain(message);
+      fireEvent.click(card);
+      await waitFor(() => expect(path()).toBe('/lich-cua-toi'));
+    },
+  );
 
   it('AC-4: tapping unread N1 posts read, waits for the reply, then marks it read, badge 1, and opens /lich-cua-toi', async () => {
     const post = deferred<{ id: string; readAt: string }>();

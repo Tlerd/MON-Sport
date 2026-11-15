@@ -123,7 +123,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - BookingSheet.tsx: BookingSheetProps, BookingSheet
 
 ## apps/mobile/src/features/lobby/
-- LobbyMatchCard.tsx: LobbyMatchCardProps, CALL_OWNER_TO_CANCEL_HINT, LobbyMatchCard
+- LobbyMatchCard.tsx: LobbyMatchCardProps, CALL_OWNER_TO_CANCEL_HINT, REQUEST_PENDING_TEXT, REQUEST_REJECTED_TEXT, LobbyMatchCard
 - LobbyScreen.tsx: LobbyScreenProps, LobbyScreen
 - useLobbyStream.ts: useLobbyStream
 

@@ -5,6 +5,7 @@ import {
   minuteOfDayVN,
   PRICE_MAX,
   vnDateString,
+  type JoinMode,
   type MatchView,
   type MyBookingView,
 } from '@monsport/shared';
@@ -20,6 +21,11 @@ import { BookingCard } from './BookingCard.tsx';
 import { MatchCard } from './MatchCard.tsx';
 
 type Tab = 'UPCOMING' | 'JOINED' | 'HISTORY';
+
+const JOIN_MODE_OPTIONS: { value: JoinMode; label: string }[] = [
+  { value: 'INSTANT', label: 'Vào ngay' },
+  { value: 'APPROVAL', label: 'Host duyệt' },
+];
 
 export interface MyScreenProps {
   now?: Date;
@@ -43,6 +49,7 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
   const [openTarget, setOpenTarget] = useState<MyBookingView | null>(null);
   const [openCapacity, setOpenCapacity] = useState('10');
   const [openPrice, setOpenPrice] = useState('0');
+  const [openJoinMode, setOpenJoinMode] = useState<JoinMode>('INSTANT');
   const [openBusy, setOpenBusy] = useState(false);
   const [openError, setOpenError] = useState('');
   const [sessionLoginOpen, setSessionLoginOpen] = useState(false);
@@ -153,6 +160,7 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
     setOpenError('');
     setOpenCapacity('10');
     setOpenPrice('0');
+    setOpenJoinMode('INSTANT');
     setOpenTarget(booking);
   };
 
@@ -174,6 +182,7 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
           bookingId: targetId,
           capacity: capacityNum,
           pricePerSlot: priceNum,
+          joinMode: openJoinMode,
         },
       });
       if (openTargetId.current === targetId) {
@@ -411,6 +420,51 @@ export function MyScreen({ now: nowProp }: MyScreenProps) {
                 }}
               />
             </div>
+
+            <fieldset style={{ margin: 0, padding: 0, border: 'none', minWidth: 0 }}>
+              <legend style={{ padding: 0, font: 'var(--font-label)', marginBottom: 'var(--space-xs)' }}>
+                Cách vào trận
+              </legend>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-sm)' }}>
+                {JOIN_MODE_OPTIONS.map(({ value, label }) => {
+                  const on = openJoinMode === value;
+                  return (
+                    <label
+                      key={value}
+                      style={{
+                        position: 'relative',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: '44px',
+                        minWidth: '44px',
+                        padding: '0 var(--space-md)',
+                        boxSizing: 'border-box',
+                        borderRadius: 'var(--radius-full)',
+                        border: `1px solid ${on ? 'var(--color-primary)' : 'var(--color-line)'}`,
+                        backgroundColor: on ? 'var(--color-primary)' : 'var(--color-surface)',
+                        color: on ? 'var(--color-on-primary)' : 'var(--color-ink)',
+                        font: 'var(--font-label)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="open-match-join-mode"
+                        value={value}
+                        checked={on}
+                        onChange={() => {
+                          setOpenError('');
+                          setOpenJoinMode(value);
+                        }}
+                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                      />
+                      {label}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
 
             {openAlert && (
               <p
