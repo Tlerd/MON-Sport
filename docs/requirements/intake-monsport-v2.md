@@ -30,8 +30,9 @@ Kết quả đúng khi các luật V1 giữ nguyên: không có hai booking trù
 | W3 | Tài khoản nhân viên của chủ sân | UC-17 |
 | W4 | Trình độ người chơi | UC-18 |
 | W5 | Điểm uy tín | UC-19 |
+| W7 | MCP cho AI đặt sân | UC-20 |
 
-Thanh toán trong app (W6) và MCP (W7) chưa vào V2 cho tới khi bạn duyệt. Xem "Out of scope".
+Thanh toán trong app (W6) chưa vào V2 cho tới khi bạn duyệt. Xem "Out of scope". MCP (W7) vào phạm vi ngày 16/11/2026, xem mục "W7: MCP cho AI đặt sân".
 
 ## Tên gọi mới
 
@@ -83,6 +84,36 @@ BR-20 áp dụng cho yêu cầu: host thấy số điện thoại của người
 - Yêu cầu bị từ chối không gửi lại được. Yêu cầu bị hủy gửi lại được.
 - Phòng chờ hiện đúng chế độ của từng trận, trong vòng 2 giây sau khi trận đổi.
 
+## W7: MCP cho AI đặt sân
+
+Bạn cho bắt đầu ngày 16/11/2026: "Bắt đầu port app mobile cho W1, làm phần dọn dẹp, nếu được làm MCP, chạy verify-flow." (`HUMAN_DECISIONS.md`, dòng 26; ADR 0008).
+
+### Mục tiêu
+
+Một AI client của người dùng gọi các chức năng của MONSPORT như công cụ MCP. AI tìm sân, xem giờ trống và gửi yêu cầu đặt sân thay người dùng. Kế hoạch nằm trong `docs/design/ke-hoach-mcp.md`.
+
+### Tác nhân
+
+Người dùng đã đăng nhập, qua AI client của họ. AI hành động bằng tài khoản của người dùng đó và có quyền của vai trò người dùng. Chủ sân, nhân viên và admin chưa có công cụ (`HUMAN_DECISIONS.md`, dòng 27).
+
+### Cách hoạt động
+
+1. Người dùng nối AI client với MONSPORT. Cách nối (PAT, OAuth) nằm ở các bước sau của kế hoạch.
+2. AI gọi công cụ: tìm đơn vị, xem giờ trống, gửi yêu cầu đặt sân, xem và hủy booking của người dùng, xem phòng chờ, mở trận, vào và rời trận (UC-20).
+3. Mỗi công cụ gọi cùng service với web và app. Công cụ không có luật riêng.
+4. Yêu cầu đặt sân qua AI ở trạng thái "Chờ xác nhận". Chủ sân vẫn xác nhận bằng tay (UC-4).
+
+### Luật
+
+Mọi luật V1 và V2 giữ nguyên: BR-1, BR-6, BR-7, BR-11, BR-12, BR-15, BR-20, BR-22. Luật mới chỉ có BR-58: giới hạn số lệnh công cụ của một người dùng.
+
+### Acceptance (mức intake)
+
+- Yêu cầu đặt sân qua công cụ cho kết quả giống `POST /api/bookings`: cùng trạng thái, giá, hạn xác nhận và cùng lỗi.
+- Người dùng A không xem và không sửa được booking hay trận của người dùng B qua công cụ.
+- Chủ sân, nhân viên và admin không có công cụ nào.
+- Công cụ không trả số điện thoại hay dữ liệu cá nhân của người dùng khác (BR-20).
+
 ## W2 đến W5 (mô tả ngắn, chi tiết khi tới lượt)
 
 | Đợt | Hướng đi | Chốt trước brief |
@@ -110,12 +141,14 @@ BR-20 áp dụng cho yêu cầu: host thấy số điện thoại của người
 | 2 | Host có đổi được chế độ vào trận sau khi mở không | Bạn. Mặc định: không |
 | 3 | Trận "Host duyệt" có tự duyệt người đã đá cùng host trước đó không | Bạn. Mặc định: không |
 | 4 | Các mục "Chốt trước brief" của W2 đến W5 | Bạn |
+| 5 | Giới hạn lệnh công cụ của BR-58 (60 lệnh và 10 lệnh ghi mỗi phút) | Bạn. Mặc định: như BR-58 |
 
 ## Out of scope
 
 | Mục | Lý do |
 |---|---|
 | Thanh toán trong app (W6) | Cần ADR, nhà cung cấp và pháp lý. Bạn duyệt trước khi bắt đầu |
-| MCP cho AI đặt sân (W7) | Chờ bạn duyệt ADR 0008 (`HUMAN_DECISIONS.md`, dòng 26) |
+| PAT, OAuth, đường `/mcp` và định vị GPS của W7 | Bước 3 và 4 của kế hoạch MCP cần brief riêng và `rule-review`. GPS là bước 1b |
+| Công cụ MCP cho chủ sân và admin | `HUMAN_DECISIONS.md`, dòng 27. Mặc định: không |
 | App native Android và iOS (qua store) | Như V1. App mobile là PWA |
 | App mobile cho W1 đến W5 | Làm sau khi web của từng đợt chạy ổn |

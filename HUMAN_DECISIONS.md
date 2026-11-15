@@ -41,7 +41,6 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 23 | Host có thấy trận của mình trong feed Phòng chờ không? | Có | Không | brief F-022 |
 | 24 | Giá mặc định mỗi suất khi mở trận: 0, hay giá sân chia đều theo số suất? | 0 | Không | brief F-022 |
 | 25 | Có gửi thông báo đẩy khi có người vào hoặc rời trận không? | Không | Không | brief F-022 |
-| 26 | Duyệt ADR 0008 (máy chủ MCP cho AI đặt sân và connector) và đổi intake để thêm MCP vào phạm vi? | Chưa duyệt. Agent không code MCP | Kế hoạch MCP (`docs/design/ke-hoach-mcp.md`) | ADR 0008 |
 | 27 | Chủ sân và admin có công cụ MCP không (xác nhận booking, đóng sân)? | Không. Bản đầu chỉ có công cụ cho người dùng | Không | `docs/design/ke-hoach-mcp.md` |
 | 28 | Khi booking có trận, sheet từ chối của chủ sân trên app có cần báo trước "Trận có N người sẽ bị hủy" không? Cần đổi API | Không báo trước | Không | QA F-024 câu 1 |
 | 29 | Chủ sân có nhiều đơn vị có cần chip lọc theo đơn vị trên tab Yêu cầu của app không? | Không. Một danh sách chung, mỗi thẻ ghi tên đơn vị | Không | QA F-024 câu 2 |
@@ -100,3 +99,4 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 66 | Trang đầu của chủ sân sau đăng nhập là "Tổng quan" (`/chu-san/tong-quan`). Mặc định cũ là "Yêu cầu". Nhân viên vẫn vào "Lịch sân". Lời người dùng: "66 vào trang Tổng quan". | 14/11/2026 | người dùng, F-033 |
 | 68 | `gemini-4-hydrogen-high` đứng đúng chỗ của 3.8 (cuối danh sách) trong `scripts/agy-run.mjs`. Swarm chạy trên Hydrogen. Lời người dùng: "63, 64, 68, giữ theo mặc định". | 14/11/2026 | người dùng |
 | 10a | "làm theo cách hiện tại": bảng admin vẫn đếm người dùng tạo booking `APP`, vào trận, hoặc làm host trong tuần. Số lần đăng nhập (`User.lastLoginAt`) chỉ là đề xuất, chỉ làm khi người dùng đồng ý | 23/10/2026 | người dùng, F-016 |
+| 26 | Duyệt ADR 0008 (máy chủ MCP cho AI đặt sân và connector), đổi intake để thêm MCP vào phạm vi. Agent hiểu đây là lệnh bắt đầu MCP khi làm được. Chỉ bước 2 của kế hoạch (lớp công cụ, không xác thực ngoài, không đổi schema) chạy ngay, brief F-036. PAT (bước 3) và OAuth (bước 4) cần brief riêng và `rule-review`. Vẫn mở: GPS (bước 1b) và công cụ cho chủ sân và admin (dòng 27). Lời người dùng: "Bắt đầu port app mobile cho W1, làm phần dọn dẹp, nếu được làm MCP, chạy verify-flow." | 16/11/2026 | người dùng, ADR 0008 |
