@@ -201,6 +201,8 @@ describe('VenueScreen', () => {
     mockApi([VENUE], standard);
     openVenue();
     const dayChip = await screen.findByRole('button', { name: 'T6 30/10' });
+    // The mount scroll (one per row) runs in a passive effect that can land after the chip shows under load.
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(2));
     scrollTo.mockClear();
     fireEvent.click(dayChip);
     await waitFor(() => expect(buttonMinutes(rowOf('Sân 1'))).toHaveLength(6));

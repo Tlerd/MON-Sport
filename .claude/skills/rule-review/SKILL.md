@@ -1,6 +1,6 @@
 ---
 name: rule-review
-description: Rule-by-rule review of a pull request diff against the business rules BR-1 to BR-32 and the AG-* rules of `references/rubric.md` (the "Never" list of AGENTS.md, path scope, lock order). A dynamic workflow runs one verifier agent per relevant rule, then one skeptic agent per flag, and returns a comment for `gh pr comment`. Use for a rule review, to check business rules, for a BR check, or in the Reviewer round of a pull request that touches money, concurrency, the schema, or personal data.
+description: Rule-by-rule review of a pull request diff against the business rules BR-1 to BR-57 and the AG-* rules of `references/rubric.md` (the "Never" list of AGENTS.md, path scope, lock order). A dynamic workflow runs one verifier agent per relevant rule, then one skeptic agent per flag, and returns a comment for `gh pr comment`. Use for a rule review, to check business rules, for a BR check, or in the Reviewer round of a pull request that touches money, concurrency, the schema, or personal data.
 ---
 
 # Rule review
