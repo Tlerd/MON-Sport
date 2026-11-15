@@ -474,11 +474,7 @@ form textarea:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
 }
 .date-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .filter-chips-row { display: grid; gap: 10px; min-width: 0; }
-.filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
-.filter-label { min-width: 68px; font-size: 12.5px; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: .04em; }
-.filter-row .chips { margin-bottom: 0; flex: 1; min-width: 0; }
 .filter-chips-row .fbar { margin-bottom: 0; margin-top: 2px; }
-.lobby-sec { margin: 18px 0 10px; }
 .lobby-split.md { margin-top: 0; }
 .total { display: flex; align-items: baseline; gap: 8px; }
 .total strong { font: 800 26px/1 var(--display); color: var(--ink); }
@@ -548,7 +544,7 @@ form textarea:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
 .queue-reputation, .match-slots, .where { font-size: 13px; color: var(--ink2); }
 .empty-detail-card { padding: 28px 20px; text-align: center; }
 .level-badge { font-weight: 600; }
-.sport-chips, .level-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.sport-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .venues-section, .book-page { display: grid; gap: 16px; }
 .search-field { min-width: 0; }
 .duration-select { width: auto; min-width: 110px; }
@@ -1053,9 +1049,6 @@ form textarea:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
 
 /* Ô số liệu cảnh báo và khung nội dung của bảng điều khiển */
 .tile.warn { border-color: var(--clay); background: var(--clay-soft); } .tile.warn b { color: var(--clay); }
-.tile em { font-style: normal; font-weight: 600; font-size: 12px; } em.up { color: var(--ok); } em.down { color: var(--bad); }
-.pill { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px; background: var(--line2); color: var(--ink2); font-size: 13px; font-weight: 600; white-space: nowrap; }
-.pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.mine { background: var(--ink); color: var(--lime); }
 .dash-main > .page, .dash-main > .page.narrow { max-width: none; margin: 0; padding: 0; }
 .stats-table caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .stub-sport { white-space: nowrap; }

@@ -60,3 +60,8 @@ Test của AC-3 đến AC-6: `apps/web/src/features/matches/Lobby.test.tsx`, `ap
 ## Review
 
 Một Reviewer mới cho mỗi PR. Màn hình thay đổi, nên chạy `verify-flow` local trước PR.
+
+## Assumptions
+
+- Chip môn "Tất cả" đổi thành "Tất cả môn" trên `/san` và `/phong-cho`, vì mẫu ghi như vậy (`app.js`). Đây là ngoại lệ có chủ ý của AC-9.
+- Từ 720 px, phòng chờ tự mở trận đầu tiên để khung chi tiết không trống, như mẫu. Không tự mở khi URL có `?tran=` hoặc khi người dùng đã đóng chi tiết. Chưa có test cho hành vi này vì jsdom không có `matchMedia`: finding low đã chấp nhận, ghi trong `PROGRESS.md`.
