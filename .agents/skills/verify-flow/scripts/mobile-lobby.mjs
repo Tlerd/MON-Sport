@@ -1,7 +1,8 @@
 // Flow mobile-lobby (brief F-022, AC-13, AC-14, AC-17): the seed player opens a match from "Lịch của tôi"
 // at 390x812 and 360x800, inspects it in "Phòng chờ", and cancels the match it created.
 
-import { assert, showTime } from './lib.mjs';
+import { randomBytes, randomInt } from 'node:crypto';
+import { assert, clickFor, showTime, SkipFlow } from './lib.mjs';
 
 const FLOW = 'mobile-lobby';
 const ZONE = 'Asia/Ho_Chi_Minh';
@@ -48,6 +49,60 @@ async function createBooking(run, api, court, courtName) {
     return body;
   }
   throw new Error(`${conflicts} slots on ${courtName} returned 409`);
+}
+
+/**
+ * The second player of the AC-12 steps, made once for each run. Local: registers a `test-` player with a random phone.
+ * Live: signs in with VERIFY_PLAYER2_PHONE and VERIFY_PLAYER2_PASSWORD. Returns the cookies and the name, or throws SkipFlow.
+ */
+async function secondPlayer(run, hostPhone) {
+  const context = await run.browser.newContext({ locale: 'vi-VN', timezoneId: ZONE });
+  try {
+    if (run.opts.target === 'local') {
+      const name = `test-${run.stamp}`;
+      const letters = Array.from(randomBytes(16), (b) => String.fromCharCode(97 + (b % 26))).join('');
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        const phone = `09${String(randomInt(0, 100_000_000)).padStart(8, '0')}`;
+        if (phone === hostPhone || phone === run.accounts.owner.phone) continue;
+        // Mask the test phone in Run.step if any Playwright timeout quotes it.
+        run.accounts.requester = { phone };
+        const res = await context.request.post(`${run.base}/api/auth/register`, {
+          data: { name, phone, password: `Verify!${letters}`, consent: true },
+        });
+        if (res.status() === 429) throw new SkipFlow('BR-30 blocked POST /api/auth/register: wait 15 minutes');
+        if (res.status() === 409) continue;
+        const body = await res.json().catch(() => ({}));
+        assert(res.status() === 201 || res.status() === 200, `POST /api/auth/register answered ${res.status()}: ${body.message ?? ''}`);
+        return { cookies: await context.cookies(), name };
+      }
+      throw new Error('5 random phones were already taken (409)');
+    }
+    const phone = process.env.VERIFY_PLAYER2_PHONE;
+    const password = process.env.VERIFY_PLAYER2_PASSWORD;
+    if (!phone || !password) {
+      throw new SkipFlow('AC-12 on live needs a second player: set VERIFY_PLAYER2_PHONE and VERIFY_PLAYER2_PASSWORD');
+    }
+    assert(phone !== hostPhone, 'VERIFY_PLAYER2_PHONE must differ from VERIFY_PLAYER_PHONE');
+    run.accounts.requester = { phone };
+    const res = await context.request.post(`${run.base}/api/auth/login`, { data: { phone, password } });
+    if (res.status() === 429) throw new SkipFlow('BR-30 blocked POST /api/auth/login: wait 15 minutes');
+    const body = await res.json().catch(() => ({}));
+    assert(res.status() === 200, `POST /api/auth/login answered ${res.status()}: ${body.message ?? ''}`);
+    assert(body.role === 'USER', `the second player has role ${body.role}, the flow needs USER`);
+    return { cookies: await context.cookies(), name: body.name };
+  } finally {
+    await context.close();
+  }
+}
+
+/** Runs one step of the AC-12 part. A SKIP ends that part only: the rest of the flow goes on. */
+async function approvalStep(run, name, page, fn) {
+  try {
+    return await run.step(FLOW, name, page, fn);
+  } catch (error) {
+    if (error.skip) return undefined;
+    throw error;
+  }
 }
 
 export default async function mobileLobby(run) {
@@ -98,6 +153,8 @@ export default async function mobileLobby(run) {
         await openSheet.waitFor({ state: 'visible' });
         await openSheet.getByLabel('Số suất').fill('8');
         await openSheet.getByLabel('Giá mỗi suất').fill('30000');
+        // AC-12: the match joins by host approval.
+        await openSheet.locator('label', { hasText: 'Host duyệt' }).click();
 
         const [response] = await Promise.all([
           page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/matches'),
@@ -106,6 +163,7 @@ export default async function mobileLobby(run) {
         const body = await response.json().catch(() => ({}));
         assert(response.status() === 201, `POST /api/matches answered ${response.status()}: ${body.message ?? ''}`);
         assert(body.id, 'POST /api/matches returned no match id');
+        assert(body.joinMode === 'APPROVAL', `the new match has joinMode ${body.joinMode}, not APPROVAL`);
         matchId = body.id;
 
         await openSheet.waitFor({ state: 'hidden' });
@@ -138,6 +196,92 @@ export default async function mobileLobby(run) {
         assert(small.length === 0, `Targets under 44px high (${size}): ${small.join(', ')}`);
         return `${size} scrollWidth ${scrollWidth} <= ${innerWidth}, all targets >= 44px`;
       });
+
+      // AC-12: a second player requests, the host approves in the sheet, the player sees the seat.
+      // Without a second player (live, no VERIFY_PLAYER2_*) the part is skipped and the flow goes on.
+      let p2;
+      await approvalStep(run, `second player is ready (${size})`, null, async () => {
+        run.player2 ??= secondPlayer(run, run.accounts.player.phone);
+        p2 = await run.player2;
+        return run.opts.target === 'local' ? 'registered a test- player' : 'signed in';
+      });
+      if (p2) {
+        const p2Context = await run.browser.newContext({
+          locale: 'vi-VN',
+          timezoneId: ZONE,
+          viewport: { width, height },
+        });
+        try {
+          await p2Context.addCookies(p2.cookies);
+          const p2Page = await p2Context.newPage();
+          run.watch(p2Page);
+          const p2Card = p2Page.locator(`article[data-match-id="${matchId}"]`);
+          const shown = (text) => (run.opts.target === 'local' ? text : 'the second player');
+
+          await run.step(FLOW, `second player taps Xin vào (${size})`, p2Page, async () => {
+            await p2Page.goto(`${run.base}/app/phong-cho`);
+            await p2Card.first().waitFor({ state: 'visible' });
+            const { status, body } = await clickFor(p2Page, p2Card.getByRole('button', { name: 'Xin vào', exact: true }), 'POST', '/join');
+            assert(status === 200, `POST /join answered ${status}: ${body.message ?? ''}`);
+            assert(body.myRequest === 'PENDING', `myRequest is ${body.myRequest}, not PENDING`);
+            assert(body.joinedCount === 1, `joinedCount is ${body.joinedCount}, expected 1 (BR-50)`);
+            await p2Card.getByText('Đã gửi yêu cầu. Chờ host duyệt').waitFor({ state: 'visible' });
+            return `${size} myRequest PENDING, joinedCount 1`;
+          });
+
+          await run.step(FLOW, `host sees Hàng chờ (1) in Chi tiết (${size}): no sideways scroll, targets 44px`, page, async () => {
+            await page.goto(`${run.base}/app/phong-cho`);
+            await matchCards.first().waitFor({ state: 'visible' });
+            await matchCards.getByRole('button', { name: /^Chi tiết/ }).click();
+            const sheet = page.getByRole('dialog', { name: 'Chi tiết trận' });
+            await sheet.getByText('Hàng chờ (1)').waitFor({ state: 'visible' });
+            await sheet.getByText(p2.name).waitFor({ state: 'visible' });
+            await sheet.getByRole('button', { name: 'Duyệt', exact: true }).waitFor({ state: 'visible' });
+            await sheet.getByRole('button', { name: 'Từ chối', exact: true }).waitFor({ state: 'visible' });
+
+            const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+              scrollWidth: document.documentElement.scrollWidth,
+              innerWidth: window.innerWidth,
+            }));
+            assert(scrollWidth <= innerWidth, `Sideways scroll in the queue (${size}): scrollWidth (${scrollWidth}) > innerWidth (${innerWidth})`);
+            for (const label of ['Duyệt', 'Từ chối']) {
+              const box = await sheet.getByRole('button', { name: label, exact: true }).boundingBox();
+              assert(box && box.height >= 44, `"${label}" is ${box?.height ?? 0}px high (${size}), expected >= 44px`);
+              assert(box.x >= 0 && box.x + box.width <= innerWidth, `"${label}" is outside the window (${size}): x ${Math.round(box.x)}, right edge ${Math.round(box.x + box.width)}`);
+            }
+            const small = await sheet.evaluate((root) =>
+              [...root.querySelectorAll('button, a[href]')]
+                .filter((el) => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height < 43.5)
+                .map((el) => `${(el.textContent || el.tagName).trim().slice(0, 30)} ${Math.round(el.getBoundingClientRect().height)}px`),
+            );
+            assert(small.length === 0, `Targets under 44px high in the sheet (${size}): ${small.join(', ')}`);
+            return `${size} Hàng chờ (1): ${shown(p2.name)}, scrollWidth ${scrollWidth} <= ${innerWidth}, buttons >= 44px`;
+          });
+
+          await run.step(FLOW, `host taps Duyệt (${size}): Hàng chờ (0), joinedCount 2`, page, async () => {
+            const sheet = page.getByRole('dialog', { name: 'Chi tiết trận' });
+            const { status, body } = await clickFor(page, sheet.getByRole('button', { name: 'Duyệt', exact: true }), 'POST', '/approve');
+            assert(status === 200, `POST /approve answered ${status}: ${body.message ?? ''}`);
+            assert(body.joinedCount === 2, `joinedCount is ${body.joinedCount}, expected 2`);
+            await sheet.getByText('Hàng chờ (0)').waitFor({ state: 'visible' });
+            await sheet.getByText(/2\/8 suất/).waitFor({ state: 'visible' });
+            return `${size} Hàng chờ (0), 2/8 suất`;
+          });
+
+          await run.step(FLOW, `second player sees the seat (${size})`, p2Page, async () => {
+            await p2Page.goto(`${run.base}/app/phong-cho`);
+            await p2Card.first().waitFor({ state: 'visible' });
+            await p2Card.getByText('Bạn đã vào').waitFor({ state: 'visible' });
+            await p2Card.getByRole('button', { name: 'Rời trận', exact: true }).waitFor({ state: 'visible' });
+            return `${size} "Bạn đã vào" and "Rời trận"`;
+          });
+        } finally {
+          await p2Context.close().catch(() => {});
+        }
+        // The cancel step needs the card, not the open sheet.
+        await page.goto(`${run.base}/app/phong-cho`);
+        await matchCards.first().waitFor({ state: 'visible' });
+      }
 
       await run.step(FLOW, `open Chi tiết and cancel the match (${size}): card leaves the feed`, page, async () => {
         await matchCards.getByRole('button', { name: /^Chi tiết/ }).click();

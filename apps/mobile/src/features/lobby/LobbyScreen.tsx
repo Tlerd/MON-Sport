@@ -4,6 +4,7 @@ import {
   userCancelDecision,
   vnDateString,
   type MatchDetailView,
+  type MatchRequestView,
   type MatchView,
   type Sport,
 } from '@monsport/shared';
@@ -62,6 +63,11 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
 
+  // The waiting requests of a "Host duyệt" match. Only the host loads them (BR-20: phones stay private).
+  const [queue, setQueue] = useState<MatchRequestView[] | null>(null);
+  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
+  const busyRef = useRef<Set<string>>(new Set());
+
   const [leaveTarget, setLeaveTarget] = useState<MatchView | null>(null);
   const [leaveBusy, setLeaveBusy] = useState(false);
   const [leaveError, setLeaveError] = useState('');
@@ -107,6 +113,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
 
   const closeDetail = useCallback(() => {
     detailReqCounter.current++;
+    setQueue(null);
     setDetailTarget(null);
     setDetail(null);
     setDetailError('');
@@ -205,6 +212,9 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
     setRequests({});
     setDetailTarget(null);
     setDetail(null);
+    setQueue(null);
+    busyRef.current = new Set();
+    setBusyIds(new Set());
     setDetailError('');
     setDetailLoading(false);
     setLeaveTarget(null);
@@ -238,6 +248,41 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
       return next;
     });
   }, []);
+
+  /**
+   * Loads the detail and, for the host of a "Host duyệt" match, the queue.
+   * Every open, close and decision bumps the counter, so a late response is dropped.
+   */
+  const loadDetail = useCallback(
+    async (id: string, approvalHint: boolean, initial: boolean) => {
+      const reqId = ++detailReqCounter.current;
+      const live = () => reqId === detailReqCounter.current;
+      try {
+        const d = await api<MatchDetailView>(`/api/matches/${id}`);
+        if (!live()) return;
+        setDetail(d);
+        applyRequest(d.id, d.myRequest);
+        if (d.viewerRole === 'HOST' && (d.joinMode === 'APPROVAL' || approvalHint)) {
+          const list = await api<MatchRequestView[]>(`/api/matches/${id}/requests`);
+          if (!live()) return;
+          setQueue(list);
+        } else {
+          setQueue(null);
+        }
+        setDetailLoading(false);
+      } catch (err) {
+        if (!live()) return;
+        setDetailLoading(false);
+        if (err instanceof ApiError && err.status === 401) {
+          closeDetail();
+          openSessionLogin();
+        } else if (initial) {
+          setDetailError(err instanceof ApiError ? err.message : 'Không tải được');
+        }
+      }
+    },
+    [applyRequest, closeDetail, openSessionLogin],
+  );
 
   const joinMatch = useCallback(
     async (id: string) => {
@@ -331,7 +376,49 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
     void joinMatch(id);
   }, [guestLoginTick, joinMatch]);
 
-  useLobbyStream(reload, user !== undefined);
+  const decide = useCallback(
+    async (matchId: string, requestUserId: string, action: 'approve' | 'reject') => {
+      if (busyRef.current.has(requestUserId)) return;
+      const startUserId = userIdRef.current;
+      busyRef.current.add(requestUserId);
+      setBusyIds(new Set(busyRef.current));
+      setDetailError('');
+      // A load that started before this decision is stale now.
+      detailReqCounter.current++;
+      try {
+        await api(`/api/matches/${matchId}/requests/${requestUserId}/${action}`, { method: 'POST' });
+        if (userIdRef.current !== startUserId) return;
+        setQueue((prev) => prev?.filter((r) => r.userId !== requestUserId) ?? prev);
+        if (detailTargetIdRef.current === matchId) void loadDetail(matchId, true, false);
+        reload();
+      } catch (err) {
+        if (userIdRef.current !== startUserId) return;
+        if (err instanceof ApiError && err.status === 401) {
+          if (detailTargetIdRef.current === matchId) closeDetail();
+          openSessionLogin();
+        } else if (detailTargetIdRef.current === matchId) {
+          setDetailError(err instanceof ApiError ? err.message : 'Không kết nối được. Thử lại sau');
+          // The queue or the seats changed: show the real state, keep the API text.
+          if (err instanceof ApiError && err.status === 409) {
+            void loadDetail(matchId, true, false);
+            reload();
+          }
+        }
+      } finally {
+        busyRef.current.delete(requestUserId);
+        setBusyIds(new Set(busyRef.current));
+      }
+    },
+    [loadDetail, reload, closeDetail, openSessionLogin],
+  );
+
+  // One reload of the lobby, and of the open detail with its queue, for each burst of stream events.
+  const onStreamChange = useCallback(() => {
+    reload();
+    const id = detailTargetIdRef.current;
+    if (id && roleRef.current !== undefined && userIdRef.current) void loadDetail(id, true, false);
+  }, [reload, loadDetail]);
+  useLobbyStream(onStreamChange, user !== undefined);
 
   const handleOpen = (match: MatchView) => {
     setCardErrors({});
@@ -347,29 +434,14 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
       setDetailLoading(false);
       return;
     }
-    const reqId = ++detailReqCounter.current;
     setDetailTarget(match);
     setDetail(null);
+    setQueue(null);
+    setBusyIds(new Set());
+    busyRef.current = new Set();
     setDetailError('');
     setDetailLoading(true);
-    api<MatchDetailView>(`/api/matches/${match.id}`).then(
-      (d) => {
-        if (reqId !== detailReqCounter.current) return;
-        setDetail(d);
-        applyRequest(d.id, d.myRequest);
-        setDetailLoading(false);
-      },
-      (err: unknown) => {
-        if (reqId !== detailReqCounter.current) return;
-        setDetailLoading(false);
-        if (err instanceof ApiError && err.status === 401) {
-          closeDetail();
-          openSessionLogin();
-        } else {
-          setDetailError(err instanceof ApiError ? err.message : 'Không tải được');
-        }
-      },
-    );
+    void loadDetail(match.id, match.joinMode === 'APPROVAL', true);
   };
 
   const handleJoin = (match: MatchView) => {
@@ -728,6 +800,100 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                         </li>
                       ))}
                   </ul>
+                  {detail.viewerRole === 'HOST' && detailApproval && queue && (
+                    <section aria-label="Hàng chờ" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', minWidth: 0 }}>
+                      <h3 style={{ margin: 0, font: 'var(--font-body-strong)' }}>{`Hàng chờ (${queue.length})`}</h3>
+                      <ul
+                        style={{
+                          listStyle: 'none',
+                          margin: 0,
+                          padding: 0,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 'var(--space-sm)',
+                          minWidth: 0,
+                        }}
+                      >
+                        {queue.map((r) => {
+                          const busy = busyIds.has(r.userId);
+                          const decideStyle = {
+                            ...sheetBtnStyle,
+                            flex: '1 1 0',
+                            cursor: busy ? 'not-allowed' : 'pointer',
+                            opacity: busy ? 0.6 : 1,
+                          } as const;
+                          return (
+                            <li
+                              key={r.userId}
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 'var(--space-xs)',
+                                padding: 'var(--space-sm) 0',
+                                borderTop: '1px solid var(--color-line)',
+                                minWidth: 0,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexWrap: 'wrap',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  columnGap: 'var(--space-sm)',
+                                  minWidth: 0,
+                                }}
+                              >
+                                <span style={{ font: 'var(--font-body)', overflowWrap: 'anywhere', minWidth: 0 }}>
+                                  {r.name}
+                                </span>
+                                <a
+                                  href={`tel:${r.phone}`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    minHeight: '44px',
+                                    color: 'var(--color-primary)',
+                                    font: 'var(--font-body-strong)',
+                                  }}
+                                >
+                                  {r.phone}
+                                </a>
+                              </div>
+                              <div style={{ display: 'flex', gap: 'var(--space-sm)', minWidth: 0 }}>
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => void decide(detail.id, r.userId, 'approve')}
+                                  style={{
+                                    ...decideStyle,
+                                    border: 'none',
+                                    backgroundColor: 'var(--color-primary)',
+                                    color: 'var(--color-on-primary)',
+                                  }}
+                                >
+                                  Duyệt
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => void decide(detail.id, r.userId, 'reject')}
+                                  style={{
+                                    ...decideStyle,
+                                    border: '1px solid var(--color-line)',
+                                    backgroundColor: 'var(--color-surface)',
+                                    color: 'var(--color-ink)',
+                                  }}
+                                >
+                                  Từ chối
+                                </button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  )}
                   {detailApproval && detail.viewerRole === 'NONE' && requests[detail.id] === 'PENDING' && (
                     <>
                       <p role="status" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
