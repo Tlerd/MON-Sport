@@ -6,6 +6,7 @@ import { DatabaseModule } from './modules/database/database.module.js';
 import { FinanceModule } from './modules/finance/finance.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MatchesModule } from './modules/matches/matches.module.js';
+import { McpModule } from './modules/mcp/mcp.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { OtpModule } from './modules/otp/otp.module.js';
 import { PushModule } from './modules/push/push.module.js';
@@ -13,6 +14,6 @@ import { StaffModule } from './modules/staff/staff.module.js';
 import { VenuesModule } from './modules/venues/venues.module.js';
 
 @Module({
-  imports: [DatabaseModule, HealthModule, AuthModule, VenuesModule, BookingsModule, MatchesModule, AdminModule, NotificationsModule, FinanceModule, PushModule, OtpModule, StaffModule],
+  imports: [DatabaseModule, HealthModule, AuthModule, VenuesModule, BookingsModule, MatchesModule, AdminModule, NotificationsModule, FinanceModule, PushModule, OtpModule, StaffModule, McpModule],
 })
 export class AppModule {}

@@ -9,5 +9,6 @@ import { MatchesService } from './matches.service.js';
   imports: [AuthModule, NotificationsModule],
   controllers: [MatchesController],
   providers: [MatchesService, LobbyEvents],
+  exports: [MatchesService],
 })
 export class MatchesModule {}

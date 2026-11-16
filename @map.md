@@ -61,6 +61,12 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - matches.module.ts: MatchesModule
 - matches.service.ts: toMatchView, toMatchDetailView, MatchesService
 
+## apps/api/src/modules/mcp/
+- mcp-context.ts: McpContext
+- mcp.module.ts: McpModule
+- mcp.service.ts: McpService
+- rate-limiter.ts: WINDOW_MS, MAX_CALLS, MAX_WRITES, RateLimiter
+
 ## apps/api/src/modules/notifications/
 - notifications.controller.ts: NotificationsController
 - notifications.module.ts: NotificationsModule
@@ -88,9 +94,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/api/src/modules/venues/
 - availability.controller.ts: AvailabilityController
+- availability.service.ts: AvailabilityService
 - venue-view.ts: toCourtView, toVenueView
 - venues.controller.ts: VenuesController, OwnerVenuesController, OwnerCourtsController
 - venues.module.ts: VenuesModule
+- venues.service.ts: VenuesService
 
 ## apps/api/test/
 - database-url.ts: TEST_DATABASE_URL

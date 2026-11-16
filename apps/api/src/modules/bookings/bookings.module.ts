@@ -8,5 +8,6 @@ import { BookingsService } from './bookings.service.js';
   imports: [AuthModule, NotificationsModule],
   controllers: [BookingsController, OwnerBookingsController],
   providers: [BookingsService],
+  exports: [BookingsService],
 })
 export class BookingsModule {}

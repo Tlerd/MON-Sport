@@ -179,6 +179,7 @@ Lưu ý bước 2:
 | `search_venues` lọc theo tên đơn vị hoặc tên sân, phần chứa, không phân biệt hoa thường | UC-2 dòng 2.1 cho tìm theo tên sân |
 | Tách `VenuesService` và `AvailabilityService` ra khỏi hai controller | Cách duy nhất để công cụ gọi cùng mã mà không chép luật. Hành vi không đổi |
 | Đọc số điện thoại đơn vị bằng một `select` chỉ-đọc trong module `mcp` | `BookingView` không có số điện thoại. Đổi `BookingsService.request` nằm ngoài đường dẫn cho phép |
+| Lời gọi bị SDK từ chối vì sai schema không được đếm vào BR-58 | SDK từ chối trước khi handler chạy, nên bộ đếm không thấy lời gọi. Bước 3 có thể chuyển việc đếm lên sớm hơn |
 | Công cụ chạy với mọi booking nguồn `APP` của người dùng. Booking nguồn `PHONE` trả như không tồn tại | Giống `cancelOwn` hiện có |
 
 ## Open questions
