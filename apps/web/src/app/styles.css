@@ -69,7 +69,7 @@ small { font-size: 12.5px; color: var(--ink3); }
 .feed { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
 .page { max-width: 1220px; margin: 0 auto; padding: 28px 24px 72px; } .page.narrow { max-width: 880px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
-.page-head h1, .vhead h1, .phead h1 { font: 800 38px/1.05 var(--display); letter-spacing: .01em; text-transform: uppercase; }
+.page-head h1, .page-head h2, .vhead h1, .phead h1 { font: 800 38px/1.05 var(--display); letter-spacing: .01em; text-transform: uppercase; }
 .page-head p { margin-top: 6px; color: var(--ink2); max-width: 62ch; }
 .count { margin-left: auto; color: var(--ink3); font-size: 13px; white-space: nowrap; }
 .fbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
@@ -474,11 +474,7 @@ form textarea:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
 }
 .date-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .filter-chips-row { display: grid; gap: 10px; min-width: 0; }
-.filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
-.filter-label { min-width: 68px; font-size: 12.5px; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: .04em; }
-.filter-row .chips { margin-bottom: 0; flex: 1; min-width: 0; }
 .filter-chips-row .fbar { margin-bottom: 0; margin-top: 2px; }
-.lobby-sec { margin: 18px 0 10px; }
 .lobby-split.md { margin-top: 0; }
 .total { display: flex; align-items: baseline; gap: 8px; }
 .total strong { font: 800 26px/1 var(--display); color: var(--ink); }
@@ -512,7 +508,7 @@ form textarea:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
 .req.ticket .stub strong { font: 600 14.5px/1.4 var(--body); color: var(--ink); }
 .req.ticket .stub span { font-size: 12.5px; color: var(--ink3); }
 .req-day b { display: block; font-weight: 600; }
-.req-price-sm { display: none; }
+.req .req-price-sm { display: none; }
 .owner-overview .req { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; }
 .schedule-page, .financial-panel, .stats-panel, .owner-overview, .my-page { min-width: 0; }
 .schedule-layout { margin-top: 14px; }
@@ -548,7 +544,7 @@ form textarea:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
 .queue-reputation, .match-slots, .where { font-size: 13px; color: var(--ink2); }
 .empty-detail-card { padding: 28px 20px; text-align: center; }
 .level-badge { font-weight: 600; }
-.sport-chips, .level-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.sport-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .venues-section, .book-page { display: grid; gap: 16px; }
 .search-field { min-width: 0; }
 .duration-select { width: auto; min-width: 110px; }
@@ -779,7 +775,7 @@ form textarea:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
   .reqs-table { --req-cols: minmax(0, 1fr) 104px 78px 302px; }
   .req, .req.ticket { padding: 12px 16px; gap: 10px; }
   .req-price { display: none; }
-  .req-price-sm { display: block; font-size: 12.5px; margin-top: 2px; }
+  .req .req-price-sm { display: block; font-size: 12.5px; margin-top: 2px; }
   .req.head span:nth-child(4) { display: none; }
 }
 @media (max-width: 1180px) {
@@ -867,7 +863,7 @@ form textarea:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
   .page, .dash-main { padding: 16px 14px 56px; }
   .player-main > :not(.cols3):not(.page) { padding: 16px 14px 56px; }
   .cols3 { padding: 14px 14px 56px; gap: 16px; }
-  .page-head h1, .vhead h1, .phead h1 { font-size: 30px; }
+  .page-head h1, .page-head h2, .vhead h1, .phead h1 { font-size: 30px; }
   .composer-acts { grid-template-columns: minmax(0, 1fr); }
   .hero-in { flex-wrap: wrap; padding: 18px; }
   .hero-when b { font-size: 46px; }
@@ -1021,4 +1017,48 @@ form textarea:focus { outline: 2px solid var(--ink); border-color: var(--ink); }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
   html { scroll-behavior: auto; }
+}
+
+/* F-034: thẻ trận và thanh lọc khớp mẫu */
+.mc-b .tags { align-items: center; }
+.mc-f .stack .av { box-shadow: 0 0 0 2px var(--surface); }
+.mc-f .fee { flex: none; }
+.fbar .other-day { position: relative; cursor: pointer; }
+.fbar .other-day.on { background: var(--ink); color: var(--lime); box-shadow: none; }
+.filter-chips-row { gap: 10px; margin-bottom: 4px; }
+.filter-chips-row .fbar { margin: 0; }
+.mc-b .meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-b .meta .ic { display: inline-block; vertical-align: -3px; margin-right: 5px; }
+.mc-b .meta span { display: inline; max-width: none; overflow-wrap: normal; }
+.mc .tag.status svg { display: none; }
+.mc.compact .stack .av { --s: 24px !important; font-size: 9px; }
+.mc.compact .stack .av + .av { margin-left: -9px; }
+.venues-section .vgrid { margin-top: 0; }
+.venues-section > .warnbox { margin: 0; }
+
+/* Lịch của tôi: một thẻ, hàng ngăn bằng đường kẻ như mẫu */
+.my-page > .panel { background: transparent; border: 0; padding: 0; }
+.my-page > .seg.tabs { margin-bottom: 4px; }
+.my-page > .panel > h2 { margin: 22px 0 10px; font-size: 17px; font-weight: 700; }
+.my-page .schedule-list { gap: 0; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.my-page .schedule-list > .si-item.card { background: transparent; border: 0; border-radius: 0; }
+.my-page .schedule-list > .si-item + .si-item { border-top: 1px solid var(--line2); }
+.my-page .si .stub.si-t { width: 72px; padding: 0; background: transparent; align-items: flex-start; text-align: left; }
+.my-page .si .stub.si-t strong { font: 800 24px/1 var(--display); }
+.my-page .si .stub.si-t span { font-size: 12.5px; font-weight: 400; color: var(--ink3); }
+
+/* Ô số liệu cảnh báo và khung nội dung của bảng điều khiển */
+.tile.warn { border-color: var(--clay); background: var(--clay-soft); } .tile.warn b { color: var(--clay); }
+.dash-main > .page, .dash-main > .page.narrow { max-width: none; margin: 0; padding: 0; }
+.stats-table caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.stub-sport { white-space: nowrap; }
+.mc.compact .mc-f { flex-wrap: nowrap; }
+.mc.compact .mc-f .stack { flex: 0 1 auto; min-width: 0; overflow: hidden; padding: 2px; margin: -2px; }
+.mc.compact .mc-f .fee { flex: none; }
+@media (max-width: 419px) {
+  .stub > .stub-sport { top: 8px; left: 8px; padding: 0 7px 0 6px; font-size: 11px; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-width: 719px) {
+  .mc-b .meta { white-space: normal; overflow: visible; text-overflow: clip; }
+  .mc-b .meta span { overflow-wrap: anywhere; }
 }

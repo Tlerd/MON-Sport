@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
@@ -1231,6 +1231,7 @@ describe('MyScreen open match (F-022)', () => {
         bookingId: id,
         capacity: 8,
         pricePerSlot: 30000,
+        joinMode: 'INSTANT',
       },
     });
 
@@ -1240,6 +1241,36 @@ describe('MyScreen open match (F-022)', () => {
     expect(await screen.findByText('Trận mở: 1/8 suất')).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Mở trận' })).toBeNull();
     expect(document.body.textContent).not.toMatch(/0\d{9}/);
+  });
+
+  it('AC-1: the "Mở trận" sheet has "Vào ngay" (checked) and "Host duyệt"; choosing "Host duyệt" sends joinMode "APPROVAL" with json; reopening resets to "Vào ngay"', async () => {
+    const id = '00000000-0000-4000-8000-000000000211';
+    mockLists(() => [makeBooking({ id })]);
+    renderScreen(['/lich-cua-toi'], CANCEL_USER, CANCEL_NOW);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở trận' }));
+    let dialog = await screen.findByRole('dialog', { name: 'Mở trận' });
+    expect((within(dialog).getByRole('radio', { name: 'Vào ngay' }) as HTMLInputElement).checked).toBe(true);
+    expect((within(dialog).getByRole('radio', { name: 'Host duyệt' }) as HTMLInputElement).checked).toBe(false);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Host duyệt' }));
+    expect((within(dialog).getByRole('radio', { name: 'Host duyệt' }) as HTMLInputElement).checked).toBe(true);
+    // Close and reopen: the choice resets.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở trận' }));
+    dialog = await screen.findByRole('dialog', { name: 'Mở trận' });
+    expect((within(dialog).getByRole('radio', { name: 'Vào ngay' }) as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Host duyệt' }));
+    fireEvent.click(
+      Array.from(dialog.querySelectorAll('button')).find((b) => b.textContent === 'Mở trận') as HTMLButtonElement,
+    );
+    await waitFor(() =>
+      expect(clientModule.api).toHaveBeenCalledWith('/api/matches', {
+        method: 'POST',
+        json: { bookingId: id, capacity: 10, pricePerSlot: 0, joinMode: 'APPROVAL' },
+      }),
+    );
   });
 
   it('AC-14: invalid capacity (1 or 31) or price (-1) disables "Mở trận", shows the validation message in role="alert", and sends nothing', async () => {

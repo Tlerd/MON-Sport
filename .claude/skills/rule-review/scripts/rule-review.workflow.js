@@ -84,7 +84,7 @@ const picked = await agent(
   `You pick the rules that ${TARGET} in the MONSPORT repository could break. ${READ_ONLY}
 
 1. List the changed files with \`${FILES}\`, then read the diff with \`${DIFF}\`. Read the description with ${DESCRIPTION}.
-2. Read docs/requirements/business-rules.md (BR-1 to BR-32) and the section "Rule catalogue" of ${RUBRIC} (AG-* rules).
+2. Read docs/requirements/business-rules.md (BR-1 to BR-57) and the section "Rule catalogue" of ${RUBRIC} (AG-* rules).
 3. ${
     forced
       ? `Return exactly these rules: ${forced.join(', ')}. Copy the text of each from its source.`
