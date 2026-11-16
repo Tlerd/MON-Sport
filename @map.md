@@ -8,7 +8,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - vitest.config.ts
 
 ## apps/api/prisma/
-- seed.ts
+- seed.ts: DemoData, buildDemoData, seedDatabase
 
 ## apps/api/src/
 - app.module.ts: AppModule
@@ -123,7 +123,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - BookingSheet.tsx: BookingSheetProps, BookingSheet
 
 ## apps/mobile/src/features/lobby/
-- LobbyMatchCard.tsx: LobbyMatchCardProps, CALL_OWNER_TO_CANCEL_HINT, LobbyMatchCard
+- LobbyMatchCard.tsx: LobbyMatchCardProps, CALL_OWNER_TO_CANCEL_HINT, REQUEST_PENDING_TEXT, REQUEST_REJECTED_TEXT, LobbyMatchCard
 - LobbyScreen.tsx: LobbyScreenProps, LobbyScreen
 - useLobbyStream.ts: useLobbyStream
 
@@ -180,7 +180,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - CourtArt.tsx: CourtArtProps, CourtArt
 - CourtPrices.tsx: CourtPrices
 - EmptyState.tsx: EmptyStateProps, EmptyState
-- MatchCard.tsx: SPORT_LABEL, BOOKING_BADGE, MatchCardContent
+- MatchCard.tsx: SPORT_LABEL, BOOKING_BADGE, stubDay, formatPriceK, MatchCardContent
 - Panel.tsx: PanelProps, Panel
 - SlotGrid.tsx: SlotCellStatus, SlotCellInfo, CourtItem, SelectedSlot, SlotGridProps, WindowId, …
 - SportIcon.tsx: KnownSportId, normalizeSportId, SportIconProps, SportIcon
