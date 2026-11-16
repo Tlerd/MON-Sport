@@ -6,6 +6,7 @@ import {
   LeaveMatchInput,
   ListMatchesInput,
   ListMyBookingsInput,
+  MCP_READ_TOOLS,
   MCP_TOOL_NAMES,
   MCP_WRITE_TOOLS,
   OpenMatchInput,
@@ -30,6 +31,13 @@ describe('MCP contract (brief F-036, Contract)', () => {
     ]);
     for (const name of MCP_WRITE_TOOLS) expect(MCP_TOOL_NAMES).toContain(name);
     expect(MCP_WRITE_TOOLS).toHaveLength(5);
+  });
+
+  it('AC-1: MCP_READ_TOOLS and MCP_WRITE_TOOLS split MCP_TOOL_NAMES', () => {
+    const read: string[] = [...MCP_READ_TOOLS];
+    const write: string[] = [...MCP_WRITE_TOOLS];
+    expect(read.filter((name) => write.includes(name))).toEqual([]);
+    expect([...read, ...write].sort()).toEqual([...MCP_TOOL_NAMES].sort());
   });
 
   it('AC-1: RequestBookingInput rejects the extra key userId', () => {
