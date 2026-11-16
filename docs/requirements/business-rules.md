@@ -69,6 +69,7 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-56 | Host chấm mỗi người có suất trong trận, sau giờ bắt đầu và trong 7 ngày. Mỗi người một điểm mỗi trận: từ 1 đến 5 sao, hoặc Vắng mặt không có sao. Chấm lại thì sửa điểm cũ. | action enabler | dynamic | Intake V2, W5, brief F-032 |
 | BR-57 | Điểm uy tín của người chơi là trung bình số sao (một chữ số thập phân), số điểm có sao và số lần vắng. Chỉ host của trận Host duyệt thấy điểm uy tín của người xin. | computation | dynamic | Intake V2, W5, brief F-032 |
 | BR-58 | Mỗi người dùng gọi tối đa 60 lệnh công cụ MCP mỗi phút, trong đó tối đa 10 lệnh ghi. Lệnh vượt mức bị từ chối với lỗi "Quá nhiều lệnh. Thử lại sau" và không chạm service | constraint | dynamic | Intake V2, W7, brief F-036 |
+| BR-59 | Người dùng có tối đa 5 mã truy cập còn hiệu lực. Mã có hạn 30 hoặc 90 ngày, chỉ hiện một lần lúc tạo và chỉ được lưu dạng băm. Người dùng thu hồi được từng mã. Mã tạo trước lúc admin mở khóa tài khoản không còn hiệu lực (BR-32) | constraint | static | Intake V2, W7 (giả định của agent, `HUMAN_DECISIONS.md` dòng 69), brief F-037 |
 
 ## Assumptions
 
@@ -78,4 +79,5 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 - Quy tắc đồng ý lúc đăng ký: intake chưa trả lời Luật 91/2025 có yêu cầu đồng ý lúc đăng ký hay không (open item 4). Ô đồng ý bắt buộc là lựa chọn an toàn hơn. Bạn sửa quy tắc này khi có ý kiến của người tư vấn luật.
 - Quy tắc chấm điểm (BR-56): điểm từ 1 đến 5 sao hoặc vắng mặt không có sao.
 - Quy tắc điểm uy tín (BR-57): điểm uy tín là trung bình số sao và số lần vắng mặt, không gộp công thức (brief F-032).
-- Giới hạn lệnh công cụ MCP (BR-58): 60 lệnh và 10 lệnh ghi mỗi phút là giả định của agent, chờ bạn sửa. Bước 2 đếm trong bộ nhớ của từng instance. Bước 3 chuyển sang bảng dùng chung `AuthThrottle` trước khi mở đường HTTP (brief F-036).
+- Giới hạn lệnh công cụ MCP (BR-58): 60 lệnh và 10 lệnh ghi mỗi phút là giả định của agent, chờ bạn sửa. Bước 2 đếm trong bộ nhớ của từng instance. Bước 3 chuyển sang bảng dùng chung `AuthThrottle` trước khi mở đường HTTP (brief F-036, brief F-037).
+- Giới hạn mã truy cập (BR-59): 5 mã, hạn 30 hoặc 90 ngày là giả định của agent, chờ bạn sửa (`HUMAN_DECISIONS.md`, dòng 69).

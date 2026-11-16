@@ -105,7 +105,7 @@ Người dùng đã đăng nhập, qua AI client của họ. AI hành động b�
 
 ### Luật
 
-Mọi luật V1 và V2 giữ nguyên: BR-1, BR-6, BR-7, BR-9, BR-11, BR-12, BR-15, BR-20, BR-22. Luật mới chỉ có BR-58: giới hạn số lệnh công cụ của một người dùng.
+Mọi luật V1 và V2 giữ nguyên: BR-1, BR-6, BR-7, BR-9, BR-11, BR-12, BR-15, BR-20, BR-22. Luật mới: BR-58 giới hạn số lệnh công cụ của một người dùng. BR-59 giới hạn mã truy cập cá nhân. BR-59 là giả định của agent ngày 17/11/2026, chờ bạn sửa (`HUMAN_DECISIONS.md`, dòng 69; brief F-037).
 
 ### Acceptance (mức intake)
 
