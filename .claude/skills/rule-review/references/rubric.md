@@ -6,7 +6,7 @@ The classifier, the verifiers, and the skeptic of `scripts/rule-review.workflow.
 
 Two sources give the rules:
 
-- `docs/requirements/business-rules.md`: BR-1 to BR-57. Use the ID and the "Rule Definition" text.
+- `docs/requirements/business-rules.md`: BR-1 to BR-58. Use the ID and the "Rule Definition" text.
 - The repository rules below, from the "Never" list, the Coder role, and the cases that `AGENTS.md` sends to the Reviewer round (money, concurrency, schema, personal data).
 
 | ID | Rule | Picks it when the diff |

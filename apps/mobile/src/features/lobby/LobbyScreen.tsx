@@ -82,6 +82,8 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
 
   const reqCounter = useRef(0);
   const detailReqCounter = useRef(0);
+  // One counter for each match: a write (applyRequest) or a newer refresh makes an older refresh response stale.
+  const requestReqCounters = useRef<Record<string, number>>({});
   const inFlight = useRef(false);
   const pending = useRef(false);
   // The login sheet opens once for each expiry, not on every SSE reload that gets a 401.
@@ -245,6 +247,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   }, [loginTick]);
 
   const applyRequest = useCallback((id: string, myRequest: 'PENDING' | 'REJECTED' | null | undefined) => {
+    requestReqCounters.current[id] = (requestReqCounters.current[id] ?? 0) + 1;
     setRequests((prev) => {
       const next = { ...prev };
       if (myRequest === 'PENDING' || myRequest === 'REJECTED') next[id] = myRequest;
@@ -257,9 +260,11 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const refreshRequest = useCallback(
     async (id: string) => {
       const startUserId = userIdRef.current;
+      const reqNo = (requestReqCounters.current[id] = (requestReqCounters.current[id] ?? 0) + 1);
       try {
         const d = await api<MatchDetailView>(`/api/matches/${id}`);
         if (userIdRef.current !== startUserId) return;
+        if (requestReqCounters.current[id] !== reqNo) return;
         applyRequest(d.id, d.myRequest);
       } catch {
         // keep the cached state
@@ -849,6 +854,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
                     <section aria-label="Hàng chờ" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', minWidth: 0 }}>
                       <h3 style={{ margin: 0, font: 'var(--font-body-strong)' }}>{`Hàng chờ (${queue.length})`}</h3>
                       <ul
+                        className="queue-list"
                         style={{
                           listStyle: 'none',
                           margin: 0,
