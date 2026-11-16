@@ -74,6 +74,8 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 59 | Nhân viên có hủy booking và đánh dấu đã thu tiền không? (F-031) | Không | Không | F-031 |
 | 60 | Luật tính điểm uy tín và vắng mặt (F-032) | 1 đến 5 sao, hoặc Vắng mặt không sao. Điểm là trung bình sao và số lần vắng | Không | F-032 |
 | 61 | Ai thấy điểm uy tín? (F-032) | Chỉ host, trong hàng chờ | Không | F-032 |
+| 69 | Mã truy cập cá nhân cho MCP: tối đa bao nhiêu mã, hạn bao lâu? (F-037) | 5 mã còn hiệu lực, hạn 30 hoặc 90 ngày | Không | F-037 |
+| 70 | Có cần lệnh stdio (cầu nối cục bộ) như kế hoạch MCP bước 3 không? Claude Code nối thẳng `/api/mcp` bằng HTTP và header `Authorization` | Không làm lệnh stdio | Không | F-037 |
 
 ## Việc chỉ người dùng làm được
 

@@ -7,6 +7,12 @@ Lời người dùng, 16/11/2026: "Bắt đầu port app mobile cho W1, làm ph�
 
 **Phạm vi của lần duyệt này.** Chỉ bước 2 của kế hoạch bắt đầu ngay: lớp công cụ, không xác thực ngoài, không đổi schema, không có đường HTTP (brief F-036). PAT (bước 3) và OAuth (bước 4) cần brief riêng và `rule-review` trước khi code. Bước 1b (GPS) và công cụ cho chủ sân và admin (dòng 27) vẫn mở.
 
+## Sửa đổi 17/11/2026 (brief F-037)
+
+- Cách A dùng PAT qua Streamable HTTP với header `Authorization: Bearer`, không qua stdio. Claude Code nối thẳng được bằng cách này (`HUMAN_DECISIONS.md`, dòng 70).
+- Bước 3 mở `POST /api/mcp`, chỉ nhận PAT. Cookie không được tính. Request có header `Origin` bị từ chối.
+- Bước 4 thêm OAuth cho cùng đường này.
+
 ## Context
 
 Người dùng muốn hai việc: một AI tự đặt lịch trên MONSPORT, và người biết dùng AI nối MONSPORT qua connector.

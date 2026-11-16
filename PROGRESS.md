@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Done features are in `COMPLETED.md`. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-14 (the web has the new UI of F-033, ADR 0009).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Done features are in `COMPLETED.md`. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-17 (brief F-037, MCP step 3: personal access tokens).
 
 ## Current state
 
@@ -26,7 +26,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 ## Next step
 
 - Waiting for the user: F-004 step 4 (live): choose the SMS provider and register a brandname, do the Google console steps of the brief, then send the client ID. Then brief F-018 (Zalo, OTP over ZNS). Web Push (F-014) is not done until an Android phone passes. Other items: `HUMAN_DECISIONS.md`.
-- A plan for an MCP server (AI books courts; users connect a connector) is in `docs/design/ke-hoach-mcp.md`, with ADR 0008 (Proposed). ADR 0008 is accepted. Brief F-036 (tool layer): row 1 (contract, PR `feat/262-1-mcp-contract`) is built; row 2 (the `mcp` module, branch `feat/262-2-mcp-tool-layer`) is built: 9 tools for the USER role, no HTTP route, no schema change. Next: row 3 (PAT) needs its own brief.
+- A plan for an MCP server (AI books courts; users connect a connector) is in `docs/design/ke-hoach-mcp.md`, with ADR 0008 (Proposed). ADR 0008 is accepted. Brief F-036 (tool layer): row 1 (contract, PR `feat/262-1-mcp-contract`) is built; row 2 (the `mcp` module, branch `feat/262-2-mcp-tool-layer`) is built: 9 tools for the USER role, no HTTP route, no schema change. Step 3 (PAT) has brief F-037 (`docs/briefs/F-037-mcp-ma-truy-cap-ca-nhan.md`, PR `docs/f-037-pat-brief`): 4 pull requests (contract, `AccessToken` table and management routes, `POST /api/mcp` with BR-58 in `AuthThrottle`, the "Kết nối AI" section of `/ho-so`). Next: build row 1 of F-037. Rows 2 and 3 change the schema and auth: strongest model and `rule-review`.
 - Deferred mobile lows: F-022 D-8, F-023 D-1 (waits for question 2), F-025 D-8, F-026 D-6 to D-8. Flaky test: `VenueScreen.test.tsx` AC-9 (scrollTo called 4 times instead of 2).
 - The self-hosted runner `monsport-wsl` (label `monsport-local`, WSL2 Ubuntu on drive D) has run since 2026-11-07. PR `chore/runner-tu-host` moves `changes`, `check`, `image`, and `gates` to it (`deploy` stays on `ubuntu-latest`). Plan: `docs/design/ke-hoach-runner-tu-host.md`. If a job fails there for an environment reason, read its log and fix the runner or go back to `ubuntu-latest`.
 - When the agy Claude and GPT models are out of quota, code with `AGY_MODELS=gemini-4-argon-high,gemini-4-hydrogen-high node scripts/agy-run.mjs ...`. Use the subagent `backend` or `frontend` (Sonnet) only on exit 4, as `agent-workflow` says.
