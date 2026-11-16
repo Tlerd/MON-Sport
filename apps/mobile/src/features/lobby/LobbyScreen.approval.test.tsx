@@ -426,6 +426,8 @@ describe('LobbyScreen: host approval (F-035 step 1)', () => {
     await waitFor(() => expect(within(dialog).queryByText('Đang tải')).toBeNull());
     // The stale response is dropped and a fresh GET fills the sheet.
     await waitFor(() => expect(getCalls).toBe(2));
+    // The players list renders only from `detail`: an empty sheet would have no list.
+    expect(within(dialog).getByRole('list')).toBeDefined();
     expect(within(dialog).getByText(/Đơn vị 2/)).toBeDefined();
     expect(within(dialog).queryByRole('button', { name: 'Xin vào' })).toBeNull();
   });
