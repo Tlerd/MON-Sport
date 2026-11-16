@@ -20,6 +20,7 @@ export const MCP_TOOL_NAMES = [
 export type McpToolName = (typeof MCP_TOOL_NAMES)[number];
 
 export const MCP_WRITE_TOOLS = ['request_booking', 'cancel_booking', 'open_match', 'join_match', 'leave_match'] as const;
+export const MCP_READ_TOOLS = ['search_venues', 'get_availability', 'list_my_bookings', 'list_matches'] as const;
 
 // Input. Every schema is strict.
 export const SearchVenuesInput = z.object({ sport: Sport.optional(), name: z.string().trim().min(1).max(100).optional() }).strict();
