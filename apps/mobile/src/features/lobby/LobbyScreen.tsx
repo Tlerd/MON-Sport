@@ -298,10 +298,14 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
       try {
         const d = await api<MatchDetailView>(`/api/matches/${id}`);
         if (!live()) return;
-        if ((requestReqCounters.current[id] ?? 0) === startReqNo) {
-          setDetail(d);
-          applyRequest(d.id, d.myRequest);
+        if ((requestReqCounters.current[id] ?? 0) !== startReqNo) {
+          // A write to the request landed while the GET was in flight: its myRequest is stale.
+          // A GET that starts now is not stale. The new call bumps the counter, so this one stops.
+          void loadDetail(id, approvalHint, initial);
+          return;
         }
+        setDetail(d);
+        applyRequest(d.id, d.myRequest);
         if (d.viewerRole === 'HOST' && (d.joinMode === 'APPROVAL' || approvalHint)) {
           const list = await api<MatchRequestView[]>(`/api/matches/${id}/requests`);
           if (!live()) return;
@@ -334,7 +338,6 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         const res = await api<MatchDetailView>(`/api/matches/${id}/join`, { method: 'POST' });
         if (userIdRef.current !== startUserId) return;
         if (res && typeof res === 'object' && 'id' in res) {
-          if (detailTargetIdRef.current === id) detailReqCounter.current++;
           applyRequest(res.id, res.myRequest);
           // A PENDING request is not a slot: the match does not join the joined list (BR-50).
           if (res.myRequest !== 'PENDING') {
@@ -380,7 +383,6 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
         // The leave call also cancels a pending request.
         await api(`/api/matches/${id}/leave`, { method: 'POST' });
         if (userIdRef.current !== startUserId) return;
-        if (detailTargetIdRef.current === id) detailReqCounter.current++;
         applyRequest(id, null);
         setDetail((prev) => (prev && prev.id === id ? { ...prev, myRequest: null } : prev));
         reload();
