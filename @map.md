@@ -8,7 +8,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - vitest.config.ts
 
 ## apps/api/prisma/
-- seed.ts
+- seed.ts: DemoData, buildDemoData, seedDatabase
 
 ## apps/api/src/
 - app.module.ts: AppModule
