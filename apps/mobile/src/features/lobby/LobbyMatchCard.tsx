@@ -10,6 +10,10 @@ export interface LobbyMatchCardProps {
   onOpen?: (match: MatchView) => void;
   onLeave?: (match: MatchView) => void;
   onCancel?: (match: MatchView) => void;
+  /** Cancel the pending request of the viewer: the same call as a leave (BR-50). */
+  onCancelRequest?: (match: MatchView) => void;
+  /** The request of the viewer on a "Host duyệt" match, when the detail told it. */
+  request?: 'PENDING' | 'REJECTED';
   /** The join request runs: the join button is disabled. */
   busy?: boolean;
   /** The error message of the last action on this card. */
@@ -50,15 +54,37 @@ const badgeStyle = {
 export const CALL_OWNER_TO_CANCEL_HINT =
   'Còn dưới 6 giờ nữa tới giờ bắt đầu. Gọi chủ sân ở tab Lịch của tôi để hủy trận.';
 
-export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, error, now = new Date() }: LobbyMatchCardProps) {
+/** Texts of a request on a "Host duyệt" match (BR-50, BR-51). */
+export const REQUEST_PENDING_TEXT = 'Đã gửi yêu cầu. Chờ host duyệt';
+export const REQUEST_REJECTED_TEXT = 'Host đã từ chối yêu cầu của bạn';
+
+export function LobbyMatchCard({
+  card,
+  onJoin,
+  onOpen,
+  onLeave,
+  onCancel,
+  onCancelRequest,
+  request,
+  busy,
+  error,
+  now = new Date(),
+}: LobbyMatchCardProps) {
   const { match, joined, isHost } = card;
+  // A missing joinMode is INSTANT: the field is optional in the contract.
+  const approval = match.joinMode === 'APPROVAL';
+  const asking = approval && !joined && !isHost;
+  const requestPending = asking && request === 'PENDING';
+  const requestRejected = asking && request === 'REJECTED';
+  // A FULL "Host duyệt" match takes requests too: the host approves when a slot frees (BR-52).
+  const canJoin = (approval ? match.status !== 'CANCELLED' : match.status === 'OPEN') && !joined && !isHost;
+  const canAsk = canJoin && !requestPending && !requestRejected;
   const startDate = new Date(match.startAt);
   const endDate = new Date(match.endAt);
   const dateHeading = dayHeading(vnDateString(startDate));
   const timeRange = `${hhmm(minuteOfDayVN(startDate))}–${hhmm(minuteOfDayVN(endDate))}`;
   const sportName = SPORT_LABEL[match.sport] ?? match.sport;
   const isConfirmed = match.bookingStatus === 'CONFIRMED';
-  const canJoin = match.status === 'OPEN' && !joined && !isHost;
   // The feed keeps only future matches, so a joined non-host card can leave (BR-18).
   const canLeave = joined && !isHost;
   const cancelDecision = isHost
@@ -113,6 +139,13 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
             >
               <Users size={12} aria-hidden="true" />
               Đầy
+            </span>
+          )}
+          {approval && (
+            <span
+              style={{ ...badgeStyle, color: 'var(--color-ink)', backgroundColor: 'var(--color-line)' }}
+            >
+              Host duyệt
             </span>
           )}
           <span
@@ -185,6 +218,17 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
         )}
       </div>
 
+      {requestPending && (
+        <p role="status" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
+          {REQUEST_PENDING_TEXT}
+        </p>
+      )}
+      {requestRejected && error !== REQUEST_REJECTED_TEXT && (
+        <p role="status" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}>
+          {REQUEST_REJECTED_TEXT}
+        </p>
+      )}
+
       {error && (
         <p
           role="alert"
@@ -203,7 +247,7 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
           minWidth: 0,
         }}
       >
-        {canJoin && (
+        {canAsk && (
           <button
             type="button"
             disabled={busy}
@@ -218,7 +262,25 @@ export function LobbyMatchCard({ card, onJoin, onOpen, onLeave, onCancel, busy, 
               opacity: busy ? 0.6 : 1,
             }}
           >
-            Vào trận
+            {approval ? 'Xin vào' : 'Vào trận'}
+          </button>
+        )}
+        {requestPending && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={(event) => {
+              event.stopPropagation();
+              onCancelRequest?.(match);
+            }}
+            style={{
+              ...actionStyle,
+              ...secondaryStyle,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              opacity: busy ? 0.6 : 1,
+            }}
+          >
+            Hủy yêu cầu
           </button>
         )}
         {canLeave && (
