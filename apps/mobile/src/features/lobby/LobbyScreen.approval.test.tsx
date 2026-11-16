@@ -277,6 +277,161 @@ describe('LobbyScreen: host approval (F-035 step 1)', () => {
     expect(buttonNames(card(container, approval))).not.toContain('Hủy yêu cầu');
   });
 
+  it('AC-4: with the detail sheet open, a slow load that started before a cancel does not put the request back', async () => {
+    let releaseGet: (() => void) | undefined;
+    let getCalls = 0;
+    api().mockImplementation(async (path: string) => {
+      if (path === `/api/matches/${approval.id}/leave`) return detailOf(approval, { myRequest: null });
+      if (path === `/api/matches/${approval.id}`) {
+        getCalls++;
+        if (getCalls > 1) {
+          await new Promise<void>((resolve) => {
+            releaseGet = resolve;
+          });
+        }
+        return detailOf(approval, { myRequest: 'PENDING' });
+      }
+      if (path.startsWith('/api/matches/joined')) return [];
+      if (path === '/api/matches') return [approval];
+      throw new Error(`unexpected ${path}`);
+    });
+    const { container } = renderScreen();
+    await waitFor(() => expect(card(container, approval)).not.toBeNull());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: /^Chi tiết/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết trận' });
+    const cancel = await within(dialog).findByRole('button', { name: 'Hủy yêu cầu' });
+
+    // A stream event starts a slow load of the open detail.
+    act(() => stream.onChange?.());
+    await waitFor(() => expect(getCalls).toBe(2));
+    fireEvent.click(cancel);
+    await within(dialog).findByRole('button', { name: 'Xin vào' });
+
+    await act(async () => {
+      releaseGet?.();
+    });
+    expect(within(dialog).queryByRole('button', { name: 'Hủy yêu cầu' })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Xin vào' })).toBeDefined();
+  });
+
+  it('AC-3: with the detail sheet open, a slow load that started before "Xin vào" does not drop the new request', async () => {
+    let releaseGet: (() => void) | undefined;
+    let getCalls = 0;
+    api().mockImplementation(async (path: string) => {
+      if (path === `/api/matches/${approval.id}/join`) return detailOf(approval, { myRequest: 'PENDING' });
+      if (path === `/api/matches/${approval.id}`) {
+        getCalls++;
+        if (getCalls > 1) {
+          await new Promise<void>((resolve) => {
+            releaseGet = resolve;
+          });
+        }
+        return detailOf(approval, { myRequest: null });
+      }
+      if (path.startsWith('/api/matches/joined')) return [];
+      if (path === '/api/matches') return [approval];
+      throw new Error(`unexpected ${path}`);
+    });
+    const { container } = renderScreen();
+    await waitFor(() => expect(card(container, approval)).not.toBeNull());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: /^Chi tiết/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết trận' });
+    const ask = await within(dialog).findByRole('button', { name: 'Xin vào' });
+
+    act(() => stream.onChange?.());
+    await waitFor(() => expect(getCalls).toBe(2));
+    fireEvent.click(ask);
+    await within(dialog).findByRole('button', { name: 'Hủy yêu cầu' });
+
+    await act(async () => {
+      releaseGet?.();
+    });
+    expect(within(dialog).getByRole('button', { name: 'Hủy yêu cầu' })).toBeDefined();
+    expect(within(dialog).queryByRole('button', { name: 'Xin vào' })).toBeNull();
+  });
+
+  it('AC-3: a "Xin vào" that finishes during the first load of the sheet does not leave "Đang tải"', async () => {
+    let releasePost: (() => void) | undefined;
+    let releaseGet: (() => void) | undefined;
+    let getCalls = 0;
+    api().mockImplementation(async (path: string) => {
+      if (path === `/api/matches/${approval.id}/join`) {
+        await new Promise<void>((resolve) => {
+          releasePost = resolve;
+        });
+        return detailOf(approval, { myRequest: 'PENDING' });
+      }
+      if (path === `/api/matches/${approval.id}`) {
+        getCalls++;
+        if (getCalls === 1) {
+          await new Promise<void>((resolve) => {
+            releaseGet = resolve;
+          });
+          return detailOf(approval, { myRequest: null });
+        }
+        return detailOf(approval, { myRequest: 'PENDING' });
+      }
+      if (path.startsWith('/api/matches/joined')) return [];
+      if (path === '/api/matches') return [approval];
+      throw new Error(`unexpected ${path}`);
+    });
+    const { container } = renderScreen();
+    await waitFor(() => expect(card(container, approval)).not.toBeNull());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: 'Xin vào' }));
+    await waitFor(() => expect(releasePost).toBeDefined());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: /^Chi tiết/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết trận' });
+    await waitFor(() => expect(releaseGet).toBeDefined());
+
+    await act(async () => {
+      releasePost?.();
+    });
+    await act(async () => {
+      releaseGet?.();
+    });
+    expect(await within(dialog).findByRole('button', { name: 'Hủy yêu cầu' })).toBeDefined();
+    expect(within(dialog).queryByText('Đang tải')).toBeNull();
+  });
+
+  it('AC-5: a 409 "Host đã từ chối yêu cầu của bạn" during the first load of the sheet leaves the detail, not an empty sheet', async () => {
+    let releaseGet: (() => void) | undefined;
+    let getCalls = 0;
+    api().mockImplementation(async (path: string) => {
+      if (path === `/api/matches/${approval.id}/join`) throw new ApiError(409, 'Host đã từ chối yêu cầu của bạn');
+      if (path === `/api/matches/${approval.id}`) {
+        getCalls++;
+        if (getCalls === 1) {
+          await new Promise<void>((resolve) => {
+            releaseGet = resolve;
+          });
+          return detailOf(approval, { myRequest: null });
+        }
+        return detailOf(approval, { myRequest: 'REJECTED' });
+      }
+      if (path.startsWith('/api/matches/joined')) return [];
+      if (path === '/api/matches') return [approval];
+      throw new Error(`unexpected ${path}`);
+    });
+    const { container } = renderScreen();
+    await waitFor(() => expect(card(container, approval)).not.toBeNull());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: /^Chi tiết/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết trận' });
+    await waitFor(() => expect(releaseGet).toBeDefined());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: 'Xin vào' }));
+    await waitFor(() => expect(callsTo(`/api/matches/${approval.id}/join`).length).toBe(1));
+
+    await act(async () => {
+      releaseGet?.();
+    });
+    await waitFor(() => expect(within(dialog).queryByText('Đang tải')).toBeNull());
+    // The stale response is dropped and a fresh GET fills the sheet.
+    await waitFor(() => expect(getCalls).toBe(2));
+    // The players list renders only from `detail`: an empty sheet would have no list.
+    expect(within(dialog).getByRole('list')).toBeDefined();
+    expect(within(dialog).getByText(/Đơn vị 2/)).toBeDefined();
+    expect(within(dialog).queryByRole('button', { name: 'Xin vào' })).toBeNull();
+  });
+
   it('AC-2: the tap targets of the request buttons are at least 44px', async () => {
     mockApi({
       [`/api/matches/${approval.id}/join`]: () => detailOf(approval, { myRequest: 'PENDING' }),

@@ -293,9 +293,17 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
     async (id: string, approvalHint: boolean, initial: boolean) => {
       const reqId = ++detailReqCounter.current;
       const live = () => reqId === detailReqCounter.current;
+      // A write to this match's request while the GET is in flight makes its myRequest stale.
+      const startReqNo = requestReqCounters.current[id] ?? 0;
       try {
         const d = await api<MatchDetailView>(`/api/matches/${id}`);
         if (!live()) return;
+        if ((requestReqCounters.current[id] ?? 0) !== startReqNo) {
+          // A write to the request landed while the GET was in flight: its myRequest is stale.
+          // A GET that starts now is not stale. The new call bumps the counter, so this one stops.
+          void loadDetail(id, approvalHint, initial);
+          return;
+        }
         setDetail(d);
         applyRequest(d.id, d.myRequest);
         if (d.viewerRole === 'HOST' && (d.joinMode === 'APPROVAL' || approvalHint)) {
