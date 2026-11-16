@@ -13,7 +13,7 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 
 | Primary Actor | Use cases |
 |---|---|
-| Người dùng | UC-1 Đăng ký và đăng nhập · UC-2 Chọn sân và xem giờ trống · UC-3 Gửi yêu cầu đặt sân · UC-6 Xem và hủy booking |
+| Người dùng | UC-1 Đăng ký và đăng nhập · UC-2 Chọn sân và xem giờ trống · UC-3 Gửi yêu cầu đặt sân · UC-6 Xem và hủy booking · UC-20 AI đặt sân qua MCP |
 | Chủ sân | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-11 Sửa giá và giờ mở cửa · UC-12 Xem dashboard tài chính · UC-16 Chủ sân đặt cố định hằng tuần · UC-17 Chủ sân quản lý nhân viên |
 | Nhân viên | UC-4 Xác nhận hoặc từ chối booking · UC-5 Nhập booking của khách gọi điện · UC-16 Chủ sân đặt cố định hằng tuần |
 | Host | UC-7 Mở trận · UC-9 Hủy trận · UC-15 Host duyệt yêu cầu vào trận · UC-19 Host chấm điểm người chơi |
@@ -345,3 +345,20 @@ Nguồn: `intake-monsport-v1.md` (đã duyệt ngày 16/10/2026). Quy tắc nằ
 | Other Information | Host không tự chấm điểm chính mình. Mỗi người chơi trong một trận có nhiều nhất một điểm. Chấm lại thì ghi đè điểm cũ |
 | Assumptions | Chỉ host chấm điểm người chơi sau trận. Người chơi không chấm điểm host và không chấm lẫn nhau |
 
+## UC-20 AI đặt sân qua MCP
+
+| Row | Content |
+|---|---|
+| Primary Actor, Secondary Actors | Người dùng, qua AI client của họ · Chủ sân (nhận yêu cầu) |
+| Trigger | Người dùng nhờ AI tìm sân, đặt sân hoặc ghép trận |
+| Description | AI client gọi công cụ MCP bằng tài khoản của người dùng. Công cụ gọi cùng service với web và app. Yêu cầu đặt sân qua AI ở trạng thái "Chờ xác nhận" và chủ sân xác nhận bằng tay (UC-4) |
+| Preconditions | PRE-20: người dùng có tài khoản vai trò người dùng và đã nối AI client với MONSPORT |
+| Postconditions | POST-20: kết quả giống hệt khi người dùng tự làm trên web hoặc app. Booking mới ở trạng thái "Chờ xác nhận" |
+| Normal Flow | 20.0 Đặt sân<br>1. AI tìm đơn vị (`search_venues`) và xem giờ trống (`get_availability`) như UC-2.<br>2. AI gửi yêu cầu đặt sân (`request_booking`) như UC-3.<br>3. Hệ thống tạo booking "Chờ xác nhận" và trả về hạn xác nhận cùng số điện thoại của chủ sân.<br>4. AI báo người dùng hạn xác nhận và nhắc gọi chủ sân khi cần |
+| Alternative Flows | 20.1 Xem và hủy booking: AI gọi `list_my_bookings` và `cancel_booking` như UC-6.<br>20.2 Ghép trận: AI gọi `list_matches`, `open_match`, `join_match` và `leave_match` như UC-7 và UC-8 |
+| Exceptions | 20.0.E1 Khung giờ vừa có người đặt: công cụ trả lỗi "Khung giờ này vừa có người đặt" (BR-1).<br>20.0.E2 Hạn xác nhận đã qua: công cụ trả lỗi và đề nghị gọi chủ sân (BR-9).<br>20.0.E3 Người dùng khác sở hữu booking hoặc trận: công cụ trả lỗi giống service, không tiết lộ dữ liệu của người đó (BR-20).<br>20.0.E4 Vai trò chủ sân, nhân viên hoặc admin: không có công cụ nào (BR-22).<br>20.0.E5 Quá giới hạn lệnh: công cụ trả lỗi "Quá nhiều lệnh. Thử lại sau" (BR-58) |
+| Priority | Medium |
+| Frequency of Use | Khoảng 10 lần mỗi ngày ở mức chạy thử |
+| Business Rules | BR-1, BR-6, BR-7, BR-9, BR-11, BR-12, BR-15, BR-20, BR-22, BR-58 |
+| Other Information | Công cụ trả dữ liệu có cấu trúc. Công cụ ghi có chú thích `destructiveHint` để AI client hỏi người dùng trước khi chạy. Cách xác thực (PAT, OAuth) nằm ở các brief sau |
+| Assumptions | Mỗi lệnh công cụ có cùng quyền và cùng luật với request thường của người dùng đó. Chủ sân và admin chưa có công cụ (`HUMAN_DECISIONS.md`, dòng 27) |

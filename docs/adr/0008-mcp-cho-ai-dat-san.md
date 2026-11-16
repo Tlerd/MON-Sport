@@ -1,7 +1,11 @@
 # 0008: Máy chủ MCP để AI đặt sân và để người dùng nối connector
 
-Status: Proposed
-Date: 2026-11-03. Chờ người dùng duyệt.
+Status: Accepted
+Date: 2026-11-16. Đề xuất ngày 2026-11-03. Người dùng cho đi tiếp ngày 2026-11-16.
+
+Lời người dùng, 16/11/2026: "Bắt đầu port app mobile cho W1, làm phần dọn dẹp, nếu được làm MCP, chạy verify-flow." Agent hiểu đây là lệnh bắt đầu MCP (W7) khi làm được (`HUMAN_DECISIONS.md`, dòng 26).
+
+**Phạm vi của lần duyệt này.** Chỉ bước 2 của kế hoạch bắt đầu ngay: lớp công cụ, không xác thực ngoài, không đổi schema, không có đường HTTP (brief F-036). PAT (bước 3) và OAuth (bước 4) cần brief riêng và `rule-review` trước khi code. Bước 1b (GPS) và công cụ cho chủ sân và admin (dòng 27) vẫn mở.
 
 ## Context
 
@@ -27,10 +31,15 @@ Chọn 1. Module `mcp` trong `apps/api`, công cụ gọi service của `booking
 
 Làm theo `docs/design/ke-hoach-mcp.md`: lớp công cụ, rồi cách A, rồi cách B. Bản đầu chỉ có công cụ cho vai trò người dùng. Yêu cầu đặt sân qua AI vẫn chờ chủ sân xác nhận.
 
+Kiểm tra ngày 16/11/2026 (chi tiết và nguồn nằm trong brief F-036):
+
+- Dùng SDK dòng v2: `@modelcontextprotocol/server` 2.4.0 (phát hành 23/10/2026). Dòng v1.x chỉ còn sửa lỗi và không hỗ trợ đặc tả 2026-07-28.
+- Streamable HTTP chạy không giữ phiên (`sessionIdGenerator: undefined`), mỗi request một cặp server và transport. Cách này hợp Cloud Run với tối đa 2 instance (ADR 0005), vì không có trạng thái trong bộ nhớ.
+
 ## Consequences
 
-- Cần đổi intake: thêm MCP vào phạm vi và một UC mới.
-- Schema đổi: bảng token và client OAuth. Dữ liệu này nhạy cảm, nên cần reviewer mạnh nhất và `rule-review`.
+- Intake V2 đã đổi: MCP (W7) nằm trong phạm vi, kèm UC-20 và BR-58.
+- Schema đổi ở bước 3 và 4, không đổi ở bước 2: bảng token và client OAuth. Dữ liệu này nhạy cảm, nên cần reviewer mạnh nhất và `rule-review`.
 - Thêm bề mặt tấn công. Giữ bằng token băm, hạn ngắn, phạm vi nhỏ và giới hạn tần suất.
-- Cần kiểm đặc tả MCP hiện hành trước brief đầu tiên.
-- Nếu người dùng không duyệt, giữ nguyên hiện trạng. Không có code nào phụ thuộc ADR này.
+- Đã kiểm đặc tả MCP và SDK trước brief đầu tiên. Kiểm lại phiên bản đặc tả và đường dẫn metadata OAuth trước brief của bước 4.
+- Bước 2 không có đường HTTP và không đổi schema, nên chưa ai gọi được công cụ từ bên ngoài. Đây là lý do bước 2 chạy trước PAT và OAuth.
