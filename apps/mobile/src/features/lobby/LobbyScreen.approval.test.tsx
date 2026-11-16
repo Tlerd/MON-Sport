@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
@@ -11,7 +11,12 @@ vi.mock('@monsport/client', async () => {
   const actual = await vi.importActual<typeof import('@monsport/client')>('@monsport/client');
   return { ...actual, api: vi.fn() };
 });
-vi.mock('./useLobbyStream.ts', () => ({ useLobbyStream: () => undefined }));
+const stream = vi.hoisted(() => ({ onChange: undefined as undefined | (() => void) }));
+vi.mock('./useLobbyStream.ts', () => ({
+  useLobbyStream: (onChange: () => void) => {
+    stream.onChange = onChange;
+  },
+}));
 
 const USER_ID = '00000000-0000-4000-8000-0000000000a2';
 const HOST_ID = '00000000-0000-4000-8000-0000000000a1';
@@ -233,6 +238,42 @@ describe('LobbyScreen: host approval (F-035 step 1)', () => {
     fireEvent.click(within(leave).getByRole('button', { name: 'Rời trận' }));
 
     await waitFor(() => expect(buttonNames(card(container, approval))).toContain('Xin vào'));
+    expect(buttonNames(card(container, approval))).not.toContain('Hủy yêu cầu');
+  });
+
+  it('AC-4: a slow refresh that started before a cancel does not put the cancelled request back', async () => {
+    let releaseGet: (() => void) | undefined;
+    let getCalls = 0;
+    api().mockImplementation(async (path: string) => {
+      if (path === `/api/matches/${approval.id}/join`) return detailOf(approval, { myRequest: 'PENDING' });
+      if (path === `/api/matches/${approval.id}/leave`) return detailOf(approval, { myRequest: null });
+      if (path === `/api/matches/${approval.id}`) {
+        getCalls++;
+        await new Promise<void>((resolve) => {
+          releaseGet = resolve;
+        });
+        return detailOf(approval, { myRequest: 'PENDING' });
+      }
+      if (path.startsWith('/api/matches/joined')) return [];
+      if (path === '/api/matches') return [approval];
+      throw new Error(`unexpected ${path}`);
+    });
+    const { container } = renderScreen();
+    await waitFor(() => expect(card(container, approval)).not.toBeNull());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: 'Xin vào' }));
+    const cancel = await within(card(container, approval)).findByRole('button', { name: 'Hủy yêu cầu' });
+
+    // A stream event starts a slow GET of the match.
+    act(() => stream.onChange?.());
+    await waitFor(() => expect(getCalls).toBe(1));
+    fireEvent.click(cancel);
+    await waitFor(() => expect(buttonNames(card(container, approval))).toContain('Xin vào'));
+
+    // The old GET resolves with the stale PENDING.
+    await act(async () => {
+      releaseGet?.();
+    });
+    expect(buttonNames(card(container, approval))).toContain('Xin vào');
     expect(buttonNames(card(container, approval))).not.toContain('Hủy yêu cầu');
   });
 

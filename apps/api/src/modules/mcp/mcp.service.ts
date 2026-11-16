@@ -139,7 +139,7 @@ export class McpService {
     });
     add('cancel_booking', {
       title: 'Hủy booking',
-      description: 'Hủy một booking của người dùng. Booking đã xác nhận chỉ hủy được khi còn từ 6 giờ tới giờ bắt đầu. Không hoàn tác được',
+      description: `Hủy một booking của người dùng. Booking đã xác nhận chỉ hủy được khi còn từ 6 giờ tới giờ bắt đầu. Không hoàn tác được${UNTRUSTED}`,
       input: CancelBookingInput,
       output: CancelBookingOutput,
       write: true,

@@ -236,7 +236,7 @@ export default async function mobileLobby(run) {
             const sheet = page.getByRole('dialog', { name: 'Chi tiết trận' });
             await sheet.getByText('Hàng chờ (1)').waitFor({ state: 'visible' });
             // Find the row by structure: on live a Playwright error must not quote the real name (the class is masked).
-            const queueUser = sheet.locator('.queue-user');
+            const queueUser = sheet.locator('.queue-list .queue-user');
             try {
               await queueUser.first().waitFor({ state: 'visible' });
             } catch {
