@@ -277,6 +277,79 @@ describe('LobbyScreen: host approval (F-035 step 1)', () => {
     expect(buttonNames(card(container, approval))).not.toContain('Hủy yêu cầu');
   });
 
+  it('AC-4: with the detail sheet open, a slow load that started before a cancel does not put the request back', async () => {
+    let releaseGet: (() => void) | undefined;
+    let getCalls = 0;
+    api().mockImplementation(async (path: string) => {
+      if (path === `/api/matches/${approval.id}/leave`) return detailOf(approval, { myRequest: null });
+      if (path === `/api/matches/${approval.id}`) {
+        getCalls++;
+        if (getCalls > 1) {
+          await new Promise<void>((resolve) => {
+            releaseGet = resolve;
+          });
+        }
+        return detailOf(approval, { myRequest: 'PENDING' });
+      }
+      if (path.startsWith('/api/matches/joined')) return [];
+      if (path === '/api/matches') return [approval];
+      throw new Error(`unexpected ${path}`);
+    });
+    const { container } = renderScreen();
+    await waitFor(() => expect(card(container, approval)).not.toBeNull());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: /^Chi tiết/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết trận' });
+    const cancel = await within(dialog).findByRole('button', { name: 'Hủy yêu cầu' });
+
+    // A stream event starts a slow load of the open detail.
+    act(() => stream.onChange?.());
+    await waitFor(() => expect(getCalls).toBe(2));
+    fireEvent.click(cancel);
+    await within(dialog).findByRole('button', { name: 'Xin vào' });
+
+    await act(async () => {
+      releaseGet?.();
+    });
+    expect(within(dialog).queryByRole('button', { name: 'Hủy yêu cầu' })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Xin vào' })).toBeDefined();
+  });
+
+  it('AC-3: with the detail sheet open, a slow load that started before "Xin vào" does not drop the new request', async () => {
+    let releaseGet: (() => void) | undefined;
+    let getCalls = 0;
+    api().mockImplementation(async (path: string) => {
+      if (path === `/api/matches/${approval.id}/join`) return detailOf(approval, { myRequest: 'PENDING' });
+      if (path === `/api/matches/${approval.id}`) {
+        getCalls++;
+        if (getCalls > 1) {
+          await new Promise<void>((resolve) => {
+            releaseGet = resolve;
+          });
+        }
+        return detailOf(approval, { myRequest: null });
+      }
+      if (path.startsWith('/api/matches/joined')) return [];
+      if (path === '/api/matches') return [approval];
+      throw new Error(`unexpected ${path}`);
+    });
+    const { container } = renderScreen();
+    await waitFor(() => expect(card(container, approval)).not.toBeNull());
+    fireEvent.click(within(card(container, approval)).getByRole('button', { name: /^Chi tiết/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết trận' });
+    const ask = await within(dialog).findByRole('button', { name: 'Xin vào' });
+
+    act(() => stream.onChange?.());
+    await waitFor(() => expect(getCalls).toBe(2));
+    fireEvent.click(ask);
+    await within(dialog).findByRole('button', { name: 'Hủy yêu cầu' });
+
+    await act(async () => {
+      releaseGet?.();
+    });
+    expect(within(dialog).getByRole('button', { name: 'Hủy yêu cầu' })).toBeDefined();
+    expect(within(dialog).queryByRole('button', { name: 'Xin vào' })).toBeNull();
+  });
+
   it('AC-2: the tap targets of the request buttons are at least 44px', async () => {
     mockApi({
       [`/api/matches/${approval.id}/join`]: () => detailOf(approval, { myRequest: 'PENDING' }),
