@@ -243,6 +243,24 @@ describe('HomePage (F-033)', () => {
     expect(screen.getByText(`Host: ${longHostName}`)).toBeTruthy();
   });
 
+  it('AC-6: a signed-in user sees the user card, the composer, the match list, "Sắp ra sân", and "Đơn vị"', async () => {
+    setupFetch({ authed: true, matches: [matchA, matchB] });
+    const { container } = renderHome();
+
+    await screen.findByText('Hôm nay ra sân môn gì, Lan?');
+    const card = container.querySelector('.lcol .me-card') as HTMLElement;
+    expect(card.querySelector('.av')?.textContent).toBe('L');
+    expect(card.textContent).toContain('Nguyễn Thị Lan');
+    expect(container.querySelector('.composer')).toBeTruthy();
+    expect(container.querySelectorAll('.feed .mc')).toHaveLength(2);
+    expect(container.querySelector('.mc .btn.lime')?.textContent).toBe('Xem chi tiết');
+    expect(container.querySelector('.mc .stack')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Sắp ra sân' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Đơn vị' })).toBeTruthy();
+    await vi.waitFor(() => expect(container.querySelectorAll('.rcol .near')).toHaveLength(3));
+    await vi.waitFor(() => expect(container.querySelectorAll('.rcol .next')).toHaveLength(2));
+  });
+
   it('AC-5: clicking "Tạo trận" sends guest to /dang-nhap and signed-in user to /lich-cua-toi', async () => {
     setupFetch({ authed: false });
     const firstRender = renderHome();

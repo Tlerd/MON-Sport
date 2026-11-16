@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { useToast } from './Toast.tsx';
 
@@ -19,18 +20,23 @@ export interface ComingSoonPageProps {
   title: string;
   description?: string;
   actionLabel?: string;
+  /** Full page width like the reference list pages. */
+  wide?: boolean;
 }
 
 /** Placeholder page using the Ra Sân empty-state card while a feature is pending. */
-export function ComingSoonPage({ title, description, actionLabel }: ComingSoonPageProps) {
+export function ComingSoonPage({ title, description, actionLabel, wide = false }: ComingSoonPageProps) {
   return (
-    <div className="page narrow">
+    <div className={wide ? 'page' : 'page narrow'}>
       <div className="page-head">
         <div>
           <h1>{title}</h1>
           {description && <p>{description}</p>}
         </div>
-        {actionLabel && <ComingSoonButton className="btn lime">{actionLabel}</ComingSoonButton>}
+        {actionLabel && <ComingSoonButton className="btn lime">
+            <Plus size={18} className="ic" aria-hidden="true" />
+            {actionLabel}
+          </ComingSoonButton>}
       </div>
       <section className="card">
         <div className="empty">

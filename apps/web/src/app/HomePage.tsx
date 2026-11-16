@@ -1,10 +1,10 @@
 import { Sport, type MatchView, type MyBookingView, type VenueView } from '@monsport/shared';
-import { api, formatDay, formatTime, priceRangeK } from '@monsport/client';
+import { api, formatTime, priceRangeK } from '@monsport/client';
 import { Calendar, ChevronRight, MapPin, Plus, Shield, Trophy, Users } from 'lucide-react';
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router';
 import { CourtArt } from '../components/CourtArt.tsx';
-import { MatchCardContent, SPORT_LABEL } from '../components/MatchCard.tsx';
+import { MatchCardContent, SPORT_LABEL, stubDay } from '../components/MatchCard.tsx';
 import { SportIcon } from '../components/SportIcon.tsx';
 import { useToast } from '../components/Toast.tsx';
 import { initial } from './shells.tsx';
@@ -83,8 +83,8 @@ export function HomePage() {
     <div className="cols3">
       <aside className="lcol" aria-label="Điều hướng bên">
         {user ? (
-          <Link to="/ho-so" className="card me-card">
-            <span className="av" style={{ '--s': '44px', '--c': 'var(--ok)' } as CSSProperties} aria-hidden="true">
+          <Link to="/ho-so" className="me-card">
+            <span className="av" style={{ '--s': '52px', '--c': 'var(--ok)' } as CSSProperties} aria-hidden="true">
               {initial(user.name)}
             </span>
             <span>
@@ -130,7 +130,7 @@ export function HomePage() {
           <div className="composer-row">
             <span
               className="av"
-              style={{ '--s': '42px', '--c': user ? 'var(--ok)' : 'var(--ink)' } as CSSProperties}
+              style={{ '--s': '44px', '--c': user ? 'var(--ok)' : 'var(--ink)' } as CSSProperties}
               aria-hidden="true"
             >
               {user ? initial(user.name) : 'M'}
@@ -238,12 +238,7 @@ export function HomePage() {
               <Link key={m.id} to={`/phong-cho?tran=${m.id}`} className="card mc">
                 <MatchCardContent
                   match={m}
-                  footerAction={
-                    <span className="more">
-                      Xem chi tiết
-                      <ChevronRight size={15} className="ic" aria-hidden="true" />
-                    </span>
-                  }
+                  footerAction={<span className="btn sm lime">Xem chi tiết</span>}
                 />
               </Link>
             ))}
@@ -261,7 +256,7 @@ export function HomePage() {
                   <Link key={b.id} to="/lich-cua-toi" className="next">
                     <div className="next-t">
                       <b>{formatTime(b.startAt)}</b>
-                      <small>{formatDay(b.startAt).slice(0, 5)}</small>
+                      <small>{stubDay(b.startAt)}</small>
                     </div>
                     <div>
                       <b>{b.venueName}</b>

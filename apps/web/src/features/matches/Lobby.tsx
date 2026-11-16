@@ -10,7 +10,7 @@ import {
   type SessionUser,
   type SkillLevel,
 } from '@monsport/shared';
-import { ArrowLeft, CalendarDays, Plus } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronDown, Plus } from 'lucide-react';
 import { type CSSProperties, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useInRouterContext, useNavigate, useSearchParams } from 'react-router';
 import { Chip } from '../../components/Chip.tsx';
@@ -87,6 +87,7 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
   const autoOpenedTranRef = useRef<string | null>(null);
   const prevTranParamRef = useRef<string | null>(tranParam);
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const userClosedRef = useRef(false);
   const todayStr = useMemo(() => vnDateString(new Date()), []);
   const dateOptions = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -209,6 +210,7 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
   }, []);
 
   const closeDetail = useCallback(() => {
+    userClosedRef.current = true;
     clearDetailState();
     onSelectTran?.(null);
   }, [clearDetailState, onSelectTran]);
@@ -232,11 +234,20 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
     }
   }, [tranParam, matches, openMatch, clearDetailState]);
 
+  // Wide screens show the list and the detail side by side, so the detail panel is never empty while matches exist.
+  useEffect(() => {
+    if (tranParam || userClosedRef.current || !matches || matches.length === 0) return;
+    if (typeof window.matchMedia !== 'function' || !window.matchMedia('(min-width: 720px)').matches) return;
+    if (expandedId && matches.some((m) => m.id === expandedId)) return;
+    void openMatch(matches[0]);
+  }, [tranParam, matches, expandedId, openMatch]);
+
   async function toggleDetail(m: MatchView) {
     if (expandedId === m.id) {
       closeDetail();
       return;
     }
+    userClosedRef.current = false;
     autoOpenedTranRef.current = m.id;
     onSelectTran?.(m.id);
     await openMatch(m);
@@ -340,6 +351,7 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
       <div className="page-head">
         <div>
           <h1>Ghép trận</h1>
+          <p>Chọn một trận đang mở, xem người chơi rồi vào trận.</p>
         </div>
         <button type="button" className="btn lime" onClick={handleCreateMatch}>
           <Plus size={18} className="ic" aria-hidden="true" />
@@ -348,77 +360,6 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
       </div>
 
       <div className="filter-chips-row">
-        <div className="filter-row">
-          <span className="filter-label">Môn</span>
-          <div role="group" aria-label="Môn thể thao" className="chips sport-chips">
-            <Chip selected={sport === ''} onClick={() => setSport('')}>
-              Tất cả
-            </Chip>
-            <Chip
-              selected={sport === 'BADMINTON'}
-              icon={<SportIcon sport="BADMINTON" size={16} />}
-              onClick={() => setSport('BADMINTON')}
-            >
-              Cầu lông
-            </Chip>
-            <Chip
-              selected={sport === 'FOOTBALL'}
-              icon={<SportIcon sport="FOOTBALL" size={16} />}
-              onClick={() => setSport('FOOTBALL')}
-            >
-              Bóng đá
-            </Chip>
-          </div>
-        </div>
-
-        <div className="filter-row">
-          <span className="filter-label">Trình độ</span>
-          <div role="group" aria-label="Trình độ" className="chips level-chips">
-            <Chip selected={level === ''} onClick={() => setLevel('')}>
-              Tất cả
-            </Chip>
-            {(Object.entries(SKILL_LEVEL_LABELS) as [SkillLevel, string][]).map(([key, label]) => (
-              <Chip
-                key={key}
-                selected={level === key}
-                onClick={() => setLevel(key)}
-              >
-                {label}
-              </Chip>
-            ))}
-          </div>
-        </div>
-
-        <div className="filter-row">
-          <span className="filter-label">Ngày</span>
-          <div role="group" aria-label="Ngày chơi" className="chips date-chips">
-            <Chip selected={date === ''} onClick={() => setDate('')}>
-              Tất cả ngày
-            </Chip>
-            {dateOptions.map((opt) => (
-              <Chip
-                key={opt.ymd}
-                selected={date === opt.ymd}
-                onClick={() => setDate(opt.ymd)}
-              >
-                {opt.label}
-              </Chip>
-            ))}
-            <label className={`chip ${isOtherDate ? 'on selected' : ''}`}>
-              <CalendarDays size={14} aria-hidden="true" />
-              <span>Ngày khác</span>
-              <input
-                ref={dateInputRef}
-                type="date"
-                aria-label="Ngày khác"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-              />
-            </label>
-          </div>
-        </div>
-
         <div className="fbar">
           <div className="seg" role="group" aria-label="Loại trận">
             <button
@@ -439,11 +380,68 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
               Trận đội
             </button>
           </div>
+          <label className="sel">
+            <span className="sr">Trình độ</span>
+            <select value={level} onChange={(e) => setLevel(e.target.value as SkillLevel | '')}>
+              <option value="">Mọi trình độ</option>
+              {(Object.entries(SKILL_LEVEL_LABELS) as [SkillLevel, string][]).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="ic" aria-hidden="true" />
+          </label>
+          <label className="sel">
+            <span className="sr">Ngày</span>
+            <select value={date} onChange={(e) => setDate(e.target.value)}>
+              <option value="">Mọi ngày</option>
+              {dateOptions.map((opt) => (
+                <option key={opt.ymd} value={opt.ymd}>
+                  {opt.label}
+                </option>
+              ))}
+              {isOtherDate && <option value={date}>{formatDayChip(date)}</option>}
+            </select>
+            <ChevronDown size={16} className="ic" aria-hidden="true" />
+          </label>
+          <label className={`btn ghost other-day ${isOtherDate ? 'on' : ''}`}>
+            <CalendarDays size={16} className="ic" aria-hidden="true" />
+            <span>Ngày khác</span>
+            <input
+              ref={dateInputRef}
+              type="date"
+              aria-label="Ngày khác"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+            />
+          </label>
           {matches && <span className="count">{`${matches.length} trận đang mở`}</span>}
+        </div>
+
+        <div role="group" aria-label="Môn thể thao" className="chips sport-chips">
+          <Chip selected={sport === ''} onClick={() => setSport('')}>
+            Tất cả môn
+          </Chip>
+          <Chip
+            selected={sport === 'BADMINTON'}
+            icon={<SportIcon sport="BADMINTON" size={16} />}
+            onClick={() => setSport('BADMINTON')}
+          >
+            Cầu lông
+          </Chip>
+          <Chip
+            selected={sport === 'FOOTBALL'}
+            icon={<SportIcon sport="FOOTBALL" size={16} />}
+            onClick={() => setSport('FOOTBALL')}
+          >
+            Bóng đá
+          </Chip>
         </div>
       </div>
 
-      <h2 id={heading} className="sec lobby-sec">Phòng chờ</h2>
+      <h2 id={heading} className="sr">Phòng chờ</h2>
       <div className="lobby-split md">
         <div className="lobby-list-pane md-list">
           {error && <p className="error" role="alert">{error}</p>}
@@ -468,7 +466,7 @@ function LobbyInner({ refresh = 0, user, onMatchChanged, tranParam = null, onSel
                       footerAction={
                         <button
                           type="button"
-                          className="link detail-toggle"
+                          className="btn sm lime detail-toggle"
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleDetail(m);

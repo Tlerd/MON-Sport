@@ -60,25 +60,79 @@ describe('Lobby (F-011 and F-012)', () => {
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(2);
     expect(within(items[0]).getByText('Bóng đá · Ngày 20/11/2026')).toBeTruthy();
-    expect(within(items[0]).getByText('3/10 suất · 60.000đ/suất')).toBeTruthy();
+    expect(within(items[0]).getByRole('img', { name: '3/10 suất' })).toBeTruthy();
+    expect(within(items[0]).getByText((_, el) => el?.classList.contains('fee') === true && el.textContent === '60k/suất')).toBeTruthy();
     expect(within(items[0]).getByText('Host: Chi')).toBeTruthy();
     expect(within(items[0]).getByText('Đã xác nhận')).toBeTruthy();
 
     expect(within(items[1]).getByText('Cầu lông · Ngày 20/11/2026')).toBeTruthy();
-    expect(within(items[1]).getByText('1/4 suất · 50.000đ/suất')).toBeTruthy();
+    expect(within(items[1]).getByRole('img', { name: '1/4 suất' })).toBeTruthy();
+    expect(within(items[1]).getByText((_, el) => el?.classList.contains('fee') === true && el.textContent === '50k/suất')).toBeTruthy();
     expect(within(items[1]).getByText('Host: An')).toBeTruthy();
     expect(within(items[1]).getByText('Chưa xác nhận')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cầu lông' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ngày' }), { target: { value: '2026-11-20' } });
 
     await vi.waitFor(() =>
       expect(fetch).toHaveBeenCalledWith('/api/matches?sport=BADMINTON&date=2026-11-20', expect.anything()),
     );
     await vi.waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
 
-    fireEvent.click(screen.getByRole('button', { name: 'T7 21/11' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ngày' }), { target: { value: '2026-11-21' } });
     expect((await screen.findByRole('status')).textContent).toContain('Chưa có trận nào đang mở');
+  });
+
+  it('AC-3: one toolbar row holds the type switch, the level select, and the day select, and the sport chips sit in their own row', async () => {
+    const fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([m1]) }));
+    vi.stubGlobal('fetch', fetch);
+
+    const { container } = render(<Lobby />);
+    await screen.findByText('Cầu lông A · Sân 1');
+
+    const bars = container.querySelectorAll('.fbar');
+    expect(bars).toHaveLength(1);
+    const bar = bars[0] as HTMLElement;
+    expect(within(bar).getByRole('group', { name: 'Loại trận' })).toBeTruthy();
+    expect(within(bar).getByRole('combobox', { name: 'Trình độ' })).toBeTruthy();
+    expect(within(bar).getByRole('combobox', { name: 'Ngày' })).toBeTruthy();
+    expect(bar.querySelector('.count')?.textContent).toBe('1 trận đang mở');
+
+    const sportRow = screen.getByRole('group', { name: 'Môn thể thao' });
+    expect(bar.contains(sportRow)).toBe(false);
+    expect(Boolean(bar.compareDocumentPosition(sportRow) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    expect(container.querySelector('.filter-label')).toBeNull();
+    expect(container.querySelectorAll('.filter-chips-row .chips')).toHaveLength(1);
+  });
+
+  it('AC-5: the detail panel shows the hero, the facts row, the players progress bar, and the player grid', async () => {
+    const chiUser: SessionUser = { id: '0199a1b2-0000-7000-8000-000000000102', name: 'Chi', role: 'USER' };
+    const detail: MatchDetailView = {
+      ...m1,
+      joinedCount: 2,
+      viewerRole: 'NONE',
+      players: [
+        { userId: m1.hostId, name: 'An', phone: null, joinedAt: '2026-11-20T03:00:00.000Z' },
+        { userId: '0199a1b2-0000-7000-8000-000000000103', name: 'Em', phone: null, joinedAt: '2026-11-20T03:01:00.000Z' },
+      ],
+    };
+    const fetch = vi.fn((url: string) => {
+      const body = url === `/api/matches/${m1.id}` ? detail : [m1];
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const { container } = render(<Lobby user={chiUser} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem chi tiết' }));
+
+    const panel = container.querySelector('.lobby-detail-pane .detail') as HTMLElement;
+    expect(panel.querySelector('header.hero svg.court')).toBeTruthy();
+    expect(panel.querySelector('.hero-when b')?.textContent).toBe('20:00');
+    expect(panel.querySelectorAll('dl.facts > div')).toHaveLength(4);
+    await vi.waitFor(() => expect(panel.querySelector('.players-section .meter i')).toBeTruthy());
+    expect((panel.querySelector('.meter i') as HTMLElement).style.width).toBe('50%');
+    expect(panel.querySelectorAll('.roster .rp')).toHaveLength(2);
+    expect(panel.querySelector('.detail-f .btn.lime')?.textContent).toBe('Vào trận');
   });
 
   it('clicking "Bóng đá" requests the lobby with the football filter', async () => {
@@ -299,7 +353,7 @@ describe('Lobby (F-011 and F-012)', () => {
 
     render(<Lobby />);
     const card = await screen.findByRole('listitem');
-    expect(within(card).getByText(/50\.000.*\/suất/)).toBeTruthy();
+    expect(within(card).getByText((_, el) => el?.classList.contains('fee') === true && el.textContent === '50k/suất')).toBeTruthy();
     expect(within(card).getByText('Chưa xác nhận')).toBeTruthy();
     expect(within(card).getByText('Đầy')).toBeTruthy();
   });
@@ -875,7 +929,7 @@ describe('Lobby (F-011 and F-012)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('AC-8: the "Trình độ" group shows "Tất cả trình độ" selected and the first request has no level; clicking "Khá" requests /api/matches?level=ADVANCED; after a stream event the reload URL still has level=ADVANCED', async () => {
+  it('AC-8: the "Trình độ" select shows "Mọi trình độ" selected and the first request has no level; choosing "Khá" requests /api/matches?level=ADVANCED; after a stream event the reload URL still has level=ADVANCED', async () => {
     let matchListener: ((e: MessageEvent) => void) | null = null;
     class MockEventSource {
       constructor(public url: string) {}
@@ -893,14 +947,14 @@ describe('Lobby (F-011 and F-012)', () => {
     vi.stubGlobal('fetch', fetch);
 
     const { unmount } = render(<Lobby />);
-    const levelGroup = screen.getByRole('group', { name: 'Trình độ' });
-    expect(levelGroup).toBeTruthy();
-    expect(within(levelGroup).getByRole('button', { name: 'Tất cả' }).className).toContain('selected');
+    const levelSelect = screen.getByRole('combobox', { name: 'Trình độ' }) as HTMLSelectElement;
+    expect(levelSelect.value).toBe('');
+    expect(within(levelSelect).getByRole('option', { name: 'Mọi trình độ' })).toBeTruthy();
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches', expect.anything()));
     fetch.mockClear();
 
-    fireEvent.click(within(levelGroup).getByRole('button', { name: 'Khá' }));
+    fireEvent.change(levelSelect, { target: { value: 'ADVANCED' } });
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/matches?level=ADVANCED', expect.anything()));
     fetch.mockClear();
