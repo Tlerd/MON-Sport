@@ -73,9 +73,9 @@ beforeEach(async () => {
   clock.at = at('03:00');
   await db.$executeRawUnsafe('TRUNCATE "AccessToken", "MatchPlayer", "Match", "Booking", "Court", "Venue", "User", "AuthThrottle" CASCADE');
   const passwordHash = await hash('test-password');
-  const make = (name: string, phone: string, role: 'OWNER' | 'USER') =>
+  const make = (name: string, phone: string, role: 'ADMIN' | 'OWNER' | 'USER') =>
     db.user.create({ data: { name, phone, role, passwordHash } }).then((u) => (ids[name] = u.id));
-  await Promise.all([make('Owner', '0900000001', 'OWNER'), make('A', '0901234567', 'USER'), make('B', '0901234568', 'USER')]);
+  await Promise.all([make('Admin', '0900000000', 'ADMIN'), make('Owner', '0900000001', 'OWNER'), make('A', '0901234567', 'USER'), make('B', '0901234568', 'USER')]);
   const venue = await db.venue.create({
     data: { ownerId: ids.Owner, name: 'An Phu Sport', address: '1 Le Loi', phone: '0281234567', opensAt: 360, closesAt: 1380 },
   });
@@ -155,9 +155,13 @@ describe('POST /api/mcp (F-037)', () => {
   it('AC-7: a token made before an unlock stops working, and a token made after it works', async () => {
     const old = await newToken('A');
     await rpc(app, old.secret, 'tools/list').expect(200);
-    await db.user.update({ where: { id: ids.A }, data: { lockedAt: at('03:30') } });
+    // The admin routes lock and unlock A (BR-32), so the test fails if the unlock stops writing sessionsValidFrom.
+    const asAdmin = (path: string) =>
+      request(app.getHttpServer()).post(path).set('Cookie', `session=${issueSession(ids.Admin, clock.now())}`);
+    clock.at = at('03:30');
+    expect((await asAdmin(`/api/admin/users/${ids.A}/lock`)).status).toBeLessThan(300);
     clock.at = at('04:00');
-    await db.user.update({ where: { id: ids.A }, data: { lockedAt: null, sessionsValidFrom: clock.now() } });
+    expect((await asAdmin(`/api/admin/users/${ids.A}/unlock`)).status).toBe(200);
     clock.at = at('05:00');
     const fresh = await newToken('A');
     await rpc(app, old.secret, 'tools/list').expect(401);

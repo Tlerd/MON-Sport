@@ -7,7 +7,8 @@ import { McpService } from './mcp.service.js';
 const FORBIDDEN = 'Bạn không có quyền làm việc này';
 const INVALID_TOKEN = 'Mã truy cập không hợp lệ';
 const GENERIC = 'Có lỗi xảy ra. Thử lại sau';
-const BEARER = /^Bearer ([^\s]+)$/;
+// RFC 7235, section 2.1: the scheme name is case-insensitive.
+const BEARER = /^Bearer\s+(\S+)$/i;
 
 /**
  * Brief F-037, step 3. A stateless MCP endpoint. A browser request (Origin header) is refused first (AC-10).
@@ -38,8 +39,9 @@ export class McpController {
       const server = this.mcp.createServer({ userId: ctx.userId, role: ctx.role, scope: ctx.scope });
       const transport = new NodeStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
       res.on('close', () => {
-        void transport.close();
-        void server.close();
+        // A rejected close must not become an unhandledRejection, which stops the process.
+        transport.close().catch(() => undefined);
+        server.close().catch(() => undefined);
       });
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
