@@ -79,9 +79,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/api/src/modules/oauth/
 - client-metadata.fetcher.ts: ClientMetadata, cimdHosts, isAllowedClientId, ClientMetadataFetcher
+- oauth-connections.controller.ts: OAuthConnectionsController
+- oauth-grant.error.ts: OAuthGrantErrorCode, OAuthGrantError
 - oauth.controller.ts: OAuthController
 - oauth.module.ts: OAuthModule
-- oauth.service.ts: AuthorizeResult, publicOrigin, OAuthService
+- oauth.service.ts: OAuthContext, OAuthTokenResponse, AuthorizeResult, publicOrigin, OAuthService
 - well-known.controller.ts: WellKnownController
 
 ## apps/api/src/modules/otp/

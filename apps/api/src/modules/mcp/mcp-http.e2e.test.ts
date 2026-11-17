@@ -122,7 +122,7 @@ describe('POST /api/mcp (F-037)', () => {
     const body = { courtId: ids.F1, startAt: vn('18:00', '2026-12-10'), endAt: vn('19:30', '2026-12-10') };
     const expectInvalid = (res: request.Response) => {
       expect(res.status).toBe(401);
-      expect(res.headers['www-authenticate']).toBe('Bearer');
+      expect(res.headers['www-authenticate']).toMatch(/^Bearer/);
       expect(res.body).toEqual(INVALID);
     };
 

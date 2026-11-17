@@ -1,7 +1,10 @@
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 import { Controller, Delete, Get, Logger, Post, Req, Res } from '@nestjs/common';
+import { ACCESS_TOKEN_PREFIX, OAUTH_ACCESS_TOKEN_PREFIX } from '@monsport/shared';
 import type { Request, Response } from 'express';
 import { AccessTokensService } from '../access-tokens/access-tokens.service.js';
+import { OAuthService } from '../oauth/oauth.service.js';
+import type { McpContext } from './mcp-context.js';
 import { McpService } from './mcp.service.js';
 
 const FORBIDDEN = 'Bạn không có quyền làm việc này';
@@ -10,9 +13,16 @@ const GENERIC = 'Có lỗi xảy ra. Thử lại sau';
 // RFC 7235, section 2.1: the scheme name is case-insensitive.
 const BEARER = /^Bearer\s+(\S+)$/i;
 
+/** RFC 9728: with PUBLIC_ORIGIN the 401 names the metadata URL. Without it the header stays `Bearer`, as in F-037. */
+function challenge(): string {
+  const origin = (process.env.PUBLIC_ORIGIN ?? '').trim().replace(/\/+$/, '');
+  if (!origin) return 'Bearer';
+  return `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/api/mcp", scope="read book"`;
+}
+
 /**
- * Brief F-037, step 3. A stateless MCP endpoint. A browser request (Origin header) is refused first (AC-10).
- * Only the header `Authorization: Bearer mst_...` counts. A cookie is ignored. This class never logs a header, a body, or a token.
+ * Brief F-037, step 3, and F-038. A stateless MCP endpoint. A browser request (Origin header) is refused first (AC-10).
+ * Only the header `Authorization: Bearer mst_...` or `Bearer mot_...` counts. A cookie is ignored. This class never logs a header, a body, or a token.
  */
 @Controller()
 export class McpController {
@@ -21,7 +31,15 @@ export class McpController {
   constructor(
     private readonly mcp: McpService,
     private readonly tokens: AccessTokensService,
+    private readonly oauth: OAuthService,
   ) {}
+
+  /** Picks the check by the token prefix: `mst_` is a personal access token, `mot_` is an OAuth access token. */
+  private async authenticate(token: string): Promise<McpContext | null> {
+    if (token.startsWith(ACCESS_TOKEN_PREFIX)) return this.tokens.authenticate(token);
+    if (token.startsWith(OAUTH_ACCESS_TOKEN_PREFIX)) return this.oauth.authenticate(token);
+    return null;
+  }
 
   @Post('mcp')
   async handle(@Req() req: Request, @Res() res: Response): Promise<void> {
@@ -31,9 +49,9 @@ export class McpController {
     }
     try {
       const match = BEARER.exec(req.headers.authorization ?? '');
-      const ctx = match ? await this.tokens.authenticate(match[1]) : null;
+      const ctx = match ? await this.authenticate(match[1]) : null;
       if (!ctx) {
-        res.status(401).setHeader('WWW-Authenticate', 'Bearer').json({ message: INVALID_TOKEN });
+        res.status(401).setHeader('WWW-Authenticate', challenge()).json({ message: INVALID_TOKEN });
         return;
       }
       const server = this.mcp.createServer({ userId: ctx.userId, role: ctx.role, scope: ctx.scope });

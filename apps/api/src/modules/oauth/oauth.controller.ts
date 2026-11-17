@@ -3,6 +3,7 @@ import { errorMessage, OAuthDecisionRequest, type OAuthConsentView, type OAuthDe
 import type { Request, Response } from 'express';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { ThrottleService } from '../auth/throttle.service.js';
+import { OAuthGrantError } from './oauth-grant.error.js';
 import { OAuthService, publicOrigin } from './oauth.service.js';
 
 const ERROR_PAGE = `<!doctype html>
@@ -18,6 +19,22 @@ const ERROR_PAGE = `<!doctype html>
 function assertOrigin(req: Request): void {
   const origin = req.headers.origin;
   if (origin !== undefined && origin !== publicOrigin()) throw new ForbiddenException('Bạn không có quyền làm việc này');
+}
+
+/**
+ * The token route takes a form body only. Each parameter must be one string:
+ * a repeated name or `a[]=1` gives an array or an object, so the whole request is refused.
+ */
+function readForm(req: Request): Record<string, string> | null {
+  if (!req.is('application/x-www-form-urlencoded')) return null;
+  const body: unknown = req.body;
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return null;
+  const form: Record<string, string> = {};
+  for (const [key, value] of Object.entries(body)) {
+    if (typeof value !== 'string') return null;
+    form[key] = value;
+  }
+  return form;
 }
 
 // Brief F-038: the authorization server of the MCP connector. No route logs a code, a state, or a query.
@@ -42,6 +59,33 @@ export class OAuthController {
     }
     res.status(400).setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(ERROR_PAGE);
+  }
+
+  @Post('token')
+  @HttpCode(200)
+  async token(@Req() req: Request, @Res() res: Response): Promise<void> {
+    publicOrigin();
+    // Count first, before any read of the body or the tables.
+    if (!(await this.throttle.consumeOAuth('oauth-token-ip', req.ip))) {
+      res.status(429).json({ message: 'Quá nhiều lệnh. Thử lại sau' });
+      return;
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Pragma', 'no-cache');
+    const form = readForm(req);
+    if (!form) {
+      res.status(400).json({ error: 'invalid_request' });
+      return;
+    }
+    try {
+      res.status(200).json(await this.service.token(form));
+    } catch (error) {
+      if (error instanceof OAuthGrantError) {
+        res.status(400).json({ error: error.error });
+        return;
+      }
+      throw error;
+    }
   }
 
   @Get('requests/:id')

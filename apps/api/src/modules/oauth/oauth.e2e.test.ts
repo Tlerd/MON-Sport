@@ -359,6 +359,29 @@ describe('OAuth authorize (F-038 step 2)', () => {
     expect(await db.oAuthRequest.count({ where: { codeHash: { not: null } } })).toBe(1);
   });
 
+  it('AC-14: a 91-day-old connection alone does not count, with no sessionsValidFrom', async () => {
+    const day = 86_400_000;
+    for (let i = 0; i < 9; i++) await seedConnection(ids.An);
+    await seedConnection(ids.An, { createdAt: new Date(START.getTime() - 91 * day) });
+    expect((await db.user.findUniqueOrThrow({ where: { id: ids.An } })).sessionsValidFrom).toBeNull();
+    expect((await approve('An', await requestId())).status).toBe(200);
+  });
+
+  it('AC-5: a state with a NUL character gives a redirect with invalid_request and no row', async () => {
+    const res = await authorize({ state: 'a\u0000b' });
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(`${location.origin}${location.pathname}`).toBe(CALLBACK);
+    expect(location.searchParams.get('error')).toBe('invalid_request');
+    expect(await db.oAuthRequest.count()).toBe(0);
+  });
+
+  it('AC-5: a CIMD client_name with a control character gives the 400 page and no row', async () => {
+    setCimd({ ...CIMD, client_name: 'Cl\u0007aude' });
+    clientErrorPage(await authorize());
+    expect(await db.oAuthRequest.count()).toBe(0);
+  });
+
   it('AC-15: the 61st authorize in a minute gives 429, with no fetch and no readable IP', async () => {
     for (let i = 0; i < 60; i++) expect((await authorize()).status).toBe(302);
     expect(fetchSpy).toHaveBeenCalledTimes(60);
