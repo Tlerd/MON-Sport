@@ -24,13 +24,12 @@ import {
   vnDateString,
 } from '@monsport/shared';
 import { BookingsService } from '../bookings/bookings.service.js';
-import { Clock } from '../database/clock.js';
+import { ThrottleService } from '../auth/throttle.service.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { MatchesService } from '../matches/matches.service.js';
 import { AvailabilityService } from '../venues/availability.service.js';
 import { VenuesService } from '../venues/venues.service.js';
 import type { McpContext } from './mcp-context.js';
-import { RateLimiter } from './rate-limiter.js';
 
 const TOO_MANY = 'Quá nhiều lệnh. Thử lại sau'; // BR-58
 const GENERIC = 'Có lỗi xảy ra. Thử lại sau';
@@ -64,11 +63,10 @@ interface ToolDef<I, O> {
 @Injectable()
 export class McpService {
   private readonly logger = new Logger(McpService.name);
-  private readonly limiter = new RateLimiter();
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly clock: Clock,
+    private readonly throttle: ThrottleService,
     private readonly venues: VenuesService,
     private readonly availability: AvailabilityService,
     private readonly bookings: BookingsService,
@@ -80,7 +78,11 @@ export class McpService {
     const server = new McpServer({ name: 'monsport', version: '1.0.0' }, { capabilities: { tools: {} } });
     if (ctx.role !== 'USER') return server;
     const { userId } = ctx;
-    const add = <I, O>(name: McpToolName, def: ToolDef<I, O>) => this.register(server, ctx, name, def);
+    // A READ token sees the read tools only. A write tool is then unknown to the server.
+    const add = <I, O>(name: McpToolName, def: ToolDef<I, O>) => {
+      if (ctx.scope === 'READ' && def.write) return;
+      this.register(server, ctx, name, def);
+    };
 
     add('search_venues', {
       title: 'Tìm đơn vị sân',
@@ -183,7 +185,7 @@ export class McpService {
   private register<I, O>(server: McpServer, ctx: McpContext, name: McpToolName, def: ToolDef<I, O>): void {
     const handler = async (args: I) => {
       // BR-58: count the call first. A refused call never reaches a service.
-      if (!this.limiter.allow(ctx.userId, def.write, this.clock.now())) return failure(TOO_MANY);
+      if (!(await this.throttle.consumeMcpCall(ctx.userId, def.write))) return failure(TOO_MANY);
       try {
         // Parsing drops a key that the contract does not name, so a service cannot leak one by accident.
         const out = def.output.parse(await def.run(args));

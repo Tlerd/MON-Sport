@@ -28,7 +28,6 @@ import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { MatchesService } from '../matches/matches.service.js';
 import { VenuesService } from '../venues/venues.service.js';
-import { McpModule } from './mcp.module.js';
 import { McpService } from './mcp.service.js';
 
 // Data of brief F-036. Now is 20/11/2026 10:00 in Asia/Ho_Chi_Minh. "An Phu Sport" (owner "Chu San Rieng", phone
@@ -53,7 +52,7 @@ interface Called {
 }
 
 async function connect(userId: string, role: Role = 'USER'): Promise<Client> {
-  const server = mcp.createServer({ userId, role });
+  const server = mcp.createServer({ userId, role, scope: 'BOOK' });
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test', version: '1.0.0' });
   await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
@@ -321,7 +320,8 @@ describe('MCP tool layer (F-036)', () => {
       expect(ListMatchesOutput.parse(list.data).matches).toHaveLength(1);
       expect(list.data.matches).toEqual(viaHttp.body);
       expect(list.data.matches[0].hostName).toBe('An');
-      expect(list.text).not.toMatch(/0\d{9}/);
+      // A phone number stands alone. The boundaries keep a digit run inside a UUID from matching.
+      expect(list.text).not.toMatch(/(?<![\w-])0\d{9}(?![\w-])/);
 
       const twice = await tool('An', 'open_match', { bookingId: confirmed, capacity: 10, pricePerSlot: 50_000 });
       const viaHttpTwice = await as('An')(http().post('/api/matches')).send({ bookingId: confirmed, capacity: 10, pricePerSlot: 50_000 }).expect(409);
@@ -401,10 +401,10 @@ describe('MCP tool layer (F-036)', () => {
       expect(await db.booking.count({ where: { createdById: ids.An, courtId: ids.F1 } })).toBe(1);
     });
 
-    it('AC-14: the Nest app has no route of the mcp module, and the module has no controller', async () => {
-      expect(Reflect.getMetadata('controllers', McpModule) ?? []).toEqual([]);
-      for (const [method, path] of [['post', '/api/mcp'], ['get', '/api/mcp'], ['post', '/mcp'], ['get', '/mcp']] as const) {
-        await as('An')(http()[method](path)).expect(404);
+    it('AC-14: POST /api/mcp with no token is 401, and /mcp without the prefix is 404', async () => {
+      await http().post('/api/mcp').send({}).expect(401);
+      for (const method of ['post', 'get'] as const) {
+        await as('An')(http()[method]('/mcp')).expect(404);
       }
     });
   });

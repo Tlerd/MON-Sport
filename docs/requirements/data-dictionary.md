@@ -20,9 +20,9 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | AccessToken.scope | Phạm vi của mã | enum | — | READ · BOOK |
 | AccessToken.tokenHash | Bản băm của mã | text | 64 | SHA-256 hex, 64 ký tự. Duy nhất. Không lưu mã |
 | AccessToken.userId | Người dùng sở hữu mã | id của User | 36 | — |
-| AuthThrottle | Một bộ đếm số lần thử đăng nhập hoặc đăng ký trong một cửa sổ thời gian (BR-30) | key + count + windowStart | — | Mọi instance của API dùng chung. Một dòng cũ hơn 1 ngày bị xóa ở lần kế tiếp một bộ đếm mở cửa sổ mới (brief F-006) |
+| AuthThrottle | Một bộ đếm số lần thử đăng nhập hoặc đăng ký, hoặc số lệnh MCP, trong một cửa sổ thời gian (BR-30, BR-58) | key + count + windowStart | — | Mọi instance của API dùng chung. Một dòng cũ hơn 1 ngày bị xóa ở lần kế tiếp một bộ đếm mở cửa sổ mới (brief F-006) |
 | AuthThrottle.count | Số lần thử trong cửa sổ | integer | ≥ 1 | — |
-| AuthThrottle.key | Tên bộ đếm và HMAC-SHA256 của số điện thoại hoặc IP | text | ≤ 100 | Duy nhất. Không chứa số điện thoại hoặc IP đọc được |
+| AuthThrottle.key | Tên bộ đếm và HMAC-SHA256 của số điện thoại, IP hoặc `userId` (bộ đếm `mcp-call`, `mcp-write`, BR-58) | text | ≤ 100 | Duy nhất. Không chứa số điện thoại hoặc IP đọc được |
 | AuthThrottle.windowStart | Lúc cửa sổ bắt đầu | timestamptz(3) | — | — |
 | Booking | Một khoảng giờ trên một sân | id + courtId + startAt + endAt + status + source + createdById + (customerName) + (customerPhone) + priceTotal + paidAtVenue + (confirmDeadline) + (confirmedAt) + (cancelledAt) + (seriesId) + createdAt | — | `CHECK (endAt > startAt)`. Hai booking `PENDING` hoặc `CONFIRMED` trên cùng `courtId` không chồng khoảng `[startAt, endAt)` (BR-1) |
 | Booking.cancelledAt | Lúc booking bị hủy | timestamptz(3) | — | Có khi `status` = `CANCELLED` |
