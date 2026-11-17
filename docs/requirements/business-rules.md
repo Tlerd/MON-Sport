@@ -79,5 +79,5 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 - Quy tắc đồng ý lúc đăng ký: intake chưa trả lời Luật 91/2025 có yêu cầu đồng ý lúc đăng ký hay không (open item 4). Ô đồng ý bắt buộc là lựa chọn an toàn hơn. Bạn sửa quy tắc này khi có ý kiến của người tư vấn luật.
 - Quy tắc chấm điểm (BR-56): điểm từ 1 đến 5 sao hoặc vắng mặt không có sao.
 - Quy tắc điểm uy tín (BR-57): điểm uy tín là trung bình số sao và số lần vắng mặt, không gộp công thức (brief F-032).
-- Giới hạn lệnh công cụ MCP (BR-58): 60 lệnh và 10 lệnh ghi mỗi phút là giả định của agent, chờ bạn sửa. Bước 2 đếm trong bộ nhớ của từng instance. Bước 3 chuyển sang bảng dùng chung `AuthThrottle` trước khi mở đường HTTP (brief F-036, brief F-037).
+- Giới hạn lệnh công cụ MCP (BR-58): 60 lệnh và 10 lệnh ghi mỗi phút là giả định của agent, chờ bạn sửa. Bộ đếm nằm trong bảng dùng chung `AuthThrottle` (brief F-037, bước 3), nên mọi instance dùng chung một số đếm.
 - Giới hạn mã truy cập (BR-59): 5 mã, hạn 30 hoặc 90 ngày là giả định của agent, chờ bạn sửa (`HUMAN_DECISIONS.md`, dòng 69).

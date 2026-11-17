@@ -68,9 +68,9 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/api/src/modules/mcp/
 - mcp-context.ts: McpContext
+- mcp.controller.ts: McpController
 - mcp.module.ts: McpModule
 - mcp.service.ts: McpService
-- rate-limiter.ts: WINDOW_MS, MAX_CALLS, MAX_WRITES, RateLimiter
 
 ## apps/api/src/modules/notifications/
 - notifications.controller.ts: NotificationsController

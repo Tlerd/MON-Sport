@@ -14,6 +14,8 @@ export const LIMITS = {
   'otp-ip': { max: 10, windowMs: 60 * 60_000 },
   'otp-sub': { max: 5, windowMs: 60 * 60_000 },
   'otp-phone': { max: 5, windowMs: 60 * 60_000 },
+  'mcp-call': { max: 60, windowMs: 60_000 },
+  'mcp-write': { max: 10, windowMs: 60_000 },
 } as const;
 type Counter = keyof typeof LIMITS;
 
@@ -58,6 +60,17 @@ export class ThrottleService {
     const retryAfter = (await this.hit('login-ip', ipBucket(ip))) ?? (await this.hit('login-phone', phone));
     await this.cleanupOld();
     return retryAfter;
+  }
+
+  /**
+   * BR-58, brief F-037 step 3: counts an MCP tool call per user, and a write call also in the write counter.
+   * A refused call still counts. Returns true when every counter is within its limit.
+   */
+  async consumeMcpCall(userId: string, write: boolean): Promise<boolean> {
+    const callRefused = await this.hit('mcp-call', userId);
+    const writeRefused = write ? await this.hit('mcp-write', userId) : null;
+    await this.cleanupOld();
+    return callRefused === null && writeRefused === null;
   }
 
   /** A correct password clears the phone counter, so it counts failures in a row. The IP counter stays. */

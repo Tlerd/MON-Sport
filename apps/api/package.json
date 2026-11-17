@@ -12,6 +12,7 @@
     "db:seed": "prisma db seed"
   },
   "dependencies": {
+    "@modelcontextprotocol/node": "2.1.2",
     "@modelcontextprotocol/server": "2.4.0",
     "@monsport/shared": "workspace:*",
     "@nestjs/common": "12.1.3",
