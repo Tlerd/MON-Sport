@@ -16,6 +16,8 @@ export const LIMITS = {
   'otp-phone': { max: 5, windowMs: 60 * 60_000 },
   'mcp-call': { max: 60, windowMs: 60_000 },
   'mcp-write': { max: 10, windowMs: 60_000 },
+  'oauth-authorize-ip': { max: 60, windowMs: 60_000 },
+  'oauth-token-ip': { max: 60, windowMs: 60_000 },
 } as const;
 type Counter = keyof typeof LIMITS;
 
@@ -71,6 +73,13 @@ export class ThrottleService {
     const writeRefused = write ? await this.hit('mcp-write', userId) : null;
     await this.cleanupOld();
     return callRefused === null && writeRefused === null;
+  }
+
+  /** Brief F-038: counts an OAuth request by IP before any fetch or read. Returns true when it is within the limit. */
+  async consumeOAuth(counter: 'oauth-authorize-ip' | 'oauth-token-ip', ip: string | undefined): Promise<boolean> {
+    const refused = await this.hit(counter, ipBucket(ip));
+    await this.cleanupOld();
+    return refused === null;
   }
 
   /** A correct password clears the phone counter, so it counts failures in a row. The IP counter stays. */

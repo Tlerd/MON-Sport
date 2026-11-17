@@ -105,6 +105,8 @@ model User {
   ratingsGiven    PlayerRating[] @relation("RatingRater")
   ratingsReceived PlayerRating[] @relation("RatingPlayer")
   accessTokens    AccessToken[]
+  oauthRequests    OAuthRequest[]
+  oauthConnections OAuthConnection[]
 
   @@index([staffVenueId])
 }
@@ -129,6 +131,52 @@ model AccessToken {
   revokedAt  DateTime?        @db.Timestamptz(3)
   createdAt  DateTime         @default(now()) @db.Timestamptz(3)
   user       User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+/// Brief F-038: one authorization request of an OAuth client, and the code it gets after "Cho phép".
+model OAuthRequest {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  clientId      String    @db.VarChar(500)
+  clientName    String    @db.VarChar(100)
+  redirectUri   String    @db.VarChar(500)
+  codeChallenge String    @db.Char(43)
+  scope         String    @db.VarChar(100)
+  state         String?   @db.VarChar(500)
+  resource      String    @db.VarChar(500)
+  expiresAt     DateTime  @db.Timestamptz(3)
+  userId        String?   @db.Uuid
+  grantedScope  String?   @db.VarChar(100)
+  /// SHA-256 of the code, lowercase hex.
+  codeHash      String?   @unique @db.Char(64)
+  codeExpiresAt DateTime? @db.Timestamptz(3)
+  codeUsedAt    DateTime? @db.Timestamptz(3)
+  deniedAt      DateTime? @db.Timestamptz(3)
+  connectionId  String?   @unique @db.Uuid
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  user          User?     @relation(fields: [userId], references: [id])
+
+  @@index([expiresAt])
+}
+
+/// Brief F-038: one connection of an OAuth client to a user. Only SHA-256 hashes of tokens are stored.
+model OAuthConnection {
+  id                       String           @id @default(uuid(7)) @db.Uuid
+  userId                   String           @db.Uuid
+  clientId                 String           @db.VarChar(500)
+  clientName               String           @db.VarChar(100)
+  scope                    AccessTokenScope
+  accessTokenHash          String           @unique @db.Char(64)
+  accessExpiresAt          DateTime         @db.Timestamptz(3)
+  refreshTokenHash         String?          @unique @db.Char(64)
+  previousRefreshTokenHash String?          @unique @db.Char(64)
+  refreshRotatedAt         DateTime?        @db.Timestamptz(3)
+  refreshExpiresAt         DateTime?        @db.Timestamptz(3)
+  lastUsedAt               DateTime?        @db.Timestamptz(3)
+  revokedAt                DateTime?        @db.Timestamptz(3)
+  createdAt                DateTime         @default(now()) @db.Timestamptz(3)
+  user                     User             @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }

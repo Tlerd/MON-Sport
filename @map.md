@@ -77,6 +77,13 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - notifications.module.ts: NotificationsModule
 - notifications.service.ts: NotificationsService
 
+## apps/api/src/modules/oauth/
+- client-metadata.fetcher.ts: ClientMetadata, cimdHosts, isAllowedClientId, ClientMetadataFetcher
+- oauth.controller.ts: OAuthController
+- oauth.module.ts: OAuthModule
+- oauth.service.ts: AuthorizeResult, publicOrigin, OAuthService
+- well-known.controller.ts: WellKnownController
+
 ## apps/api/src/modules/otp/
 - index.ts
 - otp-config.ts: assertOtpConfig
