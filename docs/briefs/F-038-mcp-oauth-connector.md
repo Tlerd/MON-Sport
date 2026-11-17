@@ -173,7 +173,7 @@ export class ClientMetadataFetcher {
 - `approve` đếm kết nối còn hiệu lực cộng các `OAuthRequest` của người đó đã có `codeHash`, chưa có `codeUsedAt`, và `codeExpiresAt` còn hạn.
 - `token` (refresh): tìm theo `refreshTokenHash`. Xoay vòng trong một `UPDATE ... WHERE "refreshTokenHash" = <cũ>` nguyên tử, ghi `refreshRotatedAt`. Không thấy, nhưng khớp `previousRefreshTokenHash`: trong 60 giây sau `refreshRotatedAt` thì chỉ trả `invalid_grant` (lần refresh song song hoặc thử lại). Sau 60 giây thì thu hồi cả kết nối (phát hiện dùng lại).
 - Mọi tham số của query và form phải là đúng một chuỗi. Mảng hoặc object (`a[]=1`, `a[b]=1`, tham số lặp) là `invalid_request`, hoặc trang lỗi 400 ở `authorize`.
-- Mọi chuyển hướng của `authorize` và `approve` tới `redirect_uri` có `iss=PUBLIC_ORIGIN` (RFC 9207).
+- Mọi chuyển hướng của `authorize`, `approve` và `deny` tới `redirect_uri` có `iss=PUBLIC_ORIGIN` (RFC 9207).
 - Mọi token và mã: 32 byte ngẫu nhiên, base64url, chỉ lưu SHA-256 hex. Response `token` có `Cache-Control: no-store` và `Pragma: no-cache`.
 - `authenticate` của `/api/mcp` chọn theo tiền tố: `mst_` tới `AccessTokensService`, `mot_` tới `OAuthService`, còn lại 401. Cập nhật `lastUsedAt` tối đa một lần mỗi 60 giây, như F-037.
 - BR-58: lệnh qua OAuth đếm vào cùng bộ đếm `mcp-call` và `mcp-write` theo `userId`.
