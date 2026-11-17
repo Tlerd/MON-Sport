@@ -389,10 +389,10 @@ describe('OAuth token, refresh and /api/mcp (F-038 step 3)', () => {
     expectGrantError(await refresh(current));
   });
 
-  it('AC-12: a refresh with another client_id or another resource gives invalid_grant', async () => {
+  it('AC-12: a refresh with another client_id or another resource gives invalid_grant or invalid_target (RFC 8707)', async () => {
     const first = await connect();
     expectGrantError(await refresh(first.refresh_token!, { client_id: 'https://claude.ai/other' }));
-    expectGrantError(await refresh(first.refresh_token!, { resource: 'https://la.example/api/mcp' }));
+    expectGrantError(await refresh(first.refresh_token!, { resource: 'https://la.example/api/mcp' }), 'invalid_target');
     expect((await refresh(first.refresh_token!)).status).toBe(200);
   });
 
@@ -427,6 +427,44 @@ describe('OAuth token, refresh and /api/mcp (F-038 step 3)', () => {
   it('AC-13: a well-formed mot_ string that is not in the table gives 401 with the challenge', async () => {
     expectUnauthorized(await rpc(`mot_${'x'.repeat(43)}`, 'tools/list'));
     expectUnauthorized(await rpc(`mot_${'x'.repeat(200)}`, 'tools/list'));
+  });
+
+  /** A code for A built by hand, approved at `approvedAt` (the approve route would refuse some of these). */
+  async function handCode(approvedAt: Date = START): Promise<string> {
+    const code = randomBytes(32).toString('base64url');
+    await db.oAuthRequest.create({
+      data: {
+        clientId: CLIENT,
+        clientName: 'Claude',
+        redirectUri: CALLBACK,
+        codeChallenge: CHALLENGE,
+        scope: 'read book',
+        resource: RESOURCE,
+        expiresAt: new Date(approvedAt.getTime() + 600_000),
+        userId: ids.An,
+        grantedScope: 'read book',
+        codeHash: sha(code),
+        codeExpiresAt: new Date(approvedAt.getTime() + 60_000),
+        createdAt: approvedAt,
+      },
+    });
+    return code;
+  }
+
+  it('AC-13: a code approved before an admin unlock (BR-32) gives invalid_grant and makes no connection', async () => {
+    const code = await handCode(START);
+    await db.user.update({ where: { id: ids.An }, data: { lockedAt: null, sessionsValidFrom: new Date(START.getTime() + 20_000) } });
+    clock.at = new Date(START.getTime() + 30_000);
+    expectGrantError(await exchange(code));
+    expect(await db.oAuthConnection.count({ where: { userId: ids.An } })).toBe(0);
+  });
+
+  it('AC-14: two exchanges at once with 9 connections give one 200 and one invalid_grant, and exactly 10 connections', async () => {
+    for (let i = 0; i < 9; i++) await seed(ids.An);
+    const [one, two] = [await handCode(), await handCode()];
+    const results = await Promise.all([exchange(one), exchange(two)]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 400]);
+    expect(await db.oAuthConnection.count({ where: { userId: ids.An } })).toBe(10);
   });
 
   it('AC-14: an exchange with 10 valid connections gives invalid_grant, and the user keeps exactly 10', async () => {

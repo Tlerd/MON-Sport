@@ -303,6 +303,9 @@ export class OAuthService {
       const users = await tx.$queryRaw<{ sessionsValidFrom: Date | null; lockedAt: Date | null; deletedAt: Date | null }[]>`SELECT "sessionsValidFrom", "lockedAt", "deletedAt" FROM "User" WHERE "id" = ${userId}::uuid FOR NO KEY UPDATE`;
       const user = users[0];
       if (!user || user.lockedAt || user.deletedAt) throw invalid;
+      // BR-32: a code approved before the admin unlock (sessionsValidFrom) must not become a connection.
+      const approvedAt = (row.codeExpiresAt?.getTime() ?? 0) - CODE_TTL_MS;
+      if (user.sessionsValidFrom && approvedAt < user.sessionsValidFrom.getTime()) throw invalid;
       const active = await tx.oAuthConnection.count({ where: this.validWhere(userId, user.sessionsValidFrom, now) });
       if (active >= MAX_CONNECTIONS) throw invalid;
       const connection = await tx.oAuthConnection.create({
@@ -328,7 +331,8 @@ export class OAuthService {
     if (!presented || !clientId) throw new OAuthGrantError('invalid_request');
     const invalid = new OAuthGrantError('invalid_grant');
     if (presented.length > MAX_TOKEN_LENGTH) throw invalid;
-    if (resource !== undefined && resource !== `${origin}/api/mcp`) throw invalid;
+    // RFC 8707, section 2: a token for another resource is invalid_target.
+    if (resource !== undefined && resource !== `${origin}/api/mcp`) throw new OAuthGrantError('invalid_target');
 
     const now = this.clock.now();
     const oldHash = sha256(presented);
