@@ -70,6 +70,7 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 | BR-57 | Điểm uy tín của người chơi là trung bình số sao (một chữ số thập phân), số điểm có sao và số lần vắng. Chỉ host của trận Host duyệt thấy điểm uy tín của người xin. | computation | dynamic | Intake V2, W5, brief F-032 |
 | BR-58 | Mỗi người dùng gọi tối đa 60 lệnh công cụ MCP mỗi phút, trong đó tối đa 10 lệnh ghi. Lệnh vượt mức bị từ chối với lỗi "Quá nhiều lệnh. Thử lại sau" và không chạm service | constraint | dynamic | Intake V2, W7, brief F-036 |
 | BR-59 | Người dùng có tối đa 5 mã truy cập còn hiệu lực. Mã có hạn 30 hoặc 90 ngày, chỉ hiện một lần lúc tạo và chỉ được lưu dạng băm. Người dùng thu hồi được từng mã. Mã tạo trước lúc admin mở khóa tài khoản không còn hiệu lực (BR-32) | constraint | static | Intake V2, W7 (giả định của agent, `HUMAN_DECISIONS.md` dòng 69), brief F-037 |
+| BR-60 | Người dùng có tối đa 10 kết nối OAuth còn hiệu lực. Access token sống 1 giờ. Refresh token xoay vòng mỗi lần dùng và hết hạn sau 30 ngày không dùng. Dùng lại refresh token ngay trước đó sau 60 giây kể từ lúc xoay vòng thì cả kết nối bị thu hồi. Kết nối không còn token dùng được thì không được tính và không hiện. Một kết nối sống tối đa 90 ngày. Người dùng thu hồi được từng kết nối. Kết nối tạo trước lúc admin mở khóa tài khoản không còn hiệu lực (BR-32). Máy chủ chỉ lưu bản băm của token | constraint | static | Intake V2, W7 (giả định của agent, `HUMAN_DECISIONS.md` dòng 71 và 72), brief F-038 |
 
 ## Assumptions
 
@@ -81,3 +82,4 @@ Nguồn: `intake-monsport-v1.md`, mục Rules, Data và Assumptions (đã duyệ
 - Quy tắc điểm uy tín (BR-57): điểm uy tín là trung bình số sao và số lần vắng mặt, không gộp công thức (brief F-032).
 - Giới hạn lệnh công cụ MCP (BR-58): 60 lệnh và 10 lệnh ghi mỗi phút là giả định của agent, chờ bạn sửa. Bộ đếm nằm trong bảng dùng chung `AuthThrottle` (brief F-037, bước 3), nên mọi instance dùng chung một số đếm.
 - Giới hạn mã truy cập (BR-59): 5 mã, hạn 30 hoặc 90 ngày là giả định của agent, chờ bạn sửa (`HUMAN_DECISIONS.md`, dòng 69).
+- Giới hạn kết nối OAuth (BR-60): 10 kết nối, access token 1 giờ, refresh 30 ngày không dùng, tối đa 90 ngày là giả định của agent, chờ bạn sửa (`HUMAN_DECISIONS.md`, dòng 71 và 72).
