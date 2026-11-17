@@ -200,6 +200,9 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - StatusBadge.tsx: StatusValue, StatusBadgeProps, StatusBadge
 - Toast.tsx: ToastTone, ToastContextValue, ToastProvider, useToast
 
+## apps/web/src/features/access-tokens/
+- AccessTokensSection.tsx: AccessTokensSection
+
 ## apps/web/src/features/admin/
 - AccountLock.tsx: AccountLock
 - AdminPanel.tsx: AdminPanel
