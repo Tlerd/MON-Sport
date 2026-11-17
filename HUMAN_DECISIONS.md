@@ -76,6 +76,8 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 61 | Ai thấy điểm uy tín? (F-032) | Chỉ host, trong hàng chờ | Không | F-032 |
 | 69 | Mã truy cập cá nhân cho MCP: tối đa bao nhiêu mã, hạn bao lâu? (F-037) | 5 mã còn hiệu lực, hạn 30 hoặc 90 ngày | Không | F-037 |
 | 70 | Có cần lệnh stdio (cầu nối cục bộ) như kế hoạch MCP bước 3 không? Claude Code nối thẳng `/api/mcp` bằng HTTP và header `Authorization` | Không làm lệnh stdio | Không | F-037 |
+| 71 | Kết nối OAuth cho MCP: tối đa bao nhiêu kết nối, token sống bao lâu? (F-038) | 10 kết nối còn hiệu lực. Access token 1 giờ. Refresh token xoay vòng, hết hạn sau 30 ngày không dùng. Một kết nối sống tối đa 90 ngày | Không | F-038 |
+| 72 | Máy chủ cấp phép nhận `client_id` (CIMD) từ host nào? (F-038) | Chỉ `claude.ai`. Thêm host bằng biến `OAUTH_CIMD_HOSTS`. Không mở đăng ký client động (DCR) | Không | F-038 |
 
 ## Việc chỉ người dùng làm được
 
