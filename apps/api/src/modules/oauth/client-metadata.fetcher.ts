@@ -50,7 +50,7 @@ export class ClientMetadataFetcher {
       const name = record.client_name;
       let clientName: string;
       if (name === undefined) clientName = new URL(clientId).host;
-      else if (typeof name === 'string' && name.length >= 1 && name.length <= MAX_NAME) clientName = name;
+      else if (typeof name === 'string' && name.length >= 1 && name.length <= MAX_NAME && !/[\u0000-\u001f\u007f]/.test(name)) clientName = name;
       else return null;
       return { clientId, clientName, redirectUris: uris as string[] };
     } catch {

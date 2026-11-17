@@ -136,7 +136,8 @@ export class OAuthService {
     if (!CHALLENGE.test(challenge)) return back('invalid_request');
     if (params.resource !== `${origin}/api/mcp`) return back('invalid_target');
     if (scope.length > 100 || !parts.every((part) => OAuthScope.safeParse(part).success)) return back('invalid_scope');
-    if (state !== undefined && state.length > 500) return back('invalid_request');
+    // Postgres text refuses NUL, and no client needs a control character in state.
+    if (state !== undefined && (state.length > 500 || /[\u0000-\u001f\u007f]/.test(state))) return back('invalid_request');
 
     const now = this.clock.now();
     await this.prisma.oAuthRequest.deleteMany({ where: { expiresAt: { lt: new Date(now.getTime() - DAY_MS) } } });

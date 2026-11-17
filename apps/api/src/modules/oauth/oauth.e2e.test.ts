@@ -61,7 +61,10 @@ const consent = (who: string | null, id: string) => as(who)(http().get(`/api/oau
 const approve = (who: string | null, id: string, scopes: string[] = ['read', 'book']) =>
   as(who)(http().post(`/api/oauth/requests/${id}/approve`)).send({ scopes });
 const deny = (who: string | null, id: string) => as(who)(http().post(`/api/oauth/requests/${id}/deny`)).send({});
-const seedConnection = (userId: string, extra: { createdAt?: Date; revokedAt?: Date | null } = {}) =>
+const seedConnection = (
+  userId: string,
+  extra: { createdAt?: Date; revokedAt?: Date | null; accessExpiresAt?: Date; refreshTokenHash?: string; refreshExpiresAt?: Date } = {},
+) =>
   db.oAuthConnection.create({
     data: {
       userId,
@@ -69,7 +72,9 @@ const seedConnection = (userId: string, extra: { createdAt?: Date; revokedAt?: D
       clientName: 'Claude',
       scope: 'READ',
       accessTokenHash: sha(randomBytes(16).toString('hex')),
-      accessExpiresAt: new Date(START.getTime() + 3_600_000),
+      accessExpiresAt: extra.accessExpiresAt ?? new Date(START.getTime() + 3_600_000),
+      refreshTokenHash: extra.refreshTokenHash ?? null,
+      refreshExpiresAt: extra.refreshExpiresAt ?? null,
       createdAt: extra.createdAt ?? START,
       revokedAt: extra.revokedAt ?? null,
     },
@@ -164,6 +169,8 @@ describe('OAuth authorize (F-038 step 2)', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy.mock.calls[0][0]).toBe(CLIENT);
     expect(fetchSpy.mock.calls[0][1]).toMatchObject({ redirect: 'error' });
+    // The 5-second limit of AC-5 (4) comes from this signal.
+    expect(fetchSpy.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('AC-5: client errors give a 400 page, with no redirect and no row', async () => {
@@ -313,6 +320,23 @@ describe('OAuth authorize (F-038 step 2)', () => {
     expect(res.status).toBe(409);
     expect(res.body.message).toBe(FULL);
     expect((await db.oAuthRequest.findUniqueOrThrow({ where: { id } })).codeHash).toBeNull();
+  });
+
+  it('AC-14: a revoked, a 90-day-old, a pre-unlock and a dead connection do not count, so the approve gives 200', async () => {
+    const day = 86_400_000;
+    for (let i = 0; i < 9; i++) await seedConnection(ids.An);
+    await db.user.update({ where: { id: ids.An }, data: { sessionsValidFrom: new Date(START.getTime() - day) } });
+    await seedConnection(ids.An, { revokedAt: START });
+    await seedConnection(ids.An, { createdAt: new Date(START.getTime() - 91 * day) });
+    await seedConnection(ids.An, { createdAt: new Date(START.getTime() - 2 * day) });
+    await seedConnection(ids.An, { accessExpiresAt: new Date(START.getTime() - 1000) });
+    await seedConnection(ids.An, {
+      accessExpiresAt: new Date(START.getTime() - 1000),
+      refreshTokenHash: sha(randomBytes(16).toString('hex')),
+      refreshExpiresAt: new Date(START.getTime() - 1000),
+    });
+    const res = await approve('An', await requestId());
+    expect(res.status).toBe(200);
   });
 
   it('AC-14: an approved request that is not exchanged counts, so the next approve gives 409', async () => {
