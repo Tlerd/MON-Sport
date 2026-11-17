@@ -33,7 +33,8 @@ export function AccessTokensSection() {
   const [revoking, setRevoking] = useState(false);
 
   const [name, setName] = useState('');
-  const [scope, setScope] = useState<AccessTokenScope>('BOOK');
+  // The smallest scope by default: a token that only reads (docs/design/ke-hoach-mcp.md, "Token bị lộ").
+  const [scope, setScope] = useState<AccessTokenScope>('READ');
   const [expiresInDays, setExpiresInDays] = useState<30 | 90>(30);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -66,7 +67,7 @@ export function AccessTokensSection() {
       setCopiedSecret(false);
       setCopiedCommand(false);
       setName('');
-      setScope('BOOK');
+      setScope('READ');
       setExpiresInDays(30);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Không tạo được mã');

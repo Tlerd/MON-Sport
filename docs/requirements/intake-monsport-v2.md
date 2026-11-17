@@ -98,7 +98,7 @@ Người dùng đã đăng nhập, qua AI client của họ. AI hành động b�
 
 ### Cách hoạt động
 
-1. Người dùng nối AI client với MONSPORT. Cách nối (PAT, OAuth) nằm ở các bước sau của kế hoạch.
+1. Người dùng nối AI client với MONSPORT. Cách nối hiện có là mã truy cập cá nhân (PAT, brief F-037). OAuth là bước 4 của kế hoạch.
 2. AI gọi công cụ: tìm đơn vị, xem giờ trống, gửi yêu cầu đặt sân, xem và hủy booking của người dùng, xem phòng chờ, mở trận, vào và rời trận (UC-20).
 3. Mỗi công cụ gọi cùng service với web và app. Công cụ không có luật riêng.
 4. Yêu cầu đặt sân qua AI ở trạng thái "Chờ xác nhận". Chủ sân vẫn xác nhận bằng tay (UC-4).
@@ -148,7 +148,7 @@ Mọi luật V1 và V2 giữ nguyên: BR-1, BR-6, BR-7, BR-9, BR-11, BR-12, BR-1
 | Mục | Lý do |
 |---|---|
 | Thanh toán trong app (W6) | Cần ADR, nhà cung cấp và pháp lý. Bạn duyệt trước khi bắt đầu |
-| PAT, OAuth, đường `/mcp` và định vị GPS của W7 | Bước 3 và 4 của kế hoạch MCP cần brief riêng và `rule-review`. GPS là bước 1b |
+| OAuth và định vị GPS của W7 | Bước 4 của kế hoạch MCP (OAuth) cần brief riêng và `rule-review`. GPS là bước 1b. PAT và `POST /api/mcp` (bước 3) đã làm theo brief F-037 |
 | Công cụ MCP cho chủ sân và admin | `HUMAN_DECISIONS.md`, dòng 27. Mặc định: không |
 | App native Android và iOS (qua store) | Như V1. App mobile là PWA |
 | App mobile cho W1 đến W5 | Làm sau khi web của từng đợt chạy ổn |

@@ -18,7 +18,7 @@ Một AI, ví dụ Claude Code, dùng tài khoản của bạn để làm việc
 7. Bấm "Tạo mã".
 8. Bấm "Chép" và lưu mã ngay. Mã chỉ hiện một lần.
 
-Mỗi tài khoản có tối đa 5 mã.
+Mỗi tài khoản có tối đa 5 mã còn hiệu lực (BR-59). Mã đã thu hồi hoặc đã hết hạn không tính.
 
 ## Nối Claude Code
 
@@ -49,6 +49,8 @@ AI dùng mã đó mất quyền ngay. Khi tài khoản bị khóa rồi mở kh�
 ## An toàn
 
 Ai có mã này thì đặt sân được bằng tài khoản của bạn. Không gửi mã cho người khác.
+
+Mã "Chỉ xem" không đặt sân được. Mã đó vẫn cho người khác xem booking và trận của bạn.
 
 - Không dán mã vào chat, issue, hay ảnh chụp màn hình.
 - Thu hồi mã ngay khi bạn nghi mã bị lộ.

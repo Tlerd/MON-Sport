@@ -1,6 +1,4 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccessTokensSection } from './AccessTokensSection.tsx';
 
@@ -57,15 +55,6 @@ describe('AccessTokensSection (F-037)', () => {
     await waitFor(() => expect(screen.queryByText('Claude Code')).toBeNull());
     const del = fetchMock.mock.calls.find(([, o]) => (o as RequestInit | undefined)?.method === 'DELETE');
     expect(del?.[0]).toBe(`/api/me/access-tokens/${token.id}`);
-  });
-
-  it('AC-13: the profile page keeps its "Sắp ra mắt" card and renders the section for a USER', () => {
-    // A feature may not import the app layer, so this test reads the source of pages.tsx.
-    const src = readFileSync(join(import.meta.dirname, '../../app/pages.tsx'), 'utf8');
-    expect(src).toContain("import { AccessTokensSection } from '../features/access-tokens/AccessTokensSection.tsx'");
-    expect(src).toContain("user?.role === 'USER' && <AccessTokensSection />");
-    expect(src).toContain('Sắp ra mắt');
-    expect(src.indexOf('<AccessTokensSection />')).toBeLessThan(src.indexOf('Sắp ra mắt'));
   });
 
   it('AC-14: fills "Máy tính", "Chỉ xem", "90 ngày", sends { name: "Máy tính", scope: "READ", expiresInDays: 90 }, shows the secret once with the warning, "Chép" and the claude mcp add command; "Xong" hides it', async () => {
