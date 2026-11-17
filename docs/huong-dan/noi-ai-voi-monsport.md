@@ -50,7 +50,7 @@ AI dùng mã đó mất quyền ngay. Khi tài khoản bị khóa rồi mở kh�
 
 Ai có mã này thì đặt sân được bằng tài khoản của bạn. Không gửi mã cho người khác.
 
-Mã "Chỉ xem" không đặt sân được. Mã đó vẫn cho người khác xem booking và trận của bạn.
+Mã "Chỉ xem" không đặt sân được. Mã đó vẫn cho người khác xem booking của bạn và phòng chờ ghép trận.
 
 - Không dán mã vào chat, issue, hay ảnh chụp màn hình.
 - Thu hồi mã ngay khi bạn nghi mã bị lộ.

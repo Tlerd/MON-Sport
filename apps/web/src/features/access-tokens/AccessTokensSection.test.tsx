@@ -75,6 +75,10 @@ describe('AccessTokensSection (F-037)', () => {
 
     await screen.findByText('Bạn chưa có mã nào.');
     fireEvent.change(screen.getByLabelText('Tên mã'), { target: { value: 'Máy tính' } });
+    // "Chỉ xem" is the default. Pick "Đặt sân" first, so the test shows that the buttons change the sent scope.
+    expect(screen.getByRole('button', { name: 'Chỉ xem' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt sân' }));
+    expect(screen.getByRole('button', { name: 'Đặt sân' }).getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'Chỉ xem' }));
     fireEvent.click(screen.getByRole('button', { name: '90 ngày' }));
     fireEvent.click(screen.getByRole('button', { name: 'Tạo mã' }));

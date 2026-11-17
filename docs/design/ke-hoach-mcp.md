@@ -69,9 +69,9 @@ Người dùng cho phép lấy vị trí. Hệ thống liệt kê các sân tron
 
 ## Hai cách nối
 
-| | Cách A: máy cục bộ | Cách B: connector từ xa |
+| | Cách A: mã truy cập cá nhân (PAT) | Cách B: connector từ xa |
 |---|---|---|
-| Dành cho | Nhà phát triển, agent chạy trên máy | Người dùng Claude và các client MCP |
+| Dành cho | Người dán mã vào client MCP, ví dụ Claude Code | Người dùng Claude và các client MCP |
 | Giao thức | Streamable HTTP tại `/api/mcp`, header `Authorization: Bearer` (brief F-037) | Streamable HTTP tại `/api/mcp` |
 | Xác thực | Mã truy cập cá nhân (PAT) | OAuth 2.1, mã cấp phép với PKCE |
 | Người dùng làm | Tạo PAT ở mục "Kết nối AI" của trang "Hồ sơ" (`/ho-so`), chạy lệnh `claude mcp add` | Dán URL, đăng nhập, bấm "Cho phép" |
