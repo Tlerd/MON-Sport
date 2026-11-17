@@ -11,6 +11,15 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 
 | Data Element | Description | Composition or Data Type | Length | Values |
 |---|---|---|---|---|
+| AccessToken | Một mã truy cập cá nhân để AI client gọi công cụ MCP bằng tài khoản của người dùng. Chỉ lưu bản băm | id + userId + name + scope + prefix + tokenHash + expiresAt + (lastUsedAt) + (revokedAt) + createdAt | — | BR-59, brief F-037. Tối đa 5 mã còn hiệu lực cho mỗi người dùng |
+| AccessToken.expiresAt | Lúc mã hết hạn | timestamptz(3) | — | `createdAt` cộng 30 hoặc 90 ngày |
+| AccessToken.lastUsedAt | Lần cuối mã được dùng | timestamptz(3) | — | Ghi tối đa một lần mỗi 60 giây. Rỗng khi chưa dùng |
+| AccessToken.name | Tên do người dùng đặt cho mã | text | 1–50 ký tự | — |
+| AccessToken.prefix | Phần đầu của mã để hiển thị | text | 12 | 12 ký tự đầu của mã |
+| AccessToken.revokedAt | Lúc người dùng thu hồi mã | timestamptz(3) | — | Rỗng khi mã chưa bị thu hồi |
+| AccessToken.scope | Phạm vi của mã | enum | — | READ · BOOK |
+| AccessToken.tokenHash | Bản băm của mã | text | 64 | SHA-256 hex, 64 ký tự. Duy nhất. Không lưu mã |
+| AccessToken.userId | Người dùng sở hữu mã | id của User | 36 | — |
 | AuthThrottle | Một bộ đếm số lần thử đăng nhập hoặc đăng ký trong một cửa sổ thời gian (BR-30) | key + count + windowStart | — | Mọi instance của API dùng chung. Một dòng cũ hơn 1 ngày bị xóa ở lần kế tiếp một bộ đếm mở cửa sổ mới (brief F-006) |
 | AuthThrottle.count | Số lần thử trong cửa sổ | integer | ≥ 1 | — |
 | AuthThrottle.key | Tên bộ đếm và HMAC-SHA256 của số điện thoại hoặc IP | text | ≤ 100 | Duy nhất. Không chứa số điện thoại hoặc IP đọc được |

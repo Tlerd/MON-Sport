@@ -104,8 +104,33 @@ model User {
   pushSubscriptions PushSubscription[]
   ratingsGiven    PlayerRating[] @relation("RatingRater")
   ratingsReceived PlayerRating[] @relation("RatingPlayer")
+  accessTokens    AccessToken[]
 
   @@index([staffVenueId])
+}
+
+enum AccessTokenScope {
+  READ
+  BOOK
+}
+
+/// Brief F-037: a personal access token for MCP. Only the SHA-256 hash is stored.
+model AccessToken {
+  id         String           @id @default(uuid(7)) @db.Uuid
+  userId     String           @db.Uuid
+  name       String           @db.VarChar(50)
+  scope      AccessTokenScope
+  /// The first 12 characters of the token, for display ("mst_" and 8 more).
+  prefix     String           @db.VarChar(12)
+  /// SHA-256 of the whole token, lowercase hex.
+  tokenHash  String           @unique @db.Char(64)
+  expiresAt  DateTime         @db.Timestamptz(3)
+  lastUsedAt DateTime?        @db.Timestamptz(3)
+  revokedAt  DateTime?        @db.Timestamptz(3)
+  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
+  user       User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model Venue {

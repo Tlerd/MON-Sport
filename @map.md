@@ -16,6 +16,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - serve-web.ts: serveMobile, serveWeb
 - setup-app.ts: setupApp
 
+## apps/api/src/modules/access-tokens/
+- access-tokens.controller.ts: AccessTokensController
+- access-tokens.module.ts: AccessTokensModule
+- access-tokens.service.ts: AccessTokenContext, hashToken, AccessTokensService
+
 ## apps/api/src/modules/admin/
 - accounts.controller.ts: AdminAccountsController
 - admin.module.ts: AdminModule
