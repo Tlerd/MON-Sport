@@ -60,7 +60,7 @@ Các test API dùng cơ sở dữ liệu thật, đồng hồ giả (`Clock`), `
 | AC-4 | `fetch` giả trả tài liệu CIMD | `GET /api/oauth/authorize` với `response_type=code`, `client_id=CLIENT`, `redirect_uri=https://claude.ai/api/mcp/auth_callback`, `code_challenge=CHALLENGE`, `code_challenge_method=S256`, `state=xyz`, `scope=read book offline_access`, `resource=ORIGIN/api/mcp` | 302 tới `ORIGIN/ket-noi-ai/cho-phep?yeu-cau=<id>`. Một dòng `OAuthRequest` có `clientId`, `clientName` "Claude", `redirectUri`, `codeChallenge`, `scope`, `state`, `expiresAt` = giờ giả + 10 phút, `userId` rỗng. `fetch` được gọi đúng một lần với `CLIENT`, `redirect: "error"` |
 | AC-5 | Như AC-4 | `authorize` với từng lỗi: (1) `client_id` là `https://la.example/x`. (2) `client_id` là `http://claude.ai/x`. (3) `fetch` trả tài liệu có `client_id` khác URL. (4) `fetch` quá 5 giây hoặc trả hơn 10 KB. (5) `redirect_uri` không có trong tài liệu. (6) `code_challenge_method=plain`. (7) `resource` là `https://la.example/api/mcp`. (8) `response_type=token`. (9) `client_id` xuất hiện hai lần trong query | (1) đến (5) và (9): 400 với trang lỗi "Ứng dụng này không nối được với MONSPORT", không chuyển hướng tới `redirect_uri`. `fetch` không được gọi ở (1), (2) và (9). (6) đến (8): 302 tới `redirect_uri` với `state=xyz`, `iss=ORIGIN` và `error` lần lượt là `invalid_request`, `invalid_target`, `unsupported_response_type`. Không dòng `OAuthRequest` nào được tạo |
 | AC-6 | Có `OAuthRequest` của AC-4. A (USER) đã đăng nhập | `GET /api/oauth/requests/<id>` rồi `POST /api/oauth/requests/<id>/approve` với `{ "scopes": ["read", "book"] }` | `GET`: 200 `OAuthConsentView` với `clientName` "Claude", `clientHost` "claude.ai", `scopes` ["read", "book"], `dataRead` là 4 dòng của mục "Contract". `POST`: 200 `{ "redirectTo": "https://claude.ai/api/mcp/auth_callback?code=<mã>&state=xyz&iss=ORIGIN" }`. `<mã>` có 43 ký tự base64url. Dòng `OAuthRequest` có `userId` của A, `grantedScope` "read book offline_access", `codeHash` là SHA-256 của mã, `codeExpiresAt` = giờ giả + 60 giây |
-| AC-7 | Như AC-6 | (1) A gửi `POST .../deny`. (2) A duyệt khi `OAuthRequest` đã quá 10 phút. (3) Không có cookie. (4) Chủ sân, nhân viên hoặc admin duyệt. (5) A duyệt cùng yêu cầu lần hai. (6) Request có header `Origin: https://la.example` | (1) 200 `{ redirectTo }` với `error=access_denied&state=xyz`. (2) 410 "Yêu cầu đã hết hạn. Nối lại từ Claude". (3) 401. (4) 403 "Bạn không có quyền làm việc này". (5) 409 "Yêu cầu đã được xử lý". (6) 403. Không mã nào được cấp ở (2) đến (6) |
+| AC-7 | Như AC-6 | (1) A gửi `POST .../deny`. (2) A duyệt khi `OAuthRequest` đã quá 10 phút. (3) Không có cookie. (4) Chủ sân, nhân viên hoặc admin duyệt. (5) A duyệt cùng yêu cầu lần hai. (6) Request có header `Origin: https://la.example`. (7) A gửi `deny` sau khi đã duyệt | (1) 200 `{ redirectTo }` với `error=access_denied&state=xyz`, `iss=ORIGIN`, và `deniedAt` được ghi. (2) 410 "Yêu cầu đã hết hạn. Nối lại từ Claude". (3) 401. (4) 403 "Bạn không có quyền làm việc này". (5) 409 "Yêu cầu đã được xử lý". (6) 403. (7) 409 "Yêu cầu đã được xử lý", và mã đã cấp vẫn đổi được. Không mã nào được cấp ở (2) đến (6) |
 | AC-8 | Mã của AC-6 | `POST /api/oauth/token` dạng `application/x-www-form-urlencoded` với `grant_type=authorization_code`, `code`, `redirect_uri`, `client_id=CLIENT`, `code_verifier=VERIFIER`, `resource=ORIGIN/api/mcp` | 200, `Cache-Control: no-store`, thân `{ access_token: "mot_…", token_type: "Bearer", expires_in: 3600, refresh_token: "mor_…", scope: "read book offline_access" }`. Một dòng `OAuthConnection` có `userId` của A, `clientId`, `clientName` "Claude", `scope` "BOOK", `accessTokenHash` và `refreshTokenHash` là SHA-256 của hai token. Không cột nào chứa token. `OAuthRequest` có `codeUsedAt`. Một luồng khác có `scope=read book` (không `offline_access`): response không có `refresh_token`, và `refreshTokenHash` rỗng |
 | AC-9 | Như AC-8 | `token` với từng lỗi: (1) sai `code_verifier`. (2) mã dùng lần hai. (3) mã quá 60 giây. (4) `redirect_uri` khác. (5) `client_id` khác. (6) `resource` khác. (7) thân JSON thay vì form. (8) `code` xuất hiện hai lần trong form | (1) đến (6): 400 `{ "error": "invalid_grant" }`. (7) và (8): 400 `{ "error": "invalid_request" }`. Ở (2), kết nối đã cấp từ mã đó vẫn dùng được. Hai lần gửi cùng mã cùng lúc trả đúng một 200 và một `invalid_grant`. Token của lần 200 vẫn gọi được `/api/mcp` |
 | AC-10 | Kết nối của AC-8 | `POST /api/mcp` với `Authorization: Bearer <access_token>`: `tools/list`, rồi `tools/call` `request_booking` 2026-12-10 18:00 đến 19:30 | `tools/list` trả 9 công cụ. Booking `PENDING` của A, nguồn `APP`. `lastUsedAt` của kết nối bằng giờ giả. Log của server không chứa "mot_" hay "mor_". BR-58 đếm chung với PAT của A |
@@ -72,7 +72,7 @@ Các test API dùng cơ sở dữ liệu thật, đồng hồ giả (`Clock`), `
 | AC-16 | Màn `/ket-noi-ai/cho-phep?yeu-cau=<id>`, API giả trả `OAuthConsentView` của AC-6 | (1) Khách chưa đăng nhập mở màn. (2) A mở màn, bỏ chọn "Đặt sân", bấm "Cho phép". (3) A bấm "Từ chối". (4) API trả 410 | (1) Chuyển tới `/dang-nhap?tiep=%2Fket-noi-ai%2Fcho-phep%3Fyeu-cau%3D<id>`. Sau đăng nhập, quay lại màn này. (2) Màn hiện "Claude (claude.ai) muốn dùng tài khoản MONSPORT của bạn" và danh sách `dataRead`. Ô "Xem sân, giờ trống, trận và booking của bạn" luôn được chọn. Ô "Đặt sân, hủy booking, mở và vào trận" bỏ được. Trang gửi `{ scopes: ["read"] }`, rồi chuyển tới `redirectTo`. (3) Gửi `deny` và chuyển tới `redirectTo`. (4) Hiện đúng thông báo của API, không có nút "Cho phép" |
 | AC-17 | `/dang-nhap?tiep=<x>` | Đăng nhập thành công với từng `x`: `/ket-noi-ai/cho-phep?yeu-cau=1`, `https://la.example`, `//la.example`, `/\la.example` | Chỉ giá trị đầu được dùng. Ba giá trị sau đi về trang mặc định của vai trò |
 | AC-18 | Mục "Kết nối AI" của `/ho-so`, API giả trả 1 kết nối "Claude" (BOOK, tạo 01/12/2026, dùng lần cuối 02/12/2026) và 1 mã PAT | A mở trang, bấm "Thu hồi" ở kết nối, xác nhận | Mục có hai phần: "Ứng dụng đã nối" (tên, "Đặt sân", "Nối từ 01/12/2026", "Dùng lần cuối 02/12/2026") và "Mã truy cập" (như F-037). "Thu hồi" hỏi lại, gọi `DELETE /api/me/oauth-connections/<id>` và bỏ dòng. Mục hiện "Địa chỉ connector" là trường `resource` đọc từ `/.well-known/oauth-protected-resource/api/mcp`, kèm nút "Chép". Các test AC-13, AC-14 của F-037 vẫn pass |
-| AC-19 | A có 1 kết nối còn hiệu lực, 1 đã thu hồi, 1 quá 90 ngày. B có 1 kết nối | `GET /api/me/oauth-connections`, rồi `DELETE` với id của B | `GET`: đúng 1 kết nối của A, các khóa của `OAuthConnectionView`, không có hash. `DELETE`: 404 "Không tìm thấy kết nối". Chủ sân gọi `GET`: 403. Không cookie: 401 |
+| AC-19 | A có 1 kết nối còn hiệu lực, 1 đã thu hồi, 1 quá 90 ngày, 1 không có refresh token và access token đã hết hạn, 1 có refresh token không dùng 31 ngày. B có 1 kết nối | `GET /api/me/oauth-connections`, rồi `DELETE` với id của B | `GET`: đúng 1 kết nối của A, các khóa của `OAuthConnectionView`, không có hash. `DELETE`: 404 "Không tìm thấy kết nối". Chủ sân gọi `GET`: 403. Không cookie: 401 |
 | AC-20 | Bản build web phục vụ qua `serve-web.ts` | `GET /.well-known/khong-co` và `GET /ket-noi-ai/cho-phep` | Lần 1: 404, không phải `index.html`. Lần 2: 200 `index.html` với `Content-Security-Policy: frame-ancestors 'none'` |
 
 ## Contract
@@ -109,12 +109,13 @@ export const OAuthConnectionList = z.object({ connections: z.array(OAuthConnecti
 3. "Trận bạn mở hoặc đã vào, và phòng chờ ghép trận"
 4. "AI không thấy số điện thoại, mật khẩu hay email của bạn"
 
-Một luật cho "kết nối còn hiệu lực", dùng cho danh sách, cho việc đếm 10 kết nối, cho `/api/mcp` và cho refresh. Kết nối còn hiệu lực khi đủ bốn điều kiện:
+Một luật cho "kết nối còn hiệu lực", dùng cho danh sách, cho việc đếm 10 kết nối, cho `/api/mcp` và cho refresh. Kết nối còn hiệu lực khi đủ năm điều kiện:
 
 - `revokedAt` rỗng.
 - `createdAt` cộng `OAUTH_CONNECTION_MAX_DAYS` sau `clock.now()`.
 - Người dùng không bị khóa, không bị xóa.
 - `User.sessionsValidFrom` rỗng, hoặc `createdAt` không trước `User.sessionsValidFrom` (BR-32).
+- Kết nối còn token dùng được: `accessExpiresAt` sau `clock.now()`, hoặc `refreshTokenHash` có và `refreshExpiresAt` sau `clock.now()`.
 
 Access token còn dùng được khi kết nối còn hiệu lực và `accessExpiresAt` sau `clock.now()`.
 
@@ -127,7 +128,7 @@ Access token còn dùng được khi kết nối còn hiệu lực và `accessEx
 | GET | `/oauth/authorize` | Bất kỳ (trình duyệt) | 302 tới màn "Cho phép", 302 tới `redirect_uri` với lỗi, hoặc 400 trang lỗi (AC-4, AC-5) |
 | GET | `/oauth/requests/:id` | USER, cookie phiên | 200 `OAuthConsentView`. 404, 410 |
 | POST | `/oauth/requests/:id/approve` | USER, cookie phiên, không có `Origin` lạ | 200 `OAuthDecisionResponse`. 403, 404, 409, 410 |
-| POST | `/oauth/requests/:id/deny` | USER, cookie phiên, không có `Origin` lạ | 200 `OAuthDecisionResponse` |
+| POST | `/oauth/requests/:id/deny` | USER, cookie phiên, không có `Origin` lạ | 200 `OAuthDecisionResponse`. 403, 404, 409, 410 như `approve` |
 | POST | `/oauth/token` | Bất kỳ, thân form | 200 `OAuthTokens` hoặc 400 lỗi OAuth (RFC 6749, mục 5.2) |
 | GET | `/me/oauth-connections` | USER, cookie phiên | 200 `OAuthConnectionList`, mới nhất trước |
 | DELETE | `/me/oauth-connections/:id` | USER, cookie phiên | 204. 404 "Không tìm thấy kết nối" |
@@ -162,7 +163,8 @@ export class ClientMetadataFetcher {
 
 - `PUBLIC_ORIGIN` (biến môi trường mới, ví dụ `https://monsport-774323404592.asia-southeast1.run.app`) là `issuer` và gốc của mọi URL trong metadata. Thiếu biến này thì `OAuthModule` không mở đường nào ngoài 404, và `/api/mcp` giữ `WWW-Authenticate: Bearer` như F-037.
 - `OAUTH_CIMD_HOSTS` (biến môi trường mới, mặc định `claude.ai`): danh sách host được phép làm `client_id`, phân cách bằng dấu phẩy.
-- `setupApp` loại hai đường well-known khỏi tiền tố `api`. `serve-web.ts` không trả `index.html` cho `/.well-known/`.
+- `setupApp` loại hai đường well-known khỏi tiền tố `api`. `serve-web.ts` đã bỏ qua mọi đường có dấu `.`, nên không trả `index.html` cho `/.well-known/`. Bước 2 không đổi `serve-web.ts`.
+- `deny` khóa dòng `OAuthRequest` (FOR UPDATE) và kiểm 404, 409, 410 như `approve`. Nó chỉ ghi `deniedAt` khi `codeHash` rỗng.
 - `authorize` kiểm hai nhóm, theo thứ tự:
   1. Lỗi không chuyển hướng: tham số bắt buộc, `client_id` (host, `https`), tài liệu CIMD (`client_id` khớp, `redirect_uris` có `redirect_uri`, `token_endpoint_auth_method` rỗng hoặc "none").
   2. Lỗi chuyển hướng tới `redirect_uri`: `response_type`, `code_challenge_method`, `code_challenge` (43 ký tự base64url), `resource` (bằng `PUBLIC_ORIGIN/api/mcp`), `scope`.
@@ -235,7 +237,7 @@ model OAuthConnection {
 
 `User` thêm `oauthRequests OAuthRequest[]` và `oauthConnections OAuthConnection[]`. Một migration mới, chỉ thêm hai bảng, index và khóa ngoại. Không đổi bảng có sẵn. `OAuthRequest` hết hạn và cũ hơn 1 ngày bị xóa ở lần `authorize` kế tiếp, như `AuthThrottle`.
 
-BR-60 (thêm vào `docs/requirements/business-rules.md` trong PR của brief này): người dùng có tối đa 10 kết nối OAuth còn hiệu lực. Access token sống 1 giờ. Refresh token xoay vòng mỗi lần dùng, hết hạn sau 30 ngày không dùng. Dùng lại refresh token cũ sau 60 giây kể từ lúc xoay vòng thì cả kết nối bị thu hồi. Một kết nối sống tối đa 90 ngày, rồi người dùng nối lại. Người dùng thu hồi được từng kết nối. Kết nối tạo trước `User.sessionsValidFrom` không còn hiệu lực (BR-32).
+BR-60 (thêm vào `docs/requirements/business-rules.md` trong PR của brief này): người dùng có tối đa 10 kết nối OAuth còn hiệu lực. Access token sống 1 giờ. Refresh token xoay vòng mỗi lần dùng, hết hạn sau 30 ngày không dùng. Dùng lại refresh token ngay trước đó sau 60 giây kể từ lúc xoay vòng thì cả kết nối bị thu hồi. Một kết nối sống tối đa 90 ngày, rồi người dùng nối lại. Người dùng thu hồi được từng kết nối. Kết nối tạo trước `User.sessionsValidFrom` không còn hiệu lực (BR-32).
 
 ## Lock order
 
@@ -252,7 +254,7 @@ One pull request for each row. Each pull request passes the check command on its
 | # | Pull request | Paths | Tests |
 |---|---|---|---|
 | 1 | Contract | `packages/shared/src/oauth.ts`, `packages/shared/src/oauth.test.ts`, `packages/shared/src/index.ts`, `packages/client/src/oauth.ts`, `packages/client/src/index.ts`, `PROGRESS.md`, `@map.md` | AC-1 |
-| 2 | Bảng, metadata và `authorize` | `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/<mới>/`, `apps/api/src/modules/oauth/`, `apps/api/src/app.module.ts`, `apps/api/src/setup-app.ts`, `apps/api/src/serve-web.ts`, `apps/api/src/modules/auth/throttle.service.ts`, `apps/api/.env.example`, `docs/requirements/data-dictionary.md`, `PROGRESS.md`, `@map.md` | AC-2, AC-4, AC-5, AC-6, AC-7, AC-14, AC-15 (phần `authorize`) |
+| 2 | Bảng, metadata và `authorize` | `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/<mới>/`, `apps/api/src/modules/oauth/`, `apps/api/src/app.module.ts`, `apps/api/src/setup-app.ts`, `apps/api/src/modules/auth/throttle.service.ts`, `apps/api/.env.example`, `docs/requirements/data-dictionary.md`, `PROGRESS.md`, `@map.md` | AC-2, AC-4, AC-5, AC-6, AC-7, AC-14, AC-15 (phần `authorize`) |
 | 3 | `token`, refresh và `/api/mcp` | `apps/api/src/modules/oauth/`, `apps/api/src/modules/mcp/`, `apps/api/src/modules/auth/throttle.service.ts`, `.dependency-cruiser.cjs`, `PROGRESS.md`, `@map.md` | AC-3, AC-8 đến AC-13, AC-15 (phần `token`), AC-19 |
 | 4 | Màn "Cho phép", `?tiep=` và mục "Kết nối AI" | `apps/web/src/features/oauth/`, `apps/web/src/features/access-tokens/`, `apps/web/src/features/auth/`, `apps/web/src/app/router.tsx`, `apps/web/src/app/pages.tsx`, `apps/web/src/app/ProfilePage.test.tsx`, `apps/api/src/serve-web.ts`, `docs/huong-dan/noi-ai-voi-monsport.md`, `.github/workflows/deploy.yml`, `PROGRESS.md`, `COMPLETED.md`, `@map.md` | AC-16, AC-17, AC-18, AC-20 |
 
