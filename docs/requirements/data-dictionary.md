@@ -81,6 +81,35 @@ Nguồn: `intake-monsport-v1.md` (mục Data), `business-rules.md`, `use-cases.m
 | Notification.type | Loại sự kiện | NotificationType | — | — |
 | Notification.userId | Người nhận | id của User | 36 | — |
 | NotificationType | Loại thông báo | enum | — | `BOOKING_REQUESTED` · `BOOKING_CONFIRMED` · `BOOKING_REJECTED` · `MATCH_CANCELLED` · `MATCH_JOIN_REQUESTED` · `MATCH_JOIN_APPROVED` · `MATCH_JOIN_REJECTED` |
+| OAuthConnection | Một kết nối của AI client với tài khoản người dùng, qua OAuth. Chỉ lưu bản băm của token | id + userId + clientId + clientName + scope + accessTokenHash + accessExpiresAt + (refreshTokenHash) + (previousRefreshTokenHash) + (refreshRotatedAt) + (refreshExpiresAt) + (lastUsedAt) + (revokedAt) + createdAt | — | BR-60, brief F-038. Tối đa 10 kết nối còn hiệu lực cho mỗi người dùng |
+| OAuthConnection.accessExpiresAt | Lúc access token hết hạn | timestamptz(3) | — | Cấp cộng 1 giờ |
+| OAuthConnection.accessTokenHash | Bản băm của access token | text | 64 | SHA-256 hex. Duy nhất. Không lưu token |
+| OAuthConnection.clientId | URL tài liệu CIMD của client | text | ≤ 500 | — |
+| OAuthConnection.clientName | Tên của client để hiển thị | text | 1–100 ký tự | Lấy từ tài liệu CIMD |
+| OAuthConnection.lastUsedAt | Lần cuối access token được dùng | timestamptz(3) | — | Rỗng khi chưa dùng |
+| OAuthConnection.previousRefreshTokenHash | Bản băm của refresh token ngay trước đó | text | 64 | SHA-256 hex. Duy nhất. Để phát hiện dùng lại sau khi xoay vòng |
+| OAuthConnection.refreshExpiresAt | Lúc refresh token hết hạn | timestamptz(3) | — | 30 ngày sau lần dùng cuối. Rỗng khi không có refresh token |
+| OAuthConnection.refreshRotatedAt | Lúc refresh token được xoay vòng lần cuối | timestamptz(3) | — | Rỗng khi chưa xoay vòng |
+| OAuthConnection.refreshTokenHash | Bản băm của refresh token | text | 64 | SHA-256 hex. Duy nhất. Rỗng khi không có `offline_access` |
+| OAuthConnection.revokedAt | Lúc kết nối bị thu hồi | timestamptz(3) | — | Rỗng khi chưa thu hồi |
+| OAuthConnection.scope | Phạm vi của kết nối | enum | — | READ · BOOK |
+| OAuthConnection.userId | Người dùng sở hữu kết nối | id của User | 36 | — |
+| OAuthRequest | Một yêu cầu cấp phép của AI client, và mã nó nhận sau khi người dùng bấm "Cho phép" | id + clientId + clientName + redirectUri + codeChallenge + scope + (state) + resource + expiresAt + (userId) + (grantedScope) + (codeHash) + (codeExpiresAt) + (codeUsedAt) + (deniedAt) + (connectionId) + createdAt | — | Brief F-038. Hết hạn sau 10 phút. Dòng hết hạn và cũ hơn 1 ngày bị xóa ở lần `authorize` kế tiếp |
+| OAuthRequest.clientId | URL tài liệu CIMD của client | text | ≤ 500 | — |
+| OAuthRequest.clientName | Tên của client | text | 1–100 ký tự | — |
+| OAuthRequest.codeChallenge | Giá trị PKCE | text | 43 | base64url của SHA-256, 43 ký tự |
+| OAuthRequest.codeExpiresAt | Lúc mã hết hạn | timestamptz(3) | — | Duyệt cộng 60 giây |
+| OAuthRequest.codeHash | Bản băm của mã | text | 64 | SHA-256 hex. Duy nhất. Không lưu mã |
+| OAuthRequest.codeUsedAt | Lúc mã được đổi lấy token | timestamptz(3) | — | Rỗng khi chưa đổi |
+| OAuthRequest.connectionId | Kết nối tạo từ mã này | id của OAuthConnection | 36 | Duy nhất. Rỗng khi chưa đổi mã |
+| OAuthRequest.deniedAt | Lúc người dùng từ chối | timestamptz(3) | — | Rỗng khi chưa từ chối |
+| OAuthRequest.expiresAt | Lúc yêu cầu hết hạn | timestamptz(3) | — | `createdAt` cộng 10 phút |
+| OAuthRequest.grantedScope | Phạm vi người dùng cho phép | text | ≤ 100 | `read`, `book`, `offline_access`, cách nhau bằng dấu cách |
+| OAuthRequest.redirectUri | Địa chỉ chuyển hướng đã so khớp với tài liệu CIMD | text | ≤ 500 | — |
+| OAuthRequest.resource | Tài nguyên mà client xin token | text | ≤ 500 | `PUBLIC_ORIGIN/api/mcp` |
+| OAuthRequest.scope | Phạm vi client xin | text | ≤ 100 | `read`, `book`, `offline_access`, cách nhau bằng dấu cách |
+| OAuthRequest.state | Giá trị `state` của client | text | ≤ 500 | Rỗng khi client không gửi |
+| OAuthRequest.userId | Người dùng đã duyệt yêu cầu | id của User | 36 | Rỗng khi chưa duyệt |
 | phone | Số điện thoại Việt Nam | text | 10 | 10 chữ số, bắt đầu bằng `0` |
 | PhoneOtp | Một mã OTP đang chờ xác minh số điện thoại (brief F-004) | phoneKey + purpose + codeHash + attempts + sentAt + expiresAt | — | Khóa chính (`phoneKey`, `purpose`). Index trên `expiresAt` cho O10 |
 | PhoneOtp.attempts | Số lần nhập sai | integer | — | 0–5 |

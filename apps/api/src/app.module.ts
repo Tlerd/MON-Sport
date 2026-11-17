@@ -9,12 +9,13 @@ import { HealthModule } from './modules/health/health.module.js';
 import { MatchesModule } from './modules/matches/matches.module.js';
 import { McpModule } from './modules/mcp/mcp.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { OAuthModule } from './modules/oauth/oauth.module.js';
 import { OtpModule } from './modules/otp/otp.module.js';
 import { PushModule } from './modules/push/push.module.js';
 import { StaffModule } from './modules/staff/staff.module.js';
 import { VenuesModule } from './modules/venues/venues.module.js';
 
 @Module({
-  imports: [DatabaseModule, HealthModule, AuthModule, VenuesModule, BookingsModule, MatchesModule, AdminModule, NotificationsModule, FinanceModule, PushModule, OtpModule, StaffModule, McpModule, AccessTokensModule],
+  imports: [DatabaseModule, HealthModule, AuthModule, VenuesModule, BookingsModule, MatchesModule, AdminModule, NotificationsModule, FinanceModule, PushModule, OtpModule, StaffModule, McpModule, AccessTokensModule, OAuthModule],
 })
 export class AppModule {}
