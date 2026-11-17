@@ -1,18 +1,26 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { ConflictException, GoneException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  type AccessTokenScope,
   MAX_ACTIVE_OAUTH_CONNECTIONS,
+  OAUTH_ACCESS_TOKEN_PREFIX,
+  OAUTH_ACCESS_TTL_SECONDS,
   OAUTH_CONNECTION_MAX_DAYS,
+  OAUTH_REFRESH_IDLE_DAYS,
+  OAUTH_REFRESH_TOKEN_PREFIX,
+  type OAuthConnectionView,
   type OAuthConsentView,
   type OAuthDecisionRequest,
   type OAuthDecisionResponse,
   OAuthScope,
   parseScope,
+  type Role,
 } from '@monsport/shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { ClientMetadataFetcher, isAllowedClientId } from './client-metadata.fetcher.js';
+import { OAuthGrantError } from './oauth-grant.error.js';
 
 const NOT_FOUND = 'Không tìm thấy yêu cầu';
 const EXPIRED = 'Yêu cầu đã hết hạn. Nối lại từ Claude';
@@ -27,6 +35,50 @@ const SCOPES = ['read', 'book', 'offline_access'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
 const MAX_URL = 500;
+const VERIFIER_FORMAT = /^[A-Za-z0-9._~-]{43,128}$/;
+const MAX_TOKEN_LENGTH = 100;
+const LAST_USED_STEP_MS = 60_000;
+const REUSE_GRACE_MS = 60_000;
+const ACCESS_TTL_MS = OAUTH_ACCESS_TTL_SECONDS * 1000;
+const REFRESH_IDLE_MS = OAUTH_REFRESH_IDLE_DAYS * 86_400_000;
+const CONNECTION_NOT_FOUND = 'Không tìm thấy kết nối';
+
+/** What `authenticate` gives to the MCP route. The same shape as the context of a personal access token. */
+export interface OAuthContext {
+  userId: string;
+  role: Role;
+  scope: AccessTokenScope;
+}
+
+/** The body of a successful token response (RFC 6749, section 5.1). */
+export interface OAuthTokenResponse {
+  access_token: string;
+  token_type: 'Bearer';
+  expires_in: number;
+  refresh_token?: string;
+  scope: string;
+}
+
+function mint(prefix: string): string {
+  return prefix + randomBytes(32).toString('base64url');
+}
+
+function tokenResponse(accessToken: string, refreshToken: string | null, scope: string): OAuthTokenResponse {
+  return {
+    access_token: accessToken,
+    token_type: 'Bearer',
+    expires_in: OAUTH_ACCESS_TTL_SECONDS,
+    ...(refreshToken ? { refresh_token: refreshToken } : {}),
+    scope,
+  };
+}
+
+/** Compares two base64url strings of one length without a timing leak. */
+function sameSecret(a: string, b: string): boolean {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
 
 /** BR-29, brief F-038: the 4 lines of the consent screen. */
 const DATA_READ = [
@@ -215,6 +267,150 @@ export class OAuthService {
       await tx.oAuthRequest.updateMany({ where: { id, codeHash: null }, data: { deniedAt: now } });
       return { redirectTo: redirectUrl(row.redirectUri, { error: 'access_denied', state: row.state, iss: origin }) };
     });
+  }
+
+  /** Brief F-038, step 3. Every failure is an `OAuthGrantError`. Nothing here logs a token, a code, or a verifier. */
+  async token(form: Record<string, string>): Promise<OAuthTokenResponse> {
+    const origin = publicOrigin();
+    if (form.grant_type === 'authorization_code') return this.exchangeCode(form, origin);
+    if (form.grant_type === 'refresh_token') return this.refresh(form, origin);
+    throw new OAuthGrantError(form.grant_type === undefined ? 'invalid_request' : 'unsupported_grant_type');
+  }
+
+  private async exchangeCode(form: Record<string, string>, origin: string): Promise<OAuthTokenResponse> {
+    const { code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier, resource } = form;
+    if (!code || !redirectUri || !clientId || !verifier || !resource) throw new OAuthGrantError('invalid_request');
+    const invalid = new OAuthGrantError('invalid_grant');
+    if (code.length > MAX_TOKEN_LENGTH || !VERIFIER_FORMAT.test(verifier)) throw invalid;
+
+    const now = this.clock.now();
+    const row = await this.prisma.oAuthRequest.findUnique({ where: { codeHash: sha256(code) } });
+    if (!row || !row.userId || !row.grantedScope || !row.codeExpiresAt) throw invalid;
+    // A used code only gives invalid_grant. It revokes nothing (brief F-038, "Assumptions").
+    if (row.codeUsedAt || row.codeExpiresAt.getTime() <= now.getTime()) throw invalid;
+    if (row.redirectUri !== redirectUri || row.clientId !== clientId || row.resource !== resource) throw invalid;
+    if (resource !== `${origin}/api/mcp`) throw invalid;
+    if (!sameSecret(createHash('sha256').update(verifier).digest('base64url'), row.codeChallenge)) throw invalid;
+
+    const userId = row.userId;
+    const scope = parseScope(row.grantedScope);
+    const accessToken = mint(OAUTH_ACCESS_TOKEN_PREFIX);
+    const refreshToken = scope.offline ? mint(OAUTH_REFRESH_TOKEN_PREFIX) : null;
+    await this.prisma.$transaction(async (tx) => {
+      // Lock order (brief F-038): the conditional UPDATE on OAuthRequest, then User (FOR NO KEY UPDATE), then count and insert.
+      const used = await tx.$executeRaw`UPDATE "OAuthRequest" SET "codeUsedAt" = ${now} WHERE "id" = ${row.id}::uuid AND "codeUsedAt" IS NULL`;
+      if (used === 0) throw invalid;
+      const users = await tx.$queryRaw<{ sessionsValidFrom: Date | null; lockedAt: Date | null; deletedAt: Date | null }[]>`SELECT "sessionsValidFrom", "lockedAt", "deletedAt" FROM "User" WHERE "id" = ${userId}::uuid FOR NO KEY UPDATE`;
+      const user = users[0];
+      if (!user || user.lockedAt || user.deletedAt) throw invalid;
+      const active = await tx.oAuthConnection.count({ where: this.validWhere(userId, user.sessionsValidFrom, now) });
+      if (active >= MAX_CONNECTIONS) throw invalid;
+      const connection = await tx.oAuthConnection.create({
+        data: {
+          userId,
+          clientId: row.clientId,
+          clientName: row.clientName,
+          scope: scope.access,
+          accessTokenHash: sha256(accessToken),
+          accessExpiresAt: new Date(now.getTime() + ACCESS_TTL_MS),
+          refreshTokenHash: refreshToken ? sha256(refreshToken) : null,
+          refreshExpiresAt: refreshToken ? new Date(now.getTime() + REFRESH_IDLE_MS) : null,
+          createdAt: now,
+        },
+      });
+      await tx.oAuthRequest.update({ where: { id: row.id }, data: { connectionId: connection.id } });
+    });
+    return tokenResponse(accessToken, refreshToken, row.grantedScope);
+  }
+
+  private async refresh(form: Record<string, string>, origin: string): Promise<OAuthTokenResponse> {
+    const { refresh_token: presented, client_id: clientId, resource } = form;
+    if (!presented || !clientId) throw new OAuthGrantError('invalid_request');
+    const invalid = new OAuthGrantError('invalid_grant');
+    if (presented.length > MAX_TOKEN_LENGTH) throw invalid;
+    if (resource !== undefined && resource !== `${origin}/api/mcp`) throw invalid;
+
+    const now = this.clock.now();
+    const oldHash = sha256(presented);
+    const row = await this.prisma.oAuthConnection.findUnique({ where: { refreshTokenHash: oldHash }, include: { user: true } });
+    if (!row) {
+      // A refresh token that was rotated out. Within 60 seconds it is a retry. After that it is a reuse, and the connection ends.
+      const old = await this.prisma.oAuthConnection.findUnique({ where: { previousRefreshTokenHash: oldHash } });
+      if (old?.refreshRotatedAt && now.getTime() - old.refreshRotatedAt.getTime() >= REUSE_GRACE_MS) {
+        await this.prisma.oAuthConnection.updateMany({ where: { id: old.id, revokedAt: null }, data: { revokedAt: now } });
+      }
+      throw invalid;
+    }
+    if (row.clientId !== clientId) throw invalid;
+    const valid = await this.prisma.oAuthConnection.count({
+      where: { AND: [{ id: row.id, refreshExpiresAt: { gt: now } }, this.validWhere(row.userId, row.user.sessionsValidFrom, now)] },
+    });
+    if (valid === 0) throw invalid;
+
+    const accessToken = mint(OAUTH_ACCESS_TOKEN_PREFIX);
+    const refreshToken = mint(OAUTH_REFRESH_TOKEN_PREFIX);
+    // One conditional UPDATE: of two parallel refreshes with one token, only one finds the old hash.
+    const rotated = await this.prisma.oAuthConnection.updateMany({
+      where: { refreshTokenHash: oldHash, revokedAt: null },
+      data: {
+        accessTokenHash: sha256(accessToken),
+        accessExpiresAt: new Date(now.getTime() + ACCESS_TTL_MS),
+        refreshTokenHash: sha256(refreshToken),
+        previousRefreshTokenHash: oldHash,
+        refreshRotatedAt: now,
+        refreshExpiresAt: new Date(now.getTime() + REFRESH_IDLE_MS),
+      },
+    });
+    if (rotated.count === 0) throw invalid;
+    return tokenResponse(accessToken, refreshToken, `${row.scope === 'BOOK' ? 'read book' : 'read'} offline_access`);
+  }
+
+  /** Returns the context for a valid access token and null otherwise. It never logs the token and never puts it in an error. */
+  async authenticate(accessToken: string): Promise<OAuthContext | null> {
+    if (!accessToken.startsWith(OAUTH_ACCESS_TOKEN_PREFIX) || accessToken.length > MAX_TOKEN_LENGTH) return null;
+    try {
+      const row = await this.prisma.oAuthConnection.findUnique({ where: { accessTokenHash: sha256(accessToken) }, include: { user: true } });
+      if (!row) return null;
+      const now = this.clock.now();
+      const valid = await this.prisma.oAuthConnection.count({
+        where: { AND: [{ id: row.id, accessExpiresAt: { gt: now } }, this.validWhere(row.userId, row.user.sessionsValidFrom, now)] },
+      });
+      if (valid === 0) return null;
+      if (!row.lastUsedAt || now.getTime() - row.lastUsedAt.getTime() > LAST_USED_STEP_MS) {
+        await this.prisma.oAuthConnection.updateMany({ where: { id: row.id }, data: { lastUsedAt: now } });
+      }
+      return { userId: row.userId, role: row.user.role, scope: row.scope };
+    } catch {
+      // The Prisma error could echo the query. Give a fixed message.
+      throw new Error('OAuth authenticate failed');
+    }
+  }
+
+  async listConnections(userId: string): Promise<OAuthConnectionView[]> {
+    const now = this.clock.now();
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { sessionsValidFrom: true } });
+    const rows = await this.prisma.oAuthConnection.findMany({
+      where: this.validWhere(userId, user?.sessionsValidFrom ?? null, now),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      clientName: row.clientName,
+      scope: row.scope,
+      createdAt: row.createdAt.toISOString(),
+      lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
+    }));
+  }
+
+  async revokeConnection(userId: string, id: string): Promise<void> {
+    if (!UUID.test(id)) throw new NotFoundException(CONNECTION_NOT_FOUND);
+    const now = this.clock.now();
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { sessionsValidFrom: true } });
+    const result = await this.prisma.oAuthConnection.updateMany({
+      where: { id, ...this.validWhere(userId, user?.sessionsValidFrom ?? null, now) },
+      data: { revokedAt: now },
+    });
+    if (result.count === 0) throw new NotFoundException(CONNECTION_NOT_FOUND);
   }
 
   /** 404 for a missing row, 410 when expired, 409 when it already has a user, a code, or a denial. */
