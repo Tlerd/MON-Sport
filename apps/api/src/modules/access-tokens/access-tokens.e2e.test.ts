@@ -71,6 +71,9 @@ describe('access tokens (F-037 step 2)', () => {
       user('Bình', '0912345678', 'OWNER'),
       user('Quản trị', '0900000001', 'ADMIN'),
     ]);
+    // A STAFF account belongs to a venue of an owner (QA F-037, finding 6).
+    const venue = await db.venue.create({ data: { ownerId: ids['Bình'], name: 'Cầu lông A', address: '1 Lê Lợi', phone: '0281234567', opensAt: 360, closesAt: 1380 } });
+    ids['Nhân viên'] = (await db.user.create({ data: { name: 'Nhân viên', phone: '0901234569', role: 'STAFF', passwordHash, staffVenueId: venue.id } })).id;
   });
 
   it('AC-2: A creates a token with 201, the secret is shown once, and only the hash is stored', async () => {
@@ -120,8 +123,8 @@ describe('access tokens (F-037 step 2)', () => {
     expect(await db.accessToken.count({ where: { userId: ids.An } })).toBe(5);
   });
 
-  it('AC-3: an owner and an admin get 403, and a guest gets 401', async () => {
-    for (const who of ['Bình', 'Quản trị']) {
+  it('AC-3: an owner, a staff member, and an admin get 403, and a guest gets 401', async () => {
+    for (const who of ['Bình', 'Nhân viên', 'Quản trị']) {
       const res = await create(who);
       expect(res.status, who).toBe(403);
       expect(res.body.message, who).toBe('Bạn không có quyền làm việc này');

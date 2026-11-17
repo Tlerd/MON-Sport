@@ -69,24 +69,24 @@ Người dùng cho phép lấy vị trí. Hệ thống liệt kê các sân tron
 
 ## Hai cách nối
 
-| | Cách A: máy cục bộ | Cách B: connector từ xa |
+| | Cách A: mã truy cập cá nhân (PAT) | Cách B: connector từ xa |
 |---|---|---|
-| Dành cho | Nhà phát triển, agent chạy trên máy | Người dùng Claude và các client MCP |
-| Giao thức | stdio | Streamable HTTP tại `/mcp` |
+| Dành cho | Người dán mã vào client MCP, ví dụ Claude Code | Người dùng Claude và các client MCP |
+| Giao thức | Streamable HTTP tại `/api/mcp`, header `Authorization: Bearer` (brief F-037) | Streamable HTTP tại `/api/mcp` |
 | Xác thực | Mã truy cập cá nhân (PAT) | OAuth 2.1, mã cấp phép với PKCE |
-| Người dùng làm | Tạo PAT ở trang "Tôi", dán vào cấu hình | Dán URL, đăng nhập, bấm "Cho phép" |
+| Người dùng làm | Tạo PAT ở mục "Kết nối AI" của trang "Hồ sơ" (`/ho-so`), chạy lệnh `claude mcp add` | Dán URL, đăng nhập, bấm "Cho phép" |
 
 - Cách B là cách cho người không rành kỹ thuật. Cách A là bước đệm rẻ để thử các công cụ.
 - Cả hai cách ánh xạ về một `userId`. Từ đó guard và service chạy như request thường.
 - Token chỉ lưu dạng băm. Token có hạn, có phạm vi (`read`, `book`), và thu hồi được.
 - Một lần mở khóa của admin thu hồi mọi token cũ của người dùng, qua `User.sessionsValidFrom` (BR-32).
-- Người dùng xem và thu hồi từng kết nối ở trang "Tôi".
+- Người dùng xem và thu hồi từng kết nối ở mục "Kết nối AI" của trang "Hồ sơ".
 
 ## Rủi ro và cách giữ an toàn
 
 | Rủi ro | Cách giữ |
 |---|---|
-| AI đặt nhiều lần một lúc | Giới hạn theo người dùng và theo token trong `AuthThrottle`. Mỗi người dùng có tối đa số yêu cầu chờ như BR hiện có |
+| AI đặt nhiều lần một lúc | Giới hạn theo người dùng trong `AuthThrottle`, tính chung mọi token (BR-58, brief F-037). Mỗi người dùng có tối đa số yêu cầu chờ như BR hiện có |
 | Dữ liệu lạ trong tên sân thành lệnh cho AI | Công cụ trả dữ liệu có cấu trúc. Không trả chuỗi tự do của người dùng khác mà không đánh dấu là dữ liệu |
 | Token bị lộ | Chỉ lưu băm, hạn ngắn, thu hồi từng token, phạm vi nhỏ nhất |
 | Đồng ý dữ liệu cá nhân (BR-29, luật 91/2025) | Màn "Cho phép" nêu rõ dữ liệu nào AI đọc. Câu hỏi 4 của `HUMAN_DECISIONS.md` đang mở |
@@ -97,8 +97,8 @@ Người dùng cho phép lấy vị trí. Hệ thống liệt kê các sân tron
 1. **Duyệt ADR 0008 và sửa intake.** Thêm "MCP cho AI" vào phạm vi, và một UC mới.
 1b. **Định vị GPS và tìm trong 20 km.** Một brief riêng, làm được trước MCP. Thêm tọa độ vào `Venue`, ô nhập của chủ sân, tham số `lat`, `lng`, `radiusKm` cho `GET /api/venues`, và nút "Gần tôi". Chạm schema và dữ liệu cá nhân, nên chạy thêm `rule-review`. Intake cần thêm một UC và một BR cho bán kính 20 km.
 2. **Lớp công cụ.** Module `mcp` trong API, schema trong `packages/shared`, test `AC-n` cho từng công cụ. Chưa có xác thực ngoài, chỉ test với một `userId` giả.
-3. **PAT và cách A.** Bảng token (đổi schema, cần reviewer mạnh nhất), trang "Tôi", lệnh stdio.
-4. **OAuth và cách B.** Điểm cuối OAuth (metadata, đăng ký client, cấp phép, token), màn "Cho phép", `/mcp` qua HTTP.
+3. **PAT và cách A.** Bảng token (đổi schema, cần reviewer mạnh nhất), mục "Kết nối AI" ở `/ho-so`, `POST /api/mcp`. Đã xong (brief F-037). Không có lệnh stdio (`HUMAN_DECISIONS.md`, dòng 70).
+4. **OAuth và cách B.** Điểm cuối OAuth (metadata, đăng ký client, cấp phép, token), màn "Cho phép", dùng lại `POST /api/mcp`.
 5. **Deploy và thử thật.** Nối bằng connector của Claude trên bản live. Người dùng chạy bước này, vì cần tài khoản của họ. Viết hướng dẫn "Nối MONSPORT với AI" bằng tiếng Việt.
 
 Mỗi bước là một brief và một pull request, theo `AGENTS.md`. Các bước 3 và 4 chạm vào tiền, dữ liệu cá nhân và schema nên chạy thêm `rule-review`.
