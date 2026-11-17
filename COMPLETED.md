@@ -43,3 +43,7 @@ W1 to W5 went to `main` in one pull request, #244 (owner, 2026-11-13: one new pu
 ## Web UI (F-033)
 
 - F-033 (issue #248; brief `docs/briefs/F-033-giao-dien-web-moi.md`; ADR 0009): the web follows the mock in `docs/design/web-ui-v3/` and the width rules of `docs/design/web-responsive.md`. New routes: `/san`, `/doi`, `/ho-so`, `/chu-san/tong-quan`, `/admin/tai-khoan`, `/admin/bao-cao`, `/admin/mon`. `/` is the home page, and booking is at `/san/<id>`. AC-1 to AC-12 pass. `verify-flow` local: 43 PASS, with the flow `web-responsive` (17 routes at 390, 768, 1024, and 1440px). Coded by agy `gemini-4-hydrogen-high`.
+
+## MCP (F-037)
+
+- F-037 (personal access tokens for MCP; issue #268; brief `docs/briefs/F-037-mcp-ma-truy-cap-ca-nhan.md`; PRs #269, #270, #271, #272): a USER creates a personal access token (PAT) for MCP. It delivers the `AccessToken` table and the routes `/api/me/access-tokens`, `POST /api/mcp` with BR-58 in `AuthThrottle`, the section "Kết nối AI" on `/ho-so`, and the guide `docs/huong-dan/noi-ai-voi-monsport.md`. AC-1 to AC-14 pass.

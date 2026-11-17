@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { SKILL_LEVEL_LABELS, type SessionUser, type SkillLevel } from '@monsport/shared';
 import { ComingSoonButton, ComingSoonPage } from '../components/ComingSoon.tsx';
+import { AccessTokensSection } from '../features/access-tokens/AccessTokensSection.tsx';
 import { AuthPanel } from '../features/auth/AuthPanel.tsx';
 import { GoogleComplete } from '../features/auth/GoogleComplete.tsx';
 import { GoogleVerify } from '../features/auth/GoogleVerify.tsx';
@@ -240,6 +241,8 @@ export function ProfilePage() {
         </div>
         <ComingSoonButton className="btn ghost">Sửa hồ sơ</ComingSoonButton>
       </section>
+
+      {user?.role === 'USER' && <AccessTokensSection />}
 
       <section className="card">
         <div className="empty">
