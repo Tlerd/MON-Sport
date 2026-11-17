@@ -89,6 +89,8 @@ jobs:
           source: .
           labels: commit=${{ github.event.workflow_run.head_sha || github.sha }}
           flags: --concurrency=60
+          env_vars: PUBLIC_ORIGIN=https://monsport-774323404592.asia-southeast1.run.app
+          env_vars_update_strategy: merge
       # A past rollback pins the traffic to one revision. Send it to the new revision before the check.
       - name: The new revision takes the traffic
         if: steps.latest.outputs.deploy == 'true' && steps.needed.outputs.deploy == 'true'

@@ -1,6 +1,7 @@
 import { MAX_ACTIVE_ACCESS_TOKENS, type AccessTokenScope, type AccessTokenView } from '@monsport/shared';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { ApiError, createAccessToken, listAccessTokens, revokeAccessToken } from '@monsport/client';
+import { OAuthConnections } from './OAuthConnections.tsx';
 
 // Brief F-037 (AC-13, AC-14): the "Kết nối AI" section of /ho-so.
 
@@ -115,6 +116,9 @@ export function AccessTokensSection() {
       <h2 ref={headingRef} tabIndex={-1}>
         Kết nối AI
       </h2>
+      <OAuthConnections />
+
+      <h3>Mã truy cập</h3>
       <p className="meta">Tạo mã để một AI (ví dụ Claude Code) tìm sân và đặt sân bằng tài khoản của bạn.</p>
 
       {secret !== null && (

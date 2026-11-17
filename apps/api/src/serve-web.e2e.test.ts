@@ -76,6 +76,19 @@ describe('serveWeb: the container serves the built web app', () => {
     const cacheControl = res.headers['cache-control'] ?? '';
     expect(cacheControl).not.toMatch(/max-age=[1-9]\d{4,}/);
   });
+
+  it("AC-20: /ket-noi-ai/cho-phep answers index.html with Content-Security-Policy: frame-ancestors 'none'", async () => {
+    const res = await request(app.getHttpServer()).get('/ket-noi-ai/cho-phep').set('Accept', 'text/html').expect(200);
+    expect(res.text).toContain('id="root"');
+    expect(res.headers['content-security-policy']).toBe("frame-ancestors 'none'");
+  });
+
+  it('AC-20: another page has no frame-ancestors header, and an unknown /.well-known path is a 404, not index.html', async () => {
+    const page = await request(app.getHttpServer()).get('/chu-san/yeu-cau').set('Accept', 'text/html').expect(200);
+    expect(page.headers['content-security-policy']).toBeUndefined();
+    const res = await request(app.getHttpServer()).get('/.well-known/khong-co').set('Accept', 'text/html').expect(404);
+    expect(res.text).not.toContain('id="root"');
+  });
 });
 
 describe('serveMobile: the container serves the mobile app under /app/', () => {

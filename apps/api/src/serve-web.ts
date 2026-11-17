@@ -40,7 +40,10 @@ export function serveWeb(app: NestExpressApplication, dir: string): void {
   app.use((req: Request, res: Response, next: NextFunction) => {
     const p = req.path.toLowerCase();
     const page = (req.method === 'GET' || req.method === 'HEAD') && !p.startsWith('/api/') && p !== '/api';
-    if (page && !req.path.includes('.') && req.accepts(['html', 'json']) === 'html') res.sendFile(index);
-    else next();
+    if (page && !req.path.includes('.') && req.accepts(['html', 'json']) === 'html') {
+      // Brief F-038 (AC-20): no site may frame the "Cho phép" screen (clickjacking).
+      if (p === '/ket-noi-ai' || p.startsWith('/ket-noi-ai/')) res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+      res.sendFile(index);
+    } else next();
   });
 }

@@ -16,6 +16,7 @@ import {
   SchedulePage,
   TeamsPage,
   VenuesPage,
+  ConsentPage,
 } from './pages.tsx';
 import { useSession } from './session.tsx';
 import { AdminShell, OwnerShell, PlayerShell } from './shells.tsx';
@@ -133,6 +134,10 @@ export const routes: RouteObject[] = [
             <ProfilePage />
           </RoleGuard>
         ),
+      },
+      {
+        path: '/ket-noi-ai/cho-phep',
+        element: <ConsentPage />,
       },
       {
         path: '/dang-nhap',

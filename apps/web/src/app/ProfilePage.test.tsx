@@ -12,7 +12,14 @@ function renderAs(role: Role) {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
-      const body = url === '/api/auth/me' ? user : url === '/api/me/access-tokens' ? { tokens: [] } : [];
+      const body =
+        url === '/api/auth/me'
+          ? user
+          : url === '/api/me/access-tokens'
+            ? { tokens: [] }
+            : url === '/api/me/oauth-connections'
+              ? { connections: [] }
+              : [];
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
     }),
   );
