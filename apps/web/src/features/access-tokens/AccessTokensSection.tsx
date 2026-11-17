@@ -28,6 +28,9 @@ export function AccessTokensSection() {
   const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
+  // Focus goes back here when the confirm or the secret panel closes, so it never falls to <body>.
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   const [name, setName] = useState('');
   const [scope, setScope] = useState<AccessTokenScope>('BOOK');
@@ -73,14 +76,23 @@ export function AccessTokensSection() {
   }
 
   async function handleRevoke(id: string) {
+    if (revoking) return;
     setError('');
+    setRevoking(true);
     try {
       await revokeAccessToken(id);
       setTokens((prev) => prev?.filter((t) => t.id !== id) ?? null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không thu hồi được mã');
+    } finally {
+      setRevoking(false);
     }
+    closeConfirm();
+  }
+
+  function closeConfirm() {
     setConfirmId(null);
+    headingRef.current?.focus();
   }
 
   async function copy(text: string, done: (v: boolean) => void) {
@@ -99,7 +111,9 @@ export function AccessTokensSection() {
 
   return (
     <section className="card pad stack-form" aria-label="Kết nối AI">
-      <h4>Kết nối AI</h4>
+      <h2 ref={headingRef} tabIndex={-1}>
+        Kết nối AI
+      </h2>
       <p className="meta">Tạo mã để một AI (ví dụ Claude Code) tìm sân và đặt sân bằng tài khoản của bạn.</p>
 
       {secret !== null && (
@@ -127,6 +141,7 @@ export function AccessTokensSection() {
               setSecret(null);
               setCopiedSecret(false);
               setCopiedCommand(false);
+              headingRef.current?.focus();
             }}
           >
             Xong
@@ -181,11 +196,12 @@ export function AccessTokensSection() {
                           ref={confirmBtnRef}
                           type="button"
                           className="btn sm danger"
+                          disabled={revoking}
                           onClick={() => handleRevoke(t.id)}
                         >
                           Xác nhận thu hồi
                         </button>
-                        <button type="button" className="btn sm ghost" onClick={() => setConfirmId(null)}>
+                        <button type="button" className="btn sm ghost" disabled={revoking} onClick={closeConfirm}>
                           Hủy
                         </button>
                       </span>
@@ -203,7 +219,7 @@ export function AccessTokensSection() {
       )}
 
       <form onSubmit={handleCreate} className="stack-form">
-        <h5>Tạo mã mới</h5>
+        <h3>Tạo mã mới</h3>
         {formError && (
           <p className="error" role="alert">
             {formError}
@@ -221,8 +237,8 @@ export function AccessTokensSection() {
           />
         </label>
         <div className="fld">
-          <span>Quyền</span>
-          <div className="seg">
+          <span id="access-token-scope">Quyền</span>
+          <div className="seg" role="group" aria-labelledby="access-token-scope">
             {(['BOOK', 'READ'] as const).map((s) => (
               <button key={s} type="button" aria-pressed={scope === s} onClick={() => setScope(s)}>
                 {SCOPE_LABEL[s]}
@@ -232,8 +248,8 @@ export function AccessTokensSection() {
           <small className="dim">{SCOPE_HINT[scope]}</small>
         </div>
         <div className="fld">
-          <span>Hạn dùng</span>
-          <div className="seg">
+          <span id="access-token-expiry">Hạn dùng</span>
+          <div className="seg" role="group" aria-labelledby="access-token-expiry">
             {([30, 90] as const).map((d) => (
               <button key={d} type="button" aria-pressed={expiresInDays === d} onClick={() => setExpiresInDays(d)}>
                 {d} ngày

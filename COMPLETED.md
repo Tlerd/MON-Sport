@@ -46,4 +46,4 @@ W1 to W5 went to `main` in one pull request, #244 (owner, 2026-11-13: one new pu
 
 ## MCP (F-037)
 
-- F-037 (personal access tokens for MCP; issue #268; brief `docs/briefs/F-037-mcp-ma-truy-cap-ca-nhan.md`; PRs #269, #270, #271, and step 4 `feat/268-4-ket-noi-ai`): a USER creates a personal access token (PAT) for MCP. It delivers the `AccessToken` table and the routes `/api/me/access-tokens`, `POST /api/mcp` with BR-58 in `AuthThrottle`, the section "Kết nối AI" on `/ho-so`, and the guide `docs/huong-dan/noi-ai-voi-monsport.md`. AC-1 to AC-14 pass.
+- F-037 (personal access tokens for MCP; issue #268; brief `docs/briefs/F-037-mcp-ma-truy-cap-ca-nhan.md`; PRs #269, #270, #271, #272): a USER creates a personal access token (PAT) for MCP. It delivers the `AccessToken` table and the routes `/api/me/access-tokens`, `POST /api/mcp` with BR-58 in `AuthThrottle`, the section "Kết nối AI" on `/ho-so`, and the guide `docs/huong-dan/noi-ai-voi-monsport.md`. AC-1 to AC-14 pass.
