@@ -131,3 +131,103 @@ describe('AccessTokensSection (F-037)', () => {
     expect(alert.textContent).toBe(message);
   });
 });
+
+describe('AccessTokensSection: "Ứng dụng đã nối" (F-038)', () => {
+  const connection = {
+    id: '0199a1b2-0000-7000-8000-0000000000c1',
+    clientName: 'Claude',
+    scope: 'BOOK',
+    createdAt: '2026-12-01T03:00:00.000Z',
+    lastUsedAt: null,
+  };
+  const CONNECTOR = 'https://monsport.example/api/mcp';
+  const reply = (body: unknown, status = 200) =>
+    Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
+  const writeText = vi.fn().mockResolvedValue(undefined);
+
+  function stub(options: { connectorOk: boolean; used?: boolean }) {
+    const listed = options.used ? { ...connection, lastUsedAt: '2026-12-02T03:00:00.000Z' } : connection;
+    const token = {
+      id: '0199a1b2-0000-7000-8000-000000000001',
+      name: 'Claude Code',
+      scope: 'READ',
+      prefix: 'mst_abcd1234',
+      createdAt: '2026-12-01T03:00:00.000Z',
+      expiresAt: '2026-12-31T03:00:00.000Z',
+      lastUsedAt: null,
+    };
+    const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+      if (url === '/api/me/oauth-connections') return reply({ connections: [listed] });
+      if (url === `/api/me/oauth-connections/${connection.id}` && opts?.method === 'DELETE') return reply(undefined, 204);
+      if (url === '/.well-known/oauth-protected-resource/api/mcp') {
+        return options.connectorOk ? reply({ resource: CONNECTOR }) : reply({}, 404);
+      }
+      return reply({ tokens: options.used ? [token] : [] });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  beforeEach(() => {
+    writeText.mockClear();
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it('AC-18: lists the connection with its name, "Đặt sân", "Nối từ 01/12/2026" and "Chưa dùng"', async () => {
+    stub({ connectorOk: true });
+    render(<AccessTokensSection />);
+
+    expect(await screen.findByText('Claude')).toBeTruthy();
+    expect(screen.getAllByText('Đặt sân').length).toBeGreaterThan(0);
+    expect(screen.getByText('Nối từ 01/12/2026')).toBeTruthy();
+    expect(screen.getByText('Chưa dùng')).toBeTruthy();
+  });
+
+  it('AC-18: with the brief fixture, shows "Dùng lần cuối 02/12/2026" and the 1 token under "Mã truy cập"', async () => {
+    stub({ connectorOk: true, used: true });
+    render(<AccessTokensSection />);
+
+    expect(await screen.findByText('Dùng lần cuối 02/12/2026')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Mã truy cập' })).toBeTruthy();
+    expect(await screen.findByText('Claude Code')).toBeTruthy();
+    expect(screen.getByText('mst_abcd1234…')).toBeTruthy();
+  });
+
+  it('AC-18: "Thu hồi" asks first, then sends DELETE and removes the row', async () => {
+    const fetchMock = stub({ connectorOk: true });
+    render(<AccessTokensSection />);
+
+    await screen.findByText('Claude');
+    fireEvent.click(screen.getByRole('button', { name: 'Thu hồi' }));
+    expect(screen.getByRole('dialog', { name: 'Xác nhận thu hồi Claude' })).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([, o]) => (o as RequestInit | undefined)?.method === 'DELETE')).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận thu hồi' }));
+    await waitFor(() => expect(screen.queryByText('Claude')).toBeNull());
+    const del = fetchMock.mock.calls.find(([, o]) => (o as RequestInit | undefined)?.method === 'DELETE');
+    expect(del?.[0]).toBe(`/api/me/oauth-connections/${connection.id}`);
+  });
+
+  it('AC-18: shows the connector address with "Chép"', async () => {
+    stub({ connectorOk: true });
+    render(<AccessTokensSection />);
+
+    expect(await screen.findByText(CONNECTOR)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Chép' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(CONNECTOR));
+  });
+
+  it('AC-18: hides the connector address when the metadata answers 404', async () => {
+    stub({ connectorOk: false });
+    render(<AccessTokensSection />);
+
+    await screen.findByText('Claude');
+    expect(screen.queryByText(/Địa chỉ connector/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Chép' })).toBeNull();
+  });
+});

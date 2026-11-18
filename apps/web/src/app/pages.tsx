@@ -4,9 +4,11 @@ import { SKILL_LEVEL_LABELS, type SessionUser, type SkillLevel } from '@monsport
 import { ComingSoonButton, ComingSoonPage } from '../components/ComingSoon.tsx';
 import { AccessTokensSection } from '../features/access-tokens/AccessTokensSection.tsx';
 import { AuthPanel } from '../features/auth/AuthPanel.tsx';
+import { ConsentScreen } from '../features/oauth/ConsentScreen.tsx';
 import { GoogleComplete } from '../features/auth/GoogleComplete.tsx';
 import { GoogleVerify } from '../features/auth/GoogleVerify.tsx';
 import { resolveGoogleError } from '../features/auth/googleErrors.ts';
+import { safeNext } from '../features/auth/safeNext.ts';
 import { MyBookings } from '../features/bookings/MyBookings.tsx';
 import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
 import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
@@ -161,6 +163,7 @@ export function AuthPage() {
   const [searchParams] = useSearchParams();
   const google = searchParams.get('google');
   const googleError = searchParams.get('google_error');
+  const next = safeNext(searchParams.get('tiep'));
   const { setUser } = useSession();
   const navigate = useNavigate();
 
@@ -174,7 +177,7 @@ export function AuthPage() {
           : u.role === 'ADMIN'
             ? '/admin'
             : '/';
-    navigate(dest, { replace: true });
+    navigate(next ?? dest, { replace: true });
   };
 
   if (google === 'complete') {
@@ -212,6 +215,12 @@ export function TeamsPage() {
       wide
     />
   );
+}
+
+/** Brief F-038: the "Cho phép" screen gets the session user from the app layer. */
+export function ConsentPage() {
+  const { user } = useSession();
+  return <ConsentScreen user={user} />;
 }
 
 export function ProfilePage() {

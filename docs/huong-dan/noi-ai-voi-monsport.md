@@ -32,6 +32,27 @@ Hỏi Claude, ví dụ: Tìm sân bóng đá trống tối thứ Bảy.
 
 Nguồn: https://code.claude.com/docs/en/mcp
 
+## Nối Claude trên web
+
+Cách này không cần mã. Claude xin phép bạn, và bạn bấm "Cho phép".
+
+1. Mở Claude trên web. Vào Settings, rồi Connectors.
+2. Bấm "Add custom connector".
+3. Dán địa chỉ `https://monsport-774323404592.asia-southeast1.run.app/api/mcp`. Mục "Kết nối AI" trong "Hồ sơ" cũng hiện địa chỉ này.
+4. Bấm "Connect".
+5. Đăng nhập MONSPORT, nếu Claude hỏi. Nếu bạn đăng nhập bằng Google, quay lại Claude và bấm "Connect" lần nữa.
+6. Chọn quyền: xem, hoặc xem và đặt sân.
+7. Bấm "Cho phép".
+
+Để thu hồi:
+
+1. Mở trang "Hồ sơ".
+2. Tìm mục "Kết nối AI", rồi "Ứng dụng đã nối".
+3. Bấm "Thu hồi" ở ứng dụng cần bỏ.
+4. Bấm "Xác nhận thu hồi".
+
+Ứng dụng đó mất quyền ngay.
+
 ## Giới hạn
 
 - Mỗi tài khoản chạy tối đa 60 lệnh mỗi phút, tính chung mọi mã. Trong đó có tối đa 10 lệnh ghi (BR-58).

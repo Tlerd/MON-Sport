@@ -211,6 +211,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/web/src/features/access-tokens/
 - AccessTokensSection.tsx: AccessTokensSection
+- OAuthConnections.tsx: OAuthConnections
 
 ## apps/web/src/features/admin/
 - AccountLock.tsx: AccountLock
@@ -229,6 +230,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - LoginForm.tsx: LoginForm
 - RegisterForm.tsx: RegisterForm
 - googleErrors.ts: GOOGLE_ERROR_MESSAGES, resolveGoogleError, GOOGLE_SESSION_EXPIRED, isGoogleSessionMissing
+- safeNext.ts: safeNext
 - useAuthProviders.ts: useAuthProviders
 
 ## apps/web/src/features/bookings/
@@ -251,6 +253,9 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/web/src/features/notifications/
 - Notifications.tsx: Notifications
 - PushToggle.tsx: PushToggle
+
+## apps/web/src/features/oauth/
+- ConsentScreen.tsx: ConsentScreen
 
 ## apps/web/src/features/staff/
 - StaffSection.tsx: StaffSection
