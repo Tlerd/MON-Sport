@@ -234,10 +234,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - EmptyState.tsx: EmptyStateProps, EmptyState
 - MatchCard.tsx: SPORT_LABEL, BOOKING_BADGE, stubDay, formatPriceK, MatchCardContent
 - Panel.tsx: PanelProps, Panel
-- SlotGrid.tsx: SlotCellStatus, SlotCellInfo, CourtItem, SelectedSlot, SlotGridProps, WindowId, …
+- SlotGrid.tsx: SlotGrid
 - SportIcon.tsx: KnownSportId, normalizeSportId, SportIconProps, SportIcon
 - StatusBadge.tsx: StatusValue, StatusBadgeProps, StatusBadge
 - Toast.tsx: ToastTone, ToastContextValue, ToastProvider, useToast
+- slotGridModel.ts: SlotCellStatus, SlotCellInfo, CourtItem, SelectedSlot, SlotGridProps, WindowId, …
 
 ## apps/web/src/features/access-tokens/
 - AccessTokensSection.tsx: AccessTokensSection
