@@ -22,8 +22,11 @@ export function startSession(res: Response, userId: string, now: Date): void {
   });
 }
 
-export function refuseWhenThrottled(res: Response, retryAfter: number | null): void {
-  if (retryAfter === null) return;
+export function throwThrottled(res: Response, retryAfter: number): never {
   res.setHeader('Retry-After', String(retryAfter));
   throw new HttpException(Messages.tooManyAttempts, HttpStatus.TOO_MANY_REQUESTS);
+}
+
+export function refuseWhenThrottled(res: Response, retryAfter: number | null): void {
+  if (retryAfter !== null) throwThrottled(res, retryAfter);
 }

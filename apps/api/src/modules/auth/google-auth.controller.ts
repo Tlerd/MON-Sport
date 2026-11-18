@@ -16,8 +16,9 @@ import type {
   SessionUser,
 } from '@monsport/shared';
 import type { Request, Response } from 'express';
+import { Clock } from '../database/clock.js';
 import { OtpThrottleException } from '../otp/otp.service.js';
-import { errorRedirect, refuseWhenThrottled, startSession } from './auth-helpers.js';
+import { errorRedirect, startSession, throwThrottled } from './auth-helpers.js';
 import { GoogleAuthService } from './google-auth.service.js';
 import { GoogleEnabledGuard } from './google.config.js';
 import {
@@ -32,7 +33,10 @@ import { type AuthedRequest, SessionGuard } from './session.guard.js';
 
 @Controller('auth')
 export class GoogleAuthController {
-  constructor(private readonly service: GoogleAuthService) {}
+  constructor(
+    private readonly service: GoogleAuthService,
+    private readonly clock: Clock,
+  ) {}
 
   @Get('google/start')
   async googleStart(@Res() res: Response): Promise<void> {
@@ -59,7 +63,7 @@ export class GoogleAuthController {
     const oidcConfig = await this.service.getOidcConfig();
     if (!oidcConfig) throw new ServiceUnavailableException();
     const result = await this.service.linkStart(oidcConfig, req.user.id, req.ip, body);
-    refuseWhenThrottled(res, result.retryAfter);
+    if (result.retryAfter !== null) throwThrottled(res, result.retryAfter);
     res.cookie(GOOGLE_FLOW_COOKIE, result.cookie, googleCookieOptions(GOOGLE_FLOW_MS));
     return { url: result.url };
   }
@@ -82,7 +86,7 @@ export class GoogleAuthController {
       res.cookie(result.cookie.name, result.cookie.value, googleCookieOptions(result.cookie.maxAge));
     }
     if (result.sessionUserId) {
-      startSession(res, result.sessionUserId, result.now);
+      startSession(res, result.sessionUserId, this.clock.now());
     }
     res.redirect(302, result.redirect);
   }
@@ -120,9 +124,9 @@ export class GoogleAuthController {
   ): Promise<SessionUser> {
     this.service.assertEnabled();
     try {
-      const { user, now } = await this.service.complete(body, req.headers.cookie, req.ip);
+      const { user } = await this.service.complete(body, req.headers.cookie, req.ip);
       res.clearCookie(GOOGLE_PENDING_COOKIE, { path: GOOGLE_COOKIE_PATH });
-      startSession(res, user.id, now);
+      startSession(res, user.id, this.clock.now());
       return user;
     } catch (err) {
       if (err instanceof OtpThrottleException) {
@@ -140,9 +144,9 @@ export class GoogleAuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<SessionUser> {
     this.service.assertEnabled();
-    const { user, now } = await this.service.verify(body, req.headers.cookie);
+    const { user } = await this.service.verify(body, req.headers.cookie);
     res.clearCookie(GOOGLE_VERIFY_COOKIE, { path: GOOGLE_COOKIE_PATH });
-    startSession(res, user.id, now);
+    startSession(res, user.id, this.clock.now());
     return user;
   }
 

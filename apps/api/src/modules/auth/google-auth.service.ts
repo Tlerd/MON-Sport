@@ -26,7 +26,6 @@ export interface GoogleCallbackResult {
   redirect: string;
   cookie?: GoogleCallbackCookie;
   sessionUserId?: string;
-  now: Date;
 }
 
 const ACCOUNT_LOCKED = 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT';
@@ -104,12 +103,12 @@ export class GoogleAuthService {
     userId: string,
     ip: string | undefined,
     body: unknown,
-  ): Promise<{ retryAfter: number | null; cookie: string; url: string }> {
+  ): Promise<{ retryAfter: number } | { retryAfter: null; cookie: string; url: string }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.deletedAt) throw new UnauthorizedException();
     if (user.lockedAt) throw new ForbiddenException(ACCOUNT_LOCKED);
     const retryAfter = await this.throttle.consumeLogin(user.phone, ip);
-    if (retryAfter !== null) return { retryAfter, cookie: '', url: '' };
+    if (retryAfter !== null) return { retryAfter };
     const input = GoogleLinkStartRequest.safeParse(body);
     if (!input.success) throw new UnauthorizedException('Sai số điện thoại hoặc mật khẩu');
     const passwordOk = await this.passwords.verify(user.passwordHash ?? (await NO_USER_HASH), input.data.password);
@@ -121,10 +120,10 @@ export class GoogleAuthService {
   async callback(cookieHeader: string | undefined, state: unknown, code: unknown, currentPath: string): Promise<GoogleCallbackResult> {
     const now = this.clock.now();
     const flow = readSignedJson<GoogleFlowPayload>(GOOGLE_FLOW_COOKIE, cookieValue(cookieHeader, GOOGLE_FLOW_COOKIE), now);
-    if (!flow || flow.typ !== 'google_flow' || !state || state !== flow.state) return { redirect: errorRedirect('state'), now };
-    if (!code || typeof code !== 'string') return { redirect: errorRedirect('token'), now };
+    if (!flow || flow.typ !== 'google_flow' || !state || state !== flow.state) return { redirect: errorRedirect('state') };
+    if (!code || typeof code !== 'string') return { redirect: errorRedirect('token') };
     const oidcConfig = await this.getOidcConfig();
-    if (!oidcConfig) return { redirect: errorRedirect('config'), now };
+    if (!oidcConfig) return { redirect: errorRedirect('config') };
 
     let tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers;
     try {
@@ -136,12 +135,12 @@ export class GoogleAuthService {
         idTokenExpected: true,
       });
     } catch {
-      return { redirect: errorRedirect('token'), now };
+      return { redirect: errorRedirect('token') };
     }
 
     const claims = tokens.claims();
     const sub = typeof claims?.sub === 'string' ? claims.sub : undefined;
-    if (!sub) return { redirect: errorRedirect('token'), now };
+    if (!sub) return { redirect: errorRedirect('token') };
     const email = claims?.email_verified && typeof claims.email === 'string' ? claims.email : null;
     const name = typeof claims?.name === 'string' ? claims.name : '';
 
@@ -149,46 +148,44 @@ export class GoogleAuthService {
       if (flow.mode === 'login') return await this.callbackLogin(sub, email, name, now);
       return await this.callbackLink(cookieHeader, flow.userId, sub, now);
     } catch {
-      return { redirect: errorRedirect('unknown'), now };
+      return { redirect: errorRedirect('unknown') };
     }
   }
 
   private async callbackLogin(sub: string, email: string | null, name: string, now: Date): Promise<GoogleCallbackResult> {
     const user = await this.prisma.user.findUnique({ where: { googleSub: sub } });
     if (user) {
-      if (user.lockedAt || user.deletedAt) return { redirect: errorRedirect('locked'), now };
-      if (user.phoneVerifiedAt !== null) return { redirect: '/', sessionUserId: user.id, now };
+      if (user.lockedAt || user.deletedAt) return { redirect: errorRedirect('locked') };
+      if (user.phoneVerifiedAt !== null) return { redirect: '/', sessionUserId: user.id };
       const verifyPayload: GoogleVerifyPayload = { typ: 'google_verify', userId: user.id, sub, exp: now.getTime() + GOOGLE_VERIFY_MS };
       return {
         redirect: '/?google=verify',
         cookie: { name: GOOGLE_VERIFY_COOKIE, value: issueSignedJson(GOOGLE_VERIFY_COOKIE, verifyPayload), maxAge: GOOGLE_VERIFY_MS },
-        now,
       };
     }
     const pendingPayload: GooglePendingPayload = { typ: 'google_pending', sub, email, name, exp: now.getTime() + GOOGLE_PENDING_MS };
     return {
       redirect: '/?google=complete',
       cookie: { name: GOOGLE_PENDING_COOKIE, value: issueSignedJson(GOOGLE_PENDING_COOKIE, pendingPayload), maxAge: GOOGLE_PENDING_MS },
-      now,
     };
   }
 
   private async callbackLink(cookieHeader: string | undefined, flowUserId: string | undefined, sub: string, now: Date): Promise<GoogleCallbackResult> {
     const session = readSession(cookieValue(cookieHeader, SESSION_COOKIE), now);
-    if (!session || !flowUserId || session.userId !== flowUserId) return { redirect: errorRedirect('session'), now };
+    if (!session || !flowUserId || session.userId !== flowUserId) return { redirect: errorRedirect('session') };
     const user = await this.prisma.user.findUnique({ where: { id: flowUserId } });
-    if (!user || user.deletedAt || user.lockedAt) return { redirect: errorRedirect('locked'), now };
-    if (user.googleSub !== null) return { redirect: errorRedirect('taken'), now };
+    if (!user || user.deletedAt || user.lockedAt) return { redirect: errorRedirect('locked') };
+    if (user.googleSub !== null) return { redirect: errorRedirect('taken') };
     const existing = await this.prisma.user.findUnique({ where: { googleSub: sub } });
-    if (existing && existing.id !== flowUserId) return { redirect: errorRedirect('taken'), now };
+    if (existing && existing.id !== flowUserId) return { redirect: errorRedirect('taken') };
     try {
       const updated = await this.prisma.user.updateMany({ where: { id: flowUserId, googleSub: null }, data: { googleSub: sub } });
-      if (updated.count === 0) return { redirect: errorRedirect('taken'), now };
+      if (updated.count === 0) return { redirect: errorRedirect('taken') };
     } catch (err) {
-      if (isUniqueViolation(err)) return { redirect: errorRedirect('taken'), now };
-      return { redirect: errorRedirect('unknown'), now };
+      if (isUniqueViolation(err)) return { redirect: errorRedirect('taken') };
+      return { redirect: errorRedirect('unknown') };
     }
-    return { redirect: '/', now };
+    return { redirect: '/' };
   }
 
   pending(cookieHeader: string | undefined): GooglePendingView {
@@ -221,7 +218,7 @@ export class GoogleAuthService {
     return await this.otpService.issue(user.phone, 'google_verify', 'sms');
   }
 
-  async complete(body: unknown, cookieHeader: string | undefined, ip: string | undefined): Promise<{ user: SessionUser; now: Date }> {
+  async complete(body: unknown, cookieHeader: string | undefined, ip: string | undefined): Promise<{ user: SessionUser }> {
     const now = this.clock.now();
     const pending = readSignedJson<GooglePendingPayload>(GOOGLE_PENDING_COOKIE, cookieValue(cookieHeader, GOOGLE_PENDING_COOKIE), now);
     if (!pending || pending.typ !== 'google_pending') throw new BadRequestException('Thiếu hoặc hỏng thông tin đăng ký Google');
@@ -257,10 +254,10 @@ export class GoogleAuthService {
       if (isUniqueViolation(error)) throw new ConflictException(PHONE_TAKEN);
       throw error;
     }
-    return { user: { id: user.id, name: user.name, role: user.role }, now };
+    return { user: { id: user.id, name: user.name, role: user.role } };
   }
 
-  async verify(body: unknown, cookieHeader: string | undefined): Promise<{ user: SessionUser; now: Date }> {
+  async verify(body: unknown, cookieHeader: string | undefined): Promise<{ user: SessionUser }> {
     const now = this.clock.now();
     const verify = readSignedJson<GoogleVerifyPayload>(GOOGLE_VERIFY_COOKIE, cookieValue(cookieHeader, GOOGLE_VERIFY_COOKIE), now);
     if (!verify || verify.typ !== 'google_verify') throw new BadRequestException('Thiếu hoặc hỏng thông tin xác minh Google');
@@ -280,7 +277,7 @@ export class GoogleAuthService {
       if (rows.length === 0) throw new ForbiddenException(ACCOUNT_LOCKED);
       return rows[0];
     });
-    return { user: { id: updatedUser.id, name: updatedUser.name, role: updatedUser.role }, now };
+    return { user: { id: updatedUser.id, name: updatedUser.name, role: updatedUser.role } };
   }
 
   async unlink(userId: string): Promise<void> {

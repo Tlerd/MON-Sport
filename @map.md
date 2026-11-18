@@ -31,7 +31,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/api/src/modules/auth/
 - accounts.service.ts: PHONE_TAKEN, clearAccountGoogleAndOtp, isUniqueViolation, toAccountView, AccountsService
-- auth-helpers.ts: NO_USER_HASH, KNOWN_GOOGLE_ERRORS, errorRedirect, startSession, refuseWhenThrottled
+- auth-helpers.ts: NO_USER_HASH, KNOWN_GOOGLE_ERRORS, errorRedirect, startSession, throwThrottled, refuseWhenThrottled
 - auth.controller.ts: AuthController
 - auth.module.ts: AuthModule
 - google-auth.controller.ts: GoogleAuthController
