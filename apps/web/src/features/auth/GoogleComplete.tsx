@@ -5,44 +5,6 @@ import { AuthCard } from './AuthCard.tsx';
 import { isGoogleSessionMissing } from './googleErrors.ts';
 import { GoogleSessionExpired } from './GoogleSessionExpired.tsx';
 
-async function sendOtpApi(payload: { purpose: string; phone?: string; consent?: boolean }) {
-  const res = await fetch('/api/auth/google/otp', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const error = new Error(typeof data.message === 'string' ? data.message : 'Có lỗi, hãy thử lại') as Error & {
-      status: number;
-      retryAfter?: number;
-    };
-    error.status = res.status;
-    if (typeof data.retryAfter === 'number') error.retryAfter = data.retryAfter;
-    throw error;
-  }
-  return data as { resendAfter?: number };
-}
-
-async function completeApi(payload: { name: string; phone: string; code: string; consent: boolean }) {
-  const res = await fetch('/api/auth/google/complete', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const error = new Error(typeof data.message === 'string' ? data.message : 'Có lỗi, hãy thử lại') as Error & {
-      status: number;
-    };
-    error.status = res.status;
-    throw error;
-  }
-  return data as SessionUser;
-}
-
 export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => void }) {
   const [pending, setPending] = useState<GooglePendingView | null>(null);
   const [name, setName] = useState('');
@@ -84,16 +46,19 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
     setError('');
     setSendingOtp(true);
     try {
-      const res = await sendOtpApi({ purpose: 'google_signup', phone, consent });
+      const res = await api<{ resendAfter?: number }>('/api/auth/google/otp', {
+        method: 'POST',
+        json: { purpose: 'google_signup', phone, consent },
+      });
       setCodeSent(true);
       setCountdown(res?.resendAfter ?? 60);
-    } catch (err: any) {
+    } catch (err) {
       if (isGoogleSessionMissing(err)) {
         setExpired(true);
         return;
       }
-      setError(err?.message ?? 'Không gửi được mã. Thử lại sau');
-      if (typeof err?.retryAfter === 'number') {
+      setError(err instanceof ApiError ? err.message : 'Không gửi được mã. Thử lại sau');
+      if (err instanceof ApiError && typeof err.retryAfter === 'number') {
         setCountdown(err.retryAfter);
       }
     } finally {
@@ -117,14 +82,17 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
     setError('');
     setBusy(true);
     try {
-      const user = await completeApi({ name, phone, code, consent });
+      const user = await api<SessionUser>('/api/auth/google/complete', {
+        method: 'POST',
+        json: { name, phone, code, consent },
+      });
       onLogin(user);
-    } catch (err: any) {
+    } catch (err) {
       if (isGoogleSessionMissing(err)) {
         setExpired(true);
         return;
       }
-      setError(err?.message ?? 'Không thể hoàn tất đăng ký');
+      setError(err instanceof ApiError ? err.message : 'Không thể hoàn tất đăng ký');
       setBusy(false);
     }
   }

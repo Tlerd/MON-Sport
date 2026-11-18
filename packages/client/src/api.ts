@@ -1,8 +1,8 @@
-// One fetch helper for every feature. The API answers errors as { message } in Vietnamese.
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly retryAfter?: number,
   ) {
     super(message);
   }
@@ -18,6 +18,12 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   });
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, typeof body.message === 'string' ? body.message : 'Có lỗi, hãy thử lại');
+  if (!res.ok) {
+    throw new ApiError(
+      res.status,
+      typeof body.message === 'string' ? body.message : 'Có lỗi, hãy thử lại',
+      typeof body.retryAfter === 'number' ? body.retryAfter : undefined,
+    );
+  }
   return body as T;
 }
