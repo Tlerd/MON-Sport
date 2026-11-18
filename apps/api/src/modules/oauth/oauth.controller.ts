@@ -4,7 +4,9 @@ import type { Request, Response } from 'express';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { ThrottleService } from '../auth/throttle.service.js';
 import { OAuthGrantError } from './oauth-grant.error.js';
-import { OAuthService, publicOrigin } from './oauth.service.js';
+import { publicOrigin } from './oauth-helpers.js';
+import { OAuthTokenService } from './oauth-token.service.js';
+import { OAuthService } from './oauth.service.js';
 
 const ERROR_PAGE = `<!doctype html>
 <html lang="vi">
@@ -15,16 +17,11 @@ const ERROR_PAGE = `<!doctype html>
 </body>
 </html>`;
 
-/** A request with a foreign Origin header is refused. A request without the header passes, as the other cookie routes do. */
 function assertOrigin(req: Request): void {
   const origin = req.headers.origin;
   if (origin !== undefined && origin !== publicOrigin()) throw new ForbiddenException('Bạn không có quyền làm việc này');
 }
 
-/**
- * The token route takes a form body only. Each parameter must be one string:
- * a repeated name or `a[]=1` gives an array or an object, so the whole request is refused.
- */
 function readForm(req: Request): Record<string, string> | null {
   if (!req.is('application/x-www-form-urlencoded')) return null;
   const body: unknown = req.body;
@@ -37,11 +34,11 @@ function readForm(req: Request): Record<string, string> | null {
   return form;
 }
 
-// Brief F-038: the authorization server of the MCP connector. No route logs a code, a state, or a query.
 @Controller('oauth')
 export class OAuthController {
   constructor(
     private readonly service: OAuthService,
+    private readonly tokens: OAuthTokenService,
     private readonly throttle: ThrottleService,
   ) {}
 
@@ -65,7 +62,6 @@ export class OAuthController {
   @HttpCode(200)
   async token(@Req() req: Request, @Res() res: Response): Promise<void> {
     publicOrigin();
-    // Count first, before any read of the body or the tables.
     if (!(await this.throttle.consumeOAuth('oauth-token-ip', req.ip))) {
       res.status(429).json({ message: 'Quá nhiều lệnh. Thử lại sau' });
       return;
@@ -78,7 +74,7 @@ export class OAuthController {
       return;
     }
     try {
-      res.status(200).json(await this.service.token(form));
+      res.status(200).json(await this.tokens.token(form));
     } catch (error) {
       if (error instanceof OAuthGrantError) {
         res.status(400).json({ error: error.error });

@@ -31,8 +31,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/api/src/modules/auth/
 - accounts.service.ts: PHONE_TAKEN, clearAccountGoogleAndOtp, isUniqueViolation, toAccountView, AccountsService
+- auth-helpers.ts: NO_USER_HASH, KNOWN_GOOGLE_ERRORS, errorRedirect, startSession, throwThrottled, refuseWhenThrottled
 - auth.controller.ts: AuthController
 - auth.module.ts: AuthModule
+- google-auth.controller.ts: GoogleAuthController
+- google-auth.service.ts: GoogleCallbackCookie, GoogleCallbackResult, GoogleAuthService
 - google.config.ts: GOOGLE_CONFIG, GOOGLE_OIDC_CONFIGURATION, GoogleConfig, assertGoogleConfig, isGoogleEnabled, GoogleEnabledGuard
 - passwords.ts: Passwords
 - session.guard.ts: AuthedRequest, Roles, SessionGuard
@@ -81,9 +84,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - client-metadata.fetcher.ts: ClientMetadata, cimdHosts, isAllowedClientId, ClientMetadataFetcher
 - oauth-connections.controller.ts: OAuthConnectionsController
 - oauth-grant.error.ts: OAuthGrantErrorCode, OAuthGrantError
+- oauth-helpers.ts: NOT_FOUND, EXPIRED, DONE, FULL, CONNECTION_NOT_FOUND, REQUEST_TTL_MS, …
+- oauth-token.service.ts: OAuthTokenResponse, OAuthTokenService
 - oauth.controller.ts: OAuthController
 - oauth.module.ts: OAuthModule
-- oauth.service.ts: OAuthContext, OAuthTokenResponse, AuthorizeResult, publicOrigin, OAuthService
+- oauth.service.ts: OAuthContext, AuthorizeResult, OAuthService
 - well-known.controller.ts: WellKnownController
 
 ## apps/api/src/modules/otp/
