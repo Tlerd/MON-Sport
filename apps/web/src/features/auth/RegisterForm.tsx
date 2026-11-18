@@ -1,10 +1,10 @@
 import { PRIVACY_NOTICE, SKILL_LEVEL_LABELS, SKILL_LEVEL_REQUIRED_MESSAGE, type SessionUser, type SkillLevel } from '@monsport/shared';
 import { type FormEvent, useRef, useState } from 'react';
-import { api, ApiError } from '@monsport/client';
+import { api } from '@monsport/client';
 import { GoogleButton } from './GoogleButton.tsx';
+import { useAction } from '../../hooks/useAction.ts';
 import { useAuthProviders } from './useAuthProviders.ts';
 
-/** UC-1, flow 1.0: sign up with a name, a phone number, and a password. Consent is required (BR-29). */
 export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void }) {
   const { google } = useAuthProviders();
   const [name, setName] = useState('');
@@ -12,8 +12,7 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
   const [password, setPassword] = useState('');
   const [skillLevel, setSkillLevel] = useState<SkillLevel | ''>('');
   const [consent, setConsent] = useState(false);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { run, busy, error, setError } = useAction();
   const selectRef = useRef<HTMLSelectElement>(null);
 
   const hasSkillError = error === SKILL_LEVEL_REQUIRED_MESSAGE;
@@ -25,14 +24,11 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
       selectRef.current?.focus();
       return;
     }
-    setError('');
-    setBusy(true);
-    try {
-      onLogin(await api<SessionUser>('/api/auth/register', { method: 'POST', json: { name, phone, password, consent, skillLevel } }));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không tạo được tài khoản');
-      setBusy(false);
-    }
+    await run(
+      async () => onLogin(await api<SessionUser>('/api/auth/register', { method: 'POST', json: { name, phone, password, consent, skillLevel } })),
+      'Không tạo được tài khoản',
+      { keepBusyOnSuccess: true },
+    );
   }
 
   return (

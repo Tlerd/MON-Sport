@@ -1,6 +1,7 @@
-import { api, ApiError } from '@monsport/client';
+import { api } from '@monsport/client';
 import { Messages, PRIVACY_NOTICE, type SessionUser } from '@monsport/shared';
 import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useAction } from '../../hooks/useAction.ts';
 import { useSession } from '../../app/session.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
 
@@ -33,8 +34,7 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [consent, setConsent] = useState(false);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { run, busy, error, setError } = useAction();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -43,9 +43,7 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
       setError(Messages.consent);
       return;
     }
-    setError('');
-    setBusy(true);
-    try {
+    await run(async () => {
       const registered = await api<SessionUser | undefined>('/api/auth/register', {
         method: 'POST',
         json: { name, phone, password, consent: true },
@@ -54,11 +52,7 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
       await refresh();
       onClose();
       onRegistered?.();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không kết nối được. Thử lại sau');
-    } finally {
-      setBusy(false);
-    }
+    }, 'Không kết nối được. Thử lại sau');
   };
 
   return (

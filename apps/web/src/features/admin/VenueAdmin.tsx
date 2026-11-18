@@ -3,26 +3,22 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { CourtArt } from '../../components/CourtArt.tsx';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
-import { api, ApiError, HALF_HOURS, hhmm } from '@monsport/client';
-
-const message = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
+import { errorMessage, api, HALF_HOURS, hhmm } from '@monsport/client';
 
 type VenueDraft = { ownerId: string; name: string; address: string; phone: string; opensAt: number; closesAt: number };
 type CourtDraft = { name: string; sport: Sport; priceNormal: number; pricePeak: number };
 
-/** Only the fields the admin changed, so a parallel edit of another field stays (the server writes only what it gets). */
 function changed(draft: VenueDraft, venue: AdminVenueView): Partial<VenueDraft> {
   const stored: VenueDraft = { ownerId: venue.owner.id, name: venue.name, address: venue.address, phone: venue.phone, opensAt: venue.opensAt, closesAt: venue.closesAt };
   return Object.fromEntries(Object.entries(draft).filter(([key, value]) => stored[key as keyof VenueDraft] !== value));
 }
 
-/** UC-10, steps 2 and 3: the admin creates and edits venues and their courts. */
 export function VenueAdmin({ owners }: { owners: AccountView[] }) {
   const [venues, setVenues] = useState<AdminVenueView[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api<AdminVenueView[]>('/api/admin/venues').then(setVenues, (err) => setError(message(err, 'Không tải được danh sách đơn vị')));
+    api<AdminVenueView[]>('/api/admin/venues').then(setVenues, (err) => setError(errorMessage(err, 'Không tải được danh sách đơn vị')));
   }, []);
 
   const put = (v: AdminVenueView) =>
@@ -120,7 +116,7 @@ function VenueForm(props: { owners: AccountView[]; initial: VenueDraft; submitLa
       setDone(`Đã lưu ${draft.name}.`);
       if (props.resetOnSave) setDraft(props.initial);
     } catch (err) {
-      setError(message(err, 'Không lưu được đơn vị'));
+      setError(errorMessage(err, 'Không lưu được đơn vị'));
     }
   }
 
@@ -191,7 +187,7 @@ function CourtForm(props: {
       setDone(`Đã lưu ${draft.name}.`);
       if (props.resetOnSave) setDraft(props.initial);
     } catch (err) {
-      setError(message(err, 'Không lưu được sân'));
+      setError(errorMessage(err, 'Không lưu được sân'));
     }
   }
 

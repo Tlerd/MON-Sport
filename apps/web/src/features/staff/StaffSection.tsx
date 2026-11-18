@@ -1,6 +1,7 @@
 import type { StaffView } from '@monsport/shared';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
-import { api, ApiError } from '@monsport/client';
+import { useAction } from '../../hooks/useAction.ts';
+import { errorMessage, api } from '@monsport/client';
 
 export function StaffSection({ venueId }: { venueId: string }) {
   const [staffList, setStaffList] = useState<StaffView[] | null>(null);
@@ -12,8 +13,8 @@ export function StaffSection({ venueId }: { venueId: string }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [consent, setConsent] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const create = useAction();
+  const { busy: submitting, error: formError } = create;
 
   useEffect(() => {
     if (confirmLockId) {
@@ -24,15 +25,13 @@ export function StaffSection({ venueId }: { venueId: string }) {
   useEffect(() => {
     api<StaffView[]>(`/api/owner/venues/${venueId}/staff`)
       .then(setStaffList)
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Không tải được danh sách nhân viên'));
+      .catch((err) => setError(errorMessage(err, 'Không tải được danh sách nhân viên')));
   }, [venueId]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     if (submitting || !consent) return;
-    setFormError('');
-    setSubmitting(true);
-    try {
+    await create.run(async () => {
       const created = await api<StaffView>(`/api/owner/venues/${venueId}/staff`, {
         method: 'POST',
         json: {
@@ -47,11 +46,7 @@ export function StaffSection({ venueId }: { venueId: string }) {
       setPhone('');
       setPassword('');
       setConsent(false);
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'Không thêm được nhân viên');
-    } finally {
-      setSubmitting(false);
-    }
+    }, 'Không thêm được nhân viên');
   }
 
   async function handleLock(id: string) {
@@ -61,7 +56,7 @@ export function StaffSection({ venueId }: { venueId: string }) {
       setStaffList((prev) => prev?.map((s) => (s.id === updated.id ? updated : s)) ?? null);
       setConfirmLockId(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không khóa được nhân viên');
+      setError(errorMessage(err, 'Không khóa được nhân viên'));
       setConfirmLockId(null);
     }
   }

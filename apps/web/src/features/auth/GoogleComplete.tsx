@@ -1,6 +1,6 @@
 import { PRIVACY_NOTICE, type GooglePendingView, type SessionUser } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
-import { api, ApiError } from '@monsport/client';
+import { ApiError, errorMessage, api } from '@monsport/client';
 import { AuthCard } from './AuthCard.tsx';
 import { isGoogleSessionMissing } from './googleErrors.ts';
 import { GoogleSessionExpired } from './GoogleSessionExpired.tsx';
@@ -57,7 +57,7 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
         setExpired(true);
         return;
       }
-      setError(err instanceof ApiError ? err.message : 'Không gửi được mã. Thử lại sau');
+      setError(errorMessage(err, 'Không gửi được mã. Thử lại sau'));
       if (err instanceof ApiError && typeof err.retryAfter === 'number') {
         setCountdown(err.retryAfter);
       }
@@ -92,7 +92,7 @@ export function GoogleComplete({ onLogin }: { onLogin: (user: SessionUser) => vo
         setExpired(true);
         return;
       }
-      setError(err instanceof ApiError ? err.message : 'Không thể hoàn tất đăng ký');
+      setError(errorMessage(err, 'Không thể hoàn tất đăng ký'));
       setBusy(false);
     }
   }

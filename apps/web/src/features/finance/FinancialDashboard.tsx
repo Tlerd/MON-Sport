@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { api, ApiError, formatVnd } from '@monsport/client';
+import { errorMessage, api, formatVnd } from '@monsport/client';
 
 const todayVN = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
@@ -22,7 +22,6 @@ const PERIOD_LABELS: Record<FinancialPeriod, string> = {
   month: 'Tháng',
 };
 
-/** Brief F-015 (UC-12): Venue owner financial dashboard. */
 export function FinancialDashboard() {
   const [venues, setVenues] = useState<VenueView[] | null>(null);
   const [selectedVenueId, setSelectedVenueId] = useState<string>('');
@@ -32,7 +31,6 @@ export function FinancialDashboard() {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Load owner's venues on mount
   useEffect(() => {
     api<VenueView[]>('/api/owner/venues')
       .then((list) => {
@@ -42,11 +40,10 @@ export function FinancialDashboard() {
         }
       })
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : 'Không tải được danh sách đơn vị');
+        setError(errorMessage(err, 'Không tải được danh sách đơn vị'));
       });
   }, []);
 
-  // Fetch financial metrics whenever venue, period, or date changes
   useEffect(() => {
     if (!selectedVenueId || !date) return;
     let active = true;
@@ -59,7 +56,7 @@ export function FinancialDashboard() {
         if (active) setData(res);
       })
       .catch((err) => {
-        if (active) setError(err instanceof ApiError ? err.message : 'Không tải được báo cáo tài chính');
+        if (active) setError(errorMessage(err, 'Không tải được báo cáo tài chính'));
       })
       .finally(() => {
         if (active) setLoading(false);

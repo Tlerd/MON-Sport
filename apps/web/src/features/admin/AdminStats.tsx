@@ -1,17 +1,15 @@
 import { addDaysYmd, AdminStatsView } from '@monsport/shared';
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '@monsport/client';
+import { errorMessage, api } from '@monsport/client';
 
 const NO_DATA = 'Chưa có dữ liệu';
 
-/** "2026-11-16" and "2026-11-22" make "16/11 – 22/11/2026". The year of the end day shows once. */
 const weekLabel = (start: string, end: string) => {
   const [, sm, sd] = start.split('-');
   const [ey, em, ed] = end.split('-');
   return `${sd}/${sm} – ${ed}/${em}/${ey}`;
 };
 
-/** 0.2 makes "20%", and 0.0833 makes "8,3%". */
 const percent = (rate: number) => `${(Math.round(rate * 1000) / 10).toLocaleString('vi-VN')}%`;
 
 function Metric({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
@@ -24,17 +22,15 @@ function Metric({ label, value, hint }: { label: string; value: string | number;
   );
 }
 
-/** Brief F-016 (UC-13): the admin reads the numbers of the whole site for one week. Read only. */
 export function AdminStats() {
-  // `null` asks for the week of today, which the server finds on its own clock (BR-27).
   const [date, setDate] = useState<string | null>(null);
   const [data, setData] = useState<AdminStatsView | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [reload, setReload] = useState(0); // "Thử lại" bumps it to run the request again
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
-    let active = true; // a slow answer for an older week must not replace a newer one
+    let active = true;
     setLoading(true);
     setError('');
     api<unknown>(date ? `/api/admin/stats?date=${date}` : '/api/admin/stats')
@@ -51,7 +47,7 @@ export function AdminStats() {
       .catch((err) => {
         if (!active) return;
         setData(null);
-        setError(err instanceof ApiError ? err.message : 'Không tải được số liệu');
+        setError(errorMessage(err, 'Không tải được số liệu'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -61,7 +57,6 @@ export function AdminStats() {
     };
   }, [date, reload]);
 
-  // Before the first answer there is no day to move from.
   const move = (days: number) =>
     setDate((d) => {
       const from = d ?? data?.date;

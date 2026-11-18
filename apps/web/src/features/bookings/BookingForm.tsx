@@ -1,11 +1,10 @@
 import { bookingPrice, type BookingView, type VenueView } from '@monsport/shared';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiError, DURATIONS, durationLabel, formatSlot, formatTime, formatVnd, hhmm, slotAt as at } from '@monsport/client';
+import { errorMessage, api, DURATIONS, durationLabel, formatSlot, formatTime, formatVnd, hhmm, slotAt as at } from '@monsport/client';
 import { STATUS_LABEL } from './status.ts';
 
-const PEAK = [17 * 60, 22 * 60]; // BR-4
+const PEAK = [17 * 60, 22 * 60];
 
-/** UC-2 (short form) and UC-3: pick a court and a slot, then send the request. */
 export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void }) {
   const [venues, setVenues] = useState<VenueView[]>([]);
   const [venueId, setVenueId] = useState('');
@@ -21,7 +20,6 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
     api<VenueView[]>('/api/venues').then(setVenues, () => setError('Không tải được danh sách đơn vị'));
   }, []);
 
-  // The checkout is sticky, so the ticket must come into view when it appears.
   useEffect(() => {
     if (result) resultRef.current?.scrollIntoView?.({ block: 'nearest' });
   }, [result]);
@@ -48,7 +46,7 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
       setResult(booking);
       onBooked?.(booking);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không gửi được yêu cầu');
+      setError(errorMessage(err, 'Không gửi được yêu cầu'));
     }
   }
 
@@ -106,7 +104,6 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
             <SlotBar start={start} duration={duration} />
           </fieldset>
         )}
-        {/* The live region stays in the DOM, so screen readers announce the ticket when it appears. */}
         <div role="status" className="live">
           {result && (
             <div ref={resultRef} className="ticket result" data-status={result.status}>
@@ -135,7 +132,6 @@ export function BookingForm({ onBooked }: { onBooked?: (b: BookingView) => void 
   );
 }
 
-/** The chosen slot cut into 30-minute pieces. Floodlight amber marks the peak pieces (BR-4). */
 export function SlotBar({ start, duration }: { start: number; duration: number }) {
   const pieces = Array.from({ length: duration / 30 }, (_, i) => start + i * 30);
   const hasPeak = pieces.some((m) => m >= PEAK[0] && m < PEAK[1]);

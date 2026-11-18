@@ -1,6 +1,7 @@
 import {
-  api,
   ApiError,
+  errorMessage,
+  api,
   periodHeading,
   periodRange,
   shiftPeriodDate,
@@ -231,7 +232,7 @@ export function useOwnerRevenue({ user, today, navigate }: UseOwnerRevenueOption
       } else if (err instanceof ApiError && err.status === 401) {
         setSessionLoginOpen(true);
       } else {
-        const message = err instanceof ApiError ? err.message : 'Không cập nhật được. Thử lại.';
+        const message = errorMessage(err, 'Không cập nhật được. Thử lại.');
         setRowErrors((prev) => ({ ...prev, [booking.id]: message }));
       }
     } finally {

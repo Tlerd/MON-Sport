@@ -1,29 +1,21 @@
 import { PRICE_MAX } from '@monsport/shared';
 import { type FormEvent, type ReactNode, useState } from 'react';
-import { ApiError, HALF_HOURS, hhmm } from '@monsport/client';
-
-// Brief F-005 (UC-11): the forms an owner opens on a venue card. Each closes after a save; the card shows the response.
+import { useAction } from '../../hooks/useAction.ts';
+import { HALF_HOURS, hhmm } from '@monsport/client';
 
 type Hours = { opensAt: number; closesAt: number };
 type Prices = { priceNormal: number; pricePeak: number };
 
-/** The form state of one save: the error text of the API stays next to the form, and the stored values stay on the card. */
 function useSave<T>(save: (draft: T) => Promise<void>, close: () => void, fallback: string) {
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { run, busy, error } = useAction();
   async function submit(e: FormEvent, draft: T) {
     e.preventDefault();
-    setError('');
-    setBusy(true);
-    try {
+    await run(async () => {
       await save(draft);
       close();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : fallback);
-      setBusy(false);
-    }
+    }, fallback);
   }
-  return { error, busy, submit };
+  return { error: error ?? '', busy, submit };
 }
 
 function Buttons({ busy, close, error }: { busy: boolean; close: () => void; error: string }): ReactNode {

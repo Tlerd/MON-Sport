@@ -1,13 +1,9 @@
 import type { AccountView } from '@monsport/shared';
 import { type FormEvent, useRef, useState } from 'react';
-import { api, ApiError } from '@monsport/client';
+import { errorMessage, api } from '@monsport/client';
 
 const ROLE = { ADMIN: 'Admin', OWNER: 'Chủ sân', USER: 'Người dùng', STAFF: 'Nhân viên' } as const;
 
-/**
- * UC-10, flow 10.1 and BR-28. The admin finds one account by its exact phone number (BR-20: no list of users),
- * then locks or unlocks it.
- */
 export function AccountLock({ onChanged }: { onChanged: (account: AccountView) => void }) {
   const [phone, setPhone] = useState('');
   const [found, setFound] = useState<AccountView[] | null>(null);
@@ -17,13 +13,13 @@ export function AccountLock({ onChanged }: { onChanged: (account: AccountView) =
   async function search(e: FormEvent) {
     e.preventDefault();
     setError('');
-    setFound(null); // An old result must not stay under a new number, or the admin could lock the wrong account.
-    const request = ++latest.current; // A late answer to an older search is dropped.
+    setFound(null);
+    const request = ++latest.current;
     try {
       const result = await api<AccountView[]>('/api/admin/users/search', { method: 'POST', json: { phone } });
       if (request === latest.current) setFound(result);
     } catch (err) {
-      if (request === latest.current) setError(err instanceof ApiError ? err.message : 'Không tìm được tài khoản');
+      if (request === latest.current) setError(errorMessage(err, 'Không tìm được tài khoản'));
     }
   }
 
@@ -35,7 +31,7 @@ export function AccountLock({ onChanged }: { onChanged: (account: AccountView) =
       setFound([updated]);
       onChanged(updated);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không lưu được');
+      setError(errorMessage(err, 'Không lưu được'));
     }
   }
 

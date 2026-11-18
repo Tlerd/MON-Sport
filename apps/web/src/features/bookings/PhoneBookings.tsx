@@ -3,17 +3,16 @@ import { type FormEvent, useEffect, useId, useMemo, useState } from 'react';
 import { Avatar } from '../../components/Avatar.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
-import { api, ApiError, DURATIONS, durationLabel, formatDay, formatSlot, formatTime, formatVnd, hhmm, slotAt as at } from '@monsport/client';
+import { api, DURATIONS, durationLabel, formatDay, formatSlot, formatTime, formatVnd, hhmm, slotAt as at } from '@monsport/client';
+import { useAction } from '../../hooks/useAction.ts';
 import { SlotBar } from './BookingForm.tsx';
 import { CancelAsk, useCancelFlow } from './cancel.tsx';
 import { Customer } from '../../components/Customer.tsx';
 import { STATUS_LABEL } from './status.ts';
 
-/** "YYYY-MM-DD" of today in Asia/Ho_Chi_Minh (BR-27). */
 const todayVN = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
 const byStart = (a: OwnerBookingView, b: OwnerBookingView) => a.startAt.localeCompare(b.startAt);
 
-/** Brief F-007 (UC-5): the owner enters the booking of a customer who phoned, and cancels a booking (any source) before it starts (F-009). */
 export function PhoneBookings({ canCancel = true }: { canCancel?: boolean } = {}) {
   const [rows, setRows] = useState<OwnerBookingView[] | null>(null);
   const [error, setError] = useState('');
@@ -42,9 +41,8 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
   const [duration, setDuration] = useState(60);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [error, setError] = useState('');
+  const { run, busy, error, setError } = useAction();
   const [saved, setSaved] = useState('');
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api<VenueView[]>('/api/owner/venues').then(setVenues, () => setError('Không tải được danh sách sân'));
@@ -60,7 +58,6 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
     for (let m = venue.opensAt; m + 60 <= venue.closesAt; m += 30) if (m > after) list.push(m);
     return list;
   }, [venue, date]);
-  // A start that left the list (another venue, another day) falls back to the first one listed.
   const begin = starts.includes(start) ? start : starts[0];
   const durations = venue && begin !== undefined ? DURATIONS.filter((d) => begin + d <= venue.closesAt) : [];
   const length = durations.includes(duration) ? duration : 60;
@@ -69,10 +66,8 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (begin === undefined || busy) return;
-    setError('');
     setSaved('');
-    setBusy(true);
-    try {
+    await run(async () => {
       const booking = await api<OwnerBookingView>('/api/owner/bookings', {
         method: 'POST',
         json: {
@@ -87,11 +82,7 @@ function PhoneBookingForm({ onSaved }: { onSaved: (b: OwnerBookingView) => void 
       setSaved(`Đã lưu booking ${formatTime(booking.startAt)}–${formatTime(booking.endAt)} ngày ${formatDay(booking.startAt)}.`);
       setName('');
       setPhone('');
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không lưu được booking');
-    } finally {
-      setBusy(false);
-    }
+    }, 'Không lưu được booking');
   }
 
   return (

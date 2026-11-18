@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ApiError } from '@monsport/client';
+import { errorMessage } from '@monsport/client';
 
-/**
- * The state that a list of cancellable rows shares (brief F-009): which row asks to confirm, the call in flight,
- * the failure, and the focus. Each step of a cancel unmounts the button that was pressed, so focus moves to
- * the element with `data-focus` set to the row id.
- */
 export function useCancelFlow(run: (id: string) => Promise<void>, onFail?: () => Promise<unknown>) {
   const [asking, setAsking] = useState('');
   const [failure, setFailure] = useState('');
@@ -28,8 +23,7 @@ export function useCancelFlow(run: (id: string) => Promise<void>, onFail?: () =>
       setAsking('');
       setFocus(id);
     } catch (err) {
-      setFailure(err instanceof ApiError ? err.message : 'Không hủy được booking');
-      // The reload comes first: the row may lose its button, and the label that replaces it takes the focus.
+      setFailure(errorMessage(err, 'Không hủy được booking'));
       await onFail?.();
       setFocus(id);
     } finally {
@@ -46,7 +40,6 @@ export function useCancelFlow(run: (id: string) => Promise<void>, onFail?: () =>
 
 export type CancelAskState = ReturnType<typeof useCancelFlow>['ask'];
 
-/** "Hủy", which asks "Xác nhận hủy" or "Giữ booking" before it calls the API. `label` names the booking for a screen reader. */
 export function CancelAsk({ id, label, ask }: { id: string; label: string; ask: CancelAskState }) {
   return ask.asking === id ? (
     <span className="actions">

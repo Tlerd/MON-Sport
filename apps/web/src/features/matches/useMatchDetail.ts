@@ -1,5 +1,5 @@
 import type { JoinMode, MatchDetailView, MatchRequestView, MatchView, SessionUser } from '@monsport/shared';
-import { api, ApiError } from '@monsport/client';
+import { errorMessage, api } from '@monsport/client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface LiveMatchDetailState {
@@ -61,7 +61,7 @@ export function useMatchDetail({ matches, user, tranParam = null, onSelectTran }
       }
     } catch (e) {
       if (seq !== loadSeqRef.current || liveStateRef.current.expandedId !== matchId) return;
-      setDetailError(e instanceof ApiError ? e.message : 'Không tải được chi tiết trận');
+      setDetailError(errorMessage(e, 'Không tải được chi tiết trận'));
     }
   }, []);
 

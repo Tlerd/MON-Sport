@@ -1,20 +1,17 @@
 import type { OAuthConsentView, SessionUser } from '@monsport/shared';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ApiError, approveConsent, denyConsent, getConsent } from '@monsport/client';
+import { useAction } from '../../hooks/useAction.ts';
+import { errorMessage, approveConsent, denyConsent, getConsent } from '@monsport/client';
 
-// Brief F-038 (AC-16): the "Cho phép" screen. A client such as Claude sends the user here to allow access.
-
-// A feature may not import the app layer, so the page passes the session user in. undefined: still loading.
 export function ConsentScreen({ user }: { user: SessionUser | null | undefined }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const id = searchParams.get('yeu-cau') ?? '';
 
   const [consent, setConsent] = useState<OAuthConsentView | null>(null);
-  const [error, setError] = useState('');
+  const { run, busy, error, setError } = useAction();
   const [allowBook, setAllowBook] = useState(true);
-  const [busy, setBusy] = useState(false);
 
   const isUser = user?.role === 'USER';
 
@@ -33,7 +30,7 @@ export function ConsentScreen({ user }: { user: SessionUser | null | undefined }
     }
     getConsent(id)
       .then(setConsent)
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Không tải được yêu cầu. Nối lại từ Claude'));
+      .catch((err) => setError(errorMessage(err, 'Không tải được yêu cầu. Nối lại từ Claude')));
   }, [isUser, id]);
 
   if (user === undefined || user === null) return null;
@@ -53,24 +50,19 @@ export function ConsentScreen({ user }: { user: SessionUser | null | undefined }
 
   async function decide(allow: boolean) {
     if (busy) return;
-    setError('');
-    setBusy(true);
-    try {
+    await run(async () => {
       const res = allow
         ? await approveConsent(id, { scopes: canBook && allowBook ? ['read', 'book'] : ['read'] })
         : await denyConsent(id);
       window.location.assign(res.redirectTo);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không gửi được lựa chọn. Thử lại');
-      setBusy(false);
-    }
+    }, 'Không gửi được lựa chọn. Thử lại', { keepBusyOnSuccess: true });
   }
 
   return (
     <div className="page narrow">
       <section className="card pad stack-form" aria-label="Cho phép kết nối">
-        {consent === null && error === '' && <p className="empty">Đang tải…</p>}
-        {error !== '' && (
+        {consent === null && !error && <p className="empty">Đang tải…</p>}
+        {error && (
           <p className="error" role="alert">
             {error}
           </p>

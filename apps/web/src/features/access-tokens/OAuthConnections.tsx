@@ -1,8 +1,7 @@
 import type { AccessTokenScope, OAuthConnectionView } from '@monsport/shared';
 import { useEffect, useRef, useState } from 'react';
-import { ApiError, listOAuthConnections, revokeOAuthConnection } from '@monsport/client';
-
-// Brief F-038 (AC-18): "Ứng dụng đã nối" and "Địa chỉ connector", inside the "Kết nối AI" section of /ho-so.
+import { errorMessage, listOAuthConnections, revokeOAuthConnection } from '@monsport/client';
+import { useAction } from '../../hooks/useAction.ts';
 
 const dateFormat = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
@@ -31,9 +30,8 @@ async function loadConnectorUrl(): Promise<string | null> {
 
 export function OAuthConnections() {
   const [connections, setConnections] = useState<OAuthConnectionView[] | null>(null);
-  const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [revoking, setRevoking] = useState(false);
+  const { run, busy: revoking, error, setError } = useAction();
   const [connectorUrl, setConnectorUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -46,9 +44,9 @@ export function OAuthConnections() {
   useEffect(() => {
     listOAuthConnections()
       .then((res) => setConnections(res.connections ?? []))
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Không tải được danh sách ứng dụng'));
+      .catch((err) => setError(errorMessage(err, 'Không tải được danh sách ứng dụng')));
     void loadConnectorUrl().then(setConnectorUrl);
-  }, []);
+  }, [setError]);
 
   function closeConfirm() {
     setConfirmId(null);
@@ -57,16 +55,10 @@ export function OAuthConnections() {
 
   async function handleRevoke(id: string) {
     if (revoking) return;
-    setError('');
-    setRevoking(true);
-    try {
+    await run(async () => {
       await revokeOAuthConnection(id);
       setConnections((prev) => prev?.filter((c) => c.id !== id) ?? null);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không thu hồi được ứng dụng');
-    } finally {
-      setRevoking(false);
-    }
+    }, 'Không thu hồi được ứng dụng');
     closeConfirm();
   }
 

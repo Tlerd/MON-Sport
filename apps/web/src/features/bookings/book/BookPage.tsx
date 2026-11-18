@@ -7,8 +7,9 @@ import {
   type SessionUser,
 } from '@monsport/shared';
 import {
-  api,
   ApiError,
+  errorMessage,
+  api,
   DURATIONS,
   fitsAnyDuration,
   formatDay,
@@ -108,7 +109,7 @@ export function BookPage({ user = null, onBooked }: BookPageProps = {}) {
       if (err instanceof ApiError && err.status === 409) {
         setError('Khung giờ này vừa có người đặt');
       } else {
-        setError(err instanceof ApiError ? err.message : 'Không gửi được yêu cầu');
+        setError(errorMessage(err, 'Không gửi được yêu cầu'));
       }
     } finally {
       setBusy(false);

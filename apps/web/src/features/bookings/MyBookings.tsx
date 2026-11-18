@@ -1,6 +1,6 @@
 import { CALL_OWNER_MESSAGE, type JoinMode, type MatchStatus, type MatchView, type MyBookingView, RATE_WINDOW_DAYS, userCancelDecision } from '@monsport/shared';
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
-import { api, ApiError, formatDay, formatSlot, formatTime, formatVnd } from '@monsport/client';
+import { errorMessage, api, formatDay, formatSlot, formatTime, formatVnd } from '@monsport/client';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { CancelAsk, useCancelFlow } from './cancel.tsx';
@@ -14,10 +14,6 @@ const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
   FINISHED: 'Trận đã kết thúc',
 };
 
-/**
- * UC-6, UC-7, UC-9 (brief F-009 & F-011): the bookings of the signed-in user, newest first.
- * The user can open a match on a future PENDING/CONFIRMED booking, cancel an open/full match, or cancel a booking without a match.
- */
 export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; onMatchChanged?: () => void }) {
   const [rows, setRows] = useState<MyBookingView[] | null>(null);
   const [openingId, setOpeningId] = useState('');
@@ -34,7 +30,6 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
     void load();
   }, [load, refresh]);
 
-  // A refused cancel means the server sees another state, so the list is read again.
   const { list, failure, ask } = useCancelFlow(async (id) => {
     const done = await api<MyBookingView>(`/api/bookings/${id}/cancel`, { method: 'POST' });
     setRows((all) => all?.map((r) => (r.id === done.id ? done : r)) ?? null);
@@ -63,7 +58,6 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
     try {
       const created = await api<MatchView>('/api/matches', {
         method: 'POST',
-        // `json` makes the shared client set content-type: application/json. A plain `body` went out as text/plain, and the API answered 400.
         json: {
           bookingId,
           capacity: Number(capacity),
@@ -90,7 +84,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
       closeOpenMatch();
       onMatchChanged?.();
     } catch (err) {
-      setMatchError(err instanceof ApiError ? err.message : 'Không mở được trận');
+      setMatchError(errorMessage(err, 'Không mở được trận'));
       await load();
     } finally {
       setMatchBusy(false);
@@ -117,7 +111,7 @@ export function MyBookings({ refresh = 0, onMatchChanged }: { refresh?: number; 
       setCancelMatchId('');
       onMatchChanged?.();
     } catch (err) {
-      setMatchError(err instanceof ApiError ? err.message : 'Không hủy được trận');
+      setMatchError(errorMessage(err, 'Không hủy được trận'));
       setCancelMatchId('');
       await load();
     } finally {

@@ -201,6 +201,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - useVenueAvailability.ts: HOUR, CourtState, UseVenueAvailabilityOptions, useVenueAvailability
 
 ## apps/mobile/src/hooks/
+- useAction.ts: useAction
 - useHideOnScroll.ts: UseHideOnScrollOptions, UseHideOnScrollResult, useHideOnScroll
 
 ## apps/mobile/src/
@@ -320,6 +321,9 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - VenuesPage.tsx: VenuesPage
 - search.ts: normalizeName, VenueMatch, findVenues
 
+## apps/web/src/hooks/
+- useAction.ts: useAction
+
 ## apps/web/src/lib/
 - dates.ts: formatDayChip
 
@@ -334,6 +338,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - access-tokens.ts: listAccessTokens, createAccessToken, revokeAccessToken
 - api.ts: ApiError, api
 - booking.ts: DURATIONS, fitsAnyDuration, slotAt, dayChipLabel, dayHeading, priceRangeK, …
+- errors.ts: errorMessage
 - format.ts: formatVnd, durationLabel, formatTime, formatDay, formatSlot, HALF_HOURS, …
 - index.ts
 - lobby.ts: LobbyFilter, LobbyCard, lobbyMatches, lobbyChips, matchesForDay

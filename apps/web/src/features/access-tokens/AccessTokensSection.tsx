@@ -1,9 +1,8 @@
 import { MAX_ACTIVE_ACCESS_TOKENS, type AccessTokenScope, type AccessTokenView } from '@monsport/shared';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
-import { ApiError, createAccessToken, listAccessTokens, revokeAccessToken } from '@monsport/client';
+import { errorMessage, createAccessToken, listAccessTokens, revokeAccessToken } from '@monsport/client';
+import { useAction } from '../../hooks/useAction.ts';
 import { OAuthConnections } from './OAuthConnections.tsx';
-
-// Brief F-037 (AC-13, AC-14): the "Kết nối AI" section of /ho-so.
 
 const dateFormat = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
@@ -26,19 +25,17 @@ const BREAK_ALL = { wordBreak: 'break-all' } as const;
 
 export function AccessTokensSection() {
   const [tokens, setTokens] = useState<AccessTokenView[] | null>(null);
-  const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
-  // Focus goes back here when the confirm or the secret panel closes, so it never falls to <body>.
   const headingRef = useRef<HTMLHeadingElement | null>(null);
-  const [revoking, setRevoking] = useState(false);
+  const revoke = useAction();
+  const { busy: revoking, error, setError } = revoke;
 
   const [name, setName] = useState('');
-  // The smallest scope by default: a token that only reads (docs/design/ke-hoach-mcp.md, "Token bị lộ").
   const [scope, setScope] = useState<AccessTokenScope>('READ');
   const [expiresInDays, setExpiresInDays] = useState<30 | 90>(30);
-  const [formError, setFormError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const create = useAction();
+  const { busy: submitting, error: formError } = create;
 
   const [secret, setSecret] = useState<string | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
@@ -51,17 +48,15 @@ export function AccessTokensSection() {
   useEffect(() => {
     listAccessTokens()
       .then((res) => setTokens(res.tokens))
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Không tải được danh sách mã'));
-  }, []);
+      .catch((err) => setError(errorMessage(err, 'Không tải được danh sách mã')));
+  }, [setError]);
 
   const atLimit = (tokens?.length ?? 0) >= MAX_ACTIVE_ACCESS_TOKENS;
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     if (submitting || atLimit || name.trim() === '') return;
-    setFormError('');
-    setSubmitting(true);
-    try {
+    await create.run(async () => {
       const created = await createAccessToken({ name: name.trim(), scope, expiresInDays });
       setTokens((prev) => [created.token, ...(prev ?? [])]);
       setSecret(created.secret);
@@ -70,25 +65,15 @@ export function AccessTokensSection() {
       setName('');
       setScope('READ');
       setExpiresInDays(30);
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'Không tạo được mã');
-    } finally {
-      setSubmitting(false);
-    }
+    }, 'Không tạo được mã');
   }
 
   async function handleRevoke(id: string) {
     if (revoking) return;
-    setError('');
-    setRevoking(true);
-    try {
+    await revoke.run(async () => {
       await revokeAccessToken(id);
       setTokens((prev) => prev?.filter((t) => t.id !== id) ?? null);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không thu hồi được mã');
-    } finally {
-      setRevoking(false);
-    }
+    }, 'Không thu hồi được mã');
     closeConfirm();
   }
 
@@ -131,7 +116,6 @@ export function AccessTokensSection() {
             </button>
           </p>
           <p>Lệnh nối Claude Code:</p>
-          {/* pre-wrap: a <pre> keeps the long command on one line, which overflows a 390px screen. */}
           <pre style={{ ...BREAK_ALL, whiteSpace: 'pre-wrap', margin: 0 }}>
             <code style={BREAK_ALL}>{command}</code>
           </pre>

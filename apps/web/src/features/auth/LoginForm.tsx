@@ -1,11 +1,10 @@
 import type { SessionUser } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
-import { api, ApiError } from '@monsport/client';
+import { errorMessage, api } from '@monsport/client';
 import { GoogleButton } from './GoogleButton.tsx';
 import { resolveGoogleError } from './googleErrors.ts';
 import { useAuthProviders } from './useAuthProviders.ts';
 
-/** UC-1, flow 1.1: sign in with a phone number and a password. */
 export function LoginForm({
   onLogin,
   initialError,
@@ -35,7 +34,7 @@ export function LoginForm({
     try {
       onLogin(await api<SessionUser>('/api/auth/login', { method: 'POST', json: { phone, password } }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không đăng nhập được');
+      setError(errorMessage(err, 'Không đăng nhập được'));
     }
   }
 

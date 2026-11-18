@@ -1,5 +1,5 @@
 import type { MatchDetailView, MatchRequestView, MatchView } from '@monsport/shared';
-import { api, ApiError } from '@monsport/client';
+import { errorMessage, api } from '@monsport/client';
 import { type Dispatch, type MutableRefObject, type SetStateAction, useState } from 'react';
 import type { LiveMatchDetailState } from './useMatchDetail.ts';
 
@@ -44,7 +44,7 @@ export function useMatchActions({
       );
       onMatchChanged?.();
     } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : 'Không thể vào trận');
+      setActionError(errorMessage(e, 'Không thể vào trận'));
     } finally {
       setLoadingAction(false);
     }
@@ -66,7 +66,7 @@ export function useMatchActions({
       );
       onMatchChanged?.();
     } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : 'Không thể rời trận');
+      setActionError(errorMessage(e, 'Không thể rời trận'));
     } finally {
       setLoadingAction(false);
     }
@@ -108,7 +108,7 @@ export function useMatchActions({
       onMatchChanged?.();
     } catch (e) {
       if (liveStateRef.current.expandedId === matchId) {
-        setActionError(e instanceof ApiError ? e.message : 'Không thể xử lý yêu cầu');
+        setActionError(errorMessage(e, 'Không thể xử lý yêu cầu'));
       }
     } finally {
       setBusyRequestUserIds((prev) => {

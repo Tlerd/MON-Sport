@@ -1,25 +1,23 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { api, ApiError } from '@monsport/client';
+import { api } from '@monsport/client';
 import type { GoogleLinkStartResponse } from '@monsport/shared';
+import { useAction } from '../../hooks/useAction.ts';
 import { useAuthProviders } from './useAuthProviders.ts';
 
 export function GoogleAccountActions() {
   const { google } = useAuthProviders();
   const [showForm, setShowForm] = useState(false);
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const { run, busy, error, setError } = useAction();
   const [status, setStatus] = useState('');
-  const [busy, setBusy] = useState(false);
 
   if (!google) return null;
 
   async function handleLinkSubmit(e: FormEvent) {
     e.preventDefault();
-    setError('');
     setStatus('');
-    setBusy(true);
-    try {
+    await run(async () => {
       const res = await api<GoogleLinkStartResponse>('/api/auth/google/link-start', {
         method: 'POST',
         json: { password },
@@ -27,25 +25,16 @@ export function GoogleAccountActions() {
       if (res?.url) {
         window.location.href = res.url;
       }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không liên kết được');
-      setBusy(false);
-    }
+    }, 'Không liên kết được', { keepBusyOnSuccess: true });
   }
 
   async function handleUnlink() {
-    setError('');
     setStatus('');
-    setBusy(true);
-    try {
+    await run(async () => {
       await api('/api/auth/google/unlink', { method: 'POST' });
       setShowForm(false);
       setStatus('Đã gỡ liên kết Google');
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không gỡ liên kết được');
-    } finally {
-      setBusy(false);
-    }
+    }, 'Không gỡ liên kết được');
   }
 
   return (
