@@ -145,14 +145,24 @@ describe('AccessTokensSection: "Ứng dụng đã nối" (F-038)', () => {
     Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
   const writeText = vi.fn().mockResolvedValue(undefined);
 
-  function stub(options: { connectorOk: boolean }) {
+  function stub(options: { connectorOk: boolean; used?: boolean }) {
+    const listed = options.used ? { ...connection, lastUsedAt: '2026-12-02T03:00:00.000Z' } : connection;
+    const token = {
+      id: '0199a1b2-0000-7000-8000-000000000001',
+      name: 'Claude Code',
+      scope: 'READ',
+      prefix: 'mst_abcd1234',
+      createdAt: '2026-12-01T03:00:00.000Z',
+      expiresAt: '2026-12-31T03:00:00.000Z',
+      lastUsedAt: null,
+    };
     const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
-      if (url === '/api/me/oauth-connections') return reply({ connections: [connection] });
+      if (url === '/api/me/oauth-connections') return reply({ connections: [listed] });
       if (url === `/api/me/oauth-connections/${connection.id}` && opts?.method === 'DELETE') return reply(undefined, 204);
       if (url === '/.well-known/oauth-protected-resource/api/mcp') {
         return options.connectorOk ? reply({ resource: CONNECTOR }) : reply({}, 404);
       }
-      return reply({ tokens: [] });
+      return reply({ tokens: options.used ? [token] : [] });
     });
     vi.stubGlobal('fetch', fetchMock);
     return fetchMock;
@@ -176,6 +186,16 @@ describe('AccessTokensSection: "Ứng dụng đã nối" (F-038)', () => {
     expect(screen.getAllByText('Đặt sân').length).toBeGreaterThan(0);
     expect(screen.getByText('Nối từ 01/12/2026')).toBeTruthy();
     expect(screen.getByText('Chưa dùng')).toBeTruthy();
+  });
+
+  it('AC-18: with the brief fixture, shows "Dùng lần cuối 02/12/2026" and the 1 token under "Mã truy cập"', async () => {
+    stub({ connectorOk: true, used: true });
+    render(<AccessTokensSection />);
+
+    expect(await screen.findByText('Dùng lần cuối 02/12/2026')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Mã truy cập' })).toBeTruthy();
+    expect(await screen.findByText('Claude Code')).toBeTruthy();
+    expect(screen.getByText('mst_abcd1234…')).toBeTruthy();
   });
 
   it('AC-18: "Thu hồi" asks first, then sends DELETE and removes the row', async () => {

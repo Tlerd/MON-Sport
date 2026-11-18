@@ -40,7 +40,7 @@ Cách này không cần mã. Claude xin phép bạn, và bạn bấm "Cho phép"
 2. Bấm "Add custom connector".
 3. Dán địa chỉ `https://monsport-774323404592.asia-southeast1.run.app/api/mcp`. Mục "Kết nối AI" trong "Hồ sơ" cũng hiện địa chỉ này.
 4. Bấm "Connect".
-5. Đăng nhập MONSPORT.
+5. Đăng nhập MONSPORT, nếu Claude hỏi. Nếu bạn đăng nhập bằng Google, quay lại Claude và bấm "Connect" lần nữa.
 6. Chọn quyền: xem, hoặc xem và đặt sân.
 7. Bấm "Cho phép".
 
