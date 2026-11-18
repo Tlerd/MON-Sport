@@ -15,9 +15,9 @@ import {
 } from '@monsport/shared';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { BookingsService } from './bookings.service.js';
+import { OwnerBookingsService } from './owner-bookings.service.js';
 import { venueScope } from './venue-scope.js';
 
-// A malformed id gets the Vietnamese generic text, not the English text of the pipe.
 const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(Messages.invalid) });
 
 @Controller('bookings')
@@ -39,7 +39,6 @@ export class BookingsController {
     return this.bookings.mine(req.user.id);
   }
 
-  /** UC-6 (brief F-009): a user cancels their own booking. BR-22: an owner and the admin get 403. */
   @Post(':id/cancel')
   @Roles('USER')
   @HttpCode(200)
@@ -48,12 +47,11 @@ export class BookingsController {
   }
 }
 
-// BR-22: only the OWNER role reaches these routes, so an admin cannot confirm or reject.
 @Controller('owner/bookings')
 @UseGuards(SessionGuard)
 @Roles('OWNER')
 export class OwnerBookingsController {
-  constructor(private readonly bookings: BookingsService) {}
+  constructor(private readonly bookings: OwnerBookingsService) {}
 
   @Get()
   @Roles('OWNER', 'STAFF')
@@ -63,7 +61,6 @@ export class OwnerBookingsController {
     return this.bookings.forOwner(venueScope(req.user), parsed.data);
   }
 
-  /** UC-16 (brief F-030): recurring phone booking */
   @Post('recurring')
   @Roles('OWNER', 'STAFF')
   @HttpCode(201)
@@ -90,7 +87,6 @@ export class OwnerBookingsController {
     return this.bookings.decide(venueScope(req.user), id, 'REJECTED');
   }
 
-  /** UC-5 (brief F-007): the booking of a customer who phoned. A wrong customer phone gets the phone text. */
   @Post()
   @Roles('OWNER', 'STAFF')
   enter(@Req() req: AuthedRequest, @Body() body: unknown): Promise<OwnerBookingView> {

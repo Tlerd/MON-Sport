@@ -3,17 +3,16 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Clock } from '../database/clock.js';
 import type { PrismaService } from '../database/prisma.service.js';
 import type { NotificationsService } from '../notifications/notifications.service.js';
-import { BookingsService } from './bookings.service.js';
+import { OwnerBookingsService } from './owner-bookings.service.js';
 import type { VenueScope } from './venue-scope.js';
 
-// Review of PR #49 (finding 2): the 40P01 paths need a deadlock on demand, which a real database does not give.
 const deadlock = () => Object.assign(new Error('deadlock detected'), { code: '40P01' });
 const clock = { now: () => new Date('2026-11-20T03:00:00Z') } as Clock;
 const notifications = { createNotification: vi.fn() } as unknown as NotificationsService;
 const OWNER: VenueScope = { ownerId: '0199a1b2-0000-7000-8000-000000000001' };
 
 function service(prisma: Record<string, unknown>) {
-  return new BookingsService(prisma as unknown as PrismaService, clock, notifications);
+  return new OwnerBookingsService(prisma as unknown as PrismaService, clock, notifications);
 }
 
 describe('decide', () => {

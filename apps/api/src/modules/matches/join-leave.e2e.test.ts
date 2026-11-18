@@ -21,10 +21,9 @@ import { setupApp } from '../../setup-app.js';
 import { issueSession } from '../auth/session.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { MatchPlayersService } from './match-players.service.js';
 import { MatchesService } from './matches.service.js';
 
-// Data of brief F-012: Bình runs "Cầu lông A" ("10 Nguyễn Huệ", phone 0911111111, 06:00-23:00, "Sân 1" BADMINTON).
-// Users: An, Chi, Em, Giang, Hà. Now is 20/11/2026 10:00 Asia/Ho_Chi_Minh.
 const vn = (hhmm: string, day = '2026-11-20') => `${day}T${hhmm.length === 5 ? `${hhmm}:00` : hhmm}+07:00`;
 const clock = { at: new Date(vn('10:00')), now() { return this.at; } };
 const MISSING = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
@@ -277,12 +276,10 @@ describe('matches join, leave, detail, and joined list (F-012)', () => {
     expect((await leaveMatch('An', matchT).expect(409)).body.message).toBe(HOST_CANNOT_LEAVE_MESSAGE);
     expect((await leaveMatch('Hà', matchT).expect(409)).body.message).toBe(NOT_IN_MATCH_MESSAGE);
 
-    // 1 ms before 10:30:00.000: leave succeeds, then Giang rejoins.
     clock.at = new Date(new Date(vn('10:30')).getTime() - 1);
     await leaveMatch('Giang', m1030).expect(200);
     await joinMatch('Giang', m1030).expect(200);
 
-    // Exactly at 10:30:00.000: leave is refused with LEAVE_STARTED_MESSAGE (BR-18, 8.1.E1).
     clock.at = new Date(vn('10:30'));
     expect((await leaveMatch('Giang', m1030).expect(409)).body.message).toBe(LEAVE_STARTED_MESSAGE);
 
@@ -407,6 +404,7 @@ describe('a transaction that Postgres ends in MatchesService F-012 methods', () 
   const MATCH = '0199a1b2-0000-7000-8000-000000000003';
   const fixed = { now: () => new Date(vn('10:00')) } as Clock;
   const service = (prisma: Record<string, unknown>) => new MatchesService(prisma as unknown as PrismaService, fixed);
+  const playersService = (prisma: Record<string, unknown>) => new MatchPlayersService(prisma as unknown as PrismaService, fixed);
 
   for (const code of ['40P01', 'P2034']) {
     it(`join and leave answer 409 after ${code}, and joined and detail retry once`, async () => {
@@ -418,8 +416,8 @@ describe('a transaction that Postgres ends in MatchesService F-012 methods', () 
         $transaction: vi.fn().mockRejectedValue(ended(code)),
         $executeRaw: vi.fn().mockRejectedValue(ended(code)),
       };
-      await expect(service(prisma).join(USER, MATCH)).rejects.toThrow(BUSY);
-      await expect(service(prisma).leave(USER, MATCH)).rejects.toThrow(BUSY);
+      await expect(playersService(prisma).join(USER, MATCH)).rejects.toThrow(BUSY);
+      await expect(playersService(prisma).leave(USER, MATCH)).rejects.toThrow(BUSY);
 
       prisma.$executeRaw.mockClear();
       const joinedFailure = service(prisma).joined(USER);

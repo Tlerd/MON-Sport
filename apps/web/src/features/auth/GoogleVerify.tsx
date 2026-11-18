@@ -1,53 +1,9 @@
 import type { SessionUser } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
+import { api, ApiError } from '@monsport/client';
 import { AuthCard } from './AuthCard.tsx';
-import { isGoogleSessionMissing } from './googleErrors.ts';
+import { GOOGLE_ERROR_MESSAGES, isGoogleSessionMissing } from './googleErrors.ts';
 import { GoogleSessionExpired } from './GoogleSessionExpired.tsx';
-
-async function sendVerifyOtpApi() {
-  const res = await fetch('/api/auth/google/otp', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ purpose: 'google_verify' }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const error = new Error(
-      res.status === 403
-        ? 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT'
-        : typeof data.message === 'string'
-          ? data.message
-          : 'Có lỗi, hãy thử lại',
-    ) as Error & { status: number; retryAfter?: number };
-    error.status = res.status;
-    if (typeof data.retryAfter === 'number') error.retryAfter = data.retryAfter;
-    throw error;
-  }
-  return data as { resendAfter?: number };
-}
-
-async function verifyOtpApi(code: string) {
-  const res = await fetch('/api/auth/google/verify', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ code }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const error = new Error(
-      res.status === 403
-        ? 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT'
-        : typeof data.message === 'string'
-          ? data.message
-          : 'Có lỗi, hãy thử lại',
-    ) as Error & { status: number };
-    error.status = res.status;
-    throw error;
-  }
-  return data as SessionUser;
-}
 
 export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void }) {
   const [code, setCode] = useState('');
@@ -70,17 +26,24 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
     setError('');
     setSendingOtp(true);
     try {
-      const res = await sendVerifyOtpApi();
+      const res = await api<{ resendAfter?: number }>('/api/auth/google/otp', {
+        method: 'POST',
+        json: { purpose: 'google_verify' },
+      });
       setCodeSent(true);
       setCountdown(res?.resendAfter ?? 60);
-    } catch (err: any) {
+    } catch (err) {
       if (isGoogleSessionMissing(err)) {
         setExpired(true);
         return;
       }
-      setError(err?.status === 403 ? 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT' : (err?.message ?? 'Không gửi được mã'));
-      if (typeof err?.retryAfter === 'number') {
-        setCountdown(err.retryAfter);
+      if (err instanceof ApiError) {
+        setError(err.status === 403 ? GOOGLE_ERROR_MESSAGES.locked : err.message);
+        if (typeof err.retryAfter === 'number') {
+          setCountdown(err.retryAfter);
+        }
+      } else {
+        setError('Không gửi được mã');
       }
     } finally {
       setSendingOtp(false);
@@ -96,14 +59,18 @@ export function GoogleVerify({ onLogin }: { onLogin: (user: SessionUser) => void
     setError('');
     setBusy(true);
     try {
-      const user = await verifyOtpApi(code);
+      const user = await api<SessionUser>('/api/auth/google/verify', { method: 'POST', json: { code } });
       onLogin(user);
-    } catch (err: any) {
+    } catch (err) {
       if (isGoogleSessionMissing(err)) {
         setExpired(true);
         return;
       }
-      setError(err?.status === 403 ? 'Tài khoản đã bị khóa. Liên hệ admin của MONSPORT' : (err?.message ?? 'Xác minh không thành công'));
+      if (err instanceof ApiError) {
+        setError(err.status === 403 ? GOOGLE_ERROR_MESSAGES.locked : err.message);
+      } else {
+        setError('Xác minh không thành công');
+      }
       setBusy(false);
     }
   }

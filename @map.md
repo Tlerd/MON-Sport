@@ -31,8 +31,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/api/src/modules/auth/
 - accounts.service.ts: PHONE_TAKEN, clearAccountGoogleAndOtp, isUniqueViolation, toAccountView, AccountsService
+- auth-helpers.ts: NO_USER_HASH, KNOWN_GOOGLE_ERRORS, errorRedirect, startSession, throwThrottled, refuseWhenThrottled
 - auth.controller.ts: AuthController
 - auth.module.ts: AuthModule
+- google-auth.controller.ts: GoogleAuthController
+- google-auth.service.ts: GoogleCallbackCookie, GoogleCallbackResult, GoogleAuthService
 - google.config.ts: GOOGLE_CONFIG, GOOGLE_OIDC_CONFIGURATION, GoogleConfig, assertGoogleConfig, isGoogleEnabled, GoogleEnabledGuard
 - passwords.ts: Passwords
 - session.guard.ts: AuthedRequest, Roles, SessionGuard
@@ -40,15 +43,18 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - throttle.service.ts: LIMITS, OtpCountResult, ipBucket, ThrottleService
 
 ## apps/api/src/modules/bookings/
+- booking-sync.ts: TAKEN, BUSY, NOT_CANCELLABLE, InsertBookingFields, assertOpen, findCourt, …
+- booking-views.ts: iso, toView, BookingWithVenue, toMyView, toOwnerView
 - bookings.controller.ts: BookingsController, OwnerBookingsController
 - bookings.module.ts: BookingsModule
-- bookings.service.ts: toView, BookingsService, lockVenueOf, expireBookings, finishPastMatches
+- bookings.service.ts: BookingsService
+- owner-bookings.service.ts: OwnerBookingsService
 - venue-scope.ts: VenueScope, ScopeUser, venueScope, matchesScope, assertScope
 
 ## apps/api/src/modules/database/
 - clock.ts: Clock
 - database.module.ts: DatabaseModule
-- prisma.service.ts: PrismaService, isExclusionViolation, isDeadlock
+- prisma.service.ts: PrismaService, isExclusionViolation, isDeadlock, retryOnDeadlock
 
 ## apps/api/src/modules/finance/
 - finance.controller.ts: FinanceController
@@ -62,9 +68,13 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/api/src/modules/matches/
 - lobby-events.service.ts: LobbyEvents
+- match-messages.ts: ALREADY_HAS_MATCH, NOT_OPENABLE, BOOKING_NOT_FOUND, MATCH_NOT_FOUND, NOT_CANCELLABLE, NOT_HOST, …
+- match-players.service.ts: MatchPlayersService
+- match-ratings.service.ts: MatchRatingsService
+- match-views.ts: WITH_RELATIONS, WITH_DETAIL_RELATIONS, MatchRow, MatchDetailRow, RequestRow, loadRequests, …
 - matches.controller.ts: MatchesController
 - matches.module.ts: MatchesModule
-- matches.service.ts: toMatchView, toMatchDetailView, MatchesService
+- matches.service.ts: MatchesService
 
 ## apps/api/src/modules/mcp/
 - mcp-context.ts: McpContext
@@ -81,9 +91,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - client-metadata.fetcher.ts: ClientMetadata, cimdHosts, isAllowedClientId, ClientMetadataFetcher
 - oauth-connections.controller.ts: OAuthConnectionsController
 - oauth-grant.error.ts: OAuthGrantErrorCode, OAuthGrantError
+- oauth-helpers.ts: NOT_FOUND, EXPIRED, DONE, FULL, CONNECTION_NOT_FOUND, REQUEST_TTL_MS, …
+- oauth-token.service.ts: OAuthTokenResponse, OAuthTokenService
 - oauth.controller.ts: OAuthController
 - oauth.module.ts: OAuthModule
-- oauth.service.ts: OAuthContext, OAuthTokenResponse, AuthorizeResult, publicOrigin, OAuthService
+- oauth.service.ts: OAuthContext, AuthorizeResult, OAuthService
 - well-known.controller.ts: WellKnownController
 
 ## apps/api/src/modules/otp/

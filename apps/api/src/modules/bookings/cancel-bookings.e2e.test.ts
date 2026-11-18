@@ -12,9 +12,8 @@ import { issueSession } from '../auth/session.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { BookingsService } from './bookings.service.js';
+import { OwnerBookingsService } from './owner-bookings.service.js';
 
-// Data of brief F-009: Bình runs "Cầu lông A" (phone 0911111111, 06:00-23:00, "Sân 1" and "Sân 2"), Dũng runs
-// "Cầu lông B" with its own "Sân 1". An and Chi are users. Now is 20/11/2026 10:00, and every time below is on that day.
 const vn = (hhmm: string) => `2026-11-20T${hhmm}:00+07:00`;
 const clock = { at: new Date(vn('10:00')), now() { return this.at; } };
 const TAKEN = 'Khung giờ này vừa có người đặt';
@@ -36,7 +35,6 @@ const ask = (who: string, start: string, end: string, court = 'A1') =>
 const enter = (start: string, end: string, court = 'A1') =>
   as('Bình')(http().post('/api/owner/bookings')).send({ courtId: ids[court], startAt: vn(start), endAt: vn(end) });
 
-/** Writes one booking row straight into the database, so a test can set any status and any time. */
 async function book(
   who: string,
   court: string,
@@ -160,7 +158,6 @@ describe('with the database', () => {
       ];
       const before = await rows();
       for (const id of ids6) expect((await userCancel('An', id).expect(409)).body.message).toBe(GONE);
-      // A cancelled booking answers the same on the second try.
       expect((await userCancel('An', ids6[2]).expect(409)).body.message).toBe(GONE);
       const overdue = ids6[4];
       expect((await row(overdue)).status).toBe('EXPIRED');
@@ -302,12 +299,12 @@ describe('with the database', () => {
   });
 });
 
-// Review of PR #49 (finding 2): the 40P01 paths need a deadlock on demand, which a real database does not give.
 describe('a transaction that Postgres ends', () => {
   const ended = (code: string) => Object.assign(new Error('ended by Postgres'), { code });
   const USER = '0199a1b2-0000-7000-8000-000000000001';
   const fixed = { now: () => new Date(vn('10:00')) } as Clock;
   const service = (prisma: Record<string, unknown>) => new BookingsService(prisma as unknown as PrismaService, fixed);
+  const ownerService = (prisma: Record<string, unknown>) => new OwnerBookingsService(prisma as unknown as PrismaService, fixed);
   const transactionEnded = (code: string) => ({
     booking: { findUnique: vi.fn().mockResolvedValue({ courtId: 'c' }) },
     $transaction: vi.fn().mockRejectedValue(ended(code)),
@@ -323,7 +320,7 @@ describe('a transaction that Postgres ends', () => {
     });
 
     it(`AC-14: the owner cancel answers 409 after ${code}`, async () => {
-      const failure = service(transactionEnded(code)).cancelAsOwner(USER, 'b');
+      const failure = ownerService(transactionEnded(code)).cancelAsOwner(USER, 'b');
       await expect(failure).rejects.toBeInstanceOf(ConflictException);
       await expect(failure).rejects.toThrow(BUSY);
     });
