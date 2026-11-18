@@ -53,5 +53,3 @@ function hasSqlState(error: unknown, state: string, message: RegExp): boolean {
   }
   return message.test(String((error as Error)?.message ?? ''));
 }
-
-

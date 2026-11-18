@@ -187,7 +187,7 @@ export class OwnerBookingsService {
       ? Prisma.sql`SELECT c.id FROM "Court" c WHERE c."venueId" = ${scope.venueId}::uuid`
       : Prisma.sql`SELECT c.id FROM "Court" c JOIN "Venue" v ON v.id = c."venueId" WHERE v."ownerId" = ${scope.ownerId}::uuid`;
     const expireAll = () => expireBookings(this.prisma, Prisma.sql`"courtId" IN (${courts})`, this.clock.now());
-    await retryOnDeadlock(expireAll);
+    await retryOnDeadlock(expireAll, BUSY);
     const where = scope.venueId
       ? { status, court: { venueId: scope.venueId } }
       : { status, court: { venue: { ownerId: scope.ownerId } } };
