@@ -1,81 +1,34 @@
-import { Sport, type MatchView, type MyBookingView, type VenueView } from '@monsport/shared';
-import { api, formatTime, priceRangeK } from '@monsport/client';
+import { Sport, type SessionUser } from '@monsport/shared';
+import { formatTime, priceRangeK } from '@monsport/client';
 import { Calendar, ChevronRight, MapPin, Plus, Shield, Trophy, Users } from 'lucide-react';
-import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router';
-import { CourtArt } from '../components/CourtArt.tsx';
-import { MatchCardContent, SPORT_LABEL, stubDay } from '../components/MatchCard.tsx';
-import { SportIcon } from '../components/SportIcon.tsx';
-import { useToast } from '../components/Toast.tsx';
-import { initial } from './shells.tsx';
-import { useSession } from './session.tsx';
+import { Avatar } from '../../components/Avatar.tsx';
+import { CourtArt } from '../../components/CourtArt.tsx';
+import { MatchCardContent, SPORT_LABEL, stubDay } from '../../components/MatchCard.tsx';
+import { SportIcon } from '../../components/SportIcon.tsx';
+import { useToast } from '../../components/Toast.tsx';
+import { useHomeData } from './useHomeData.ts';
 
 const givenName = (name: string) => name.normalize('NFC').trim().split(/\s+/).at(-1) ?? name;
 
-export function HomePage() {
-  const { user } = useSession();
+export interface HomePageProps {
+  user?: SessionUser | null;
+}
+
+export function HomePage({ user = null }: HomePageProps = {}) {
   const { comingSoon } = useToast();
   const navigate = useNavigate();
 
-  const [matches, setMatches] = useState<MatchView[] | null>(null);
-  const [matchesError, setMatchesError] = useState('');
-  const [venues, setVenues] = useState<VenueView[]>([]);
-  const [bookings, setBookings] = useState<MyBookingView[]>([]);
-  const [sportFilter, setSportFilter] = useState<'ALL' | Sport>('ALL');
-  const [typeTab, setTypeTab] = useState<'ALL' | 'SINGLE'>('ALL');
-
-  useEffect(() => {
-    let active = true;
-    api<MatchView[]>('/api/matches')
-      .then((list) => {
-        if (active) setMatches(list);
-      })
-      .catch(() => {
-        if (active) setMatchesError('Không tải được danh sách trận đang mở');
-      });
-    api<VenueView[]>('/api/venues')
-      .then((list) => {
-        if (active) setVenues(list);
-      })
-      .catch(() => {
-        if (active) setVenues([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (user?.role !== 'USER') {
-      setBookings([]);
-      return;
-    }
-    let active = true;
-    api<MyBookingView[]>('/api/bookings/mine')
-      .then((list) => {
-        if (active) setBookings(list);
-      })
-      .catch(() => {
-        if (active) setBookings([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [user?.id, user?.role]);
-
-  const filteredMatches = useMemo(() => {
-    if (!matches) return null;
-    if (sportFilter === 'ALL') return matches;
-    return matches.filter((m) => m.sport === sportFilter);
-  }, [matches, sportFilter]);
-
-  const upcomingBookings = useMemo(() => {
-    const now = Date.now();
-    return bookings
-      .filter((b) => (b.status === 'PENDING' || b.status === 'CONFIRMED') && Date.parse(b.endAt) > now)
-      .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
-      .slice(0, 2);
-  }, [bookings]);
+  const {
+    matchesError,
+    venues,
+    sportFilter,
+    setSportFilter,
+    typeTab,
+    setTypeTab,
+    filteredMatches,
+    upcomingBookings,
+  } = useHomeData(user);
 
   const createMatchTarget = user ? '/lich-cua-toi' : '/dang-nhap';
 
@@ -84,9 +37,7 @@ export function HomePage() {
       <aside className="lcol" aria-label="Điều hướng bên">
         {user ? (
           <Link to="/ho-so" className="me-card">
-            <span className="av" style={{ '--s': '52px', '--c': 'var(--ok)' } as CSSProperties} aria-hidden="true">
-              {initial(user.name)}
-            </span>
+            <Avatar name={user.name} size={52} />
             <span>
               <b>{user.name}</b>
               <small>Xem hồ sơ</small>
@@ -128,13 +79,7 @@ export function HomePage() {
       <div className="feed">
         <section className="card composer" aria-label="Bắt đầu ra sân">
           <div className="composer-row">
-            <span
-              className="av"
-              style={{ '--s': '44px', '--c': user ? 'var(--ok)' : 'var(--ink)' } as CSSProperties}
-              aria-hidden="true"
-            >
-              {user ? initial(user.name) : 'M'}
-            </span>
+            <Avatar name={user ? user.name : 'M'} size={44} color={user ? 'var(--ok)' : 'var(--ink)'} />
             <button
               type="button"
               className="composer-in"

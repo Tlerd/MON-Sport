@@ -3,9 +3,7 @@ import { api, formatDay, formatTime } from '@monsport/client';
 import { useEffect, useState } from 'react';
 import { ChevronRight, Inbox } from 'lucide-react';
 import { NavLink } from 'react-router';
-import { Customer } from '../features/bookings/customer.tsx';
 
-/** Owner overview screen (/chu-san/tong-quan): pending counts, today's confirmed count, and upcoming requests. */
 export function OwnerOverview({ now }: { now?: Date } = {}) {
   const [pending, setPending] = useState<OwnerBookingView[]>([]);
   const [confirmed, setConfirmed] = useState<OwnerBookingView[]>([]);
@@ -90,7 +88,14 @@ export function OwnerOverview({ now }: { now?: Date } = {}) {
                     <span>đến {formatTime(r.endAt)}</span>
                   </span>
                   <span className="body">
-                    <Customer customer={r.customer} />
+                    <span className="customer">
+                      {r.customer.name || 'Khách gọi điện'}
+                      {r.customer.phone && (
+                        <a className="phone" href={`tel:${r.customer.phone}`}>
+                          {r.customer.phone}
+                        </a>
+                      )}
+                    </span>
                     <span className="meta">
                       <span>Ngày {formatDay(r.startAt)}</span>
                       <span>

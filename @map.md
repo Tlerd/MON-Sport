@@ -185,15 +185,18 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/web/src/app/
 - App.tsx: App
-- BookPage.tsx: BookPage
-- HomePage.tsx: HomePage
-- OwnerOverview.tsx: OwnerOverview
-- SchedulePage.tsx: formatDeadlineRemaining, SchedulePage
-- VenuesPage.tsx: VenuesPage
 - pages.tsx: HomePage, VenuesPage, BookPage, OwnerRequestsPage, MyVenuesPage, LobbyPage, …
 - router.tsx: RoleGuard, routes, createRouter
 - session.tsx: SessionContextValue, SessionProvider, useSession
-- shells.tsx: initial, MobileBanner, PlayerShell, OwnerShell, AdminShell
+
+## apps/web/src/app/shells/
+- AdminShell.tsx: AdminShell
+- MobileBanner.tsx: MobileBanner
+- OwnerShell.tsx: OwnerShell
+- PlayerShell.tsx: PlayerShell
+- TopBar.tsx: ROLE_LABEL, navClass, TopBar
+- index.ts
+- useDrawerFocus.ts: useDrawerFocus
 
 ## apps/web/src/components/
 - Avatar.tsx: initial, Avatar
@@ -243,12 +246,26 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - customer.tsx: Customer
 - status.ts: STATUS_LABEL
 
+## apps/web/src/features/bookings/book/
+- BookPage.tsx: BookPageProps, BookPage
+- BookingSummary.tsx: BookingSummary
+- useCourtAvailability.ts: useCourtAvailability
+
 ## apps/web/src/features/finance/
 - FinancialDashboard.tsx: FinancialDashboard
 
+## apps/web/src/features/home/
+- HomePage.tsx: HomePageProps, HomePage
+- useHomeData.ts: useHomeData
+
 ## apps/web/src/features/matches/
 - JoinedMatches.tsx: JoinedMatches
-- Lobby.tsx: formatReputation, Lobby
+- Lobby.tsx: LobbyProps, Lobby
+- LobbyFilters.tsx: LobbyFilters
+- MatchDetailPanel.tsx: formatReputation, MatchDetailPanel
+- useLobbyMatches.ts: useLobbyMatches
+- useMatchActions.ts: useMatchActions
+- useMatchDetail.ts: LiveMatchDetailState, useMatchDetail
 
 ## apps/web/src/features/notifications/
 - Notifications.tsx: Notifications
@@ -257,6 +274,15 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/web/src/features/oauth/
 - ConsentScreen.tsx: ConsentScreen
 
+## apps/web/src/features/owner/
+- OwnerOverview.tsx: OwnerOverview
+
+## apps/web/src/features/schedule/
+- BookingRow.tsx: formatDeadlineRemaining, BookingRow
+- RecurringBookingForm.tsx: RecurringBookingForm
+- SchedulePage.tsx: SchedulePageProps, SchedulePage
+- useOwnerBookings.ts: useOwnerBookings
+
 ## apps/web/src/features/staff/
 - StaffSection.tsx: StaffSection
 
@@ -264,7 +290,11 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - MyVenues.tsx: MyVenues
 - OwnerEdits.tsx: HoursForm, PriceForm
 - VenueBrowser.tsx: VenueBrowser
+- VenuesPage.tsx: VenuesPage
 - search.ts: normalizeName, VenueMatch, findVenues
+
+## apps/web/src/lib/
+- dates.ts: formatDayChip
 
 ## apps/web/src/
 - main.tsx

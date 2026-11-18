@@ -1,12 +1,51 @@
+import type { VenueView } from '@monsport/shared';
+import { api } from '@monsport/client';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { useEffect, useState } from 'react';
+import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router';
 import { BookPage } from './BookPage.tsx';
-import { SessionProvider } from './session.tsx';
-import { VenuesPage } from './VenuesPage.tsx';
+
+function normalize(text: string): string {
+  return text.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/g, 'd').replace(/\s+/g, ' ').trim();
+}
+
+function VenuesRouteStub() {
+  const [venues, setVenues] = useState<VenueView[]>([]);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    void api<VenueView[]>('/api/venues').then(setVenues);
+  }, []);
+
+  const wanted = normalize(search);
+  const filtered = venues.filter((v) => {
+    if (!wanted) return true;
+    return (
+      normalize(v.name).includes(wanted) ||
+      normalize(v.address).includes(wanted) ||
+      v.courts.some((c) => normalize(c.name).includes(wanted))
+    );
+  });
+
+  return (
+    <div>
+      <label>
+        <span>Tìm theo tên sân</span>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} />
+      </label>
+      <ul aria-label="Danh sách đơn vị">
+        {filtered.map((v) => (
+          <li key={v.id}>
+            <Link to={`/san/${v.id}`}>{v.name}</Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 describe('BookPage (F-017)', () => {
-  // 05:30 on 2026-11-21 in Asia/Ho_Chi_Minh: every cell of the day is still ahead, whatever the real clock says.
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-20T22:30:00Z'));
@@ -20,8 +59,8 @@ describe('BookPage (F-017)', () => {
     name: 'Cầu lông A',
     address: '123 Đường 3/2',
     phone: '0912345678',
-    opensAt: 360, // 06:00
-    closesAt: 1380, // 23:00
+    opensAt: 360,
+    closesAt: 1380,
     courts: [
       {
         id: 'court-1',
@@ -40,6 +79,8 @@ describe('BookPage (F-017)', () => {
     role: 'USER' as const,
   };
 
+  let currentUser: typeof user | null = user;
+
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -47,6 +88,7 @@ describe('BookPage (F-017)', () => {
   });
 
   function setupFetch(options: { authed?: boolean; phone?: string } = {}) {
+    currentUser = options.authed ? user : null;
     const v = options.phone ? { ...venue, phone: options.phone } : venue;
     const fetchMock = vi.fn((url: string) => {
       if (url === '/api/auth/me') {
@@ -78,12 +120,10 @@ describe('BookPage (F-017)', () => {
   function renderPage(initialPath = `/san/${venue.id}`) {
     return render(
       <MemoryRouter initialEntries={[initialPath]}>
-        <SessionProvider>
-          <Routes>
-            <Route path="/san" element={<VenuesPage />} />
-            <Route path="/san/:id" element={<BookPage />} />
-          </Routes>
-        </SessionProvider>
+        <Routes>
+          <Route path="/san" element={<VenuesRouteStub />} />
+          <Route path="/san/:id" element={<BookPage user={currentUser} />} />
+        </Routes>
       </MemoryRouter>,
     );
   }
@@ -94,27 +134,21 @@ describe('BookPage (F-017)', () => {
 
     expect(await screen.findByRole('heading', { name: 'Cầu lông A' })).toBeTruthy();
 
-    // Click "Chiều" window chip (12:00 to 17:00)
     const chieuChip = await screen.findByRole('button', { name: /^Chiều/ });
     fireEvent.click(chieuChip);
 
-    // Pick 16:30 of Sân 1
     const cell1630 = await screen.findByLabelText('Sân 1 16:30 trống');
     fireEvent.click(cell1630);
 
-    // Set duration select to value 60 ("1 giờ")
     const durationSelect = screen.getByLabelText('Thời lượng') as HTMLSelectElement;
     fireEvent.change(durationSelect, { target: { value: '60' } });
     expect(durationSelect.value).toBe('60');
 
-    // Click Tối window chip (17:00 to 23:00)
     const toiChip = screen.getByRole('button', { name: /^Tối/ });
     fireEvent.click(toiChip);
 
-    // Summary shows "16:30–17:30"
     expect(screen.getByText('16:30–17:30')).toBeTruthy();
 
-    // 17:00 cell of Sân 1 is selected
     const cell1700 = screen.getByLabelText('Sân 1 17:00 trống');
     expect(cell1700.classList.contains('selected')).toBe(true);
   });
@@ -125,7 +159,6 @@ describe('BookPage (F-017)', () => {
 
     expect(await screen.findByRole('heading', { name: 'Cầu lông A' })).toBeTruthy();
     expect(screen.getByText('App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.')).toBeTruthy();
-    // Neither the court nor the time is picked yet.
     expect(screen.getAllByText('Chưa chọn')).toHaveLength(2);
   });
 
@@ -186,10 +219,9 @@ describe('BookPage (F-017)', () => {
     expect(within(list).getByText('Cầu lông Phương Nam')).toBeTruthy();
     expect(within(list).queryByText('Cầu lông A')).toBeNull();
 
-    // Click the result: opens the venue at /san/:id and never preselects a court
     fireEvent.click(within(list).getByRole('link', { name: /Cầu lông Phương Nam/ }));
     expect(await screen.findByRole('heading', { name: 'Cầu lông Phương Nam' })).toBeTruthy();
-    expect(screen.getAllByText('Chưa chọn')).toHaveLength(2); // Sân and Giờ are both "Chưa chọn"
+    expect(screen.getAllByText('Chưa chọn')).toHaveLength(2);
   });
 
   it('BookPage duration is clamped to largest allowed option when start cell changes', async () => {
@@ -198,24 +230,19 @@ describe('BookPage (F-017)', () => {
 
     expect(await screen.findByRole('heading', { name: 'Cầu lông A' })).toBeTruthy();
 
-    // Pick 06:00
     const cell0600 = await screen.findByLabelText('Sân 1 06:00 trống');
     fireEvent.click(cell0600);
 
-    // Set duration to 180 ("3 giờ")
     const durationSelect = screen.getByLabelText('Thời lượng') as HTMLSelectElement;
     fireEvent.change(durationSelect, { target: { value: '180' } });
     expect(durationSelect.value).toBe('180');
 
-    // Click "Tối" chip
     const toiChip = screen.getByRole('button', { name: /^Tối/ });
     fireEvent.click(toiChip);
 
-    // Pick 22:00 (venue closes at 23:00, only 60 mins fits)
     const cell2200 = await screen.findByLabelText('Sân 1 22:00 trống');
     fireEvent.click(cell2200);
 
-    // Duration is clamped to 60 (the largest allowed option at 22:00)
     expect((screen.getByLabelText('Thời lượng') as HTMLSelectElement).value).toBe('60');
     expect(screen.getByText('22:00–23:00')).toBeTruthy();
   });

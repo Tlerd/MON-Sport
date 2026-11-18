@@ -1,12 +1,33 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { VenueView } from '@monsport/shared';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { api } from '@monsport/client';
+import { useEffect, useState } from 'react';
+import { MemoryRouter, Route, Routes, useParams } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BookPage } from './BookPage.tsx';
-import { SessionProvider } from './session.tsx';
+import { SlotGrid } from '../../components/SlotGrid.tsx';
 import { VenuesPage } from './VenuesPage.tsx';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
+
+function BookRouteStub() {
+  const { id } = useParams<{ id?: string }>();
+  const [venues, setVenues] = useState<VenueView[]>([]);
+
+  useEffect(() => {
+    void api<VenueView[]>('/api/venues').then(setVenues);
+  }, []);
+
+  const venue = id ? venues.find((v) => v.id === id) : venues[0];
+  if (!venue) return null;
+
+  return (
+    <div>
+      <h1>{venue.name}</h1>
+      <p>{NOTICE}</p>
+      <SlotGrid courts={venue.courts} opensAt={venue.opensAt} closesAt={venue.closesAt} />
+    </div>
+  );
+}
 
 describe('VenuesPage (F-033)', () => {
   afterEach(() => {
@@ -60,12 +81,10 @@ describe('VenuesPage (F-033)', () => {
   function renderAt(path: string) {
     return render(
       <MemoryRouter initialEntries={[path]}>
-        <SessionProvider>
-          <Routes>
-            <Route path="/san" element={<VenuesPage />} />
-            <Route path="/san/:id" element={<BookPage />} />
-          </Routes>
-        </SessionProvider>
+        <Routes>
+          <Route path="/san" element={<VenuesPage />} />
+          <Route path="/san/:id" element={<BookRouteStub />} />
+        </Routes>
       </MemoryRouter>,
     );
   }

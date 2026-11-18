@@ -1,25 +1,28 @@
-import { type CSSProperties, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { SKILL_LEVEL_LABELS, type SessionUser, type SkillLevel } from '@monsport/shared';
+import { Avatar } from '../components/Avatar.tsx';
 import { ComingSoonButton, ComingSoonPage } from '../components/ComingSoon.tsx';
 import { AccessTokensSection } from '../features/access-tokens/AccessTokensSection.tsx';
 import { AuthPanel } from '../features/auth/AuthPanel.tsx';
-import { ConsentScreen } from '../features/oauth/ConsentScreen.tsx';
 import { GoogleComplete } from '../features/auth/GoogleComplete.tsx';
 import { GoogleVerify } from '../features/auth/GoogleVerify.tsx';
 import { resolveGoogleError } from '../features/auth/googleErrors.ts';
 import { safeNext } from '../features/auth/safeNext.ts';
+import { BookPage as InnerBookPage } from '../features/bookings/book/BookPage.tsx';
 import { MyBookings } from '../features/bookings/MyBookings.tsx';
 import { OwnerRequests } from '../features/bookings/OwnerRequests.tsx';
 import { PhoneBookings } from '../features/bookings/PhoneBookings.tsx';
+import { HomePage as InnerHomePage } from '../features/home/HomePage.tsx';
 import { JoinedMatches } from '../features/matches/JoinedMatches.tsx';
 import { Lobby } from '../features/matches/Lobby.tsx';
-import { MyVenues } from '../features/venues/MyVenues.tsx';
+import { ConsentScreen } from '../features/oauth/ConsentScreen.tsx';
+import { OwnerOverview as InnerOwnerOverview } from '../features/owner/OwnerOverview.tsx';
+import { SchedulePage as InnerSchedulePage } from '../features/schedule/SchedulePage.tsx';
 import { StaffSection } from '../features/staff/StaffSection.tsx';
-import { BookPage as InnerBookPage } from './BookPage.tsx';
-import { HomePage as InnerHomePage } from './HomePage.tsx';
+import { MyVenues } from '../features/venues/MyVenues.tsx';
+import { VenuesPage as InnerVenuesPage } from '../features/venues/VenuesPage.tsx';
 import { useSession } from './session.tsx';
-import { VenuesPage as InnerVenuesPage } from './VenuesPage.tsx';
 
 export function HomePage() {
   const [searchParams] = useSearchParams();
@@ -27,7 +30,6 @@ export function HomePage() {
   const googleError = searchParams.get('google_error');
   const { user, setUser } = useSession();
   const navigate = useNavigate();
-  // A signed-in user comes back here from the link flow with ?google_error=<code>.
   const signedInGoogleError = user && googleError ? resolveGoogleError(googleError) : null;
   const [googleNotice, setGoogleNotice] = useState<string | null>(signedInGoogleError);
 
@@ -80,7 +82,7 @@ export function HomePage() {
           </button>
         </div>
       )}
-      <InnerHomePage />
+      <InnerHomePage user={user ?? null} />
     </>
   );
 }
@@ -90,7 +92,8 @@ export function VenuesPage() {
 }
 
 export function BookPage() {
-  return <InnerBookPage />;
+  const { user, bumpRefresh } = useSession();
+  return <InnerBookPage user={user ?? null} onBooked={bumpRefresh} />;
 }
 
 export function OwnerRequestsPage() {
@@ -217,7 +220,6 @@ export function TeamsPage() {
   );
 }
 
-/** Brief F-038: the "Cho phép" screen gets the session user from the app layer. */
 export function ConsentPage() {
   const { user } = useSession();
   return <ConsentScreen user={user} />;
@@ -227,18 +229,11 @@ export function ProfilePage() {
   const { user } = useSession();
   const profile = user as (SessionUser & { phone?: string | null; skillLevel?: SkillLevel | null }) | null;
   const displayName = profile?.name ?? '';
-  const avatarInitial = [...(displayName.normalize('NFC').trim().split(/\s+/).at(-1) ?? '')][0] ?? '';
 
   return (
     <div className="page narrow">
       <section className="card phead">
-        <span
-          className="av"
-          style={{ '--s': '88px', '--c': 'var(--ok)' } as CSSProperties}
-          aria-hidden="true"
-        >
-          {avatarInitial}
-        </span>
+        <Avatar name={displayName} size={88} />
         <div>
           <h1>{displayName}</h1>
           {profile?.phone && <p className="meta">{profile.phone}</p>}
@@ -279,5 +274,11 @@ export function ProfilePage() {
   );
 }
 
-export { SchedulePage } from './SchedulePage.tsx';
-export { OwnerOverview } from './OwnerOverview.tsx';
+export function SchedulePage() {
+  const { refreshKey, bumpRefresh } = useSession();
+  return <InnerSchedulePage refreshKey={refreshKey} onRefresh={bumpRefresh} />;
+}
+
+export function OwnerOverview() {
+  return <InnerOwnerOverview />;
+}
