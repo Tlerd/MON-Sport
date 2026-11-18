@@ -1,6 +1,7 @@
-import { api, ApiError } from '@monsport/client';
+import { api } from '@monsport/client';
 import type { SessionUser } from '@monsport/shared';
 import { useState, type FormEvent } from 'react';
+import { useAction } from '../../hooks/useAction.ts';
 import { useSession } from '../../app/session.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
 
@@ -16,14 +17,11 @@ export function LoginSheet({ open, onClose, onLoggedIn, onSwitchToRegister, noti
   const { login, refresh } = useSession();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { run, busy, error, setError } = useAction();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError('');
-    setBusy(true);
-    try {
+    await run(async () => {
       const loggedIn = await api<SessionUser | undefined>('/api/auth/login', {
         method: 'POST',
         json: { phone, password },
@@ -32,11 +30,7 @@ export function LoginSheet({ open, onClose, onLoggedIn, onSwitchToRegister, noti
       await refresh();
       onClose();
       onLoggedIn?.();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không kết nối được. Thử lại sau');
-    } finally {
-      setBusy(false);
-    }
+    }, 'Không kết nối được. Thử lại sau');
   };
 
   return (

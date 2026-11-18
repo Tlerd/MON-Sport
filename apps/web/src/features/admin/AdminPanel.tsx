@@ -1,25 +1,21 @@
 import type { AccountView } from '@monsport/shared';
 import { type FormEvent, useEffect, useState } from 'react';
-import { api, ApiError } from '@monsport/client';
+import { errorMessage, api } from '@monsport/client';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { AccountLock } from './AccountLock.tsx';
 import { AdminStats } from './AdminStats.tsx';
 import { VenueAdmin } from './VenueAdmin.tsx';
 
-const message = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
-
-/** The admin screen: accounts and venues (brief F-003), and the numbers of the whole site (brief F-016). */
 export function AdminPanel({ view = 'accounts' }: { view?: 'accounts' | 'stats' } = {}) {
   return view === 'stats' ? <AdminStats /> : <AccountsTab />;
 }
 
-/** UC-10: the admin creates owners, venues, and courts, and locks accounts (brief F-003). */
 function AccountsTab() {
   const [owners, setOwners] = useState<AccountView[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api<AccountView[]>('/api/admin/owners').then(setOwners, (err) => setError(message(err, 'Không tải được danh sách chủ sân')));
+    api<AccountView[]>('/api/admin/owners').then(setOwners, (err) => setError(errorMessage(err, 'Không tải được danh sách chủ sân')));
   }, []);
 
   return (
@@ -75,7 +71,6 @@ function AccountsTab() {
   );
 }
 
-/** UC-10, step 1: an owner account with a first password that the admin hands over in person. */
 function OwnerForm({ onCreated }: { onCreated: (owner: AccountView) => void }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -91,7 +86,7 @@ function OwnerForm({ onCreated }: { onCreated: (owner: AccountView) => void }) {
       setPhone('');
       setPassword('');
     } catch (err) {
-      setError(message(err, 'Không tạo được chủ sân'));
+      setError(errorMessage(err, 'Không tạo được chủ sân'));
     }
   }
 

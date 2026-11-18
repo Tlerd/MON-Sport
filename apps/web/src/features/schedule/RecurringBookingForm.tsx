@@ -9,7 +9,6 @@ import {
 } from '@monsport/shared';
 import {
   api,
-  ApiError,
   DURATIONS,
   durationLabel,
   formatDay,
@@ -19,6 +18,7 @@ import {
   slotAt as at,
 } from '@monsport/client';
 import { type FormEvent, useState } from 'react';
+import { useAction } from '../../hooks/useAction.ts';
 
 interface RecurringBookingFormProps {
   selectedVenue?: VenueView;
@@ -42,16 +42,12 @@ export function RecurringBookingForm({
   const [panelPhone, setPanelPhone] = useState('');
   const [panelRecurring, setPanelRecurring] = useState(false);
   const [panelWeeks, setPanelWeeks] = useState(4);
-  const [panelError, setPanelError] = useState('');
-  const [panelBusy, setPanelBusy] = useState(false);
+  const { run, busy: panelBusy, error: panelError } = useAction();
 
   async function submitPhoneBooking(e: FormEvent) {
     e.preventDefault();
     if (!selectedVenue || panelBusy) return;
-    setPanelError('');
-    setPanelBusy(true);
-
-    try {
+    await run(async () => {
       const basePayload = {
         courtId: panelCourtId,
         startAt: at(selectedDate, panelStart),
@@ -90,11 +86,7 @@ export function RecurringBookingForm({
           `Đã lưu booking ${formatTime(booking.startAt)}–${formatTime(booking.endAt)} ngày ${formatDay(booking.startAt)}.`,
         );
       }
-    } catch (err) {
-      setPanelError(err instanceof ApiError ? err.message : 'Không lưu được booking');
-    } finally {
-      setPanelBusy(false);
-    }
+    }, 'Không lưu được booking');
   }
 
   const panelCourt = selectedVenue?.courts.find((c) => c.id === panelCourtId);

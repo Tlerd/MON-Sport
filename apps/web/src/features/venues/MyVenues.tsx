@@ -1,20 +1,19 @@
 import type { CourtView, VenueView } from '@monsport/shared';
 import { Plus } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { api, ApiError, hhmm } from '@monsport/client';
+import { errorMessage, api, hhmm } from '@monsport/client';
 import { ComingSoonButton } from '../../components/ComingSoon.tsx';
 import { CourtArt } from '../../components/CourtArt.tsx';
 import { CourtPrices } from '../../components/CourtPrices.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { HoursForm, PriceForm } from './OwnerEdits.tsx';
 
-/** UC-10 and BR-23: an owner sees only their own venues, with the courts and prices. UC-11: the owner edits them. */
 export function MyVenues({ renderStaff }: { renderStaff?: (venue: VenueView) => ReactNode } = {}) {
   const [venues, setVenues] = useState<VenueView[] | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api<VenueView[]>('/api/owner/venues').then(setVenues, (err) => setError(err instanceof ApiError ? err.message : 'Không tải được đơn vị của bạn'));
+    api<VenueView[]>('/api/owner/venues').then(setVenues, (err) => setError(errorMessage(err, 'Không tải được đơn vị của bạn')));
   }, []);
 
   const put = (v: VenueView) => setVenues((list) => list?.map((x) => (x.id === v.id ? v : x)) ?? null);
@@ -47,7 +46,6 @@ export function MyVenues({ renderStaff }: { renderStaff?: (venue: VenueView) => 
   );
 }
 
-/** One form at a time: the opening hours, or the prices of one court. */
 function VenueCard({
   venue: v,
   onSaved,
@@ -58,7 +56,6 @@ function VenueCard({
   renderStaff?: (venue: VenueView) => ReactNode;
 }) {
   const [editing, setEditing] = useState<'hours' | string | null>(null);
-  // When a form closes, focus goes back to the button that opened it, so a keyboard user keeps their place.
   const opener = useRef<string | null>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   useEffect(() => {

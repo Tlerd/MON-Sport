@@ -1,13 +1,12 @@
 import type { BookingView, OwnerBookingView, PaidAtVenueResponse } from '@monsport/shared';
 import { useEffect, useState } from 'react';
-import { api, ApiError, formatDay, formatTime, formatVnd } from '@monsport/client';
+import { errorMessage, api, formatDay, formatTime, formatVnd } from '@monsport/client';
 import { Avatar } from '../../components/Avatar.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { Customer } from '../../components/Customer.tsx';
 import { STATUS_LABEL } from './status.ts';
 
-/** UC-4: the owner confirms or rejects each pending request. */
 export function OwnerRequests({ canManagePayment = true }: { canManagePayment?: boolean } = {}) {
   const [rows, setRows] = useState<OwnerBookingView[] | null>(null);
   const [error, setError] = useState('');
@@ -23,7 +22,7 @@ export function OwnerRequests({ canManagePayment = true }: { canManagePayment?: 
       const updated = await api<BookingView>(`/api/owner/bookings/${id}/${action}`, { method: 'POST' });
       setRows((list) => list?.map((r) => (r.id === id ? { ...r, ...updated, customer: r.customer } : r)) ?? null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không lưu được quyết định');
+      setError(errorMessage(err, 'Không lưu được quyết định'));
     }
   }
 
@@ -34,12 +33,11 @@ export function OwnerRequests({ canManagePayment = true }: { canManagePayment?: 
     try {
       const updated = await api<PaidAtVenueResponse>(`/api/owner/bookings/${id}/paid`, {
         method: 'PATCH',
-        // `json` makes the shared client set content-type: application/json. A plain `body` went out as text/plain, and the API answered 400.
         json: { paidAtVenue },
       });
       setRows((list) => list?.map((r) => (r.id === id ? { ...r, paidAtVenue: updated.paidAtVenue } : r)) ?? null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không cập nhật được trạng thái thu tiền');
+      setError(errorMessage(err, 'Không cập nhật được trạng thái thu tiền'));
     } finally {
       setTogglingIds((prev) => {
         const next = new Set(prev);

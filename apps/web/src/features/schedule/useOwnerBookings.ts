@@ -7,7 +7,7 @@ import {
   type OwnerBookingView,
   type VenueView,
 } from '@monsport/shared';
-import { api, ApiError } from '@monsport/client';
+import { errorMessage, api } from '@monsport/client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { SelectedSlot, SlotCellInfo, WindowId } from '../../components/SlotGrid.tsx';
 
@@ -151,7 +151,7 @@ export function useOwnerBookings({ refreshKey = 0, onRefresh }: UseOwnerBookings
       onRefresh?.();
       loadBookings();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không lưu được quyết định');
+      setError(errorMessage(err, 'Không lưu được quyết định'));
     }
   }
 

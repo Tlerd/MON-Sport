@@ -1,4 +1,4 @@
-import { api, ApiError } from '@monsport/client';
+import { ApiError, errorMessage, api } from '@monsport/client';
 import type { MatchDetailView, MatchRequestView, MatchView, SessionUser } from '@monsport/shared';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -125,7 +125,7 @@ export function useMatchDetail({ user, joinedRows, reload, openSessionLogin }: U
           closeDetail();
           openSessionLogin();
         } else if (initial) {
-          setDetailError(err instanceof ApiError ? err.message : 'Không tải được');
+          setDetailError(errorMessage(err, 'Không tải được'));
         }
       }
     },
@@ -154,7 +154,7 @@ export function useMatchDetail({ user, joinedRows, reload, openSessionLogin }: U
           if (detailTargetIdRef.current === matchId) closeDetail();
           openSessionLogin();
         } else if (detailTargetIdRef.current === matchId) {
-          setDetailError(err instanceof ApiError ? err.message : 'Không kết nối được. Thử lại sau');
+          setDetailError(errorMessage(err, 'Không kết nối được. Thử lại sau'));
           if (err instanceof ApiError && err.status === 409) {
             void loadDetail(matchId, true, false);
             reload();

@@ -1,4 +1,4 @@
-import { api, ApiError } from '@monsport/client';
+import { ApiError, errorMessage, api } from '@monsport/client';
 import type { MatchDetailView, MatchView, SessionUser } from '@monsport/shared';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { REQUEST_REJECTED_TEXT } from './LobbyMatchCard.tsx';
@@ -134,7 +134,7 @@ export function useMatchActions(opts: UseMatchActionsOptions) {
           if (detailTargetIdRef.current === id) closeDetail();
           openSessionLogin();
         } else {
-          const msg = err instanceof ApiError ? err.message : 'Không kết nối được. Thử lại sau';
+          const msg = errorMessage(err, 'Không kết nối được. Thử lại sau');
           setCardErrors((prev) => ({ ...prev, [id]: msg }));
           if (detailTargetIdRef.current === id) setDetailError(msg);
           if (err instanceof ApiError && err.status === 409) {

@@ -1,6 +1,7 @@
 export * from './access-tokens.ts';
 export * from './oauth.ts';
 export * from './api.ts';
+export * from './errors.ts';
 export * from './booking.ts';
 export * from './format.ts';
 export * from './lobby.ts';

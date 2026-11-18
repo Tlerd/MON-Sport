@@ -1,6 +1,7 @@
-import { api, ApiError } from '@monsport/client';
+import { errorMessage, api } from '@monsport/client';
 import type { PlayerRatingView } from '@monsport/shared';
 import { useEffect, useState } from 'react';
+import { useAction } from '../../hooks/useAction.ts';
 
 interface RatingPanelProps {
   matchId: string;
@@ -10,16 +11,13 @@ interface RatingPanelProps {
 function PlayerRatingRow({ matchId, player }: { matchId: string; player: PlayerRatingView }) {
   const [stars, setStars] = useState<number | null>(player.stars);
   const [noShow, setNoShow] = useState<boolean>(player.noShow ?? false);
-  const [saving, setSaving] = useState(false);
+  const { run, busy: saving, error, setError } = useAction();
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
 
   async function handleSave() {
     if (saving) return;
-    setSaving(true);
-    setError('');
     setSaved(false);
-    try {
+    await run(async () => {
       const payload = {
         stars: noShow ? null : stars,
         noShow,
@@ -29,11 +27,7 @@ function PlayerRatingRow({ matchId, player }: { matchId: string; player: PlayerR
         json: payload,
       });
       setSaved(true);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không lưu được điểm');
-    } finally {
-      setSaving(false);
-    }
+    }, 'Không lưu được điểm');
   }
 
   return (
@@ -88,10 +82,6 @@ function PlayerRatingRow({ matchId, player }: { matchId: string; player: PlayerR
   );
 }
 
-/**
- * Brief F-032 (AC-8): rating panel for a match hosted by the user within 7 days after startAt.
- * Host rates each active player: 1 to 5 stars, or marks "Vắng mặt" (noShow).
- */
 export function RatingPanel({ matchId, onClose }: RatingPanelProps) {
   const [players, setPlayers] = useState<PlayerRatingView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +100,7 @@ export function RatingPanel({ matchId, onClose }: RatingPanelProps) {
       })
       .catch((err) => {
         if (active) {
-          setError(err instanceof ApiError ? err.message : 'Không tải được danh sách người chơi');
+          setError(errorMessage(err, 'Không tải được danh sách người chơi'));
           setLoading(false);
         }
       });

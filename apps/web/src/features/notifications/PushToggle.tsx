@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ApiError, disablePush, enablePush, getPublicKey, isPushOn, PushPermissionError, pushSupported } from '@monsport/client';
+import { errorMessage, disablePush, enablePush, getPublicKey, isPushOn, PushPermissionError, pushSupported } from '@monsport/client';
 
 type State = 'loading' | 'hidden' | 'unsupported' | 'denied' | 'off' | 'on';
 
@@ -7,11 +7,6 @@ const DENIED = 'Trình duyệt đang chặn thông báo. Hãy bật lại trong 
 const UNSUPPORTED =
   'Trình duyệt này chưa hỗ trợ thông báo. Trên iPhone, hãy chọn Chia sẻ, rồi Thêm vào Màn hình chính, rồi mở app từ biểu tượng. Trên Android, hãy mở app bằng Chrome';
 
-/**
- * Brief F-014 (UC-14): the button that turns Web Push on or off for this device, inside the notification drawer.
- * The tap and the browser dialog are the consent (Assumption 1). Nothing shows while the state loads, or when the server
- * has Web Push off.
- */
 export function PushToggle({ userId }: { userId: string }) {
   const [state, setState] = useState<State>('loading');
   const [busy, setBusy] = useState(false);
@@ -23,7 +18,6 @@ export function PushToggle({ userId }: { userId: string }) {
       if (alive) setState(next);
     };
     (async () => {
-      // The key comes first: when the server has Web Push off, no hint shows either.
       if (!(await getPublicKey())) return settle('hidden');
       if (!pushSupported()) return settle('unsupported');
       if (Notification.permission === 'denied') return settle('denied');
@@ -43,7 +37,7 @@ export function PushToggle({ userId }: { userId: string }) {
     } catch (e) {
       if (e instanceof PushPermissionError && e.permission === 'denied') setState('denied');
       else if (e instanceof PushPermissionError) setError('Bạn chưa cho phép thông báo. Hãy thử lại.');
-      else setError(e instanceof ApiError ? e.message : 'Chưa bật được thông báo. Hãy thử lại.');
+      else setError(errorMessage(e, 'Chưa bật được thông báo. Hãy thử lại.'));
     } finally {
       setBusy(false);
     }
@@ -64,8 +58,6 @@ export function PushToggle({ userId }: { userId: string }) {
       {state === 'unsupported' && <p className="push-note">{UNSUPPORTED}</p>}
       {state === 'denied' && <p className="push-note push-denied">{DENIED}</p>}
       {(state === 'off' || state === 'on') && (
-        // One element for both states, so the keyboard focus stays on it. While it works it is aria-disabled, not
-        // disabled: a disabled button loses the focus.
         <button
           type="button"
           className={state === 'on' ? 'btn sm ghost wide push-button quiet' : 'btn sm lime wide push-button'}
