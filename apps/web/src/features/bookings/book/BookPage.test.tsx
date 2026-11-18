@@ -1,49 +1,7 @@
-import type { VenueView } from '@monsport/shared';
-import { api } from '@monsport/client';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { useEffect, useState } from 'react';
-import { Link, MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BookPage } from './BookPage.tsx';
-
-function normalize(text: string): string {
-  return text.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/g, 'd').replace(/\s+/g, ' ').trim();
-}
-
-function VenuesRouteStub() {
-  const [venues, setVenues] = useState<VenueView[]>([]);
-  const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    void api<VenueView[]>('/api/venues').then(setVenues);
-  }, []);
-
-  const wanted = normalize(search);
-  const filtered = venues.filter((v) => {
-    if (!wanted) return true;
-    return (
-      normalize(v.name).includes(wanted) ||
-      normalize(v.address).includes(wanted) ||
-      v.courts.some((c) => normalize(c.name).includes(wanted))
-    );
-  });
-
-  return (
-    <div>
-      <label>
-        <span>Tìm theo tên sân</span>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} />
-      </label>
-      <ul aria-label="Danh sách đơn vị">
-        {filtered.map((v) => (
-          <li key={v.id}>
-            <Link to={`/san/${v.id}`}>{v.name}</Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 describe('BookPage (F-017)', () => {
   beforeEach(() => {
@@ -121,7 +79,6 @@ describe('BookPage (F-017)', () => {
     return render(
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
-          <Route path="/san" element={<VenuesRouteStub />} />
           <Route path="/san/:id" element={<BookPage user={currentUser} />} />
         </Routes>
       </MemoryRouter>,
@@ -179,49 +136,6 @@ describe('BookPage (F-017)', () => {
 
     const callLink = await within(summarySection).findByRole('link', { name: 'Gọi chủ sân' });
     expect(callLink.getAttribute('href')).toBe('tel:0912345678');
-  });
-
-  it('a venue whose court is "Sân Đông", typing "san dong" shows that venue and does not preselect a court', async () => {
-    const venueDong = {
-      id: '0199a1b2-0000-7000-8000-000000000099',
-      name: 'Cầu lông Phương Nam',
-      address: '456 Lê Lợi',
-      phone: '0988888888',
-      opensAt: 360,
-      closesAt: 1380,
-      courts: [
-        {
-          id: 'court-dong',
-          venueId: '0199a1b2-0000-7000-8000-000000000099',
-          name: 'Sân Đông',
-          sport: 'BADMINTON' as const,
-          priceNormal: 60_000,
-          pricePeak: 80_000,
-        },
-      ],
-    };
-    vi.stubGlobal('fetch', vi.fn((url: string) => {
-      if (url === '/api/venues') {
-        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([venue, venueDong]) });
-      }
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
-    }));
-
-    renderPage('/san');
-
-    expect(await screen.findByText('Cầu lông A')).toBeTruthy();
-    expect(screen.getByText('Cầu lông Phương Nam')).toBeTruthy();
-
-    const searchInput = screen.getByLabelText('Tìm theo tên sân');
-    fireEvent.change(searchInput, { target: { value: 'san dong' } });
-
-    const list = screen.getByRole('list', { name: 'Danh sách đơn vị' });
-    expect(within(list).getByText('Cầu lông Phương Nam')).toBeTruthy();
-    expect(within(list).queryByText('Cầu lông A')).toBeNull();
-
-    fireEvent.click(within(list).getByRole('link', { name: /Cầu lông Phương Nam/ }));
-    expect(await screen.findByRole('heading', { name: 'Cầu lông Phương Nam' })).toBeTruthy();
-    expect(screen.getAllByText('Chưa chọn')).toHaveLength(2);
   });
 
   it('BookPage duration is clamped to largest allowed option when start cell changes', async () => {

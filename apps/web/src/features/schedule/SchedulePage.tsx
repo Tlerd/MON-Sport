@@ -1,5 +1,5 @@
 import { Calendar, ChevronDown, Plus } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Chip } from '../../components/Chip.tsx';
 import { Panel } from '../../components/Panel.tsx';
 import { SlotGrid, type SlotCellInfo } from '../../components/SlotGrid.tsx';
@@ -43,7 +43,6 @@ export function SchedulePage({ refreshKey = 0, onRefresh }: SchedulePageProps = 
   const [panelStart, setPanelStart] = useState(360);
   const [panelSeq, setPanelSeq] = useState(0);
   const [saved, setSaved] = useState('');
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   function openPhoneBooking(courtId: string, startMinute: number) {
     setSaved('');
@@ -132,7 +131,6 @@ export function SchedulePage({ refreshKey = 0, onRefresh }: SchedulePageProps = 
                 <Calendar size={14} aria-hidden="true" />
                 <span>Ngày khác</span>
                 <input
-                  ref={dateInputRef}
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}

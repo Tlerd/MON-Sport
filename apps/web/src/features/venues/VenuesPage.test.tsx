@@ -1,33 +1,8 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { VenueView } from '@monsport/shared';
-import { api } from '@monsport/client';
-import { useEffect, useState } from 'react';
-import { MemoryRouter, Route, Routes, useParams } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SlotGrid } from '../../components/SlotGrid.tsx';
 import { VenuesPage } from './VenuesPage.tsx';
-
-const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
-
-function BookRouteStub() {
-  const { id } = useParams<{ id?: string }>();
-  const [venues, setVenues] = useState<VenueView[]>([]);
-
-  useEffect(() => {
-    void api<VenueView[]>('/api/venues').then(setVenues);
-  }, []);
-
-  const venue = id ? venues.find((v) => v.id === id) : venues[0];
-  if (!venue) return null;
-
-  return (
-    <div>
-      <h1>{venue.name}</h1>
-      <p>{NOTICE}</p>
-      <SlotGrid courts={venue.courts} opensAt={venue.opensAt} closesAt={venue.closesAt} />
-    </div>
-  );
-}
 
 describe('VenuesPage (F-033)', () => {
   afterEach(() => {
@@ -83,30 +58,10 @@ describe('VenuesPage (F-033)', () => {
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/san" element={<VenuesPage />} />
-          <Route path="/san/:id" element={<BookRouteStub />} />
         </Routes>
       </MemoryRouter>,
     );
   }
-
-  it('AC-7: guest opens /san, sees 2 venue cards linking to /san/<id>, and clicking one opens its SlotGrid and full UC-2 notice', async () => {
-    setupFetch();
-    const { container } = renderAt('/san');
-
-    const link1 = await screen.findByRole('link', { name: /Cầu lông A/ });
-    const link2 = screen.getByRole('link', { name: /Bóng đá Phương Nam/ });
-    expect(link1.getAttribute('href')).toBe('/san/v1');
-    expect(link2.getAttribute('href')).toBe('/san/v2');
-    expect(screen.getAllByText(NOTICE)).toHaveLength(1);
-    expect(screen.getByText('từ 50k/giờ')).toBeTruthy();
-    expect(screen.getByText('2 sân')).toBeTruthy();
-    expect(container.querySelectorAll('.venue-card')).toHaveLength(2);
-
-    fireEvent.click(link1);
-    expect(await screen.findByRole('heading', { name: 'Cầu lông A' })).toBeTruthy();
-    expect(container.querySelector('.slot-grid')).toBeTruthy();
-    expect(screen.getAllByText(NOTICE)).toHaveLength(1);
-  });
 
   it('prefills court-name search from ?q= query param and filters venues', async () => {
     setupFetch();

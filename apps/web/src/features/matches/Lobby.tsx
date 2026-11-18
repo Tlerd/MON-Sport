@@ -6,12 +6,10 @@ import { EmptyState } from '../../components/EmptyState.tsx';
 import { MatchCardContent } from '../../components/MatchCard.tsx';
 import { useToast } from '../../components/Toast.tsx';
 import { LobbyFilters } from './LobbyFilters.tsx';
-import { formatReputation, MatchDetailPanel } from './MatchDetailPanel.tsx';
+import { MatchDetailPanel } from './MatchDetailPanel.tsx';
 import { useLobbyMatches } from './useLobbyMatches.ts';
 import { useMatchActions } from './useMatchActions.ts';
 import { useMatchDetail } from './useMatchDetail.ts';
-
-export { formatReputation };
 
 export interface LobbyProps {
   refresh?: number;

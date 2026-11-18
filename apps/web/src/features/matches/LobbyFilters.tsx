@@ -1,6 +1,5 @@
 import { SKILL_LEVEL_LABELS, type SkillLevel } from '@monsport/shared';
 import { CalendarDays, ChevronDown } from 'lucide-react';
-import { useRef } from 'react';
 import { Chip } from '../../components/Chip.tsx';
 import { SportIcon } from '../../components/SportIcon.tsx';
 import { formatDayChip } from '../../lib/dates.ts';
@@ -34,7 +33,6 @@ export function LobbyFilters({
   matchCount,
   onComingSoon,
 }: LobbyFiltersProps) {
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="filter-chips-row">
@@ -87,7 +85,6 @@ export function LobbyFilters({
           <CalendarDays size={16} className="ic" aria-hidden="true" />
           <span>Ngày khác</span>
           <input
-            ref={dateInputRef}
             type="date"
             aria-label="Ngày khác"
             value={date}

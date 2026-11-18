@@ -203,7 +203,6 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 
 ## apps/web/src/app/shells/
 - AdminShell.tsx: AdminShell
-- MobileBanner.tsx: MobileBanner
 - OwnerShell.tsx: OwnerShell
 - PlayerShell.tsx: PlayerShell
 - TopBar.tsx: ROLE_LABEL, navClass, TopBar
@@ -216,6 +215,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - ComingSoon.tsx: ComingSoonButtonProps, ComingSoonButton, ComingSoonPageProps, ComingSoonPage
 - CourtArt.tsx: CourtArtProps, CourtArt
 - CourtPrices.tsx: CourtPrices
+- Customer.tsx: Customer
 - EmptyState.tsx: EmptyStateProps, EmptyState
 - MatchCard.tsx: SPORT_LABEL, BOOKING_BADGE, stubDay, formatPriceK, MatchCardContent
 - Panel.tsx: PanelProps, Panel
@@ -255,7 +255,6 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 - PhoneBookings.tsx: PhoneBookings
 - RatingPanel.tsx: RatingPanel
 - cancel.tsx: useCancelFlow, CancelAskState, CancelAsk
-- customer.tsx: Customer
 - status.ts: STATUS_LABEL
 
 ## apps/web/src/features/bookings/book/

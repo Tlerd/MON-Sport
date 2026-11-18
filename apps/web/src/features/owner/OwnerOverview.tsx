@@ -3,6 +3,7 @@ import { api, formatDay, formatTime } from '@monsport/client';
 import { useEffect, useState } from 'react';
 import { ChevronRight, Inbox } from 'lucide-react';
 import { NavLink } from 'react-router';
+import { Customer } from '../../components/Customer.tsx';
 
 export function OwnerOverview({ now }: { now?: Date } = {}) {
   const [pending, setPending] = useState<OwnerBookingView[]>([]);
@@ -88,14 +89,7 @@ export function OwnerOverview({ now }: { now?: Date } = {}) {
                     <span>đến {formatTime(r.endAt)}</span>
                   </span>
                   <span className="body">
-                    <span className="customer">
-                      {r.customer.name || 'Khách gọi điện'}
-                      {r.customer.phone && (
-                        <a className="phone" href={`tel:${r.customer.phone}`}>
-                          {r.customer.phone}
-                        </a>
-                      )}
-                    </span>
+                    <Customer customer={r.customer} />
                     <span className="meta">
                       <span>Ngày {formatDay(r.startAt)}</span>
                       <span>
