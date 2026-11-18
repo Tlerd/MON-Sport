@@ -176,9 +176,12 @@ jobs:
           name: verify-flow
           path: verify-output/
           if-no-files-found: ignore
-      # The runner keeps its images between runs, so remove the container and the dangling images of old builds.
+      # The runner keeps its images, build cache, and volumes between runs. They filled drive D twice
+      # (docs/known-issues.md), so keep 5 GB of build cache and remove the volumes of old postgres services.
       - name: Remove the container and old images
         if: always()
         run: |
           docker rm --force monsport-ci-app || true
           docker image prune --force --filter "dangling=true" || true
+          docker builder prune --force --keep-storage 5GB || true
+          docker volume prune --force || true

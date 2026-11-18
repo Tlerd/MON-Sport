@@ -46,3 +46,16 @@ Errors that happened before. When a new error looks the same, apply the fix firs
 - Fix: do not change that setting and do not bypass the sandbox. It is the owner's security setting. Start the task with: "Your terminal sandbox has no Node.js. Do not run any terminal command. Only read and write files. The Planner runs `pnpm map` and `pnpm check` and sends you each failure." Then run the checks yourself and send the failures back in a new run.
 - agy has no tool to delete a file. Read its final report: it lists each file the Planner must delete.
 - A run can also end with `The stream was interrupted` and a partial diff. Start a new run that says "CONTINUATION", lists the failing tests, and tells agy to read the working tree first.
+
+## The runner `monsport-wsl` is offline and Ubuntu does not start
+
+- Seen: 2026-11-11 and 2026-11-18. `wsl` prints `Wsl/Service/CreateInstance/E_FAIL`. CI jobs stay queued or stop.
+- Cause: drive D is full. `D:\WSL\Ubuntu\ext4.vhdx` grows with the Docker build cache and the volumes of CI postgres services.
+- Fix: do these in order.
+  1. Cancel the queued CI runs with `gh run cancel <id>`.
+  2. Free about 1 GB on D. Delete `node_modules` in clean worktrees, or move files to C.
+  3. Run `wsl -d Ubuntu --exec sh -c "docker builder prune -af; docker volume prune -f"`.
+  4. Run `wsl -d Ubuntu -u root --exec /usr/sbin/fstrim -v /`.
+  5. Run `Start-ScheduledTask WSL-KeepAlive` in PowerShell. Check that the runner is `online`.
+- The vhdx file does not get smaller by itself. The owner shrinks it with an elevated `diskpart`: `select vdisk file=D:\WSL\Ubuntu\ext4.vhdx`, `attach vdisk readonly`, `compact vdisk`, `detach vdisk`. Run `wsl --shutdown` first.
+- Prevention: the last step of the `image` job keeps 5 GB of build cache and removes unused volumes.
