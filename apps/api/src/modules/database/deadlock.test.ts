@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { retryOnDeadlock } from './prisma.service.js';
+import { conflictOnDeadlock, retryOnDeadlock } from './prisma.service.js';
 
 const deadlock = () => ({ code: '40P01' });
 const BUSY = 'Yêu cầu đang được xử lý, hãy thử lại';
@@ -39,5 +39,28 @@ describe('retryOnDeadlock', () => {
     const work = vi.fn().mockRejectedValueOnce(first).mockRejectedValueOnce(second);
     await expect(retryOnDeadlock(work)).rejects.toBe(second);
     expect(work).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('conflictOnDeadlock', () => {
+  it('returns the result of a call that succeeds', async () => {
+    const work = vi.fn().mockResolvedValue('ok');
+    expect(await conflictOnDeadlock(work, BUSY)).toBe('ok');
+    expect(work).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers a ConflictException with the busy message after one deadlock', async () => {
+    const work = vi.fn().mockRejectedValue(deadlock());
+    const failure = conflictOnDeadlock(work, BUSY);
+    await expect(failure).rejects.toBeInstanceOf(ConflictException);
+    await expect(failure).rejects.toThrow(BUSY);
+    expect(work).toHaveBeenCalledTimes(1);
+  });
+
+  it('rethrows another error unchanged after one run', async () => {
+    const boom = new Error('boom');
+    const work = vi.fn().mockRejectedValue(boom);
+    await expect(conflictOnDeadlock(work, BUSY)).rejects.toBe(boom);
+    expect(work).toHaveBeenCalledTimes(1);
   });
 });

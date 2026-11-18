@@ -54,7 +54,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/api/src/modules/database/
 - clock.ts: Clock
 - database.module.ts: DatabaseModule
-- prisma.service.ts: PrismaService, isExclusionViolation, isDeadlock, retryOnDeadlock
+- prisma.service.ts: PrismaService, isExclusionViolation, isDeadlock, retryOnDeadlock, conflictOnDeadlock
 
 ## apps/api/src/modules/finance/
 - finance.controller.ts: FinanceController

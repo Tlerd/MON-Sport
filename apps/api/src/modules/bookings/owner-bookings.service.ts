@@ -14,7 +14,7 @@ import {
 } from '@monsport/shared';
 import { type Booking, Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
-import { isDeadlock, PrismaService, retryOnDeadlock } from '../database/prisma.service.js';
+import { conflictOnDeadlock, PrismaService, retryOnDeadlock } from '../database/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import {
   assertOpen,
@@ -199,32 +199,30 @@ export class OwnerBookingsService {
     const found = await this.prisma.booking.findUnique({ where: { id: bookingId }, select: { courtId: true } });
     if (!found) throw new NotFoundException('Không tìm thấy booking');
     const now = this.clock.now();
-    let outcome: { count: number; booking: Booking & { court: { venue: { id: string; ownerId: string } } } };
-    try {
-      outcome = await this.prisma.$transaction(async (tx) => {
-        await lockVenueOf(tx, found.courtId);
-        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
-        const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
-        if (!matchesScope(booking.court.venue, scope)) throw new ForbiddenException('Bạn không có quyền làm việc này');
-        await expireBookings(tx, Prisma.sql`id = ${bookingId}::uuid`, now);
-        const result = await tx.booking.updateMany({
-          where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
-          data: decision === 'CONFIRMED' ? { status: 'CONFIRMED', confirmedAt: now } : { status: 'REJECTED' },
-        });
-        if (result.count > 0) {
-          if (decision === 'CONFIRMED') {
-            await this.notifications?.createNotification(tx, { userId: booking.createdById, type: 'BOOKING_CONFIRMED', bookingId });
-          } else {
-            await this.notifications?.createNotification(tx, { userId: booking.createdById, type: 'BOOKING_REJECTED', bookingId });
-            await cancelMatchOfBooking(tx, this.notifications, bookingId);
+    const outcome: { count: number; booking: Booking & { court: { venue: { id: string; ownerId: string } } } } = await conflictOnDeadlock(
+      () =>
+        this.prisma.$transaction(async (tx) => {
+          await lockVenueOf(tx, found.courtId);
+          await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
+          const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
+          if (!matchesScope(booking.court.venue, scope)) throw new ForbiddenException('Bạn không có quyền làm việc này');
+          await expireBookings(tx, Prisma.sql`id = ${bookingId}::uuid`, now);
+          const result = await tx.booking.updateMany({
+            where: { id: bookingId, status: 'PENDING', confirmDeadline: { gte: now } },
+            data: decision === 'CONFIRMED' ? { status: 'CONFIRMED', confirmedAt: now } : { status: 'REJECTED' },
+          });
+          if (result.count > 0) {
+            if (decision === 'CONFIRMED') {
+              await this.notifications?.createNotification(tx, { userId: booking.createdById, type: 'BOOKING_CONFIRMED', bookingId });
+            } else {
+              await this.notifications?.createNotification(tx, { userId: booking.createdById, type: 'BOOKING_REJECTED', bookingId });
+              await cancelMatchOfBooking(tx, this.notifications, bookingId);
+            }
           }
-        }
-        return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } }) };
-      });
-    } catch (error) {
-      if (isDeadlock(error)) throw new ConflictException(BUSY);
-      throw error;
-    }
+          return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } }) };
+        }),
+      BUSY,
+    );
     if (outcome.count === 0) {
       throw new ConflictException(outcome.booking.status === 'EXPIRED' ? 'Yêu cầu đã hết hạn' : 'Yêu cầu không còn chờ xác nhận');
     }
@@ -238,20 +236,19 @@ export class OwnerBookingsService {
     });
     if (!found || found.court.venue.ownerId !== ownerId) throw new NotFoundException('Không tìm thấy booking');
 
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        await lockVenueOf(tx, found.courtId);
-        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
-        const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
-        if (booking.court.venue.ownerId !== ownerId) throw new NotFoundException('Không tìm thấy booking');
-        if (booking.status !== 'CONFIRMED') throw new BadRequestException('Chỉ đánh dấu thu tiền cho booking đã xác nhận');
-        const updated = await tx.booking.updateMany({ where: { id: bookingId, status: 'CONFIRMED' }, data: { paidAtVenue } });
-        if (updated.count === 0) throw new BadRequestException('Chỉ đánh dấu thu tiền cho booking đã xác nhận');
-        return { id: bookingId, paidAtVenue };
-      });
-    } catch (error) {
-      if (isDeadlock(error)) throw new ConflictException(BUSY);
-      throw error;
-    }
+    return conflictOnDeadlock(
+      () =>
+        this.prisma.$transaction(async (tx) => {
+          await lockVenueOf(tx, found.courtId);
+          await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
+          const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { court: { include: { venue: true } } } });
+          if (booking.court.venue.ownerId !== ownerId) throw new NotFoundException('Không tìm thấy booking');
+          if (booking.status !== 'CONFIRMED') throw new BadRequestException('Chỉ đánh dấu thu tiền cho booking đã xác nhận');
+          const updated = await tx.booking.updateMany({ where: { id: bookingId, status: 'CONFIRMED' }, data: { paidAtVenue } });
+          if (updated.count === 0) throw new BadRequestException('Chỉ đánh dấu thu tiền cho booking đã xác nhận');
+          return { id: bookingId, paidAtVenue };
+        }),
+      BUSY,
+    );
   }
 }

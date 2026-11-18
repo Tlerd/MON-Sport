@@ -40,6 +40,15 @@ export async function retryOnDeadlock<T>(work: () => Promise<T>, busyMessage?: s
   }
 }
 
+export async function conflictOnDeadlock<T>(work: () => Promise<T>, busyMessage: string): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    if (isDeadlock(error)) throw new ConflictException(busyMessage);
+    throw error;
+  }
+}
+
 function hasSqlState(error: unknown, state: string, message: RegExp): boolean {
   for (let e: unknown = error, depth = 0; e && typeof e === 'object' && depth < 5; depth++) {
     const o = e as {

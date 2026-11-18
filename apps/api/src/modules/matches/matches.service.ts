@@ -11,7 +11,7 @@ import {
 import { Prisma } from '../../generated/prisma/client.js';
 import { expireBookings, finishPastMatches, lockVenueOf } from '../bookings/booking-sync.js';
 import { Clock } from '../database/clock.js';
-import { isDeadlock, PrismaService, retryOnDeadlock } from '../database/prisma.service.js';
+import { conflictOnDeadlock, PrismaService, retryOnDeadlock } from '../database/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import {
   ALREADY_HAS_MATCH,
@@ -32,6 +32,13 @@ import {
   WITH_RELATIONS,
 } from './match-views.js';
 
+type CreateOutcome = { kind: 'already_has_match' } | { kind: 'not_openable' } | { kind: 'created'; match: MatchRow };
+
+function alreadyHasMatchOnUnique(error: unknown): never {
+  if (isUniqueViolation(error)) throw new ConflictException(ALREADY_HAS_MATCH);
+  throw error;
+}
+
 @Injectable()
 export class MatchesService {
   constructor(
@@ -49,60 +56,56 @@ export class MatchesService {
       throw new NotFoundException(BOOKING_NOT_FOUND);
     }
     const now = this.clock.now();
-    let outcome:
-      | { kind: 'already_has_match' }
-      | { kind: 'not_openable' }
-      | { kind: 'created'; match: MatchRow };
-    try {
-      outcome = await this.prisma.$transaction(async (tx) => {
-        await lockVenueOf(tx, found.courtId);
-        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
-        const booking = await tx.booking.findUnique({
-          where: { id: input.bookingId },
-          include: { court: true, match: { select: { id: true } } },
-        });
-        if (!booking || booking.createdById !== userId || booking.source !== 'APP') {
-          throw new NotFoundException(BOOKING_NOT_FOUND);
-        }
-        await expireBookings(tx, Prisma.sql`id = ${input.bookingId}::uuid`, now);
-        if (booking.match) {
-          return { kind: 'already_has_match' };
-        }
-        const current = await tx.booking.findUniqueOrThrow({
-          where: { id: input.bookingId },
-          select: { status: true, startAt: true },
-        });
-        if ((current.status !== 'PENDING' && current.status !== 'CONFIRMED') || current.startAt <= now) {
-          return { kind: 'not_openable' };
-        }
-        const created = await tx.match.create({
-          data: {
-            bookingId: booking.id,
-            hostId: userId,
-            sport: booking.court.sport,
-            capacity: input.capacity,
-            joinMode: input.joinMode ?? 'INSTANT',
-            pricePerSlot: input.pricePerSlot,
-            status: 'OPEN',
-            joinedCount: 1,
-            createdAt: now,
-            players: {
-              create: {
-                userId,
-                status: 'ACTIVE',
-                joinedAt: now,
+    const outcome = await conflictOnDeadlock(
+      () =>
+        this.prisma
+          .$transaction(async (tx): Promise<CreateOutcome> => {
+            await lockVenueOf(tx, found.courtId);
+            await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
+            const booking = await tx.booking.findUnique({
+              where: { id: input.bookingId },
+              include: { court: true, match: { select: { id: true } } },
+            });
+            if (!booking || booking.createdById !== userId || booking.source !== 'APP') {
+              throw new NotFoundException(BOOKING_NOT_FOUND);
+            }
+            await expireBookings(tx, Prisma.sql`id = ${input.bookingId}::uuid`, now);
+            if (booking.match) {
+              return { kind: 'already_has_match' };
+            }
+            const current = await tx.booking.findUniqueOrThrow({
+              where: { id: input.bookingId },
+              select: { status: true, startAt: true },
+            });
+            if ((current.status !== 'PENDING' && current.status !== 'CONFIRMED') || current.startAt <= now) {
+              return { kind: 'not_openable' };
+            }
+            const created = await tx.match.create({
+              data: {
+                bookingId: booking.id,
+                hostId: userId,
+                sport: booking.court.sport,
+                capacity: input.capacity,
+                joinMode: input.joinMode ?? 'INSTANT',
+                pricePerSlot: input.pricePerSlot,
+                status: 'OPEN',
+                joinedCount: 1,
+                createdAt: now,
+                players: {
+                  create: {
+                    userId,
+                    status: 'ACTIVE',
+                    joinedAt: now,
+                  },
+                },
               },
-            },
-          },
-          include: WITH_RELATIONS,
-        });
-        return { kind: 'created', match: created };
-      });
-    } catch (error) {
-      if (isUniqueViolation(error)) throw new ConflictException(ALREADY_HAS_MATCH);
-      if (isDeadlock(error)) throw new ConflictException(BUSY);
-      throw error;
-    }
+              include: WITH_RELATIONS,
+            });
+            return { kind: 'created', match: created };
+          })
+          .catch(alreadyHasMatchOnUnique),
+      BUSY,
+    );
     if (outcome.kind === 'already_has_match') throw new ConflictException(ALREADY_HAS_MATCH);
     if (outcome.kind === 'not_openable') throw new ConflictException(NOT_OPENABLE);
     return toMatchView(outcome.match);
@@ -203,64 +206,62 @@ export class MatchesService {
       throw new NotFoundException(MATCH_NOT_FOUND);
     }
     const now = this.clock.now();
-    let outcome:
+    const outcome:
       | { kind: 'call_owner' }
       | { kind: 'not_cancellable' }
-      | { kind: 'cancelled'; match: MatchRow };
-    try {
-      outcome = await this.prisma.$transaction(async (tx) => {
-        await lockVenueOf(tx, found.booking.courtId);
-        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.booking.courtId}::uuid FOR UPDATE`;
-        const before = await tx.match.findUnique({
-          where: { id: matchId },
-          select: { id: true, hostId: true, bookingId: true },
-        });
-        if (!before || before.hostId !== userId) {
-          throw new NotFoundException(MATCH_NOT_FOUND);
-        }
-        await expireBookings(tx, Prisma.sql`id = ${before.bookingId}::uuid`, now);
-        await finishPastMatches(tx, Prisma.sql`b.id = ${before.bookingId}::uuid`, now);
-        const current = await tx.match.findUniqueOrThrow({
-          where: { id: matchId },
-          include: { booking: { select: { id: true, status: true, startAt: true } } },
-        });
-        if (current.status !== 'OPEN' && current.status !== 'FULL') {
-          return { kind: 'not_cancellable' };
-        }
-        const decision = userCancelDecision(current.booking, now);
-        if (decision === 'CALL_OWNER') {
-          return { kind: 'call_owner' };
-        }
-        if (decision !== 'ALLOW') {
-          return { kind: 'not_cancellable' };
-        }
-        await tx.booking.update({
-          where: { id: current.booking.id },
-          data: { status: 'CANCELLED', cancelledAt: now },
-        });
-        const updated = await tx.match.update({
-          where: { id: matchId },
-          data: { status: 'CANCELLED' },
-          include: WITH_RELATIONS,
-        });
-        const players = await tx.matchPlayer.findMany({
-          where: { matchId, status: 'ACTIVE' },
-          select: { userId: true },
-        });
-        for (const p of players) {
-          await this.notifications?.createNotification(tx, {
-            userId: p.userId,
-            type: 'MATCH_CANCELLED',
-            bookingId: current.booking.id,
-            matchId,
+      | { kind: 'cancelled'; match: MatchRow } = await conflictOnDeadlock(
+      () =>
+        this.prisma.$transaction(async (tx) => {
+          await lockVenueOf(tx, found.booking.courtId);
+          await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.booking.courtId}::uuid FOR UPDATE`;
+          const before = await tx.match.findUnique({
+            where: { id: matchId },
+            select: { id: true, hostId: true, bookingId: true },
           });
-        }
-        return { kind: 'cancelled', match: updated };
-      });
-    } catch (error) {
-      if (isDeadlock(error)) throw new ConflictException(BUSY);
-      throw error;
-    }
+          if (!before || before.hostId !== userId) {
+            throw new NotFoundException(MATCH_NOT_FOUND);
+          }
+          await expireBookings(tx, Prisma.sql`id = ${before.bookingId}::uuid`, now);
+          await finishPastMatches(tx, Prisma.sql`b.id = ${before.bookingId}::uuid`, now);
+          const current = await tx.match.findUniqueOrThrow({
+            where: { id: matchId },
+            include: { booking: { select: { id: true, status: true, startAt: true } } },
+          });
+          if (current.status !== 'OPEN' && current.status !== 'FULL') {
+            return { kind: 'not_cancellable' };
+          }
+          const decision = userCancelDecision(current.booking, now);
+          if (decision === 'CALL_OWNER') {
+            return { kind: 'call_owner' };
+          }
+          if (decision !== 'ALLOW') {
+            return { kind: 'not_cancellable' };
+          }
+          await tx.booking.update({
+            where: { id: current.booking.id },
+            data: { status: 'CANCELLED', cancelledAt: now },
+          });
+          const updated = await tx.match.update({
+            where: { id: matchId },
+            data: { status: 'CANCELLED' },
+            include: WITH_RELATIONS,
+          });
+          const players = await tx.matchPlayer.findMany({
+            where: { matchId, status: 'ACTIVE' },
+            select: { userId: true },
+          });
+          for (const p of players) {
+            await this.notifications?.createNotification(tx, {
+              userId: p.userId,
+              type: 'MATCH_CANCELLED',
+              bookingId: current.booking.id,
+              matchId,
+            });
+          }
+          return { kind: 'cancelled', match: updated };
+        }),
+      BUSY,
+    );
     if (outcome.kind === 'call_owner') throw new ConflictException(CALL_OWNER_MESSAGE);
     if (outcome.kind === 'not_cancellable') throw new ConflictException(NOT_CANCELLABLE);
     return toMatchView(outcome.match);
