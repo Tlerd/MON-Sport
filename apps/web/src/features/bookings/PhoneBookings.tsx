@@ -6,7 +6,7 @@ import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { api, ApiError, DURATIONS, durationLabel, formatDay, formatSlot, formatTime, formatVnd, hhmm, slotAt as at } from '@monsport/client';
 import { SlotBar } from './BookingForm.tsx';
 import { CancelAsk, useCancelFlow } from './cancel.tsx';
-import { Customer } from './customer.tsx';
+import { Customer } from '../../components/Customer.tsx';
 import { STATUS_LABEL } from './status.ts';
 
 /** "YYYY-MM-DD" of today in Asia/Ho_Chi_Minh (BR-27). */

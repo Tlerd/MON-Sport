@@ -2,9 +2,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { MatchView, MyBookingView, SessionUser, VenueView } from '@monsport/shared';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ToastProvider } from '../components/Toast.tsx';
+import { ToastProvider } from '../../components/Toast.tsx';
 import { HomePage } from './HomePage.tsx';
-import { SessionProvider } from './session.tsx';
 
 function LocationProbe() {
   const { pathname, search } = useLocation();
@@ -161,7 +160,10 @@ describe('HomePage (F-033)', () => {
     },
   ];
 
+  let currentUser: SessionUser | null = null;
+
   function setupFetch(options: { authed?: boolean; matches?: MatchView[]; bookings?: MyBookingView[] } = {}) {
+    currentUser = options.authed ? user : null;
     const matchList = options.matches ?? [matchA, matchB];
     const fetchMock = vi.fn((url: string) => {
       if (url === '/api/auth/me') {
@@ -189,17 +191,15 @@ describe('HomePage (F-033)', () => {
     return render(
       <MemoryRouter initialEntries={['/']}>
         <ToastProvider>
-          <SessionProvider>
-            <Routes>
-              <Route path="/" element={<><HomePage /><LocationProbe /></>} />
-              <Route path="/dang-nhap" element={<LocationProbe />} />
-              <Route path="/lich-cua-toi" element={<LocationProbe />} />
-              <Route path="/phong-cho" element={<LocationProbe />} />
-              <Route path="/san" element={<LocationProbe />} />
-              <Route path="/san/:id" element={<LocationProbe />} />
-              <Route path="/ho-so" element={<LocationProbe />} />
-            </Routes>
-          </SessionProvider>
+          <Routes>
+            <Route path="/" element={<><HomePage user={currentUser} /><LocationProbe /></>} />
+            <Route path="/dang-nhap" element={<LocationProbe />} />
+            <Route path="/lich-cua-toi" element={<LocationProbe />} />
+            <Route path="/phong-cho" element={<LocationProbe />} />
+            <Route path="/san" element={<LocationProbe />} />
+            <Route path="/san/:id" element={<LocationProbe />} />
+            <Route path="/ho-so" element={<LocationProbe />} />
+          </Routes>
         </ToastProvider>
       </MemoryRouter>,
     );
@@ -284,19 +284,16 @@ describe('HomePage (F-033)', () => {
     await screen.findByText('Cầu lông A · Sân 1');
     expect(screen.getByText('Bóng đá B · Sân 7A')).toBeTruthy();
 
-    // Upcoming bookings: at most 2 shown in rcol, venues capped at 3, Bạn chơi quen shows Sắp ra mắt.
     expect(screen.queryByText('Sân C chỉ hiện ở lịch')).toBeNull();
     expect(screen.queryByText('Sân D ẩn khỏi top 3')).toBeNull();
     expect(screen.getByText('Sân C')).toBeTruthy();
     expect(screen.getByText('Sắp ra mắt')).toBeTruthy();
 
-    // Filter by sport on client.
     fireEvent.click(screen.getByRole('button', { name: 'Cầu lông' }));
     expect(container.querySelectorAll('.mc')).toHaveLength(1);
     expect(screen.getByText('Cầu lông A · Sân 1')).toBeTruthy();
     expect(screen.queryByText('Bóng đá B · Sân 7A')).toBeNull();
 
-    // "Trận đội" calls comingSoon() without switching selected seg tab.
     fireEvent.click(screen.getByRole('button', { name: 'Trận đội' }));
     expect(screen.getByRole('status').textContent).toContain('Sắp ra mắt');
     expect(screen.getByRole('button', { name: 'Tất cả' }).className).toContain('on');

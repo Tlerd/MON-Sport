@@ -1,7 +1,7 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ToastProvider } from '../components/Toast.tsx';
+import { ToastProvider } from '../../components/Toast.tsx';
 import { OwnerOverview } from './OwnerOverview.tsx';
 
 describe('OwnerOverview', () => {
@@ -11,7 +11,6 @@ describe('OwnerOverview', () => {
   });
 
   it('AC-9: fetches ?status=PENDING and ?status=CONFIRMED, counts 2 pending and 1 confirmed today, and shows no money amount', async () => {
-    // 2026-11-20T05:00:00Z = 12:00 VN on 2026-11-20
     const now = new Date('2026-11-20T05:00:00.000Z');
     const pending = [
       {
@@ -49,7 +48,7 @@ describe('OwnerOverview', () => {
       {
         id: 'c1-today',
         courtId: 'c1',
-        startAt: '2026-11-20T12:00:00.000Z', // 19:00 VN on 2026-11-20 (today)
+        startAt: '2026-11-20T12:00:00.000Z',
         endAt: '2026-11-20T13:00:00.000Z',
         status: 'CONFIRMED',
         source: 'APP',
@@ -64,7 +63,7 @@ describe('OwnerOverview', () => {
       {
         id: 'c2-tomorrow',
         courtId: 'c2',
-        startAt: '2026-11-21T12:00:00.000Z', // 19:00 VN on 2026-11-21 (not today)
+        startAt: '2026-11-21T12:00:00.000Z',
         endAt: '2026-11-21T13:00:00.000Z',
         status: 'CONFIRMED',
         source: 'PHONE',

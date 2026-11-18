@@ -6,6 +6,7 @@ import { FinancialDashboard } from '../features/finance/FinancialDashboard.tsx';
 import {
   AuthPage,
   BookPage,
+  ConsentPage,
   HomePage,
   LobbyPage,
   MyPage,
@@ -16,10 +17,9 @@ import {
   SchedulePage,
   TeamsPage,
   VenuesPage,
-  ConsentPage,
 } from './pages.tsx';
 import { useSession } from './session.tsx';
-import { AdminShell, OwnerShell, PlayerShell } from './shells.tsx';
+import { AdminShell, OwnerShell, PlayerShell } from './shells/index.ts';
 
 export function RoleGuard({
   allowed,

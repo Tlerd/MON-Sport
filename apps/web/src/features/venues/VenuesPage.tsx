@@ -3,11 +3,11 @@ import { api } from '@monsport/client';
 import { MapPin, Search } from 'lucide-react';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Chip } from '../components/Chip.tsx';
-import { CourtArt } from '../components/CourtArt.tsx';
-import { SPORT_LABEL } from '../components/MatchCard.tsx';
-import { SportIcon } from '../components/SportIcon.tsx';
-import { findVenues, normalizeName } from '../features/venues/search.ts';
+import { Chip } from '../../components/Chip.tsx';
+import { CourtArt } from '../../components/CourtArt.tsx';
+import { SPORT_LABEL } from '../../components/MatchCard.tsx';
+import { SportIcon } from '../../components/SportIcon.tsx';
+import { findVenues, normalizeName } from './search.ts';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
 
