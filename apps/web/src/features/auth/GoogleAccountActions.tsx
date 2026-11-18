@@ -25,7 +25,7 @@ export function GoogleAccountActions() {
       if (res?.url) {
         window.location.href = res.url;
       }
-    }, 'Không liên kết được');
+    }, 'Không liên kết được', { keepBusyOnSuccess: true });
   }
 
   async function handleUnlink() {

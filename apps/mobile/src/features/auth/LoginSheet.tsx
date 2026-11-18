@@ -17,7 +17,7 @@ export function LoginSheet({ open, onClose, onLoggedIn, onSwitchToRegister, noti
   const { login, refresh } = useSession();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const { run, busy, error, setError } = useAction();
+  const { run, busy, error } = useAction();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

@@ -55,7 +55,7 @@ export function ConsentScreen({ user }: { user: SessionUser | null | undefined }
         ? await approveConsent(id, { scopes: canBook && allowBook ? ['read', 'book'] : ['read'] })
         : await denyConsent(id);
       window.location.assign(res.redirectTo);
-    }, 'Không gửi được lựa chọn. Thử lại');
+    }, 'Không gửi được lựa chọn. Thử lại', { keepBusyOnSuccess: true });
   }
 
   return (

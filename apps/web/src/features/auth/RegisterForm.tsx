@@ -27,6 +27,7 @@ export function RegisterForm({ onLogin }: { onLogin: (user: SessionUser) => void
     await run(
       async () => onLogin(await api<SessionUser>('/api/auth/register', { method: 'POST', json: { name, phone, password, consent, skillLevel } })),
       'Không tạo được tài khoản',
+      { keepBusyOnSuccess: true },
     );
   }
 

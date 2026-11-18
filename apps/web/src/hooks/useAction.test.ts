@@ -57,6 +57,29 @@ describe('useAction', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('keeps busy true after success with keepBusyOnSuccess', async () => {
+    const { result } = renderHook(() => useAction());
+    await act(async () => {
+      await result.current.run(async () => 1, 'Fallback', { keepBusyOnSuccess: true });
+    });
+    expect(result.current.busy).toBe(true);
+  });
+
+  it('clears busy on failure with keepBusyOnSuccess', async () => {
+    const { result } = renderHook(() => useAction());
+    await act(async () => {
+      await result.current.run(
+        async () => {
+          throw new Error('boom');
+        },
+        'Fallback',
+        { keepBusyOnSuccess: true },
+      );
+    });
+    expect(result.current.busy).toBe(false);
+    expect(result.current.error).toBe('Fallback');
+  });
+
   it('lets the caller set the error', () => {
     const { result } = renderHook(() => useAction());
     act(() => result.current.setError('Manual'));
