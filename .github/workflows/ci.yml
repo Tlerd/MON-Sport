@@ -111,6 +111,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      # The runner keeps the volume of each old postgres service (docs/known-issues.md).
+      - name: Remove the volumes of old postgres services
+        if: always()
+        run: docker volume prune --force || true
 
   # Builds the Cloud Run image and starts it against Postgres, because the dev machine has no Docker.
   image:
@@ -183,5 +187,5 @@ jobs:
         run: |
           docker rm --force monsport-ci-app || true
           docker image prune --force --filter "dangling=true" || true
-          docker builder prune --force --max-used-space 5GB || true
+          docker builder prune --all --force --max-used-space 5GB || true
           docker volume prune --force || true

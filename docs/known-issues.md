@@ -58,4 +58,4 @@ Errors that happened before. When a new error looks the same, apply the fix firs
   4. Run `wsl -d Ubuntu -u root --exec /usr/sbin/fstrim -v /`.
   5. Run `Start-ScheduledTask WSL-KeepAlive` in PowerShell. Check that the runner is `online`.
 - The vhdx file does not get smaller by itself. The owner shrinks it with an elevated `diskpart`: `select vdisk file=D:\WSL\Ubuntu\ext4.vhdx`, `attach vdisk readonly`, `compact vdisk`, `detach vdisk`. Run `wsl --shutdown` first.
-- Prevention: the last step of the `image` job keeps 5 GB of build cache and removes unused volumes.
+- Prevention: the last step of the `image` job keeps at most 5 GB of build cache. The last step of `check` and of `image` removes unused volumes.
