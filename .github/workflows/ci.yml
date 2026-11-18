@@ -183,5 +183,5 @@ jobs:
         run: |
           docker rm --force monsport-ci-app || true
           docker image prune --force --filter "dangling=true" || true
-          docker builder prune --force --keep-storage 5GB || true
+          docker builder prune --force --max-used-space 5GB || true
           docker volume prune --force || true
