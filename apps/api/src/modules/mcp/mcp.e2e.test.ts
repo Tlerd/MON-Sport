@@ -26,12 +26,11 @@ import { issueSession } from '../auth/session.js';
 import { BookingsService } from '../bookings/bookings.service.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { MatchPlayersService } from '../matches/match-players.service.js';
 import { MatchesService } from '../matches/matches.service.js';
 import { VenuesService } from '../venues/venues.service.js';
 import { McpService } from './mcp.service.js';
 
-// Data of brief F-036. Now is 20/11/2026 10:00 in Asia/Ho_Chi_Minh. "An Phu Sport" (owner "Chu San Rieng", phone
-// 0900000001, venue phone 0281234567, 06:00-23:00) has "Sân bóng 1" FOOTBALL (100000/150000) and "Cầu 1" BADMINTON.
 const vn = (hhmm: string, day = '2026-11-20') => `${day}T${hhmm}:00+07:00`;
 const clock = { at: new Date(vn('10:00')), now() { return this.at; } };
 const MISSING = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
@@ -191,7 +190,6 @@ describe('MCP tool layer (F-036)', () => {
       for (const v of res.data.venues) {
         expect(Object.keys(v).sort()).toEqual(Object.keys(VenueView.shape).sort());
       }
-      // Each venue keeps every court, including a court of another sport.
       expect(res.data.venues[0].courts.map((c: { name: string }) => c.name)).toEqual(['Cầu 1', 'Sân bóng 1']);
       expect(res.text).not.toContain('Chu San Rieng');
       expect(res.text).not.toContain('0900000001');
@@ -320,7 +318,6 @@ describe('MCP tool layer (F-036)', () => {
       expect(ListMatchesOutput.parse(list.data).matches).toHaveLength(1);
       expect(list.data.matches).toEqual(viaHttp.body);
       expect(list.data.matches[0].hostName).toBe('An');
-      // A phone number stands alone. The boundaries keep a digit run inside a UUID from matching.
       expect(list.text).not.toMatch(/(?<![\w-])0\d{9}(?![\w-])/);
 
       const twice = await tool('An', 'open_match', { bookingId: confirmed, capacity: 10, pricePerSlot: 50_000 });
@@ -356,7 +353,7 @@ describe('MCP tool layer (F-036)', () => {
 
   describe('limits and surface', () => {
     it('AC-13: the 11th write and the 61st call in a minute get "Quá nhiều lệnh", and the window ends after 61 seconds', async () => {
-      const join = vi.spyOn(app.get(MatchesService), 'join');
+      const join = vi.spyOn(app.get(MatchPlayersService), 'join');
       const client = await user('An');
       for (let i = 0; i < 10; i++) {
         expect((await call(client, 'join_match', { matchId: MISSING })).text).toBe('Không tìm thấy trận');

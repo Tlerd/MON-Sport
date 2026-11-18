@@ -16,7 +16,6 @@ export function resolveGoogleError(code: string | null | undefined): string | nu
 
 export const GOOGLE_SESSION_EXPIRED = 'Phiên Google đã hết hạn, hãy thử lại.';
 
-// Messages of the API when the short Google cookie (pending sign-up or verify) is missing.
 const MISSING_GOOGLE_COOKIE_MESSAGES = new Set([
   'Thiếu thông tin đăng ký Google',
   'Thiếu thông tin xác minh Google',

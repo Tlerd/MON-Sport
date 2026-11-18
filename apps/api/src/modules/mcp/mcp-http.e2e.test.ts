@@ -12,10 +12,9 @@ import { issueSession } from '../auth/session.js';
 import { BookingsService } from '../bookings/bookings.service.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
-import { MatchesService } from '../matches/matches.service.js';
+import { MatchPlayersService } from '../matches/match-players.service.js';
 import { VenuesService } from '../venues/venues.service.js';
 
-// Brief F-037, step 3: the HTTP route. Now is 01/12/2026 10:00 in Asia/Ho_Chi_Minh (03:00 UTC).
 const at = (hhmm: string) => new Date(`2026-12-01T${hhmm}:00Z`);
 const vn = (hhmm: string, day: string) => `${day}T${hhmm}:00+07:00`;
 const clock = { at: at('03:00'), now() { return this.at; } };
@@ -155,7 +154,6 @@ describe('POST /api/mcp (F-037)', () => {
   it('AC-7: a token made before an unlock stops working, and a token made after it works', async () => {
     const old = await newToken('A');
     await rpc(app, old.secret, 'tools/list').expect(200);
-    // The admin routes lock and unlock A (BR-32), so the test fails if the unlock stops writing sessionsValidFrom.
     const asAdmin = (path: string) =>
       request(app.getHttpServer()).post(path).set('Cookie', `session=${issueSession(ids.Admin, clock.now())}`);
     clock.at = at('03:30');
@@ -183,8 +181,8 @@ describe('POST /api/mcp (F-037)', () => {
 
   it('AC-9: two instances share the count: the 11th write is refused, the window ends after 61 seconds, and the keys hide the user id', async () => {
     const { secret } = await newToken('A');
-    const join = vi.spyOn(app.get(MatchesService), 'join');
-    const join2 = vi.spyOn(app2.get(MatchesService), 'join');
+    const join = vi.spyOn(app.get(MatchPlayersService), 'join');
+    const join2 = vi.spyOn(app2.get(MatchPlayersService), 'join');
     for (let i = 0; i < 6; i++) expect(toolText(await callTool(secret, 'join_match', { matchId: MISSING }, app))).toBe('Không tìm thấy trận');
     for (let i = 0; i < 4; i++) expect(toolText(await callTool(secret, 'join_match', { matchId: MISSING }, app2))).toBe('Không tìm thấy trận');
     expect(toolText(await callTool(secret, 'join_match', { matchId: MISSING }, app2))).toBe(TOO_MANY);

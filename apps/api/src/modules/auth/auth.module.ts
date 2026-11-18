@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AccountsService } from './accounts.service.js';
 import { AuthController } from './auth.controller.js';
+import { GoogleAuthController } from './google-auth.controller.js';
+import { GoogleAuthService } from './google-auth.service.js';
 import {
   GOOGLE_CONFIG,
   GOOGLE_OIDC_CONFIGURATION,
@@ -13,11 +15,12 @@ import { SessionGuard } from './session.guard.js';
 import { ThrottleService } from './throttle.service.js';
 
 @Module({
-  controllers: [AuthController],
+  controllers: [AuthController, GoogleAuthController],
   providers: [
     SessionGuard,
     GoogleEnabledGuard,
     AccountsService,
+    GoogleAuthService,
     ThrottleService,
     Passwords,
     {
@@ -35,6 +38,14 @@ import { ThrottleService } from './throttle.service.js';
       useValue: null,
     },
   ],
-  exports: [SessionGuard, AccountsService, ThrottleService, Passwords, GOOGLE_CONFIG, GOOGLE_OIDC_CONFIGURATION],
+  exports: [
+    SessionGuard,
+    AccountsService,
+    GoogleAuthService,
+    ThrottleService,
+    Passwords,
+    GOOGLE_CONFIG,
+    GOOGLE_OIDC_CONFIGURATION,
+  ],
 })
 export class AuthModule {}
