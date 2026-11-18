@@ -18,11 +18,6 @@ interface Notice {
   text: string;
 }
 
-/**
- * Owner screen for pending requests. The body is keyed by the user id, so a login as
- * another user mounts a fresh body. Old cards, notices, and sheets of the previous user
- * never paint for the new user, not even for one frame before the effect clears them.
- */
 export function RequestsScreen() {
   const { user } = useSession();
   return <RequestsScreenBody key={user?.id ?? 'guest'} />;
@@ -31,7 +26,6 @@ export function RequestsScreen() {
 function RequestsScreenBody() {
   const navigate = useNavigate();
   const { user } = useSession();
-  // The screen also renders without the shell (tests, a route outside App), so the context may be missing.
   const shell = useOutletContext<ShellContextType | undefined>();
   const setPendingRequests = shell?.setPendingRequests;
   const refreshCounts = shell?.refreshCounts;
@@ -47,7 +41,6 @@ function RequestsScreenBody() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [sessionLoginOpen, setSessionLoginOpen] = useState(false);
 
-  // A reply is applied only when no newer request or write started after it began.
   const reqCounter = useRef(0);
   const mountedRef = useRef(true);
   const listRef = useRef(list);
@@ -82,7 +75,6 @@ function RequestsScreenBody() {
       (err: unknown) => {
         if (!mountedRef.current || reqId !== reqCounter.current) return;
         if (err instanceof ApiError && err.status === 401) setSessionLoginOpen(true);
-        // A failed reload keeps the old list. Only an empty screen shows the error.
         if (!listRef.current) setFailed(true);
       },
     );
@@ -93,7 +85,6 @@ function RequestsScreenBody() {
     load();
   };
 
-  // Venues load once for each user. A failure leaves the labels empty and does not block the list.
   useEffect(() => {
     reqCounter.current++;
     setList(undefined);
@@ -111,9 +102,7 @@ function RequestsScreenBody() {
       (venues) => {
         if (!cancelled) setLabels(courtLabels(venues));
       },
-      () => {
-        // The card shows "Sân" without a venue name.
-      },
+      () => undefined,
     );
     return () => {
       cancelled = true;
@@ -127,7 +116,6 @@ function RequestsScreenBody() {
   useEffect(() => {
     if (!active) return;
     let timer: ReturnType<typeof setInterval> | undefined;
-
     const stop = () => {
       if (timer !== undefined) clearInterval(timer);
       timer = undefined;
@@ -148,7 +136,6 @@ function RequestsScreenBody() {
         stop();
       }
     };
-
     if (document.visibilityState === 'visible') start();
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
@@ -158,14 +145,12 @@ function RequestsScreenBody() {
   }, [user?.id, active, load]);
 
   const removeCard = (id: string) => {
-    // The new length comes from the list after the removal. The shell badge follows it.
     const next = (listRef.current ?? []).filter((r) => r.id !== id);
     listRef.current = next;
     setList(next);
     return next.length;
   };
 
-  // The shell takes the exact new length. Without that setter, the shell fetches the count itself.
   const reportCount = (newLength: number) => {
     if (setPendingRef.current) setPendingRef.current(newLength);
     else refreshRef.current?.();
@@ -188,10 +173,7 @@ function RequestsScreenBody() {
       reqCounter.current++;
       if (!mountedRef.current) return;
       const newLength = removeCard(request.id);
-      setNotice({
-        kind: 'status',
-        text: action === 'confirm' ? 'Đã xác nhận yêu cầu' : 'Đã từ chối yêu cầu',
-      });
+      setNotice({ kind: 'status', text: action === 'confirm' ? 'Đã xác nhận yêu cầu' : 'Đã từ chối yêu cầu' });
       reportCount(newLength);
     } catch (err) {
       reqCounter.current++;
@@ -210,10 +192,7 @@ function RequestsScreenBody() {
       } else if (err instanceof ApiError && err.status === 401) {
         setSessionLoginOpen(true);
       } else {
-        setCardErrors((prev) => ({
-          ...prev,
-          [request.id]: 'Không lưu được quyết định. Thử lại.',
-        }));
+        setCardErrors((prev) => ({ ...prev, [request.id]: 'Không lưu được quyết định. Thử lại.' }));
       }
     } finally {
       busyRef.current.delete(request.id);
@@ -221,30 +200,16 @@ function RequestsScreenBody() {
     }
   };
 
-  if (user === undefined) {
-    return <EmptyState message="Đang tải" />;
-  }
-
+  if (user === undefined) return <EmptyState message="Đang tải" />;
   if (user === null) {
     return (
       <div style={{ minWidth: 0 }}>
-        <EmptyState
-          message="Đăng nhập để xem yêu cầu"
-          actionLabel="Đăng nhập"
-          onAction={() => setLoginOpen(true)}
-        />
+        <EmptyState message="Đăng nhập để xem yêu cầu" actionLabel="Đăng nhập" onAction={() => setLoginOpen(true)} />
         <LoginSheet open={loginOpen} onClose={() => setLoginOpen(false)} />
       </div>
     );
   }
-
-  if (user.role === 'ADMIN') {
-    return null;
-  }
-
-  if (!active) {
-    return null;
-  }
+  if (user.role === 'ADMIN' || !active) return null;
 
   const now = new Date();
 
@@ -290,16 +255,7 @@ function RequestsScreenBody() {
           {list.length === 0 ? (
             <EmptyState message="Chưa có yêu cầu nào đang chờ" />
           ) : (
-            <ul
-              style={{
-                listStyle: 'none',
-                margin: 0,
-                padding: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                minWidth: 0,
-              }}
-            >
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
               {list.map((r) => {
                 const label = labels.get(r.courtId);
                 return (

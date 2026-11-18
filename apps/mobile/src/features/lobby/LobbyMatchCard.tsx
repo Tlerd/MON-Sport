@@ -6,19 +6,13 @@ import { SPORT_LABEL, SportIcon } from '../../components/SportIcon.tsx';
 export interface LobbyMatchCardProps {
   card: LobbyCard;
   onJoin?: (match: MatchView) => void;
-  /** A tap on the card body. */
   onOpen?: (match: MatchView) => void;
   onLeave?: (match: MatchView) => void;
   onCancel?: (match: MatchView) => void;
-  /** Cancel the pending request of the viewer: the same call as a leave (BR-50). */
   onCancelRequest?: (match: MatchView) => void;
-  /** The request of the viewer on a "Host duyệt" match, when the detail told it. */
   request?: 'PENDING' | 'REJECTED';
-  /** The join request runs: the join button is disabled. */
   busy?: boolean;
-  /** The error message of the last action on this card. */
   error?: string;
-  /** For the cancel rule of the host (BR-11). Tests pass a fixed value. */
   now?: Date;
 }
 
@@ -50,11 +44,8 @@ const badgeStyle = {
   font: 'var(--font-label)',
 } as const;
 
-/** The text for a host who cannot cancel any more: the server answers 409 (BR-11). */
 export const CALL_OWNER_TO_CANCEL_HINT =
   'Còn dưới 6 giờ nữa tới giờ bắt đầu. Gọi chủ sân ở tab Lịch của tôi để hủy trận.';
-
-/** Texts of a request on a "Host duyệt" match (BR-50, BR-51). */
 export const REQUEST_PENDING_TEXT = 'Đã gửi yêu cầu. Chờ host duyệt';
 export const REQUEST_REJECTED_TEXT = 'Host đã từ chối yêu cầu của bạn';
 
@@ -71,12 +62,10 @@ export function LobbyMatchCard({
   now = new Date(),
 }: LobbyMatchCardProps) {
   const { match, joined, isHost } = card;
-  // A missing joinMode is INSTANT: the field is optional in the contract.
   const approval = match.joinMode === 'APPROVAL';
   const asking = approval && !joined && !isHost;
   const requestPending = asking && request === 'PENDING';
   const requestRejected = asking && request === 'REJECTED';
-  // A FULL "Host duyệt" match takes requests too: the host approves when a slot frees (BR-52).
   const canJoin = (approval ? match.status !== 'CANCELLED' : match.status === 'OPEN') && !joined && !isHost;
   const canAsk = canJoin && !requestPending && !requestRejected;
   const startDate = new Date(match.startAt);
@@ -85,11 +74,8 @@ export function LobbyMatchCard({
   const timeRange = `${hhmm(minuteOfDayVN(startDate))}–${hhmm(minuteOfDayVN(endDate))}`;
   const sportName = SPORT_LABEL[match.sport] ?? match.sport;
   const isConfirmed = match.bookingStatus === 'CONFIRMED';
-  // The feed keeps only future matches, so a joined non-host card can leave (BR-18).
   const canLeave = joined && !isHost;
-  const cancelDecision = isHost
-    ? userCancelDecision({ status: match.bookingStatus, startAt: startDate }, now)
-    : 'NONE';
+  const cancelDecision = isHost ? userCancelDecision({ status: match.bookingStatus, startAt: startDate }, now) : 'NONE';
 
   return (
     <article
@@ -107,44 +93,22 @@ export function LobbyMatchCard({
         borderBottom: '1px solid var(--color-line)',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 'var(--space-sm)',
-          minWidth: 0,
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-sm)', minWidth: 0 }}>
         <span style={{ font: 'var(--font-headline-mobile)', overflowWrap: 'anywhere', minWidth: 0 }}>
           {match.venueName}
         </span>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-            gap: 'var(--space-xs)',
-          }}
-        >
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 'var(--space-xs)' }}>
           {match.status === 'FULL' && (
             <span
               className="badge badge-off"
-              style={{
-                ...badgeStyle,
-                color: 'var(--color-status-off)',
-                backgroundColor: 'var(--color-status-off-bg)',
-              }}
+              style={{ ...badgeStyle, color: 'var(--color-status-off)', backgroundColor: 'var(--color-status-off-bg)' }}
             >
               <Users size={12} aria-hidden="true" />
               Đầy
             </span>
           )}
           {approval && (
-            <span
-              style={{ ...badgeStyle, color: 'var(--color-ink)', backgroundColor: 'var(--color-line)' }}
-            >
+            <span style={{ ...badgeStyle, color: 'var(--color-ink)', backgroundColor: 'var(--color-line)' }}>
               Host duyệt
             </span>
           )}
@@ -156,11 +120,7 @@ export function LobbyMatchCard({
               backgroundColor: isConfirmed ? 'var(--color-status-ok-bg)' : 'var(--color-status-wait-bg)',
             }}
           >
-            {isConfirmed ? (
-              <CheckCircle2 size={12} aria-hidden="true" />
-            ) : (
-              <Clock size={12} aria-hidden="true" />
-            )}
+            {isConfirmed ? <CheckCircle2 size={12} aria-hidden="true" /> : <Clock size={12} aria-hidden="true" />}
             {isConfirmed ? 'Đã xác nhận' : 'Chưa xác nhận'}
           </span>
         </div>
@@ -203,16 +163,12 @@ export function LobbyMatchCard({
         <span>·</span>
         <span>Host: {match.hostName}</span>
         {isHost && (
-          <span
-            style={{ ...badgeStyle, color: 'var(--color-ink)', backgroundColor: 'var(--color-line)' }}
-          >
+          <span style={{ ...badgeStyle, color: 'var(--color-ink)', backgroundColor: 'var(--color-line)' }}>
             Bạn là host
           </span>
         )}
         {joined && !isHost && (
-          <span
-            style={{ ...badgeStyle, color: 'var(--color-ink)', backgroundColor: 'var(--color-line)' }}
-          >
+          <span style={{ ...badgeStyle, color: 'var(--color-ink)', backgroundColor: 'var(--color-line)' }}>
             Bạn đã vào
           </span>
         )}
@@ -230,23 +186,12 @@ export function LobbyMatchCard({
       )}
 
       {error && (
-        <p
-          role="alert"
-          style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}
-        >
+        <p role="alert" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }}>
           {error}
         </p>
       )}
 
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: 'var(--space-sm)',
-          minWidth: 0,
-        }}
-      >
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-sm)', minWidth: 0 }}>
         {canAsk && (
           <button
             type="button"
@@ -255,12 +200,7 @@ export function LobbyMatchCard({
               event.stopPropagation();
               onJoin?.(match);
             }}
-            style={{
-              ...actionStyle,
-              ...primaryStyle,
-              cursor: busy ? 'not-allowed' : 'pointer',
-              opacity: busy ? 0.6 : 1,
-            }}
+            style={{ ...actionStyle, ...primaryStyle, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}
           >
             {approval ? 'Xin vào' : 'Vào trận'}
           </button>
@@ -273,12 +213,7 @@ export function LobbyMatchCard({
               event.stopPropagation();
               onCancelRequest?.(match);
             }}
-            style={{
-              ...actionStyle,
-              ...secondaryStyle,
-              cursor: busy ? 'not-allowed' : 'pointer',
-              opacity: busy ? 0.6 : 1,
-            }}
+            style={{ ...actionStyle, ...secondaryStyle, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}
           >
             Hủy yêu cầu
           </button>
@@ -290,11 +225,7 @@ export function LobbyMatchCard({
               event.stopPropagation();
               onLeave?.(match);
             }}
-            style={{
-              ...actionStyle,
-              ...secondaryStyle,
-              cursor: 'pointer',
-            }}
+            style={{ ...actionStyle, ...secondaryStyle, cursor: 'pointer' }}
           >
             Rời trận
           </button>
@@ -306,11 +237,7 @@ export function LobbyMatchCard({
               event.stopPropagation();
               onCancel?.(match);
             }}
-            style={{
-              ...actionStyle,
-              ...secondaryStyle,
-              cursor: 'pointer',
-            }}
+            style={{ ...actionStyle, ...secondaryStyle, cursor: 'pointer' }}
           >
             Hủy trận
           </button>

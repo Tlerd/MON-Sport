@@ -14,10 +14,8 @@ export interface ShellContextType {
   setOnBack: (onBack: (() => void) | undefined) => void;
   setTopBarActions: (actions: ReactNode) => void;
   unreadNotifications: number;
-  // Optional: a test outside this feature builds a shell context without it.
   setUnreadNotifications?: (count: number) => void;
   pendingRequests: number;
-  // Optional: the Yêu cầu screen reports its list length after each load.
   setPendingRequests?: (count: number) => void;
   refreshCounts: () => void;
 }
@@ -34,10 +32,8 @@ export function App() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [pendingRequests, setPendingRequestsState] = useState(0);
 
-  // A reply is applied only when no newer fetch or report started after it began.
   const pendingReq = useRef(0);
 
-  // The Yêu cầu screen reports its exact list length. That report also drops older replies in flight.
   const setPendingRequests = (count: number) => {
     pendingReq.current++;
     setPendingRequestsState(count);
@@ -50,7 +46,7 @@ export function App() {
       if (reqId !== pendingReq.current) return;
       if (Array.isArray(reqs)) setPendingRequestsState(reqs.length);
     } catch {
-      // A failed fetch (network or 401) keeps the old count.
+      return;
     }
   };
 
@@ -71,8 +67,6 @@ export function App() {
   const fetchPendingRef = useRef(fetchPending);
   fetchPendingRef.current = fetchPending;
 
-  // The shell owns the pending request count for an OWNER while the Yêu cầu screen is closed.
-  // On the Yêu cầu screen (or at '/', which redirects there), the screen reports the count, so the shell skips its own fetch.
   const countsPending = user?.role === 'OWNER';
   const onRequestsScreen = location.pathname === '/chu-san/yeu-cau';
   const onOwnerRedirect = countsPending && location.pathname === '/';
@@ -119,12 +113,10 @@ export function App() {
     return () => {
       stop();
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      // Drops a reply still in flight: the screen or a new user owns the count now.
       pendingReq.current++;
     };
   }, [user?.id, countsPending, onRequestsScreen, onOwnerRedirect]);
 
-  // The shell owns the unread count while the Thông báo screen is closed. The screen owns it while open.
   const countsNotifications = user?.role === 'USER' || user?.role === 'OWNER';
   const onNotificationsScreen = location.pathname === '/thong-bao';
   const notificationsReq = useRef(0);
@@ -145,7 +137,6 @@ export function App() {
           if (err && typeof err === 'object' && 'status' in err && (err as { status?: unknown }).status === 401) {
             stop();
           }
-          // A failed fetch keeps the old count.
         },
       );
     };
@@ -174,7 +165,6 @@ export function App() {
     return () => {
       stop();
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      // Drops a reply still in flight: the screen or a new user owns the count now.
       notificationsReq.current++;
     };
   }, [user?.id, countsNotifications, onNotificationsScreen]);
@@ -270,11 +260,7 @@ export function App() {
             : 'calc(80px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        <TopBar
-          title={title}
-          onBack={onBack}
-          actions={topBarActions}
-        />
+        <TopBar title={title} onBack={onBack} actions={topBarActions} />
 
         <main style={{ minHeight: 'calc(100vh - 52px)' }}>
           <Outlet

@@ -18,7 +18,6 @@ const RELOAD_MS = 15_000;
 export function NotificationsScreen() {
   const navigate = useNavigate();
   const { user } = useSession();
-  // The screen also renders without the shell (tests, a route outside App), so the context may be missing.
   const shell = useOutletContext<ShellContextType | undefined>();
   const setUnreadNotifications = shell?.setUnreadNotifications;
 
@@ -29,7 +28,6 @@ export function NotificationsScreen() {
   const [readAllBusy, setReadAllBusy] = useState(false);
   const [readAllError, setReadAllError] = useState('');
 
-  // A reply is applied only when no newer request or write started after it began.
   const reqCounter = useRef(0);
   const mountedRef = useRef(true);
   const dataRef = useRef(data);
@@ -65,7 +63,6 @@ export function NotificationsScreen() {
       (err: unknown) => {
         if (!mountedRef.current || reqId !== reqCounter.current) return;
         if (err instanceof ApiError && err.status === 401) setSessionLoginOpen(true);
-        // A failed reload keeps the old list. Only an empty screen shows the error.
         if (!dataRef.current) setFailed(true);
       },
     );
@@ -151,7 +148,6 @@ export function NotificationsScreen() {
           setSessionLoginOpen(true);
           return;
         }
-        // Any other error keeps the card unread. The target still opens.
       } finally {
         pendingReads.current.delete(item.id);
       }
@@ -273,16 +269,7 @@ export function NotificationsScreen() {
               Đọc hết
             </button>
           </div>
-          <ul
-            style={{
-              listStyle: 'none',
-              margin: 0,
-              padding: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              minWidth: 0,
-            }}
-          >
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             {data.items.map((item) => (
               <li key={item.id} style={{ minWidth: 0 }}>
                 <NotificationCard item={item} onOpen={openItem} />
