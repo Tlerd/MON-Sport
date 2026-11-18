@@ -1,17 +1,22 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { VenueView } from '@monsport/shared';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BookPage } from './BookPage.tsx';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BookPage, VenuesPage } from './pages.tsx';
 import { SessionProvider } from './session.tsx';
-import { VenuesPage } from './VenuesPage.tsx';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
 
-describe('VenuesPage (F-033)', () => {
+describe('Venues to BookPage (F-017, F-033)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-20T22:30:00Z'));
+  });
+
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   const venues: VenueView[] = [
@@ -29,13 +34,13 @@ describe('VenuesPage (F-033)', () => {
     },
     {
       id: 'v2',
-      name: 'Bóng đá Phương Nam',
+      name: 'Cầu lông Phương Nam',
       address: '456 Lê Lợi',
       phone: '0988888888',
       opensAt: 360,
       closesAt: 1380,
       courts: [
-        { id: 'c3', name: 'Sân Đông', sport: 'FOOTBALL', priceNormal: 200_000, pricePeak: 300_000 },
+        { id: 'c3', name: 'Sân Đông', sport: 'BADMINTON', priceNormal: 60_000, pricePeak: 80_000 },
       ],
     },
   ];
@@ -75,7 +80,7 @@ describe('VenuesPage (F-033)', () => {
     const { container } = renderAt('/san');
 
     const link1 = await screen.findByRole('link', { name: /Cầu lông A/ });
-    const link2 = screen.getByRole('link', { name: /Bóng đá Phương Nam/ });
+    const link2 = screen.getByRole('link', { name: /Cầu lông Phương Nam/ });
     expect(link1.getAttribute('href')).toBe('/san/v1');
     expect(link2.getAttribute('href')).toBe('/san/v2');
     expect(screen.getAllByText(NOTICE)).toHaveLength(1);
@@ -89,26 +94,22 @@ describe('VenuesPage (F-033)', () => {
     expect(screen.getAllByText(NOTICE)).toHaveLength(1);
   });
 
-  it('prefills court-name search from ?q= query param and filters venues', async () => {
-    setupFetch();
-    renderAt('/san?q=san+dong');
-
-    const list = await screen.findByRole('list', { name: 'Danh sách đơn vị' });
-    const searchInput = screen.getByLabelText('Tìm theo tên sân') as HTMLInputElement;
-    expect(searchInput.value).toBe('san dong');
-    expect(within(list).getByText('Bóng đá Phương Nam')).toBeTruthy();
-    expect(within(list).queryByText('Cầu lông A')).toBeNull();
-  });
-
-  it('filters venues by sport chips on /san', async () => {
+  it('a venue whose court is "Sân Đông", typing "san dong" shows that venue and does not preselect a court', async () => {
     setupFetch();
     renderAt('/san');
 
-    const list = await screen.findByRole('list', { name: 'Danh sách đơn vị' });
-    expect(within(list).getAllByRole('link')).toHaveLength(2);
+    expect(await screen.findByText('Cầu lông A')).toBeTruthy();
+    expect(screen.getByText('Cầu lông Phương Nam')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Bóng đá' }));
+    const searchInput = screen.getByLabelText('Tìm theo tên sân');
+    fireEvent.change(searchInput, { target: { value: 'san dong' } });
+
+    const list = screen.getByRole('list', { name: 'Danh sách đơn vị' });
+    expect(within(list).getByText('Cầu lông Phương Nam')).toBeTruthy();
     expect(within(list).queryByText('Cầu lông A')).toBeNull();
-    expect(within(list).getByText('Bóng đá Phương Nam')).toBeTruthy();
+
+    fireEvent.click(within(list).getByRole('link', { name: /Cầu lông Phương Nam/ }));
+    expect(await screen.findByRole('heading', { name: 'Cầu lông Phương Nam' })).toBeTruthy();
+    expect(screen.getAllByText('Chưa chọn')).toHaveLength(2);
   });
 });

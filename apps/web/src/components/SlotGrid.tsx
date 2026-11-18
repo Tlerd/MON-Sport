@@ -30,16 +30,14 @@ export interface SlotGridProps {
   mode?: 'pick' | 'manage';
   selected?: SelectedSlot | SelectedSlot[] | null;
   onPick?: (courtId: string, startMinute: number, cell?: SlotCellInfo) => void;
-  opensAt?: number; // default 360 (06:00)
-  closesAt?: number; // default 1380 (23:00)
+  opensAt?: number;
+  closesAt?: number;
   className?: string;
-  /** The current time; a prop so that tests can fix it. */
   now?: Date;
   windowId?: WindowId;
   onWindowChange?: (id: WindowId) => void;
 }
 
-/** DESIGN.md, "Time windows": the grid shows one window of the day, never the whole day. */
 export type WindowId = 'sang' | 'chieu' | 'toi';
 export interface TimeWindow {
   id: WindowId;
@@ -54,14 +52,12 @@ const WINDOWS: TimeWindow[] = [
   { id: 'toi', name: 'Tối', from: 17 * 60, to: 24 * 60 },
 ];
 
-/** The windows cut to the opening hours. A window with no cell is left out. */
 export function windowsFor(opensAt: number, closesAt: number): TimeWindow[] {
   return WINDOWS.map((w) => ({ ...w, from: Math.max(w.from, opensAt), to: Math.min(w.to, closesAt) })).filter(
     (w) => w.to - w.from >= 30,
   );
 }
 
-/** Today: the window that holds the current time. Another day: Tối. Else the first window. */
 export function firstWindow(windows: TimeWindow[], date: string | undefined, now: Date): WindowId | undefined {
   if (date === vnDateString(now)) {
     const minute = minuteOfDayVN(now);
@@ -90,7 +86,6 @@ export function SlotGrid({
   const gridRef = useRef<HTMLDivElement>(null);
   const windows = windowsFor(opensAt, closesAt);
   const [chosen, setChosen] = useState<{ key: string; id: WindowId } | null>(null);
-  // A new date or venue starts again from the default window.
   const key = `${date ?? ''}|${opensAt}|${closesAt}`;
   const active =
     windows.find((w) => w.id === (windowId ?? (chosen?.key === key ? chosen.id : firstWindow(windows, date, now)))) ?? windows[0];
@@ -105,14 +100,10 @@ export function SlotGrid({
   function getCellInfo(courtId: string, minute: number): SlotCellInfo {
     const courtCells = cells[courtId];
     if (!courtCells) return { startMinute: minute, status: 'free' };
-
     if (Array.isArray(courtCells)) {
-      const found = courtCells.find((c) => c.startMinute === minute);
-      return found ?? { startMinute: minute, status: 'free' };
+      return courtCells.find((c) => c.startMinute === minute) ?? { startMinute: minute, status: 'free' };
     }
-
-    const found = courtCells[minute];
-    return found ?? { startMinute: minute, status: 'free' };
+    return courtCells[minute] ?? { startMinute: minute, status: 'free' };
   }
 
   function isSelected(courtId: string, minute: number): boolean {
@@ -123,54 +114,28 @@ export function SlotGrid({
     return selected.courtId === courtId && selected.startMinute === minute;
   }
 
+  function focusAt(r: number, c: number) {
+    const btn = gridRef.current?.querySelector<HTMLButtonElement>(
+      `button[data-court-idx="${r}"][data-col-idx="${c}"]:not(:disabled)`,
+    );
+    if (btn) btn.focus();
+    return Boolean(btn);
+  }
+
   function handleKeyDown(e: KeyboardEvent<HTMLButtonElement>, courtIdx: number, colIdx: number) {
     if (!['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(e.key)) return;
     e.preventDefault();
-
     if (e.key === 'ArrowRight') {
-      for (let c = colIdx + 1; c < totalCols; c++) {
-        const btn = gridRef.current?.querySelector<HTMLButtonElement>(
-          `button[data-court-idx="${courtIdx}"][data-col-idx="${c}"]:not(:disabled)`,
-        );
-        if (btn) {
-          btn.focus();
-          return;
-        }
-      }
+      for (let c = colIdx + 1; c < totalCols; c++) if (focusAt(courtIdx, c)) return;
     } else if (e.key === 'ArrowLeft') {
-      for (let c = colIdx - 1; c >= 0; c--) {
-        const btn = gridRef.current?.querySelector<HTMLButtonElement>(
-          `button[data-court-idx="${courtIdx}"][data-col-idx="${c}"]:not(:disabled)`,
-        );
-        if (btn) {
-          btn.focus();
-          return;
-        }
-      }
+      for (let c = colIdx - 1; c >= 0; c--) if (focusAt(courtIdx, c)) return;
     } else if (e.key === 'ArrowDown') {
-      for (let r = courtIdx + 1; r < courts.length; r++) {
-        const btn = gridRef.current?.querySelector<HTMLButtonElement>(
-          `button[data-court-idx="${r}"][data-col-idx="${colIdx}"]:not(:disabled)`,
-        );
-        if (btn) {
-          btn.focus();
-          return;
-        }
-      }
+      for (let r = courtIdx + 1; r < courts.length; r++) if (focusAt(r, colIdx)) return;
     } else if (e.key === 'ArrowUp') {
-      for (let r = courtIdx - 1; r >= 0; r--) {
-        const btn = gridRef.current?.querySelector<HTMLButtonElement>(
-          `button[data-court-idx="${r}"][data-col-idx="${colIdx}"]:not(:disabled)`,
-        );
-        if (btn) {
-          btn.focus();
-          return;
-        }
-      }
+      for (let r = courtIdx - 1; r >= 0; r--) if (focusAt(r, colIdx)) return;
     }
   }
 
-  /** Free hours of a window across all courts, for the chip label in pick mode. */
   function freeHours(w: TimeWindow): number {
     let free = 0;
     for (const court of courts) {
@@ -181,7 +146,6 @@ export function SlotGrid({
     return free / 2;
   }
 
-  /** Pending requests that start in a window, for the chip label in manage mode. */
   function pendingCount(w: TimeWindow): number {
     const ids = new Set<string>();
     for (const court of courts) {
@@ -193,7 +157,6 @@ export function SlotGrid({
     return ids.size;
   }
 
-  /** "06:00" shows as "06", "06:30" stays "06:30". */
   const shortTime = (m: number) => (m % 60 === 0 ? hhmm(m).slice(0, 2) : hhmm(m));
 
   return (
@@ -238,82 +201,99 @@ export function SlotGrid({
           className="slot-grid"
           style={{ gridTemplateColumns: `var(--slot-label-width) repeat(${totalCols}, minmax(28px, 1fr))` }}
         >
-        {/* Header row */}
-        <div className="slot-grid-corner g-corner" />
-        {cols.length > 0 && cols[0] % 60 !== 0 && <div key="h-leading" className="slot-grid-h g-hour" />}
-        {cols.map((minute) => {
-          if (minute % 60 === 0) {
-            const span = cols.includes(minute + 30) ? 2 : 1;
-            return (
+          <div className="slot-grid-corner g-corner" />
+          {cols.length > 0 && cols[0] % 60 !== 0 && <div key="h-leading" className="slot-grid-h g-hour" />}
+          {cols.map((minute) => {
+            if (minute % 60 === 0) {
+              const span = cols.includes(minute + 30) ? 2 : 1;
+              return (
+                <div
+                  key={`h-${minute}`}
+                  className="slot-grid-h g-hour tnum"
+                  style={{ gridColumn: `span ${span}`, fontSize: '12px', color: 'var(--ink3)' }}
+                >
+                  {hhmm(minute)}
+                </div>
+              );
+            }
+            return null;
+          })}
+
+          {courts.map((court, courtIdx) => (
+            <div key={court.id} style={{ display: 'contents' }}>
               <div
-                key={`h-${minute}`}
-                className="slot-grid-h g-hour tnum"
-                style={{ gridColumn: `span ${span}`, fontSize: '12px', color: 'var(--ink3)' }}
+                className="slot-grid-court-label g-head"
+                style={{
+                  fontSize: '13.5px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'var(--ink)',
+                }}
               >
-                {hhmm(minute)}
+                {court.name}
               </div>
-            );
-          }
-          return null;
-        })}
 
-        {/* Court rows */}
-        {courts.map((court, courtIdx) => (
-          <div key={court.id} style={{ display: 'contents' }}>
-            <div
-              className="slot-grid-court-label g-head"
-              style={{
-                fontSize: '13.5px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                color: 'var(--ink)',
-              }}
-            >
-              {court.name}
-            </div>
+              {cols.map((minute, colIdx) => {
+                const cell = getCellInfo(court.id, minute);
+                const peak = isPeakMinute(minute);
+                const sel = isSelected(court.id, minute);
 
-            {cols.map((minute, colIdx) => {
-              const cell = getCellInfo(court.id, minute);
-              const peak = isPeakMinute(minute);
-              const sel = isSelected(court.id, minute);
+                const isTaken = cell.status === 'taken' || cell.status === 'mine';
+                const isPending = cell.status === 'pending';
+                const isConfirmed = cell.status === 'confirmed';
+                const past = mode === 'pick' && minute < pastBefore;
+                const mockStateClass =
+                  isPending
+                    ? 'pending'
+                    : isTaken || isConfirmed
+                      ? 'booked'
+                      : past
+                        ? 'past'
+                        : sel
+                          ? 'free on'
+                          : 'free';
 
-              const isTaken = cell.status === 'taken' || cell.status === 'mine';
-              const isPending = cell.status === 'pending';
-              const isConfirmed = cell.status === 'confirmed';
-              const past = mode === 'pick' && minute < pastBefore;
-              const mockStateClass =
-                isPending
-                  ? 'pending'
-                  : isTaken || isConfirmed
-                    ? 'booked'
-                    : past
-                      ? 'past'
-                      : sel
-                        ? 'free on'
-                        : 'free';
+                const classNames = [
+                  'cell',
+                  'slot-cell',
+                  'g-cell',
+                  mode === 'manage' ? 'owner' : '',
+                  mockStateClass,
+                  peak ? 'peak' : '',
+                  past ? 'past' : '',
+                  sel ? 'sel selected' : '',
+                  cell.status,
+                ].filter(Boolean).join(' ');
 
-              const classNames = [
-                'cell',
-                'slot-cell',
-                'g-cell',
-                mode === 'manage' ? 'owner' : '',
-                mockStateClass,
-                peak ? 'peak' : '',
-                past ? 'past' : '',
-                sel ? 'sel selected' : '',
-                cell.status,
-              ].filter(Boolean).join(' ');
+                if (mode === 'pick') {
+                  const disabled = isTaken || isPending || isConfirmed || past;
+                  const ariaLabel = `${court.name} ${hhmm(minute)} ${past ? 'đã qua' : disabled ? 'đã có người' : 'trống'}`;
 
-              if (mode === 'pick') {
-                const disabled = isTaken || isPending || isConfirmed || past;
-                const ariaLabel = `${court.name} ${hhmm(minute)} ${past ? 'đã qua' : disabled ? 'đã có người' : 'trống'}`;
+                  return (
+                    <button
+                      key={`${court.id}-${minute}`}
+                      type="button"
+                      disabled={disabled}
+                      className={classNames}
+                      data-court-idx={courtIdx}
+                      data-col-idx={colIdx}
+                      data-court-id={court.id}
+                      data-minute={minute}
+                      aria-label={ariaLabel}
+                      onClick={() => onPick?.(court.id, minute, cell)}
+                      onKeyDown={(e) => handleKeyDown(e, courtIdx, colIdx)}
+                    />
+                  );
+                }
+
+                const ariaLabel = `${court.name} ${hhmm(minute)} ${cell.customerName || cell.label || cell.status}`;
+                const displayText = cell.customerName || cell.label || '';
 
                 return (
                   <button
                     key={`${court.id}-${minute}`}
                     type="button"
-                    disabled={disabled}
                     className={classNames}
                     data-court-idx={courtIdx}
                     data-col-idx={colIdx}
@@ -322,34 +302,14 @@ export function SlotGrid({
                     aria-label={ariaLabel}
                     onClick={() => onPick?.(court.id, minute, cell)}
                     onKeyDown={(e) => handleKeyDown(e, courtIdx, colIdx)}
-                  />
+                  >
+                    {displayText && <span className="cell-text" data-field="customer">{displayText}</span>}
+                  </button>
                 );
-              }
-
-              // Manage mode
-              const ariaLabel = `${court.name} ${hhmm(minute)} ${cell.customerName || cell.label || cell.status}`;
-              const displayText = cell.customerName || cell.label || '';
-
-              return (
-                <button
-                  key={`${court.id}-${minute}`}
-                  type="button"
-                  className={classNames}
-                  data-court-idx={courtIdx}
-                  data-col-idx={colIdx}
-                  data-court-id={court.id}
-                  data-minute={minute}
-                  aria-label={ariaLabel}
-                  onClick={() => onPick?.(court.id, minute, cell)}
-                  onKeyDown={(e) => handleKeyDown(e, courtIdx, colIdx)}
-                >
-                  {displayText && <span className="cell-text" data-field="customer">{displayText}</span>}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

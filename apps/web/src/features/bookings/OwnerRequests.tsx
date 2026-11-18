@@ -4,7 +4,7 @@ import { api, ApiError, formatDay, formatTime, formatVnd } from '@monsport/clien
 import { Avatar } from '../../components/Avatar.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
-import { Customer } from './customer.tsx';
+import { Customer } from '../../components/Customer.tsx';
 import { STATUS_LABEL } from './status.ts';
 
 /** UC-4: the owner confirms or rejects each pending request. */
