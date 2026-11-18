@@ -1,6 +1,6 @@
 # Progress
 
-This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Done features are in `COMPLETED.md`. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-17 (brief F-038: OAuth for MCP).
+This file holds what git and the tests cannot show. Rewrite it in place when the next step changes. Done features are in `COMPLETED.md`. Decisions that need the user are in `HUMAN_DECISIONS.md`. History is in git. Updated: 2026-11-19 (large-file split, 300-line limit).
 
 ## Current state
 
@@ -21,7 +21,8 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 ## Open items (2026-11-14)
 
 1. `harness/secret-scan.test.mjs` and `harness/boundaries.test.mjs` each timed out once at 5000 ms under load, and `VenueScreen.test.tsx` AC-9 fails under load: each gets one rerun (fix ladder). The AC-31 flake of `google-auth.e2e.test.ts` is fixed (PR #232).
-2. `agent-workflow` has a "Swarm step (agy Hydrogen)" since `chore/agent-workflow-swarm-step`: the shared part first, then `/swarm` on `gemini-4-hydrogen-high` (on 3.8 until 2026-11-14) only when 3 or more feature folders need more than import changes. The trial on `chore/client-helpers-dedupe` (9 files, mostly import changes) was slower with the swarm (17.4 min) than with one coder (13.2 min). A second swarm on 2026-11-12 (`fix/progress-open-items`; 3 workers, 5 files, independent changes) ran in 11.8 min with `pnpm check` green. No one-coder baseline ran for it, so the rule stays as it is. Try it again on a larger fan-out before you widen the rule.
+2. Swarm step (`agent-workflow`): trials so far (17.4 min swarm against 13.2 min one coder; a second swarm 11.8 min, no baseline) keep the rule as it is. Try a larger fan-out before you widen it.
+3. Large-file split (2026-11-19, PRs #282 to #286 and `chore/source-file-size-limit`): `harness/source-size.test.mjs` fails a non-test source file under `apps/*/src` or `packages/*/src` (not `apps/api/src/generated/`) over 300 lines. Split such a file into a hook, a helper, or a part. Accepted lows for follow-up: no test pins the 409 `BUSY` of `forOwner` on a second deadlock (#284); the AC-7 fixture in `apps/web/src/app/venues-book.test.tsx` changed in the move (#285); mobile `useLobbyMatches` `signedIn` should be `sessionKnown`, `roleRef`/`userIdRef` are mirrored in three lobby hooks, and the window helpers are copied in `ScheduleCourts` and `VenueCourts` (#286).
 
 ## Next step
 
