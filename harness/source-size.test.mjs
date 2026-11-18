@@ -40,19 +40,20 @@ test('trailing blank lines do not count', () => {
 });
 
 test(`every non-test source file under apps/*/src and packages/*/src has at most ${MAX_LINES} lines`, () => {
-  const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+  const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
     cwd: ROOT,
     encoding: 'utf8',
   })
-    .split('\n')
+    .split('\0')
     .filter(isLimitedSource);
   expect(files.length).toBeGreaterThan(50);
   const over = files
     .map((path) => {
       try {
         return { path, lines: countLines(readFileSync(join(ROOT, path), 'utf8')) };
-      } catch {
-        return { path, lines: 0 };
+      } catch (err) {
+        if (err.code === 'ENOENT') return { path, lines: 0 };
+        throw err;
       }
     })
     .filter((f) => f.lines > MAX_LINES)
