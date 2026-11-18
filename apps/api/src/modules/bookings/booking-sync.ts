@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { bookingPrice, minuteOfDayVN } from '@monsport/shared';
 import { type Booking, Prisma } from '../../generated/prisma/client.js';
-import { isDeadlock, isExclusionViolation, type PrismaService, retryOnDeadlock } from '../database/prisma.service.js';
+import { conflictOnDeadlock, isExclusionViolation, type PrismaService, retryOnDeadlock } from '../database/prisma.service.js';
 import type { NotificationsService } from '../notifications/notifications.service.js';
 import type { BookingWithVenue } from './booking-views.js';
 import { assertScope, matchesScope, type VenueScope } from './venue-scope.js';
@@ -119,24 +119,23 @@ export async function cancelUnderLock(
   const found = await prisma.booking.findUnique({ where: { id: bookingId }, select: { courtId: true } });
   if (!found) throw new NotFoundException('Không tìm thấy booking');
   const include = { court: { include: { venue: true } }, match: true } as const;
-  try {
-    return await prisma.$transaction(async (tx) => {
-      await lockVenueOf(tx, found.courtId);
-      await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
-      const before = await tx.booking.findUnique({ where: { id: bookingId }, include });
-      if (!before || !visible(before)) throw new NotFoundException('Không tìm thấy booking');
-      await expireBookings(tx, Prisma.sql`id = ${bookingId}::uuid`, now);
-      const result = await tx.booking.updateMany({
-        where: { id: bookingId, ...condition },
-        data: { status: 'CANCELLED', cancelledAt: now },
-      });
-      if (result.count > 0) await cancelMatchOfBooking(tx, notifications, bookingId);
-      return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include }) };
-    });
-  } catch (error) {
-    if (isDeadlock(error)) throw new ConflictException(BUSY);
-    throw error;
-  }
+  return conflictOnDeadlock(
+    () =>
+      prisma.$transaction(async (tx) => {
+        await lockVenueOf(tx, found.courtId);
+        await tx.$executeRaw`SELECT 1 FROM "Court" WHERE "id" = ${found.courtId}::uuid FOR UPDATE`;
+        const before = await tx.booking.findUnique({ where: { id: bookingId }, include });
+        if (!before || !visible(before)) throw new NotFoundException('Không tìm thấy booking');
+        await expireBookings(tx, Prisma.sql`id = ${bookingId}::uuid`, now);
+        const result = await tx.booking.updateMany({
+          where: { id: bookingId, ...condition },
+          data: { status: 'CANCELLED', cancelledAt: now },
+        });
+        if (result.count > 0) await cancelMatchOfBooking(tx, notifications, bookingId);
+        return { count: result.count, booking: await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include }) };
+      }),
+    BUSY,
+  );
 }
 
 export async function lockVenueOf(tx: Pick<PrismaService, 'court' | 'venue' | '$queryRaw'>, courtId: string, scope?: VenueScope): Promise<void> {
