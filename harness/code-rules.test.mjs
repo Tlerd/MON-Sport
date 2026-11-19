@@ -1,9 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { extname, join } from 'node:path';
 import { expect, test } from 'vitest';
 
 const ROOT = join(import.meta.dirname, '..');
+const ts = createRequire(join(ROOT, 'apps/api/package.json'))('typescript');
 const SOURCE = /^(apps|packages)\/[^/]+\/src\/.+\.(ts|tsx|js|jsx|mjs|cjs)$/;
 const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/;
 const EXCLUDED = ['apps/api/src/generated/'];
@@ -15,7 +17,6 @@ const RETHROW_CATCH = /catch\s*\((\w+)[^)]*\)\s*\{\s*throw\s+\1;?\s*\}/;
 const COPIED_DEADLOCK = /isDeadlock\([^)]*\)\)\s*throw new ConflictException/;
 const COPIED_ERROR_TEXT = /instanceof ApiError\s*\?/;
 
-const COMMENT_PREFIXES = ['//', '/*', '*'];
 const DIRECTIVE_PREFIXES = ['// eslint-', '// @ts-', '/* eslint-', '/// <reference'];
 
 const AS_UNKNOWN_AS_ALLOWED = [
@@ -38,19 +39,41 @@ function findMatches(text, pattern) {
   return Array.from(text.matchAll(regex), (match) => text.slice(0, match.index).split('\n').length);
 }
 
-function isCommentLine(line) {
-  const trimmed = line.trim();
-  if (!COMMENT_PREFIXES.some((prefix) => trimmed.startsWith(prefix))) return false;
-  return !DIRECTIVE_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
+function scriptKind(path) {
+  const ext = extname(path);
+  if (ext === '.tsx') return ts.ScriptKind.TSX;
+  if (ext === '.jsx') return ts.ScriptKind.JSX;
+  if (ext === '.ts' || ext === '.mts' || ext === '.cts') return ts.ScriptKind.TS;
+  return ts.ScriptKind.JS;
 }
 
-function findCommentLines(text) {
-  const lines = text.split(/\r?\n/);
-  const matches = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (isCommentLine(lines[i])) matches.push(i + 1);
-  }
-  return matches;
+function isDirective(comment) {
+  return DIRECTIVE_PREFIXES.some((prefix) => comment.startsWith(prefix));
+}
+
+function findCommentLines(text, path = 'file.tsx') {
+  const sf = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, scriptKind(path));
+  const ranges = new Map();
+  const jsxText = [];
+  const collect = (list) => {
+    for (const range of list ?? []) ranges.set(range.pos, range);
+  };
+  const visit = (node) => {
+    const children = node.getChildren(sf);
+    if (node.kind === ts.SyntaxKind.JsxText) jsxText.push(node);
+    else if (children.length === 0) {
+      collect(ts.getLeadingCommentRanges(text, node.pos));
+      collect(ts.getTrailingCommentRanges(text, node.end));
+    }
+    for (const child of children) visit(child);
+  };
+  visit(sf);
+  collect(ts.getLeadingCommentRanges(text, sf.endOfFileToken.pos));
+  return [...ranges.values()]
+    .filter((range) => !jsxText.some((node) => range.pos >= node.pos && range.pos < node.end))
+    .filter((range) => !isDirective(text.slice(range.pos, range.end)))
+    .sort((a, b) => a.pos - b.pos)
+    .map((range) => sf.getLineAndCharacterOfPosition(range.pos).line + 1);
 }
 
 let cachedFiles;
@@ -105,12 +128,22 @@ test('matchers detect forbidden patterns and ignore valid code', () => {
   expect(findMatches("const msg = err instanceof ApiError ? err.message : 'fallback';", COPIED_ERROR_TEXT)).toEqual([1]);
   expect(findMatches("const msg = errorMessage(err, 'fallback');", COPIED_ERROR_TEXT)).toEqual([]);
 
-  expect(findCommentLines('const a = 1;\n  // note\n/* block */\n * line\n*/')).toEqual([2, 3, 4, 5]);
+  expect(findCommentLines('const a = 1;\n  // note\n', 'a.ts')).toEqual([2]);
+  expect(findCommentLines('const a = 1; // note\nconst b = 2;', 'a.ts')).toEqual([1]);
+  expect(findCommentLines('const el = <div>{/* x */}</div>;', 'a.tsx')).toEqual([1]);
+  expect(findCommentLines('/* block\n * line\n */\nconst a = 1;', 'a.ts')).toEqual([1]);
+  expect(findCommentLines('const a = 1;\n/** doc */\nfunction f() {}', 'a.ts')).toEqual([2]);
   expect(
     findCommentLines(
-      '// eslint-disable-next-line no-console\n// @ts-expect-error test\n/* eslint-disable */\n/// <reference types="vite/client" />\nconst url = "https://example.com";',
+      '// eslint-disable-next-line no-console\n// @ts-expect-error test\n/* eslint-disable */\n/// <reference types="vite/client" />\nconst a = 1;',
+      'a.ts',
     ),
   ).toEqual([]);
+  expect(
+    findCommentLines("const url = 'https://example.com';\nconst s = 'a // b';\nconst t = `/* c */`;", 'a.ts'),
+  ).toEqual([]);
+  expect(findCommentLines('const el = <p>see // here and /* there */</p>;', 'a.tsx')).toEqual([]);
+  expect(findCommentLines('const el = <p>// here</p>;', 'a.tsx')).toEqual([]);
 });
 
 test('no source file uses any', () => {
@@ -183,12 +216,10 @@ test('no source file outside COMMENT_ALLOWED has code comments', () => {
   const allowed = new Set(COMMENT_ALLOWED);
   const violations = loadSourceFiles()
     .filter((file) => !allowed.has(file.path))
-    .flatMap((file) => {
-      const lines = findCommentLines(file.text);
-      if (lines.length === 0) return [];
-      return [
-        `FAIL code: ${file.path}:${lines[0]} has ${lines.length} code comment line(s). Fix: remove the comment and let a name or a test carry the meaning.`,
-      ];
-    });
+    .flatMap((file) =>
+      findCommentLines(file.text, file.path).map(
+        (line) => `FAIL code: ${file.path}:${line} has a code comment. Fix: remove the comment and let a name or a test carry the meaning.`,
+      ),
+    );
   expect(violations).toEqual([]);
 });

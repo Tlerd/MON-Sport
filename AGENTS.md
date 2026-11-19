@@ -37,9 +37,9 @@ A folder appears when its first feature needs it. `.dependency-cruiser.cjs` hold
 
 `pnpm check` enforces each rule marked (check), through `harness/code-rules.test.mjs` and `harness/source-size.test.mjs`.
 
-- Write no code comment (check). A name or a test carries the meaning. Lint and type directives are the only exception.
+- Write no code comment in a source file that is not a test (check). A name or a test carries the meaning. Lint and type directives are the only exception.
 - Use no `any` and no `as unknown as` (check). Narrow an `unknown` value with a type guard or `instanceof`.
-- Catch an error only to change the result: a message, a status, a retry, or a cleanup. An empty catch, or a catch that only rethrows, fails the check.
+- Catch an error only to change the result: a message, a status, a retry, a fallback value, or a cleanup. An empty catch, or a catch that only rethrows, fails the check. Best-effort cleanup (closing a connection, a storage write) may end in `.catch(() => undefined)`.
 - API: run a transaction that can deadlock through `retryOnDeadlock` or `conflictOnDeadlock` in `apps/api/src/modules/database/prisma.service.ts` (check). Do not copy the catch block.
 - Web and mobile: call the API through `api()` in `packages/client`. Turn an error into text with `errorMessage` (check). Run a user action through the `useAction` hook of the app.
 - Keep each source file that is not a test at 300 lines or fewer (check). Split a long file by hook, part, or service.

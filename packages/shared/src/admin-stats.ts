@@ -22,14 +22,14 @@ export type AdminVenueStat = z.infer<typeof AdminVenueStat>;
 const Count = z.number().int().nonnegative();
 
 export const AdminStatsView = z.object({
-  date: z.string(), // YYYY-MM-DD, the day in use
-  weekStart: z.string(), // YYYY-MM-DD, Monday
-  weekEnd: z.string(), // YYYY-MM-DD, Sunday
+  date: z.string(),
+  weekStart: z.string(),
+  weekEnd: z.string(),
   accounts: z.object({ ADMIN: Count, OWNER: Count, USER: Count, STAFF: Count }),
   newUsers: Count,
   activeUsers: Count,
   avgConfirmMinutes: Count.nullable(),
   expiryRate: z.number().min(0).max(1),
-  venues: z.array(AdminVenueStat), // sorted by venueName
+  venues: z.array(AdminVenueStat),
 });
 export type AdminStatsView = z.infer<typeof AdminStatsView>;

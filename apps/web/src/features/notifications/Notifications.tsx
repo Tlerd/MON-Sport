@@ -91,6 +91,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
   async function markOneRead(item: NotificationItemView) {
     if (item.readAt || busy) return;
     latest.current++;
+    readAll.setError(null);
     const res = await readOne.run(
       () => api<NotificationReadResponse>(`/api/notifications/${item.id}/read`, { method: 'POST' }),
       FAILED_UPDATE,
@@ -110,6 +111,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
   async function markAllRead() {
     if (!data || data.unreadCount === 0 || busy) return;
     latest.current++;
+    readOne.setError(null);
     const res = await readAll.run(
       () => api<NotificationReadAllResponse>('/api/notifications/read-all', { method: 'POST' }),
       FAILED_UPDATE,
