@@ -69,10 +69,11 @@ export const quotaText = ({ stderr }) => String(stderr ?? '').trimEnd().split(/\
 
 export const hitQuota = ({ status, output }) => status !== 0 && QUOTA.test(output);
 
-export function runWithFallback(args, run, list) {
-  const models = list ?? (args.includes('--strong-only') ? STRONG : MODELS);
+export function runWithFallback(args, run, lists = { models: MODELS, strong: STRONG }) {
+  const strongOnly = args.includes('--strong-only');
+  const models = strongOnly ? lists.strong : lists.models;
   if (!models.length) {
-    return { status: 1, output: args.includes('--strong-only') ? 'agy-run: no model in AGY_REVIEW_MODELS' : 'agy-run: no model in AGY_MODELS' };
+    return { status: 1, output: strongOnly ? 'agy-run: no model in AGY_REVIEW_MODELS' : 'agy-run: no model in AGY_MODELS' };
   }
   for (const model of models) {
     const result = run(buildArgs(args, model));
