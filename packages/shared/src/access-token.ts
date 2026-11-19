@@ -1,11 +1,8 @@
 import { z } from 'zod';
 
-// Brief F-037: personal access tokens for MCP (BR-59).
-
 export const ACCESS_TOKEN_PREFIX = 'mst_';
 export const MAX_ACTIVE_ACCESS_TOKENS = 5;
 
-// READ: the 4 read tools. BOOK: all 9 tools.
 export const AccessTokenScope = z.enum(['READ', 'BOOK']);
 export type AccessTokenScope = z.infer<typeof AccessTokenScope>;
 

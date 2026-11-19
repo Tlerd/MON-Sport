@@ -6,10 +6,6 @@ import { findVenues, normalizeName } from './search.ts';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
 
-/**
- * Brief F-008 (UC-2): pick a venue, a court, and a day, then see the free ranges with a link to call the owner.
- * It needs no login. A guest sees the notice here. A user sees it in the booking form, so `notice` is off there.
- */
 export function VenueBrowser({ notice = false }: { notice?: boolean }) {
   const heading = useId();
   const [venues, setVenues] = useState<VenueView[]>([]);
@@ -19,8 +15,6 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
   const [free, setFree] = useState<Availability['free'] | null>(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
-  // A click on a search result asks for focus on the court select. The select exists only after the venue is set, so the
-  // effect moves the focus after the render. A counter asks again on each click, also for the venue that is already picked.
   const [focusRequest, setFocusRequest] = useState(0);
   const courtSelect = useRef<HTMLSelectElement>(null);
 
@@ -32,7 +26,6 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
     if (focusRequest > 0) courtSelect.current?.focus();
   }, [focusRequest]);
 
-  // A late answer for an earlier pick must not replace the list of the newer pick.
   useEffect(() => {
     if (!courtId || !date) return;
     let current = true;
@@ -54,7 +47,6 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
   const searching = normalizeName(query) !== '';
   const venue = venues.find((v) => v.id === venueId);
 
-  /** Brief F-010: the reset of the venue select, then focus on the court select. The date stays. */
   function openVenue(id: string) {
     setVenueId(id);
     setCourtId('');
@@ -63,7 +55,6 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
     setFocusRequest((n) => n + 1);
   }
   const dayStart = date ? startOfDayVN(date).getTime() : 0;
-  // Minutes since 00:00 of the day, so a range that ends at 00:00 of the next day shows 24:00.
   const minute = (iso: string) => Math.round((Date.parse(iso) - dayStart) / 60_000);
 
   return (
@@ -117,7 +108,6 @@ export function VenueBrowser({ notice = false }: { notice?: boolean }) {
         )}
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      {/* The live region stays in the DOM, so screen readers announce the empty day when it appears. */}
       <div role="status" className="live">
         {free?.length === 0 && <p className="empty">Hết giờ trống trong ngày này. Hãy chọn ngày khác.</p>}
         {free && free.length > 0 && <p className="hint">Có {free.length} khoảng giờ trống.</p>}

@@ -1,8 +1,6 @@
 import type { OAuthConnectionList, OAuthConsentView, OAuthDecisionRequest, OAuthDecisionResponse } from '@monsport/shared';
 import { api } from './api.ts';
 
-// Brief F-038: the web side of OAuth for MCP: the "Cho phép" screen and the list of connections.
-
 const request = (id: string) => `/api/oauth/requests/${encodeURIComponent(id)}`;
 
 export function getConsent(id: string): Promise<OAuthConsentView> {

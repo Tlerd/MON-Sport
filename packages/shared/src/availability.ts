@@ -1,8 +1,5 @@
 import { z } from 'zod';
 
-// Brief F-008 (UC-2): the free hours of one court on one day. The server and the tests share freeRanges.
-// Vietnam has no daylight saving time, so Asia/Ho_Chi_Minh is always UTC+7 (BR-27).
-
 const MINUTE = 60_000;
 const SLOT = 30 * MINUTE;
 const HOUR = 60 * MINUTE;
@@ -26,27 +23,17 @@ export const Availability = z.object({
 export type Availability = z.infer<typeof Availability>;
 
 export interface FreeRangesInput {
-  /** `YYYY-MM-DD`, a day in Asia/Ho_Chi_Minh. */
   date: string;
-  /** Minutes since 00:00 of `date`. */
   opensAt: number;
-  /** Minutes since 00:00 of `date`. 1440 is 00:00 of the next day. */
   closesAt: number;
   now: Date;
-  /** The time that PENDING (before the deadline) and CONFIRMED bookings hold. */
   busy: { startAt: Date; endAt: Date }[];
 }
 
-/** The start of `date` in Asia/Ho_Chi_Minh. */
 export function startOfDayVN(date: string): Date {
   return new Date(`${date}T00:00:00${VN_OFFSET}`);
 }
 
-/**
- * The free time of a court on one day. The window runs from opening to closing (BR-27). It starts no earlier than the
- * first 30-minute mark after `now`, because a booking starts after now (BR-2). The busy time comes out of it, and a
- * range shorter than 1 hour goes (BR-3).
- */
 export function freeRanges({ date, opensAt, closesAt, now, busy }: FreeRangesInput): FreeRange[] {
   const dayStart = startOfDayVN(date).getTime();
   const windowEnd = dayStart + closesAt * MINUTE;

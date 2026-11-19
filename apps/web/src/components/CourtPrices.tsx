@@ -4,7 +4,6 @@ import { SportIcon } from './SportIcon.tsx';
 
 const SPORT = { BADMINTON: 'Cầu lông', FOOTBALL: 'Bóng đá' } as const;
 
-/** The courts of a venue, each with its normal and peak price per hour. Peak glows amber, as on the slot bar (BR-4). */
 export function CourtPrices({ courts }: { courts: CourtView[] }) {
   if (courts.length === 0) return <p className="empty">Chưa có sân.</p>;
   return (

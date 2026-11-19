@@ -1,4 +1,3 @@
-// Display in Asia/Ho_Chi_Minh (BR-27), money in whole VND (BR-25).
 const time = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
 const day = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -8,8 +7,6 @@ export const formatTime = (iso: string) => time.format(new Date(iso));
 export const formatDay = (iso: string) => day.format(new Date(iso));
 export const formatSlot = (startAt: string, endAt: string) => `${formatTime(startAt)}–${formatTime(endAt)} ngày ${formatDay(startAt)}`;
 
-/** Opening hours sit on the 30-minute grid, from 00:00 to 24:00 (data dictionary, Venue.opensAt). */
 export const HALF_HOURS = Array.from({ length: 49 }, (_, i) => i * 30);
 
-/** "HH:mm" for minutes since 00:00. */
 export const hhmm = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;

@@ -11,9 +11,6 @@ const STATUS_LABEL: Record<MatchStatus, string> = {
   FINISHED: 'Trận đã đá xong',
 };
 
-/**
- * Brief F-012 (UC-8 flow 8.2, AC-13): lists matches where the logged-in user is an active player.
- */
 export function JoinedMatches({ refresh = 0 }: { refresh?: number }) {
   const heading = useId();
   const [matches, setMatches] = useState<MatchView[] | null>(null);

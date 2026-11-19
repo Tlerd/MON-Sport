@@ -8,7 +8,6 @@ export interface RevenueChartProps {
   points: FinancialChartPoint[];
 }
 
-/** A label with a space ("T2 02/11") shows the day name above the date, so 7 labels fit at 360px. */
 function LabelLines({ label }: { label: string }) {
   const space = label.indexOf(' ');
   if (space <= 0) return <>{label}</>;

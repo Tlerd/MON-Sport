@@ -141,6 +141,45 @@ describe('Notifications', () => {
     await waitFor(() => expect(screen.queryByText('1')).toBeNull());
   });
 
+  it('AC-10: a failed read-all shows an error text and keeps the unread badge', async () => {
+    const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+      if (url === '/api/notifications' && (!opts || !opts.method || opts.method === 'GET')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockNotifs) });
+      }
+      return Promise.reject(new Error(`Failed ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
+    fireEvent.click(await screen.findByRole('button', { name: /Thông báo/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Đánh dấu tất cả đã đọc' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe('Không cập nhật được thông báo');
+    expect(screen.getAllByText('1').length).toBeGreaterThan(0);
+  });
+
+  it('AC-10: a failed mark-one, then a successful read-all, shows no error text', async () => {
+    const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+      if (url === '/api/notifications' && (!opts || !opts.method || opts.method === 'GET')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockNotifs) });
+      }
+      if (url === '/api/notifications/read-all' && opts?.method === 'POST') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ count: 1 }) });
+      }
+      return Promise.reject(new Error(`Failed ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<Notifications userId="0199a1b2-0000-7000-8000-000000000001" />);
+    fireEvent.click(await screen.findByRole('button', { name: /Thông báo/ }));
+    fireEvent.click((await screen.findByText('Yêu cầu đặt sân mới')).closest('li')!);
+    expect((await screen.findByRole('alert')).textContent).toBe('Không cập nhật được thông báo');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' }));
+    await waitFor(() => expect(screen.queryByText('1')).toBeNull());
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('AC-11: shows "Chưa có thông báo nào" when notifications list is empty', async () => {
     vi.stubGlobal(
       'fetch',

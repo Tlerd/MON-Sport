@@ -18,10 +18,8 @@ const FULL = 'Bạn đã có 5 mã. Thu hồi một mã trước';
 const MAX_SECRET_LENGTH = 100;
 const LAST_USED_STEP_MS = 60_000;
 const DAY_MS = 86_400_000;
-// The API package does not depend on zod, so a regex stands in for `z.uuid()`. A bad id is a 404, never a database error.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Brief F-037: what `authenticate` gives to the MCP layer. Step 3 joins it with McpContext. */
 export interface AccessTokenContext {
   userId: string;
   role: Role;
@@ -38,12 +36,10 @@ interface TokenRow {
   lastUsedAt: Date | null;
 }
 
-/** SHA-256 of the whole token, lowercase hex. */
 export function hashToken(secret: string): string {
   return createHash('sha256').update(secret).digest('hex');
 }
 
-/** Never returns the hash. */
 function toView(row: TokenRow): AccessTokenView {
   return {
     id: row.id,
@@ -63,9 +59,6 @@ export class AccessTokensService {
     private readonly clock: Clock,
   ) {}
 
-  /**
-   * The one rule for "valid" (BR-59, BR-32): not revoked, not expired, and not created before the user's sessionsValidFrom.
-   */
   private validWhere(userId: string, sessionsValidFrom: Date | null, now: Date): Prisma.AccessTokenWhereInput {
     return {
       userId,
@@ -88,7 +81,6 @@ export class AccessTokensService {
   async create(userId: string, input: CreateAccessTokenRequest): Promise<CreateAccessTokenResponse> {
     const now = this.clock.now();
     return this.prisma.$transaction(async (tx) => {
-      // Lock order: the User row first (FOR NO KEY UPDATE), then the insert. Two parallel calls cannot make a sixth token.
       const users = await tx.$queryRaw<{ sessionsValidFrom: Date | null }[]>`SELECT "sessionsValidFrom" FROM "User" WHERE "id" = ${userId}::uuid FOR NO KEY UPDATE`;
       const sessionsValidFrom = users[0]?.sessionsValidFrom ?? null;
       const active = await tx.accessToken.count({ where: this.validWhere(userId, sessionsValidFrom, now) });
@@ -119,7 +111,6 @@ export class AccessTokensService {
     if (result.count === 0) throw new NotFoundException(NOT_FOUND);
   }
 
-  /** Returns the context for a valid token and null otherwise. It never logs the secret and never puts it in an error. */
   async authenticate(secret: string): Promise<AccessTokenContext | null> {
     if (!secret.startsWith(ACCESS_TOKEN_PREFIX) || secret.length > MAX_SECRET_LENGTH) return null;
     const row = await this.prisma.accessToken.findUnique({ where: { tokenHash: hashToken(secret) }, include: { user: true } });

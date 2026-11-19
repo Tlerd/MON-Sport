@@ -37,7 +37,6 @@ export interface SportIconProps extends SVGProps<SVGSVGElement> {
   size?: number;
 }
 
-/** React SVG sport icon ported from the Ra Sân mock, with a generic ball fallback. */
 export function SportIcon({ sport, size = 20, className = '', ...props }: SportIconProps) {
   const id = normalizeSportId(sport);
   const ariaHidden = props['aria-label'] ? undefined : (props['aria-hidden'] ?? true);

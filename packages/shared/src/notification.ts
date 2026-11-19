@@ -1,7 +1,5 @@
 import { z } from 'zod';
 
-// Brief F-013 (UC-14): In-app notifications. Names follow docs/requirements/data-dictionary.md.
-
 export const NotificationType = z.enum([
   'BOOKING_REQUESTED',
   'BOOKING_CONFIRMED',
@@ -48,7 +46,6 @@ export const NotificationReadAllResponse = z.object({
 });
 export type NotificationReadAllResponse = z.infer<typeof NotificationReadAllResponse>;
 
-// Display in Asia/Ho_Chi_Minh (BR-27).
 const timeFormat = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
   hour: '2-digit',
@@ -62,7 +59,6 @@ const dateFormat = new Intl.DateTimeFormat('vi-VN', {
   year: 'numeric',
 });
 
-/** Formats a start and end instant to "HH:mm - HH:mm ngày DD/MM/YYYY" in Asia/Ho_Chi_Minh. */
 export function formatSlotTime(start: Date | string, end: Date | string): string {
   const startDate = typeof start === 'string' ? new Date(start) : start;
   const endDate = typeof end === 'string' ? new Date(end) : end;
@@ -77,7 +73,6 @@ export interface NotificationContentParams {
   endAt: Date | string;
 }
 
-/** Returns the standard Vietnamese title and message for a notification (brief F-013). */
 export function formatNotificationContent(params: NotificationContentParams): { title: string; message: string } {
   const slotTime = formatSlotTime(params.startAt, params.endAt);
   switch (params.type) {

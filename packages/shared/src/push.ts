@@ -1,27 +1,12 @@
 import { z } from 'zod';
 
-// Brief F-014 (UC-14): Web Push. Names follow docs/requirements/data-dictionary.md.
-
-/**
- * Hosts of the push services that the server may call (brief F-014, Assumption 8). The endpoint comes from the user,
- * and the server calls it, so only these hosts pass. A suffix starts with a dot, so `evilnotify.windows.com` fails.
- */
 export const PUSH_HOST_ALLOWLIST = {
   hosts: ['fcm.googleapis.com', 'updates.push.services.mozilla.com', 'web.push.apple.com'],
   suffixes: ['.push.apple.com', '.notify.windows.com', '.push.services.mozilla.com'],
 } as const;
 
-// Lowercase letters, digits, and hyphens in labels, with at least one dot and no empty label.
 const CANONICAL_HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 
-/**
- * True for an https URL without port or userinfo, on an allowed host. Never throws. A non-string gives false.
- * It accepts the canonical form only (`new URL(url).href === url`). The WHATWG parser decodes `%2E`, drops a tab, and maps
- * the ideographic full stop to a dot, while the legacy `url.parse` of `web-push` reads another host from the same text.
- * `https://10.0.0.5%2E.push.apple.com/x` is one such text. A canonical text has one reading in both parsers, as long as its
- * host also fits the DNS limits: 253 characters in all and 63 in a label. The legacy parser returns an empty hostname for a
- * host over 255 characters, and `https.request` then goes to localhost. So the limits are part of this guarantee.
- */
 export function isAllowedPushEndpoint(url: unknown): boolean {
   if (typeof url !== 'string') return false;
   try {
@@ -58,7 +43,6 @@ export const PushPublicKeyResponse = z.object({
 });
 export type PushPublicKeyResponse = z.infer<typeof PushPublicKeyResponse>;
 
-/** The content of one push. It holds no name and no phone number (BR-20). */
 export const PushPayload = z.object({
   title: z.string(),
   body: z.string(),

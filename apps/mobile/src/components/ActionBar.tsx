@@ -10,7 +10,6 @@ export interface ActionBarProps extends HTMLAttributes<HTMLElement> {
   disabled?: boolean;
   hidden?: boolean;
   visible?: boolean;
-  /** A link next to the primary button, for example "Gọi chủ sân". */
   secondary?: { label: string; href: string };
 }
 

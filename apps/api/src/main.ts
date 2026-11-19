@@ -8,7 +8,7 @@ import { assertOtpConfig } from './modules/otp/otp-config.js';
 import { serveMobile, serveWeb } from './serve-web.js';
 import { setupApp } from './setup-app.js';
 
-assertSessionSecret(); // Fail at start, not at the first login.
+assertSessionSecret();
 assertOtpConfig();
 assertGoogleConfig();
 const app = setupApp(await NestFactory.create<NestExpressApplication>(AppModule));

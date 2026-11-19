@@ -35,12 +35,10 @@ export function useHideOnScroll({ locked }: UseHideOnScrollOptions): UseHideOnSc
     }
 
     if (locked && !wasLockedRef.current) {
-      // Transitioning into locked: freeze top bar, hide tab bar
       preLockRef.current = { topHidden: topHiddenRef.current, tabHidden: tabHiddenRef.current };
       setTabHidden(true);
       wasLockedRef.current = true;
     } else if (!locked && wasLockedRef.current) {
-      // Transitioning out of locked: anchor resets to current scrollY
       const currentScrollY = window.scrollY;
       const scrollHeight = document.documentElement?.scrollHeight ?? 0;
       const innerHeight = window.innerHeight ?? 0;
@@ -87,7 +85,6 @@ export function useHideOnScroll({ locked }: UseHideOnScrollOptions): UseHideOnSc
       const isAtEnd = scrollHeight > innerHeight && currentScrollY + innerHeight >= scrollHeight - 1;
 
       if (locked) {
-        // While locked: top bar frozen, tab bar hidden
         lastScrollYRef.current = currentScrollY;
         return;
       }
@@ -102,7 +99,6 @@ export function useHideOnScroll({ locked }: UseHideOnScrollOptions): UseHideOnSc
       }
 
       if (isAtEnd) {
-        // At the end of the page: Top bar unchanged, Tab bar shown
         setTabHidden(false);
         lastScrollYRef.current = currentScrollY;
         return;
@@ -110,7 +106,6 @@ export function useHideOnScroll({ locked }: UseHideOnScrollOptions): UseHideOnSc
 
       const diff = currentScrollY - lastScrollYRef.current;
       if (diff > 0) {
-        // Scrolling down
         if (directionRef.current !== 'down') {
           directionRef.current = 'down';
           anchorYRef.current = lastScrollYRef.current;
@@ -120,7 +115,6 @@ export function useHideOnScroll({ locked }: UseHideOnScrollOptions): UseHideOnSc
           setTabHidden(true);
         }
       } else if (diff < 0) {
-        // Scrolling up
         if (directionRef.current !== 'up') {
           directionRef.current = 'up';
           anchorYRef.current = lastScrollYRef.current;

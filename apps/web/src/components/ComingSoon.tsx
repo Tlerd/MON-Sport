@@ -6,7 +6,6 @@ export interface ComingSoonButtonProps extends Omit<ButtonHTMLAttributes<HTMLBut
   children: ReactNode;
 }
 
-/** Button that triggers the global "Sắp ra mắt" toast when clicked. */
 export function ComingSoonButton({ children, className = 'btn', type = 'button', ...props }: ComingSoonButtonProps) {
   const { comingSoon } = useToast();
   return (
@@ -20,11 +19,9 @@ export interface ComingSoonPageProps {
   title: string;
   description?: string;
   actionLabel?: string;
-  /** Full page width like the reference list pages. */
   wide?: boolean;
 }
 
-/** Placeholder page using the Ra Sân empty-state card while a feature is pending. */
 export function ComingSoonPage({ title, description, actionLabel, wide = false }: ComingSoonPageProps) {
   return (
     <div className={wide ? 'page' : 'page narrow'}>

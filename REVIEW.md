@@ -15,8 +15,9 @@ Rate a finding high or medium when the change can cause one of these:
 - Auth fails: a missing role check, a session that stays valid after an admin unlock (BR-32), or a broken login limit (BR-30) or password rule (BR-31).
 - The pull request changes a path that its brief or its description does not list.
 - A change to `.gitleaks.toml` hides a real secret. `harness/gitleaks-config.test.mjs` checks the form: one exact value, a reason, named rules. You check the value: find where it occurs, and confirm that it is public test data (a published sample or a fake), not a credential that works anywhere. Rate an allowed real secret high.
+- The change adds a code comment, an `any`, a cast that hides a type, an empty catch, a catch that only rethrows, or a copy of a helper that the section "Code" of `AGENTS.md` names.
 
-Other problems are low: names, style, small duplication, comments.
+Other problems are low: names, style, small duplication.
 
 ## Rules for each finding
 

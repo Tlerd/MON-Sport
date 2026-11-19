@@ -16,17 +16,14 @@ function secret(): string {
   return process.env.SESSION_SECRET || DEV_SECRET;
 }
 
-/** Derives the HMAC key for OTP hashing from SESSION_SECRET, the same way session.ts derives keys (O2). */
 export function otpDerivedKey(): Buffer {
   return createHmac('sha256', secret()).update('otp').digest();
 }
 
-/** Computes HMAC-SHA256 of phone + ':' + code using the derived 'otp' key (O2). */
 export function hashOtpCode(phone: string, code: string): string {
   return createHmac('sha256', otpDerivedKey()).update(`${phone}:${code}`).digest('hex');
 }
 
-/** Thrown when an OTP rate limit (resend within 60s or otp-phone hourly limit) is hit. */
 export class OtpThrottleException extends HttpException {
   readonly retryAfter: number;
 
@@ -47,10 +44,6 @@ export class OtpService {
     @Inject(OTP_SENDER) private readonly sender: OtpSender,
   ) {}
 
-  /**
-   * Issues a new 6-digit OTP code for the given phone and purpose (O1 to O3, O5, O5b, O8, O10).
-   * Lock order in the transaction: PhoneOtp, otp-phone, otp-day; nothing else written in the transaction.
-   */
   async issue(phone: string, purpose: string, channel: 'sms' | 'zalo' = 'sms'): Promise<{ resendAfter: number }> {
     const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
     const codeHash = hashOtpCode(phone, code);
@@ -61,7 +54,6 @@ export class OtpService {
 
     let countedKeys: string[] = [];
 
-    // In ONE transaction: upsert O3, then count otp-phone and otp-day.
     await this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<{ sentAt: Date }[]>`
         INSERT INTO "PhoneOtp" ("phoneKey", purpose, "codeHash", attempts, "sentAt", "expiresAt")
@@ -98,7 +90,6 @@ export class OtpService {
       countedKeys = countResult.countedKeys;
     });
 
-    // After commit: run cleanups catching and logging their own errors without the phone.
     try {
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
       await this.prisma.phoneOtp.deleteMany({
@@ -109,7 +100,6 @@ export class OtpService {
       this.logger.error('Cleanup failed', cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr));
     }
 
-    // Call sender.send. On failure, delete new code and decrement counters in one transaction.
     try {
       await this.sender.send(phone, code, channel);
     } catch {
@@ -133,12 +123,6 @@ export class OtpService {
     return { resendAfter: 60 };
   }
 
-  /**
-   * Verifies and records attempts for an OTP code (O4).
-   * Runs as a single atomic UPDATE statement outside any caller transaction.
-   * Throws 400 when expired, canceled, or incorrect. Deletes code on 5th failure.
-   * Returns codeHash on success.
-   */
   async verifyCode(phone: string, purpose: string, code: string): Promise<string> {
     const phoneKey = keyedDigest(phone);
     const now = this.clock.now();
@@ -175,10 +159,6 @@ export class OtpService {
     return codeHash;
   }
 
-  /**
-   * Deletes a verified code within the caller's transaction (O6).
-   * Rolls back with caller's transaction on failure, keeping the code usable.
-   */
   async deleteCode(tx: DbClient, phone: string, purpose: string, codeHash: string): Promise<void> {
     const phoneKey = keyedDigest(phone);
     const deleted = await tx.phoneOtp.deleteMany({
@@ -194,9 +174,6 @@ export class OtpService {
     }
   }
 
-  /**
-   * Verifies and consumes an OTP code (O4, O6).
-   */
   async consume(tx: DbClient, phone: string, purpose: string, code: string): Promise<void> {
     const codeHash = await this.verifyCode(phone, purpose, code);
     await this.deleteCode(tx, phone, purpose, codeHash);

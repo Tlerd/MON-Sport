@@ -15,7 +15,6 @@ export interface SheetProps {
   };
 }
 
-// 90dvh follows the iOS keyboard. Browsers without it keep 90vh (QA D-5).
 const SHEET_MAX_HEIGHT =
   typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('max-height', '90dvh') ? '90dvh' : '90vh';
 
@@ -46,7 +45,6 @@ export function Sheet({ open, onClose, closeDisabled = false, title, children, p
       releaseRef.current = null;
     }
     onClose();
-    // Return focus to opener
     openerRef.current?.focus();
   };
 
@@ -78,7 +76,6 @@ export function Sheet({ open, onClose, closeDisabled = false, title, children, p
 
     window.addEventListener('keydown', handleKeyDown);
 
-    // Initial focus into sheet
     const timer = setTimeout(() => {
       const focusable = dialogRef.current?.querySelector<HTMLElement>(
         'button, input, select, textarea',
@@ -122,7 +119,6 @@ export function Sheet({ open, onClose, closeDisabled = false, title, children, p
         justifyContent: 'flex-end',
       }}
     >
-      {/* Backdrop */}
       <div
         data-testid="sheet-backdrop"
         onClick={handleClose}
@@ -135,7 +131,6 @@ export function Sheet({ open, onClose, closeDisabled = false, title, children, p
         aria-hidden="true"
       />
 
-      {/* Sheet Content */}
       <div
         ref={dialogRef}
         onTouchStart={handleTouchStart}
@@ -153,7 +148,6 @@ export function Sheet({ open, onClose, closeDisabled = false, title, children, p
           animation: 'sheetSlideUp 200ms cubic-bezier(.2,.8,.2,1)',
         }}
       >
-        {/* Grabber */}
         <div
           aria-hidden="true"
           style={{

@@ -10,11 +10,6 @@ export interface GoogleConfig {
   redirectUri: string;
 }
 
-/**
- * Asserts Google OAuth configuration at start-up (AC-20).
- * If any of GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, or GOOGLE_REDIRECT_URI is set,
- * then all three must be set.
- */
 export function assertGoogleConfig(env: NodeJS.ProcessEnv = process.env): void {
   const clientId = env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
@@ -26,9 +21,6 @@ export function assertGoogleConfig(env: NodeJS.ProcessEnv = process.env): void {
   }
 }
 
-/**
- * Google is enabled only when all three GOOGLE_* variables are set AND OTP_PROVIDER is set (brief: 'không đặt' row, AC-19).
- */
 export function isGoogleEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   const clientId = env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();

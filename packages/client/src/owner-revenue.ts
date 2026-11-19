@@ -14,7 +14,6 @@ export interface PeriodHeadingView {
   endDate?: string;
 }
 
-/** Shifts a YYYY-MM-DD calendar date by `steps` days, weeks, or months in UTC, clamping month-end days. */
 export function shiftPeriodDate(date: string, period: FinancialPeriod, steps: number): string {
   if (period === 'day') return addDaysYmd(date, steps);
   if (period === 'week') return addDaysYmd(date, steps * 7);
@@ -27,7 +26,6 @@ export function shiftPeriodDate(date: string, period: FinancialPeriod, steps: nu
   return `${String(targetYear).padStart(4, '0')}-${String(targetMonth).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
 }
 
-/** Formats the heading of a financial period in Asia/Ho_Chi_Minh (BR-27). */
 export function periodHeading(view: PeriodHeadingView): string {
   if (view.period === 'week') {
     const startYmd =
@@ -48,10 +46,6 @@ export function periodHeading(view: PeriodHeadingView): string {
   return `Tháng ${m}/${y}`;
 }
 
-/**
- * Confirmed, unpaid bookings of `courtIds` whose `startAt` instant falls within `[startDate, endDate]`,
- * sorted by `startAt` ascending without mutating `bookings`.
- */
 export function unpaidInPeriod<
   T extends { status: BookingStatus; paidAtVenue: boolean; startAt: string; courtId: string },
 >(bookings: readonly T[], startDate: string, endDate: string, courtIds: readonly string[]): T[] {
@@ -69,16 +63,11 @@ export function unpaidInPeriod<
     .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt));
 }
 
-/** Formats a 0..1 rate as a rounded whole percentage string, "<1%" for a rate above 0 and below 0.005. */
 export function percent(rate: number): string {
   if (rate > 0 && rate < 0.005) return '<1%';
   return `${Math.round(rate * 100)}%`;
 }
 
-/**
- * The UTC instants of the VN day, week (Monday to Sunday), or month of `date`, in the shape of the API:
- * `endDate` is the last millisecond of the last VN day.
- */
 export function periodRange(
   period: FinancialPeriod,
   date: string,

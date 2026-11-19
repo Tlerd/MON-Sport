@@ -6,7 +6,6 @@ import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { keyedDigest } from './session.js';
 
-// Brief F-006, BR-30 and F-004, O5. Each counter is a fixed window that its first attempt opens.
 export const LIMITS = {
   'login-phone': { max: 10, windowMs: 15 * 60_000 },
   'login-ip': { max: 30, windowMs: 15 * 60_000 },
@@ -30,10 +29,6 @@ export type OtpCountResult =
 
 const DAY_MS = 24 * 60 * 60_000;
 
-/**
- * The counter key of a client address: an IPv4 address as it is (also when IPv6 maps it),
- * and an IPv6 address by its /64 block, because one subscriber usually gets a whole /64.
- */
 export function ipBucket(ip: string | undefined): string {
   if (!ip) return 'unknown';
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
@@ -54,20 +49,12 @@ export class ThrottleService {
     private readonly clock: Clock,
   ) {}
 
-  /**
-   * Counts a login attempt by IP, then by phone, before the password check, so a blocked attempt runs no argon2.
-   * Returns the seconds to wait when a limit is passed, else null. F-004 `link-start` calls this too.
-   */
   async consumeLogin(phone: string, ip: string | undefined): Promise<number | null> {
     const retryAfter = (await this.hit('login-ip', ipBucket(ip))) ?? (await this.hit('login-phone', phone));
     await this.cleanupOld();
     return retryAfter;
   }
 
-  /**
-   * BR-58, brief F-037 step 3: counts an MCP tool call per user, and a write call also in the write counter.
-   * A refused call still counts. Returns true when every counter is within its limit.
-   */
   async consumeMcpCall(userId: string, write: boolean): Promise<boolean> {
     const callRefused = await this.hit('mcp-call', userId);
     const writeRefused = write ? await this.hit('mcp-write', userId) : null;
@@ -75,39 +62,28 @@ export class ThrottleService {
     return callRefused === null && writeRefused === null;
   }
 
-  /** Brief F-038: counts an OAuth request by IP before any fetch or read. Returns true when it is within the limit. */
   async consumeOAuth(counter: 'oauth-authorize-ip' | 'oauth-token-ip', ip: string | undefined): Promise<boolean> {
     const refused = await this.hit(counter, ipBucket(ip));
     await this.cleanupOld();
     return refused === null;
   }
 
-  /** A correct password clears the phone counter, so it counts failures in a row. The IP counter stays. */
   async loginSucceeded(phone: string): Promise<void> {
     await this.prisma.authThrottle.deleteMany({ where: { key: this.key('login-phone', phone) } });
   }
 
-  /** Counts a sign-up attempt by IP before the argon2 hash. Returns the seconds to wait, or null. */
   async consumeRegister(ip: string | undefined): Promise<number | null> {
     const retryAfter = await this.hit('register-ip', ipBucket(ip));
     await this.cleanupOld();
     return retryAfter;
   }
 
-  /**
-   * Brief F-004, O5: Rate limit check before sending OTP request.
-   * Counts otp-ip then otp-sub. Returns retryAfter seconds or null.
-   */
   async consumeOtpRequest(ip: string | undefined, sub: string): Promise<number | null> {
     const retryAfter = (await this.hit('otp-ip', ipBucket(ip))) ?? (await this.hit('otp-sub', sub));
     await this.cleanupOld();
     return retryAfter;
   }
 
-  /**
-   * Reads otp-ip and otp-sub without counting. Returns the seconds to wait when either is at its limit, else null.
-   * /google/complete calls it on every request, so a blocked caller gets 429 for every phone (no existence oracle).
-   */
   async otpRequestBlocked(ip: string | undefined, sub: string): Promise<number | null> {
     const now = this.clock.now();
     for (const [counter, value] of [['otp-ip', ipBucket(ip)], ['otp-sub', sub]] as const) {
@@ -119,10 +95,6 @@ export class ThrottleService {
     return null;
   }
 
-  /**
-   * Brief F-004, O5: Inside a transaction, counts otp-phone then the daily counter otp-day:<yyyy-mm-dd>.
-   * Daily max comes from OTP_DAILY_CAP (default 200). Returns which keys were counted.
-   */
   async countOtpPhoneAndDay(tx: Prisma.TransactionClient, phone: string): Promise<OtpCountResult> {
     const phoneRetryAfter = await this.hit('otp-phone', phone, tx);
     const phoneKey = this.key('otp-phone', phone);
@@ -147,9 +119,6 @@ export class ThrottleService {
     return { ok: true, countedKeys: [phoneKey, dayKey] };
   }
 
-  /**
-   * Brief F-004, O8 and BR-48: Takes 1 off given keys, never below 0.
-   */
   async decrementCounters(tx: Prisma.TransactionClient, keys: string[]): Promise<void> {
     for (const key of keys) {
       await tx.$executeRaw`
@@ -160,7 +129,6 @@ export class ThrottleService {
     }
   }
 
-  /** Drops counter rows older than 24 hours. Callers run this after committing their hit. */
   async cleanupOld(client: DbClient = this.prisma): Promise<void> {
     const now = this.clock.now();
     await client.authThrottle.deleteMany({ where: { windowStart: { lt: new Date(now.getTime() - DAY_MS) } } });
@@ -170,10 +138,6 @@ export class ThrottleService {
     return `${counter}:${keyedDigest(value)}`;
   }
 
-  /**
-   * One atomic upsert adds the attempt, so both Cloud Run instances and parallel requests share one count.
-   * A window that has ended starts again at 1. LEAST keeps the count inside int4 under a flood.
-   */
   private async hit(
     counter: Counter,
     value: string,

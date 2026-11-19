@@ -4,10 +4,6 @@ import type { OtpSender } from './otp.types.js';
 
 export { OTP_SENDER, type OtpSender } from './otp.types.js';
 
-/**
- * Dev-only OTP sender that writes to the DevOtpOutbox table instead of sending real messages.
- * Never logs phone or code to the console (O2, AC-34).
- */
 @Injectable()
 export class DevOtpSender implements OtpSender {
   constructor(private readonly prisma: PrismaService) {}
@@ -19,10 +15,6 @@ export class DevOtpSender implements OtpSender {
   }
 }
 
-/**
- * Production OTP sender calling the eSMS HTTP API.
- * Never logs phone or code. Throws on any non-success response.
- */
 @Injectable()
 export class EsmsOtpSender implements OtpSender {
   async send(phone: string, code: string, _channel: 'sms' | 'zalo'): Promise<void> {

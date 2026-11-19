@@ -2,8 +2,6 @@ import { z } from 'zod';
 import { Messages } from './account.ts';
 import { Phone } from './booking.ts';
 
-// Brief F-004: Sign-in and sign-up via Google, phone verification with OTP.
-
 export const OTP_CODE_MESSAGE = 'Mã OTP gồm 6 chữ số';
 export const OtpCode = z.string().regex(/^\d{6}$/, OTP_CODE_MESSAGE);
 

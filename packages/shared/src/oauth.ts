@@ -1,19 +1,16 @@
 import { z } from 'zod';
 import { AccessTokenScope } from './access-token.ts';
 
-// Brief F-038: OAuth for the MCP server (BR-60).
-
 export const OAUTH_ACCESS_TOKEN_PREFIX = 'mot_';
 export const OAUTH_REFRESH_TOKEN_PREFIX = 'mor_';
-export const OAUTH_ACCESS_TTL_SECONDS = 3600; // 1 hour
-export const OAUTH_REFRESH_IDLE_DAYS = 30; // a refresh token ends after 30 days without use
-export const OAUTH_CONNECTION_MAX_DAYS = 90; // a connection lives at most 90 days from its grant, as the longest PAT
+export const OAUTH_ACCESS_TTL_SECONDS = 3600;
+export const OAUTH_REFRESH_IDLE_DAYS = 30;
+export const OAUTH_CONNECTION_MAX_DAYS = 90;
 export const MAX_ACTIVE_OAUTH_CONNECTIONS = 10;
 
 export const OAuthScope = z.enum(['read', 'book', 'offline_access']);
 export type OAuthScope = z.infer<typeof OAuthScope>;
 
-/** "book" gives all 9 tools (BOOK). Without "book", only the 4 read tools (READ). An empty string is "read". */
 export function parseScope(scope: string): { access: AccessTokenScope; offline: boolean } {
   const parts = new Set(scope.split(/\s+/).filter(Boolean));
   return { access: parts.has('book') ? 'BOOK' : 'READ', offline: parts.has('offline_access') };

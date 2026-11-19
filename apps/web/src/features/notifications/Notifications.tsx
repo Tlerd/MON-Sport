@@ -7,24 +7,21 @@ import type {
 import { Bell } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, formatDay, formatTime } from '@monsport/client';
+import { useAction } from '../../hooks/useAction.ts';
 import { PushToggle } from './PushToggle.tsx';
 
-/** How often a visible page asks the server for new notifications. A Web Push or a return to the tab reloads at once. */
 const RELOAD_MS = 15_000;
-/** A reload that has run longer than this is treated as lost, so it cannot block the next one for good. */
 const STALE_MS = 2 * RELOAD_MS;
+const FAILED_UPDATE = 'Không cập nhật được thông báo';
 
-/**
- * Brief F-013 (UC-14): in-app notification bell, dropdown drawer, and read actions.
- * Brief F-014: the drawer holds the button for Web Push on this device. `userId` is the signed-in user.
- */
 export function Notifications({ userId, refresh = 0 }: { userId: string; refresh?: number }) {
   const [data, setData] = useState<NotificationsListResponse | null>(null);
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const readOne = useAction();
+  const readAll = useAction();
+  const busy = readAll.busy;
+  const error = readAll.error ?? readOne.error;
 
-  // `latest` numbers each request. A list that arrives after a newer request, or after a read action, is dropped, so a slow
-  // reload cannot bring back a badge that the user just cleared.
   const latest = useRef(0);
   const pending = useRef(0);
   const startedAt = useRef(0);
@@ -47,14 +44,12 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
         setData(normalized);
       })
       .catch(() => {
-        // A reload that hung and was aborted keeps the list it replaces.
         if (controller.signal.aborted) return;
         if (!keepOnError && number === latest.current) setData(null);
       })
       .finally(() => {
         clearTimeout(timer);
         pending.current--;
-        // A trigger came while this reload ran, so the list may be old again.
         if (pending.current === 0 && again.current) {
           again.current = false;
           if (document.visibilityState === 'visible') void load(true);
@@ -66,9 +61,7 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
     void load();
   }, [load, refresh]);
 
-  // AC-23: the other side acts, not this user, so the list follows the server. A failed background reload keeps the list.
   useEffect(() => {
-    // `afterRunning` is true for a push: it proves that the server changed, so a reload that is already running may be too old.
     const reload = (afterRunning = false) => {
       if (document.visibilityState !== 'visible') return;
       if (pending.current > 0 && Date.now() - startedAt.current < STALE_MS) {
@@ -98,45 +91,42 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
   async function markOneRead(item: NotificationItemView) {
     if (item.readAt || busy) return;
     latest.current++;
-    try {
-      const res = await api<NotificationReadResponse>(`/api/notifications/${item.id}/read`, {
-        method: 'POST',
-      });
-      latest.current++; // A list that was asked for during the POST is older than this change.
-      if (pending.current > 0) again.current = true;
-      setData((prev) => {
-        if (!prev) return prev;
-        return {
-          unreadCount: Math.max(0, prev.unreadCount - 1),
-          items: prev.items.map((i) => (i.id === item.id ? { ...i, readAt: res.readAt } : i)),
-        };
-      });
-    } catch {
-      // Keep state on failure
-    }
+    readAll.setError(null);
+    const res = await readOne.run(
+      () => api<NotificationReadResponse>(`/api/notifications/${item.id}/read`, { method: 'POST' }),
+      FAILED_UPDATE,
+    );
+    if (!res) return;
+    latest.current++;
+    if (pending.current > 0) again.current = true;
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        unreadCount: Math.max(0, prev.unreadCount - 1),
+        items: prev.items.map((i) => (i.id === item.id ? { ...i, readAt: res.readAt } : i)),
+      };
+    });
   }
 
   async function markAllRead() {
     if (!data || data.unreadCount === 0 || busy) return;
     latest.current++;
-    setBusy(true);
-    try {
-      await api<NotificationReadAllResponse>('/api/notifications/read-all', { method: 'POST' });
-      latest.current++;
-      if (pending.current > 0) again.current = true;
-      const nowIso = new Date().toISOString();
-      setData((prev) => {
-        if (!prev) return prev;
-        return {
-          unreadCount: 0,
-          items: prev.items.map((i) => ({ ...i, readAt: i.readAt ?? nowIso })),
-        };
-      });
-    } catch {
-      // Keep state on failure
-    } finally {
-      setBusy(false);
-    }
+    readOne.setError(null);
+    const res = await readAll.run(
+      () => api<NotificationReadAllResponse>('/api/notifications/read-all', { method: 'POST' }),
+      FAILED_UPDATE,
+    );
+    if (!res) return;
+    latest.current++;
+    if (pending.current > 0) again.current = true;
+    const nowIso = new Date().toISOString();
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        unreadCount: 0,
+        items: prev.items.map((i) => ({ ...i, readAt: i.readAt ?? nowIso })),
+      };
+    });
   }
 
   const unreadCount = data?.unreadCount ?? 0;
@@ -187,6 +177,8 @@ export function Notifications({ userId, refresh = 0 }: { userId: string; refresh
               </button>
             </div>
           </header>
+
+          {error && <p className="error" role="alert">{error}</p>}
 
           <PushToggle userId={userId} />
 

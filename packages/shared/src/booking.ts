@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// Names and values follow docs/requirements/data-dictionary.md.
 export const Role = z.enum(['ADMIN', 'OWNER', 'USER', 'STAFF']);
 export type Role = z.infer<typeof Role>;
 
@@ -58,10 +57,6 @@ export const CreateBookingRequest = z.object({
 });
 export type CreateBookingRequest = z.infer<typeof CreateBookingRequest>;
 
-/**
- * Brief F-007 (UC-5): an owner enters the booking of a customer who phoned. The name and the phone are optional.
- * A name of only spaces counts as no name.
- */
 export const CreatePhoneBookingRequest = CreateBookingRequest.extend({
   customerName: z
     .string()
@@ -69,7 +64,6 @@ export const CreatePhoneBookingRequest = CreateBookingRequest.extend({
     .max(100)
     .transform((name) => name || undefined)
     .optional(),
-  // An empty phone box counts as no phone.
   customerPhone: z.preprocess((phone) => (phone === '' ? undefined : phone), Phone.optional()),
 }).strict();
 export type CreatePhoneBookingRequest = z.infer<typeof CreatePhoneBookingRequest>;
@@ -90,7 +84,6 @@ export const BookingView = z.object({
 });
 export type BookingView = z.infer<typeof BookingView>;
 
-// Brief F-011: declared here and re-exported in match.ts so MyBookingView and match.ts share them without a cycle.
 export const MatchStatus = z.enum(['OPEN', 'FULL', 'CANCELLED', 'FINISHED']);
 export type MatchStatus = z.infer<typeof MatchStatus>;
 
@@ -103,7 +96,6 @@ export const MatchSummary = z.object({
 });
 export type MatchSummary = z.infer<typeof MatchSummary>;
 
-/** Brief F-009 & F-011: the history of the user. venuePhone is the public phone of the venue, as in VenueView. */
 export const MyBookingView = BookingView.extend({
   courtName: z.string(),
   venueName: z.string(),
@@ -136,5 +128,4 @@ export const RecurringPhoneBookingResponse = z.object({
   skipped: z.array(z.object({ startAt: Instant, endAt: Instant })),
 });
 export type RecurringPhoneBookingResponse = z.infer<typeof RecurringPhoneBookingResponse>;
-
 

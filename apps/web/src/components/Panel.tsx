@@ -49,7 +49,6 @@ export function Panel({
 
     window.addEventListener('keydown', handleKeyDown);
 
-    // Initial focus on panel or first focusable element
     const initialTimer = setTimeout(() => {
       const first = panelRef.current?.querySelector<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',

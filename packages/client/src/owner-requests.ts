@@ -5,7 +5,6 @@ export interface CourtLabel {
   venueName: string;
 }
 
-/** Text for the time left before a booking request expires, rounded down to minutes. */
 export function deadlineLeft(confirmDeadline: string | null, now: Date): string {
   if (confirmDeadline === null) return '';
   const ms = Date.parse(confirmDeadline) - now.getTime();
@@ -20,7 +19,6 @@ export function deadlineLeft(confirmDeadline: string | null, now: Date): string 
   return `Còn ${rest} phút`;
 }
 
-/** Map from court id to the court name and venue name, for all courts of the venues. */
 export function courtLabels(venues: VenueView[]): Map<string, CourtLabel> {
   const map = new Map<string, CourtLabel>();
   for (const venue of venues) {

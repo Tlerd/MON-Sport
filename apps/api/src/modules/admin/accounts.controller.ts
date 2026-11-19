@@ -5,10 +5,8 @@ import { Roles, SessionGuard } from '../auth/session.guard.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 
-// A malformed id gets the Vietnamese generic text, not the English text of the pipe.
 const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(Messages.invalid) });
 
-// UC-10: only the ADMIN role reaches these routes (brief F-003).
 @Controller('admin')
 @UseGuards(SessionGuard)
 @Roles('ADMIN')
@@ -32,10 +30,6 @@ export class AdminAccountsController {
     return owners.map(toAccountView);
   }
 
-  /**
-   * BR-20: the admin finds one account by its exact phone number, and does not browse the users.
-   * The number goes in the body, so it stays out of the Cloud Run request log.
-   */
   @Post('users/search')
   @HttpCode(200)
   async find(@Body() body: unknown): Promise<AccountView[]> {
@@ -45,13 +39,11 @@ export class AdminAccountsController {
     return user && !user.deletedAt ? [toAccountView(user)] : [];
   }
 
-  /** UC-10, flow 10.1 and BR-28. The session guard reads lockedAt on each request, so the lock acts at once. */
   @Post('users/:id/lock')
   @HttpCode(200)
   async lock(@Param('id', Id) id: string): Promise<AccountView> {
     const now = this.clock.now();
     await this.prisma.$transaction(async (tx) => {
-      // One conditional write: a parallel unlock cannot slip between a read and the write, and the first lock time stays.
       await tx.user.updateMany({ where: { id, lockedAt: null, deletedAt: null, role: { not: 'ADMIN' } }, data: { lockedAt: now } });
       const target = await tx.user.findUnique({ where: { id } });
       if (target?.role === 'OWNER') {
@@ -74,10 +66,6 @@ export class AdminAccountsController {
     return toAccountView(user);
   }
 
-  /**
-   * Brief F-006, BR-32: an unlock also revokes every session issued before it, so a stolen cookie does not come back.
-   * Only a locked account changes, so a second click on "Mở khóa" does not sign the user out.
-   */
   @Post('users/:id/unlock')
   @HttpCode(200)
   async unlock(@Param('id', Id) id: string): Promise<AccountView> {
