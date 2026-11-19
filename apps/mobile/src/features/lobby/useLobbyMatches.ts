@@ -1,6 +1,6 @@
 import { api, ApiError } from '@monsport/client';
 import type { MatchView, SessionUser, Sport } from '@monsport/shared';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLatest } from '../../hooks/useLatest.ts';
 
 export function useLobbyMatches(user: SessionUser | null | undefined) {
@@ -90,10 +90,7 @@ export function useLobbyMatches(user: SessionUser | null | undefined) {
     });
   }, [sport, date, isPlayer, openSessionLogin]);
 
-  const fetchRef = useRef(fetchAll);
-  useLayoutEffect(() => {
-    fetchRef.current = fetchAll;
-  });
+  const fetchRef = useLatest(fetchAll);
 
   const reload = useCallback(() => {
     if (inFlight.current) {
