@@ -21,7 +21,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const me = await api<SessionUser>('/api/auth/me');
       setUser(me);
     } catch (err) {
-      // A failed reply that is not a 401 keeps a user that login() just set (QA D-4).
       if (err instanceof ApiError && err.status === 401) setUser(null);
       else setUser((prev) => prev ?? null);
     }
@@ -39,7 +38,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       await api('/api/auth/logout', { method: 'POST' });
     } catch (err) {
-      // The cookie may still live: keep the user and let the caller show the error (QA D-2).
       if (!(err instanceof ApiError) || err.status >= 500) throw err;
     }
     setUser(null);

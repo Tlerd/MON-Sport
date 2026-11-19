@@ -4,7 +4,6 @@ import { dayChipLabel } from './booking.ts';
 
 export interface LobbyFilter {
   sport?: Sport;
-  /** A calendar date (YYYY-MM-DD) in Asia/Ho_Chi_Minh. */
   date?: string;
 }
 
@@ -17,10 +16,6 @@ export interface LobbyCard {
 const byStart = (a: MatchView, b: MatchView) =>
   Date.parse(a.startAt) - Date.parse(b.startAt) || Date.parse(a.createdAt) - Date.parse(b.createdAt);
 
-/**
- * Merges the feed with the OPEN or FULL joined matches, drops duplicates by id, keeps future matches,
- * applies the sport and Asia/Ho_Chi_Minh date filter to all rows, and sorts by startAt ascending. Does not mutate inputs.
- */
 export function lobbyMatches(
   rows: readonly MatchView[],
   joinedRows: readonly MatchView[],
@@ -49,7 +44,6 @@ export function lobbyMatches(
     .sort((a, b) => byStart(a.match, b.match));
 }
 
-/** 7 day chips starting today in Asia/Ho_Chi_Minh. */
 export function lobbyChips(now: Date): { ymd: string; label: string }[] {
   const today = vnDateString(now);
   return Array.from({ length: 7 }, (_, i) => {
@@ -58,7 +52,6 @@ export function lobbyChips(now: Date): { ymd: string; label: string }[] {
   });
 }
 
-/** The rows whose startAt falls on the given Asia/Ho_Chi_Minh date. */
 export function matchesForDay(rows: readonly MatchView[], ymd: string): MatchView[] {
   return rows.filter((m) => vnDateString(new Date(m.startAt)) === ymd);
 }

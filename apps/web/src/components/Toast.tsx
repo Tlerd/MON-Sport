@@ -21,7 +21,6 @@ const NOOP_TOAST: ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue>(NOOP_TOAST);
 
-/** Renders transient status notifications (#toasts) and exposes toast / comingSoon helpers. */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(1);
@@ -69,7 +68,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Returns toast helpers; falls back to safe no-ops when used outside ToastProvider. */
 export function useToast(): ToastContextValue {
   return useContext(ToastContext);
 }

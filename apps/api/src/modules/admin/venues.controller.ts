@@ -10,7 +10,6 @@ import { isHoursViolation } from './db-errors.js';
 
 const BAD_OWNER = 'Chủ sân không hợp lệ';
 const COURT_TAKEN = 'Tên sân đã có trong đơn vị này';
-// The owner is read with 3 fields only, so a later change cannot return the password hash by mistake.
 const WITH_COURTS = { courts: { orderBy: { name: 'asc' } }, owner: { select: { id: true, name: true, phone: true } } } as const;
 
 type OwnerView = AdminVenueView['owner'];
@@ -19,10 +18,8 @@ function toAdminView({ owner, ...venue }: Venue & { courts: Court[]; owner: Owne
   return { ...toVenueView(venue), owner: { id: owner.id, name: owner.name, phone: owner.phone } };
 }
 
-// A malformed id gets the Vietnamese generic text, not the English text of the pipe.
 const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(Messages.invalid) });
 
-// UC-10: the admin creates and edits venues and courts (brief F-003). Only the ADMIN role reaches these routes.
 @Controller('admin')
 @UseGuards(SessionGuard)
 @Roles('ADMIN')
@@ -50,12 +47,6 @@ export class AdminVenuesController {
     );
   }
 
-  /**
-   * The body is merged into the stored venue, and the result is checked as a whole (AC-19). The row stays locked
-   * from the read to the write, and only the fields of the body are written. So two parallel updates of different
-   * fields both stay, and a parallel update cannot write back an old owner (BR-20, BR-23). The catch maps the
-   * CHECK of the database to the hours text, as the last guard that the brief asks for (Risks).
-   */
   @Patch('venues/:id')
   async update(@Param('id', Id) id: string, @Body() body: unknown): Promise<AdminVenueView> {
     const patch = VenueUpdate.safeParse(body);
@@ -104,7 +95,6 @@ export class AdminVenuesController {
     return toCourtView(await this.saveCourt(() => this.prisma.court.update({ where: { id }, data: input.data })));
   }
 
-  /** The unique index on (venueId, name) decides a race between two courts with one name. */
   private async saveCourt(write: () => Promise<Court>): Promise<Court> {
     try {
       return await write();
@@ -114,10 +104,6 @@ export class AdminVenuesController {
     }
   }
 
-  /**
-   * Venue.ownerId points to an active OWNER account (data dictionary). A locked owner cannot take a venue.
-   * FOR SHARE holds a parallel lock of that owner until the venue write commits.
-   */
   private async assertOwner(ownerId: string, db: Pick<PrismaService, 'user' | '$queryRaw'>): Promise<void> {
     await db.$queryRaw`SELECT id FROM "User" WHERE id = ${ownerId}::uuid FOR SHARE`;
     const owner = await db.user.findUnique({ where: { id: ownerId } });

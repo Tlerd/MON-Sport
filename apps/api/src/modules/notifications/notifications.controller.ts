@@ -26,20 +26,17 @@ const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(M
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
-  /** UC-14: list notifications for the authenticated user, newest first. */
   @Get()
   list(@Req() req: AuthedRequest): Promise<NotificationsListResponse> {
     return this.notifications.listForUser(req.user.id);
   }
 
-  /** Marks all unread notifications of the authenticated user as read. */
   @Post('read-all')
   @HttpCode(200)
   readAll(@Req() req: AuthedRequest): Promise<NotificationReadAllResponse> {
     return this.notifications.markAllAsRead(req.user.id);
   }
 
-  /** Marks a single notification as read. Idempotent. */
   @Post(':id/read')
   @HttpCode(200)
   readOne(@Req() req: AuthedRequest, @Param('id', Id) id: string): Promise<NotificationReadResponse> {

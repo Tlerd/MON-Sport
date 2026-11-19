@@ -11,7 +11,6 @@ type SportFilter = 'ALL' | 'BADMINTON' | 'FOOTBALL';
 
 const NOTICE = 'App mới ra mắt. Hãy gọi chủ sân và xem kỹ thông tin trước khi đặt.';
 
-/** The sports of a venue, once each, in the order of its courts. */
 const sportsOf = (venue: VenueView) => [...new Set(venue.courts.map((c) => c.sport))];
 
 export function VenueListScreen() {

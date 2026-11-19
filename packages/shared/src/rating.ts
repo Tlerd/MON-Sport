@@ -6,7 +6,6 @@ export const RATE_TOO_LATE = 'Đã quá 7 ngày sau trận, không chấm điể
 export const RATE_CANCELLED = 'Trận đã hủy, không chấm điểm được';
 export const RATE_NOT_PLAYER = 'Người này không có suất trong trận';
 
-// A no-show has no stars, so it does not change the average (BR-56).
 export const RatePlayerRequest = z
   .object({ stars: z.int().min(1).max(5).nullable(), noShow: z.boolean() })
   .strict()

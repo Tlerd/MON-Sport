@@ -10,7 +10,6 @@ export interface ClientMetadata {
   redirectUris: string[];
 }
 
-/** The hosts allowed as client_id. Read at call time, so tests can set the variable before they compile the module. */
 export function cimdHosts(): string[] {
   return (process.env.OAUTH_CIMD_HOSTS ?? 'claude.ai')
     .split(',')
@@ -18,7 +17,6 @@ export function cimdHosts(): string[] {
     .filter(Boolean);
 }
 
-/** True when the client_id is an https URL of an allowed host, without credentials. */
 export function isAllowedClientId(clientId: string): boolean {
   let url: URL;
   try {
@@ -29,7 +27,6 @@ export function isAllowedClientId(clientId: string): boolean {
   return url.protocol === 'https:' && !url.username && !url.password && cimdHosts().includes(url.hostname.toLowerCase());
 }
 
-/** Brief F-038: reads a Client ID Metadata Document. Any failure gives null. It never logs the body. */
 @Injectable()
 export class ClientMetadataFetcher {
   async fetch(clientId: string): Promise<ClientMetadata | null> {
@@ -59,7 +56,6 @@ export class ClientMetadataFetcher {
   }
 }
 
-/** Reads a body stream as text and stops above 10 KB. */
 async function readLimited(body: ReadableStream<Uint8Array>): Promise<string | null> {
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];

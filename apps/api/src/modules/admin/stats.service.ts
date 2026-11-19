@@ -4,10 +4,6 @@ import { type AdminStatsView, vnDateString, vnWeekRange } from '@monsport/shared
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 
-/**
- * Brief F-016 (UC-13). This service only reads, and it returns totals only: no phone and no name (POST-13, BR-20).
- * It never calls expireBookings. "Overdue" comes from the formula in Assumption 7.
- */
 @Injectable()
 export class StatsService {
   constructor(
@@ -21,16 +17,13 @@ export class StatsService {
     const { weekStart, weekEnd, from, to } = vnWeekRange(day);
     const inWeek = { gte: from, lt: to };
 
-    // Overdue: stored as EXPIRED, or still PENDING with a deadline that has passed.
     const overdue: Prisma.BookingWhereInput = { OR: [{ status: 'EXPIRED' }, { status: 'PENDING', confirmDeadline: { lt: now } }] };
-    // Not overdue: the complement of the formula, written positively so a null deadline does not drop the row.
     const notOverdue: Prisma.BookingWhereInput = {
       OR: [
         { status: { in: ['CONFIRMED', 'REJECTED', 'CANCELLED'] } },
         { status: 'PENDING', OR: [{ confirmDeadline: null }, { confirmDeadline: { gte: now } }] },
       ],
     };
-    // Answered by the owner or past the deadline: the requests that can show a confirm rate.
     const decided: Prisma.BookingWhereInput = { OR: [{ status: { in: ['CONFIRMED', 'REJECTED'] } }, overdue] };
 
     const [

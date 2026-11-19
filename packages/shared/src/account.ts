@@ -2,9 +2,6 @@ import { z } from 'zod';
 import { Phone, PHONE_MESSAGE, Role, Sport, VenueView } from './booking.ts';
 import { isWeakPassword } from './common-passwords.ts';
 
-// Brief F-003: sign-up (UC-1, flow 1.0) and the admin screens (UC-10). Names follow docs/requirements/data-dictionary.md.
-
-/** The Vietnamese error texts of brief F-003. The API answers one of these, or `invalid`. */
 export const Messages = {
   consent: 'Bạn cần đồng ý với thông báo bảo vệ dữ liệu cá nhân',
   passwordLength: 'Mật khẩu có ít nhất 8 ký tự',
@@ -17,23 +14,17 @@ export const Messages = {
   price: 'Giá phải lớn hơn 0',
   priceMax: 'Giá tối đa 10.000.000đ một giờ',
   invalid: 'Dữ liệu không hợp lệ',
-  // Brief F-006.
   weakPassword: 'Mật khẩu này quá dễ đoán. Hãy chọn mật khẩu khác',
   tooManyAttempts: 'Bạn đã thử quá nhiều lần. Hãy thử lại sau ít phút',
 } as const;
 
 const known = new Set<string>(Object.values(Messages));
 
-/** The first error text of a failed parse, or the generic text when Zod gave an English one. */
 export function errorMessage(error: z.ZodError): string {
   const message = error.issues[0]?.message ?? '';
   return known.has(message) ? message : Messages.invalid;
 }
 
-/**
- * Shown on the sign-up screen. Open item 4 of the intake (Luật 91/2025) is still open, so the text is a safe default
- * that the user and a legal adviser replace. One paragraph per line.
- */
 export const PRIVACY_NOTICE = [
   'MONSPORT thu thập tên, số điện thoại, trình độ và lịch sử đặt sân của bạn để bạn đặt sân và ghép trận.',
   'Chủ sân của booking và host của trận bạn vào thấy số điện thoại của bạn. Host chấm điểm người chơi sau trận. Host của trận "Host duyệt" thấy điểm uy tín của người xin. Nhân viên của đơn vị thấy tên và số điện thoại của khách đặt sân ở đơn vị đó. Mọi người, kể cả người chưa đăng nhập, thấy tên và trình độ của host trong phòng chờ. Admin của MONSPORT thấy số điện thoại để quản lý tài khoản. MONSPORT không bán dữ liệu của bạn.',
@@ -51,7 +42,6 @@ const Name = z.string({ error: Messages.name }).trim().min(1, Messages.name).max
 const Password = z.string().min(8, Messages.passwordLength).max(128, Messages.passwordMax);
 const Instant = z.iso.datetime({ offset: true });
 
-// A new password must not be easy to guess (brief F-006, BR-31). A login does not check this, so old passwords still work.
 const notWeak = (data: { phone: unknown; password: unknown }, ctx: z.RefinementCtx) => {
   if (typeof data.password === 'string' && isWeakPassword(data.password, typeof data.phone === 'string' ? data.phone : ''))
     ctx.addIssue({ code: 'custom', path: ['password'], message: Messages.weakPassword });
@@ -88,7 +78,6 @@ export type StaffView = z.infer<typeof StaffView>;
 
 export const STAFF_PHONE_TAKEN = 'Số này đã có tài khoản';
 
-/** The admin finds one account by its exact phone number. The number goes in the body, so it stays out of request logs. */
 export const UserSearchRequest = z.object({ phone: Phone });
 export type UserSearchRequest = z.infer<typeof UserSearchRequest>;
 
@@ -102,7 +91,6 @@ export const AccountView = z.object({
 });
 export type AccountView = z.infer<typeof AccountView>;
 
-// Minutes since 00:00 on the 30-minute grid. A venue does not open past midnight.
 const Minutes = (min: number, max: number) => z.int().min(min, Messages.range).max(max, Messages.range).multipleOf(30, Messages.grid);
 
 const VenueFields = z.object({
@@ -117,11 +105,9 @@ const VenueFields = z.object({
 export const VenueInput = VenueFields.refine((v) => v.closesAt > v.opensAt, { message: Messages.hours, path: ['closesAt'] });
 export type VenueInput = z.infer<typeof VenueInput>;
 
-/** A PATCH body. The server merges it into the stored venue, then checks the result with `VenueInput`. */
 export const VenueUpdate = VenueFields.partial();
 export type VenueUpdate = z.infer<typeof VenueUpdate>;
 
-/** Whole VND per hour (BR-25). The cap keeps a booking total inside the int4 column `Booking.priceTotal`. */
 export const PRICE_MAX = 10_000_000;
 const Price = z.int().positive(Messages.price).max(PRICE_MAX, Messages.priceMax);
 
@@ -133,15 +119,11 @@ export const CourtInput = z.object({
 });
 export type CourtInput = z.infer<typeof CourtInput>;
 
-/** A PATCH body. The sport stays fixed, because a match later takes the sport of its court, so a body with `sport` gets 400. */
 export const CourtUpdate = CourtInput.omit({ sport: true }).partial().strict();
 export type CourtUpdate = z.infer<typeof CourtUpdate>;
 
-// Brief F-005 (UC-11): an owner edits only the opening hours of a venue and the prices of its courts.
-// Strict, so a field of the admin (name, owner, sport) gets the generic text. An empty body is a screen error.
 const notEmpty = (body: object) => Object.keys(body).length > 0;
 
-/** A PATCH body. The server merges it into the stored venue, then checks the result with `VenueInput`. */
 export const OwnerVenueUpdate = VenueFields.pick({ opensAt: true, closesAt: true }).partial().strict().refine(notEmpty, Messages.invalid);
 export type OwnerVenueUpdate = z.infer<typeof OwnerVenueUpdate>;
 

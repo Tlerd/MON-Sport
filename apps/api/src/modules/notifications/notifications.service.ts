@@ -11,7 +11,6 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { Clock } from '../database/clock.js';
 import { PrismaService } from '../database/prisma.service.js';
 
-/** The list in the app shows this many of the newest notifications. The unread count still counts all of them. */
 const LIST_LIMIT = 50;
 
 @Injectable()
@@ -21,10 +20,6 @@ export class NotificationsService {
     private readonly clock: Clock,
   ) {}
 
-  /**
-   * Brief F-013 (UC-14): creates a notification within the caller's database transaction.
-   * Lock hierarchy: Venue (FOR SHARE) -> Court (FOR UPDATE) -> Booking -> Match -> MatchPlayer -> Notification.
-   */
   async createNotification(
     tx: Prisma.TransactionClient,
     data: {
@@ -47,9 +42,7 @@ export class NotificationsService {
     });
   }
 
-  /** UC-14: lists notifications for the authenticated user, newest first. */
   async listForUser(userId: string): Promise<NotificationsListResponse> {
-    // Brief F-014, AC-24: every visible tab asks for this list every 15 seconds, so it holds the newest rows only.
     const [rows, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
         where: { userId },
@@ -100,7 +93,6 @@ export class NotificationsService {
     return { unreadCount, items };
   }
 
-  /** Marks a single notification as read if owned by the user. Idempotent. */
   async markAsRead(userId: string, notificationId: string): Promise<NotificationReadResponse> {
     const found = await this.prisma.notification.findUnique({
       where: { id: notificationId },
@@ -119,7 +111,6 @@ export class NotificationsService {
     return { id: updated.id, readAt: updated.readAt!.toISOString() };
   }
 
-  /** Marks all unread notifications of the user as read. */
   async markAllAsRead(userId: string): Promise<NotificationReadAllResponse> {
     const now = this.clock.now();
     const result = await this.prisma.notification.updateMany({

@@ -6,21 +6,16 @@ export interface SlotRowProps {
   courtName: string;
   opensAt: number;
   closesAt: number;
-  /** Start minutes that a person may pick. Every other cell is disabled. */
   startable: number[];
   selected?: number;
   onPick: (minute: number) => void;
-  /** The row scrolls so that the cell of this minute is at the left edge. */
   scrollToMinute?: number;
-  /** A new value makes the row scroll again, even when `scrollToMinute` is the same. */
   scrollSignal?: string | number;
   onCellKeyDown?: (event: KeyboardEvent<HTMLButtonElement>, minute: number) => void;
 }
 
-/** BR-4: the peak hours are 17:00 to 22:00. */
 const isPeak = (minute: number) => minute >= 17 * 60 && minute < 22 * 60;
 
-/** One horizontal row of 30-minute cells. Only this row scrolls sideways. */
 export function SlotRow({
   courtId,
   courtName,

@@ -11,7 +11,6 @@ const VENUE_NOT_FOUND = 'Không tìm thấy đơn vị';
 const COURT_NOT_FOUND = 'Không tìm thấy sân';
 const WITH_COURTS = { courts: { orderBy: { name: 'asc' } } } as const;
 
-// A malformed id gets the Vietnamese generic text, not the English text of the pipe.
 const Id = new ParseUUIDPipe({ exceptionFactory: () => new BadRequestException(Messages.invalid) });
 
 @Controller('venues')
@@ -24,9 +23,6 @@ export class VenuesController {
   }
 }
 
-// BR-23 and brief F-003 (AC-16): an owner sees only the venues whose ownerId is the caller.
-// Brief F-005 (UC-11): an owner edits the opening hours of those venues. A venue of another owner answers 404,
-// so the route does not tell which venues exist.
 @Controller('owner/venues')
 @UseGuards(SessionGuard)
 @Roles('OWNER')
@@ -42,11 +38,6 @@ export class OwnerVenuesController {
     return venues.map(toVenueView);
   }
 
-  /**
-   * The venue row stays locked from the ownership check to the write, so the admin cannot move the venue to another
-   * owner in between. The body is merged into the stored hours and checked as a whole (11.0.E1). The catch maps the
-   * CHECK of the database to the hours text, as the last guard.
-   */
   @Patch(':id')
   async update(@Req() req: AuthedRequest, @Param('id', Id) id: string, @Body() body: unknown): Promise<VenueView> {
     const patch = OwnerVenueUpdate.safeParse(body);
@@ -68,18 +59,12 @@ export class OwnerVenuesController {
   }
 }
 
-// Brief F-005 (UC-11): an owner edits the prices of the courts of their venues. A new booking takes the new price,
-// and an old booking keeps its stored total (BR-6).
 @Controller('owner/courts')
 @UseGuards(SessionGuard)
 @Roles('OWNER')
 export class OwnerCourtsController {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * FOR SHARE on the venue holds off an admin move of the venue (FOR UPDATE) until the price is written. The UPDATE
-   * locks the court row, so it queues with a booking request, which reads the price under the same lock.
-   */
   @Patch(':id')
   async update(@Req() req: AuthedRequest, @Param('id', Id) id: string, @Body() body: unknown): Promise<CourtView> {
     const patch = OwnerCourtUpdate.safeParse(body);

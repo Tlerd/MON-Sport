@@ -26,7 +26,6 @@ export const BOOKING_BADGE: Record<MatchView['bookingStatus'], string> = {
   CANCELLED: 'Đã hủy',
 };
 
-/** Stub label of the reference: "Hôm nay", "Ngày mai", or "T4, 18/11". */
 export function stubDay(iso: string, now: Date = new Date()): string {
   const ymd = vnDateString(new Date(iso));
   const today = vnDateString(now);
@@ -37,7 +36,6 @@ export function stubDay(iso: string, now: Date = new Date()): string {
   return `${dow === 0 ? 'CN' : `T${dow + 1}`}, ${dom}/${month}`;
 }
 
-/** "60k" for round amounts, otherwise the full amount. */
 export const formatPriceK = (amount: number) =>
   amount > 0 && amount % 1000 === 0 ? `${amount / 1000}k` : formatVnd(amount);
 
@@ -45,7 +43,6 @@ const AVATAR_COLORS = ['var(--ok)', 'var(--blue)', 'var(--clay)', 'var(--amber)'
 const MAX_AVATARS = 6;
 const MAX_HOLES = 4;
 
-/** Seats of one match: filled seats, then dashed empty seats. The list view has no player names, so only the host shows an initial. */
 function SeatStack({ match: m }: { match: MatchView }) {
   const shown = Math.min(m.joinedCount, MAX_AVATARS);
   const extra = m.joinedCount - shown;

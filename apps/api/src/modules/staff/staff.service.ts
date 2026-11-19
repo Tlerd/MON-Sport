@@ -24,10 +24,6 @@ export class StaffService {
     private readonly passwords: Passwords,
   ) {}
 
-  /**
-   * AC-2, AC-3: creates a STAFF user for an owned venue.
-   * If caller does not own the venue, answers 404 (BR-23).
-   */
   async createStaff(venueId: string, ownerId: string, data: CreateStaffRequest): Promise<StaffView> {
     const passwordHash = await this.passwords.hash(data.password);
     const now = this.clock.now();
@@ -67,9 +63,6 @@ export class StaffService {
     }
   }
 
-  /**
-   * AC-3, AC-4: lists staff of an owned venue, sorted by name.
-   */
   async listStaff(venueId: string, ownerId: string): Promise<StaffView[]> {
     const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
     if (!venue || venue.ownerId !== ownerId) {
@@ -82,10 +75,6 @@ export class StaffService {
     return staff.map(toStaffView);
   }
 
-  /**
-   * AC-3, AC-4: locks a staff account and revokes active sessions.
-   * Answers 404 if the staff belongs to a venue not owned by the caller (BR-23).
-   */
   async lockStaff(staffId: string, ownerId: string): Promise<StaffView> {
     const staff = await this.prisma.user.findUnique({
       where: { id: staffId },

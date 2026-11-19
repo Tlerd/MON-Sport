@@ -1,8 +1,6 @@
 import type { AccessTokenList, CreateAccessTokenRequest, CreateAccessTokenResponse } from '@monsport/shared';
 import { api } from './api.ts';
 
-// Brief F-037: the web side of personal access tokens.
-
 export function listAccessTokens(): Promise<AccessTokenList> {
   return api<AccessTokenList>('/api/me/access-tokens');
 }

@@ -7,11 +7,9 @@ import { isValidVapid, PushSender, type PushVapid } from './push-sender.js';
 
 const RECONNECT_DELAY_MS = 1_000;
 const DEFAULT_TIMEOUT_MS = 10_000;
-/** Brief F-014, Assumption 12: a message that waits more than one hour is no longer useful. */
 const TTL_SECONDS = 3_600;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Brief F-014, Assumption 10: the feature is on only when all three variables are set. The API reads them on each use. */
 function readVapid(): PushVapid | null {
   const [publicKey, privateKey, subject] = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'].map((name) => process.env[name]?.trim());
   return publicKey && privateKey && subject ? { publicKey, privateKey, subject } : null;
@@ -24,18 +22,8 @@ function timeoutMs(): number {
 
 type Claimed = { userId: string; type: NotificationType; bookingId: string; matchId: string | null };
 
-/** Thrown inside `deliver` when the push service does not answer in time. */
 class SendTimeout extends Error {}
 
-/**
- * Brief F-014 (UC-14, ADR 0005): one dedicated PostgreSQL `LISTEN push` connection per API instance. The trigger
- * `Notification_notify_push` sends the id of each new notification. Every instance receives it, and the one that wins the
- * `UPDATE ... WHERE "pushedAt" IS NULL` sends the message. Sending is best effort: an error never reaches the request that
- * wrote the notification, and a message is lost when no instance listens. Nothing here logs an endpoint, a key, or a payload.
- *
- * Lock order: `handle` runs no transaction. It updates one Notification row, then reads, then deletes one PushSubscription
- * row by id. Each statement takes one row lock only, so it cannot join a lock cycle with the booking, match, or subscribe paths.
- */
 @Injectable()
 export class PushService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PushService.name);
@@ -56,7 +44,6 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
       this.logger.log('Web Push is off');
       return;
     }
-    // A bad key makes every send fail before the request. Better to stay off than to claim rows that no one can send.
     if (!isValidVapid(vapid)) {
       this.logger.error('Web Push is off (invalid VAPID keys)');
       return;
@@ -78,15 +65,10 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     await this.idle();
   }
 
-  /** Resolves when no delivery is running. Tests use it to check that something did not happen. */
   async idle(): Promise<void> {
     while (this.inflight.size > 0) await Promise.allSettled([...this.inflight]);
   }
 
-  /**
-   * Sends the notification to every device of its user. Never throws. Brief F-014, Assumptions 6 to 9.
-   * A row that another instance claimed, or that has no device, ends here without a message.
-   */
   async handle(id: string): Promise<void> {
     try {
       const claimed = await this.claim(id);
@@ -108,7 +90,6 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Wins the row for this instance. No row back means another instance has it, or the id is unknown. */
   private async claim(id: string): Promise<Claimed | null> {
     const rows = await this.prisma.$queryRaw<Claimed[]>`
       UPDATE "Notification" SET "pushedAt" = ${this.clock.now()}::timestamptz
@@ -117,7 +98,6 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     return rows[0] ?? null;
   }
 
-  /** The same title and text as the list in the app (`NotificationsService.listForUser`). It holds no name and no phone (BR-20). */
   private async payloadFor(id: string, claimed: Claimed): Promise<PushPayload | null> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: claimed.bookingId },
@@ -134,14 +114,12 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     return { title, body: message, notificationId: id };
   }
 
-  /** Sends to one device. 404 and 410 mean the device is gone, so the row goes too. Any other failure keeps it. */
   private async deliver(
     subscription: { id: string; endpoint: string; p256dh: string; auth: string },
     payload: PushPayload,
     vapid: PushVapid,
   ): Promise<void> {
     try {
-      // The endpoint is checked again before the network call: a row from before a rule change, or from a direct write, must not be called.
       if (!isAllowedPushEndpoint(subscription.endpoint)) {
         this.logger.warn('Push endpoint no longer allowed, device removed');
         await this.prisma.pushSubscription.deleteMany({ where: { id: subscription.id } });
@@ -165,7 +143,6 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** The sender should honour the timeout, and this race makes sure that a stuck sender cannot hold the delivery. */
   private async withTimeout<T>(work: Promise<T>): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const limit = new Promise<never>((_, reject) => {
@@ -175,17 +152,14 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
       return await Promise.race([work, limit]);
     } finally {
       clearTimeout(timer);
-      // A late rejection of the sender after the race must not become an unhandled rejection.
       work.catch(() => undefined);
     }
   }
 
-  /** A short label for the log. An error text can hold the query arguments or the endpoint, so the text stays out. */
   private describe(error: unknown): string {
     if (error instanceof SendTimeout) return 'timeout';
     const kind = (error as { kind?: unknown } | null)?.kind;
     if (kind === 'timeout' || kind === 'network') return kind;
-    // The row stays: a bad VAPID secret must not delete the devices of every user.
     if (kind === 'invalid') return 'invalid key data';
     const code = (error as { code?: unknown } | null)?.code;
     return typeof code === 'string' ? `code ${code}` : 'unknown';
@@ -203,7 +177,6 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     const scheduleReconnect = (error?: unknown) => {
       if (this.stopped || this.client !== client) return;
       this.client = null;
-      // The error code only. The text of a connection error can hold the connection string.
       this.logger.warn(`Push listener lost, new try in ${RECONNECT_DELAY_MS} ms (${this.describe(error)})`);
       void client.end().catch(() => undefined);
       this.reconnectTimer = setTimeout(() => {

@@ -3,7 +3,6 @@ import { type AdminStatsView, AdminStatsQuerySchema } from '@monsport/shared';
 import { Roles, SessionGuard } from '../auth/session.guard.js';
 import { StatsService } from './stats.service.js';
 
-// UC-13: only the ADMIN role reads the site-wide numbers (brief F-016, BR-22).
 @Controller('admin')
 @UseGuards(SessionGuard)
 @Roles('ADMIN')

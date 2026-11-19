@@ -30,7 +30,6 @@ export interface CourtArtProps extends SVGProps<SVGSVGElement> {
   sport: Sport | string;
 }
 
-/** Top-down SVG court artwork ported from the Ra Sân mock, with a neutral court fallback. */
 export function CourtArt({ sport, className = '', ...props }: CourtArtProps) {
   const id = normalizeSportId(sport);
   const spec = id === 'unknown' ? NEUTRAL_COURT : SPORT_COURTS[id];

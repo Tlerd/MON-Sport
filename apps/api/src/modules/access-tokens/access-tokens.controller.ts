@@ -4,7 +4,6 @@ import type { Response } from 'express';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { AccessTokensService } from './access-tokens.service.js';
 
-// Brief F-037, BR-59: only a USER manages tokens, with the session cookie. The secret appears in the 201 response only.
 @Controller('me/access-tokens')
 @UseGuards(SessionGuard)
 @Roles('USER')

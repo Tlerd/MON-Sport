@@ -3,9 +3,6 @@ import { Availability, AvailabilityQuery } from './availability.ts';
 import { BookingView, CreateBookingRequest, MyBookingView, Phone, Sport, VenueView } from './booking.ts';
 import { CreateMatchRequest, MatchDetailView, MatchLobbyQuery, MatchView } from './match.ts';
 
-// Brief F-036 (UC-20, BR-58): the contract of the 9 MCP tools for the USER role.
-// No input has a userId. The server takes the user from the McpContext.
-
 export const MCP_TOOL_NAMES = [
   'search_venues',
   'get_availability',
@@ -22,7 +19,6 @@ export type McpToolName = (typeof MCP_TOOL_NAMES)[number];
 export const MCP_WRITE_TOOLS = ['request_booking', 'cancel_booking', 'open_match', 'join_match', 'leave_match'] as const;
 export const MCP_READ_TOOLS = ['search_venues', 'get_availability', 'list_my_bookings', 'list_matches'] as const;
 
-// Input. Every schema is strict.
 export const SearchVenuesInput = z.object({ sport: Sport.optional(), name: z.string().trim().min(1).max(100).optional() }).strict();
 export type SearchVenuesInput = z.infer<typeof SearchVenuesInput>;
 export const GetAvailabilityInput = AvailabilityQuery.extend({ courtId: z.uuid() }).strict();
@@ -42,7 +38,6 @@ export type JoinMatchInput = z.infer<typeof JoinMatchInput>;
 export const LeaveMatchInput = JoinMatchInput;
 export type LeaveMatchInput = z.infer<typeof LeaveMatchInput>;
 
-// Output. structuredContent is always an object, so a list sits under a key.
 export const SearchVenuesOutput = z.object({ venues: z.array(VenueView) });
 export type SearchVenuesOutput = z.infer<typeof SearchVenuesOutput>;
 export const GetAvailabilityOutput = Availability;

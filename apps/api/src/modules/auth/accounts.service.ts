@@ -5,11 +5,8 @@ import { PrismaService } from '../database/prisma.service.js';
 import { Passwords } from './passwords.js';
 import { keyedDigest } from './session.js';
 
-export const PHONE_TAKEN = 'Số điện thoại này đã có tài khoản'; // BR-24
+export const PHONE_TAKEN = 'Số điện thoại này đã có tài khoản';
 
-/**
- * R8 helper: clears Google identity and OTP rows when an account is deleted (brief F-004, R8).
- */
 export async function clearAccountGoogleAndOtp(
   tx: Prisma.TransactionClient,
   userId: string,
@@ -24,8 +21,6 @@ export async function clearAccountGoogleAndOtp(
   });
 }
 
-// Prisma P2002 or Postgres SQLSTATE 23505: a unique index refused a second row, for example a second account on one phone.
-// The driver adapter can wrap the database error, so the code is searched on the error and its causes.
 export function isUniqueViolation(error: unknown): boolean {
   for (let e: unknown = error, depth = 0; e && typeof e === 'object' && depth < 5; depth++) {
     const o = e as { code?: unknown; originalCode?: unknown; cause?: unknown };
@@ -53,10 +48,6 @@ export class AccountsService {
     private readonly passwords: Passwords,
   ) {}
 
-  /**
-   * Creates an account with an argon2 hash of the password. The unique index on the phone decides a race
-   * between two sign-ups (brief F-003, AC-4), so there is no read before the insert.
-   */
   async create(input: {
     name: string;
     phone: string;

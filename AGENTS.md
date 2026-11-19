@@ -33,6 +33,18 @@ A folder appears when its first feature needs it. `.dependency-cruiser.cjs` hold
 - Other documents in `docs/requirements/` derive from the intake (`docs/adr/0002-nguon-su-that-intake.md`). Do not invent a rule that conflicts with it.
 - Diagrams: skill `ba-diagrams` (Mermaid). An animated flow diagram outside requirements documents: 200Lab skill `diagram-director`, saved as `docs/diagrams/<name>.html` with `<name>.sheet.md` beside it. Without it, a Mermaid `sequenceDiagram`.
 
+## Code
+
+`pnpm check` enforces each rule marked (check), through `harness/code-rules.test.mjs` and `harness/source-size.test.mjs`.
+
+- Write no code comment (check). A name or a test carries the meaning. Lint and type directives are the only exception.
+- Use no `any` and no `as unknown as` (check). Narrow an `unknown` value with a type guard or `instanceof`.
+- Catch an error only to change the result: a message, a status, a retry, or a cleanup. An empty catch, or a catch that only rethrows, fails the check.
+- API: run a transaction that can deadlock through `retryOnDeadlock` or `conflictOnDeadlock` in `apps/api/src/modules/database/prisma.service.ts` (check). Do not copy the catch block.
+- Web and mobile: call the API through `api()` in `packages/client`. Turn an error into text with `errorMessage` (check). Run a user action through the `useAction` hook of the app.
+- Keep each source file that is not a test at 300 lines or fewer (check). Split a long file by hook, part, or service.
+- `apps/web/src/app/` holds routes, providers, and thin wrappers. A page that loads data lives in a feature folder.
+
 ## Autonomy
 
 The user starts work with "tiếp tục", "continue", or a goal. Take it to a pull request that is ready to merge: plan, build, review, checks green. The user is not there to answer, so a question stops the work. Decide, and let the user correct later.
