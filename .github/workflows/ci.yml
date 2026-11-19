@@ -17,11 +17,11 @@ permissions:
 jobs:
   # A skipped job counts as passed for scripts/merge.mjs (SKIPPED is in PASSED of scripts/ci-autofix.mjs).
   # A push to main always runs every job: deploy.yml compares with the serving revision, so main must be fully tested.
-  # The jobs run on the self-hosted runner `monsport-local` (WSL2 Ubuntu with Docker and Chrome) to save GitHub minutes.
-  # docs/design/ke-hoach-runner-tu-host.md says how to set it up and how to go back: change runs-on to ubuntu-latest.
-  # The Postgres services use host port 55442: the runner machine runs its own Postgres on 5432.
+  # The jobs run on `ubuntu-latest`, which is free because the repository is public (since 2026-11-19).
+  # docs/design/ke-hoach-runner-tu-host.md holds the old self-hosted setup.
+  # The Postgres services use host port 55442.
   changes:
-    runs-on: [self-hosted, monsport-local]
+    runs-on: ubuntu-latest
     outputs:
       check: ${{ steps.filter.outputs.check }}
       image: ${{ steps.filter.outputs.image }}
@@ -44,7 +44,7 @@ jobs:
   # Scans the new commits for secrets with gitleaks and .gitleaks.toml. It runs for every change, docs too, so no path filter.
   # A local `pnpm check` scans only the uncommitted changes, and only where gitleaks is installed. This job is the gate.
   secrets:
-    runs-on: [self-hosted, monsport-local]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
       GITLEAKS_VERSION: 8.30.1
@@ -84,7 +84,7 @@ jobs:
   check:
     needs: changes
     if: needs.changes.outputs.check == 'true'
-    runs-on: [self-hosted, monsport-local]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
       postgres:
@@ -111,16 +111,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-      # The runner keeps the volume of each old postgres service (docs/known-issues.md).
-      - name: Remove the volumes of old postgres services
-        if: always()
-        run: docker volume prune --force || true
 
   # Builds the Cloud Run image and starts it against Postgres, because the dev machine has no Docker.
   image:
     needs: changes
     if: needs.changes.outputs.image == 'true'
-    runs-on: [self-hosted, monsport-local]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
       postgres:
@@ -139,8 +135,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker build --tag monsport .
-      # A self-hosted runner keeps the container and port 8080 when a run is cancelled.
-      - run: docker rm --force monsport-ci-app || true
       - name: Start the image
         run: >-
           docker run --detach --name monsport-ci-app --network host
@@ -180,12 +174,3 @@ jobs:
           name: verify-flow
           path: verify-output/
           if-no-files-found: ignore
-      # The runner keeps its images, build cache, and volumes between runs. They filled drive D twice
-      # (docs/known-issues.md), so keep 5 GB of build cache and remove the volumes of old postgres services.
-      - name: Remove the container and old images
-        if: always()
-        run: |
-          docker rm --force monsport-ci-app || true
-          docker image prune --force --filter "dangling=true" || true
-          docker builder prune --all --force --max-used-space 5GB || true
-          docker volume prune --force || true
