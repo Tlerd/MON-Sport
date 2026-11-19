@@ -1,12 +1,13 @@
 // Runs Antigravity (`agy`) with model fallback: `node scripts/agy-run.mjs [--strong-only] <agy args>`.
-// Claude Code (Opus) plans and checks; an agent merges with scripts/merge.mjs. agy codes on every model of MODELS, Hydrogen included.
+// Claude Code (Opus) plans and gives the last review before a merge; an agent merges with scripts/merge.mjs.
+// agy codes on MODELS (Hydrogen first, then Argon) and reviews on STRONG (Neon, then Opus, then Argon).
 // It runs each model at the effort in its name (`-medium` or `-high`). When a model is out of quota, the same run
-// starts again on the next model of MODELS. Any other result, pass or fail, ends the run.
-// `--strong-only` keeps a Reviewer run on the STRONG models: it fails rather than review on a weaker one.
-// AGY_MODELS (comma-separated) replaces the list.
+// starts again on the next model of the list. Any other result, pass or fail, ends the run.
+// `--strong-only` keeps a Reviewer run on STRONG: it fails rather than review on a weaker one.
+// AGY_MODELS and AGY_REVIEW_MODELS (comma-separated) replace MODELS and STRONG.
 // It also obeys the weekly stop line of the Claude usage guard (94%, USAGE_STOP_PERCENT), so agy and
 // Claude stop together. `--check-usage` only checks that line: exit 0 to go on, exit 3 to stop.
-// Exit 4 means every agy model is out of quota: Claude Code then codes the step on Sonnet, then Haiku.
+// Exit 4 means every agy model is out of quota: Claude Code then codes on Sonnet or Haiku, or uses the reviewer subagent.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -14,11 +15,14 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const MODELS = (process.env.AGY_MODELS || 'claude-sonnet-5-5-medium,claude-opus-5-5-high,gemini-4-argon-high,claude-sonnet-5-5-high,gemini-4-hydrogen-high')
-  .split(',')
-  .map((model) => model.trim())
-  .filter(Boolean);
-export const STRONG = MODELS.filter((model) => /opus|argon/.test(model));
+const parseList = (raw) => raw.split(',').map((model) => model.trim()).filter(Boolean);
+
+export const MODELS = parseList(
+  process.env.AGY_MODELS || 'gemini-4-hydrogen-high,gemini-4-argon-high,claude-sonnet-5-5-medium,claude-opus-5-5-high,claude-sonnet-5-5-high',
+);
+export const STRONG = parseList(
+  process.env.AGY_REVIEW_MODELS || 'gemini-4-neon-high,claude-opus-5-5-high,gemini-4-argon-high',
+);
 
 const QUOTA = /RESOURCE_EXHAUSTED|quota|\b429\b|rate.?limit|usage limit|too many requests|exhausted/i;
 const TAIL_LINES = 20;
@@ -61,7 +65,9 @@ export const hitQuota = ({ status, output }) => status !== 0 && QUOTA.test(outpu
 
 export function runWithFallback(args, run) {
   const models = args.includes('--strong-only') ? STRONG : MODELS;
-  if (!models.length) return { status: 1, output: 'agy-run: no strong model (opus or argon) in AGY_MODELS' };
+  if (!models.length) {
+    return { status: 1, output: args.includes('--strong-only') ? 'agy-run: no model in AGY_REVIEW_MODELS' : 'agy-run: no model in AGY_MODELS' };
+  }
   for (const model of models) {
     const result = run(buildArgs(args, model));
     if (!hitQuota(result)) return { ...result, model };

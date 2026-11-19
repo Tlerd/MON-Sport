@@ -7,16 +7,17 @@ Read this before you plan a step, open a pull request, review, or merge a pull r
 
 ## Roles
 
-Each tool maps these roles to its own models. In Claude Code, the session model (Opus) is the Planner and the Reviewer. It reads each coder diff and runs `pnpm check`.
+Each tool maps these roles to its own models. In Claude Code, the session model (Opus) is the Planner and gives the last review before the merge; it reads each coder diff and runs `pnpm check`. agy on `gemini-4-neon-high` is the Reviewer.
 
 | Role | Does | Never |
 |---|---|---|
 | Planner | Reads the brief and the code. Writes a plan that lists each file to change. Uses the strongest model for money, concurrency, schema, or personal data | Edits a file |
 | Reader | Finds and reads files. Use the cheap read-only `Explore` agent for a search over several files | Edits a file, or changes state |
 | Coder | Writes the tests first, then the code the plan lists. Runs `pnpm check` | Edits a path the brief does not list |
-| Reviewer | A fresh session. Reads `REVIEW.md` first. Reviews a brief or pull request against the intake. Rates each finding high, medium, or low | Edits, commits, or pushes |
+| Reviewer | A fresh agy session on `gemini-4-neon-high` (`node scripts/agy-run.mjs --strong-only --mode plan`). Reads `REVIEW.md` first. Rates each finding high, medium, or low | Edits, commits, or pushes |
+| Last review | The session model. Reads the Reviewer output and the diff, decides each finding, posts the review with its marker, then merges | Writes the code |
 
-Coder order: run `node scripts/agy-run.mjs --check-usage`, then `node scripts/agy-run.mjs --mode accept-edits -p "<plan>"`. Exit code 4 means every agy model is out of quota. Then use the subagent `backend` or `frontend` (Sonnet). When Sonnet is out of quota, run it with `model: haiku`.
+Coder order: run `node scripts/agy-run.mjs --check-usage`, then `node scripts/agy-run.mjs --mode accept-edits -p "<plan>"` (the default agy list starts with `gemini-4-hydrogen-high`, then `gemini-4-argon-high`). Exit code 4 means every agy model is out of quota. Then use the subagent `backend` or `frontend` (Sonnet). When Sonnet is out of quota, run it with `model: haiku`.
 
 The agy terminal sandbox can have no Node (`docs/known-issues.md`, "agy cannot run `node`"). Then agy is a file-only coder: tell it in the task to run no command, and run `pnpm map`, `pnpm check`, and `verify-flow` yourself after each run. Send each failure back in a new run. Never turn the sandbox off and never tell agy to bypass it.
 
@@ -46,7 +47,7 @@ Use it when a change to a shared part (`packages/shared`, `packages/client`, a s
 
 ## Fix ladder
 
-This section is for Claude Code sessions. Use it when `pnpm check` fails after the coder says the step is done. The Planner and the Reviewer stay on the session model.
+This section is for Claude Code sessions. Use it when `pnpm check` fails after the coder says the step is done. The Planner and the last review stay on the session model. The Reviewer stays on agy Neon.
 
 | Rung | Coder | Attempts | Climb when |
 |---|---|---|---|
@@ -71,7 +72,7 @@ Findings of medium or higher from a Reviewer round use the same rungs. One attem
 
 Claude Code runs a subagent on the `model` in its `.claude/agents/` file, unless the call sets `model`, or on the session model when neither sets one. One coder does a step. Run `backend` and `frontend` together only when the contract in `packages/shared` is on the branch and their paths do not overlap. Then run `tester`, then `reviewer`. The `qa` agent lists questions for the owner after the last step. `deployer` checks a deploy.
 
-A Reviewer round is a `reviewer` subagent, or `claude -p --permission-mode plan "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Review <brief file or pull request #n>."`.
+A Reviewer round runs `node scripts/agy-run.mjs --strong-only --mode plan --print-timeout 30m -p "You are the Reviewer in AGENTS.md. Read REVIEW.md first. Read only: do not edit, commit, or push. Review <pull request #n, or git diff <base>..<head>>. List findings as: severity | file:line | problem | fix. Start with a count by severity. End with the REVIEW.md marker line for <head sha>."` in the background. It tries Neon, then Opus, then Argon. Exit 4: use the `reviewer` subagent. The session model then gives the last review: it checks each finding against the code, drops a wrong one with the reason, and posts the review comment with the marker.
 
 ## Steps
 

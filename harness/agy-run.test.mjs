@@ -1,11 +1,14 @@
+import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { MODELS, OUT_OF_QUOTA, STRONG, buildArgs, hitQuota, quotaText, runWithFallback, weeklyStop } from '../scripts/agy-run.mjs';
 
 describe('agy-run: an agy model that runs out of quota hands over to the next one', () => {
-  it('the first model is Sonnet at medium effort, and every other model is a high variant', () => {
+  it('the first model is Hydrogen, before Argon, and every model carries its effort', () => {
     expect(MODELS.length).toBeGreaterThan(1);
-    expect(MODELS[0]).toBe('claude-sonnet-5-5-medium');
-    for (const model of MODELS.slice(1)) expect(model).toMatch(/-high$/);
+    expect(MODELS[0]).toBe('gemini-4-hydrogen-high');
+    expect(MODELS).toContain('gemini-4-argon-high');
+    expect(MODELS.indexOf('gemini-4-hydrogen-high')).toBeLessThan(MODELS.indexOf('gemini-4-argon-high'));
+    for (const model of MODELS) expect(model).toMatch(/-(medium|high)$/);
   });
 
   it('drops the model and effort of the caller, and sets the effort of the model', () => {
@@ -44,7 +47,7 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
     expect(hitQuota({ status: 1, output: quotaText({ stdout: '', stderr }) })).toBe(true);
   });
 
-  it('a strong-only run, such as a Reviewer, never falls back to a weaker model', () => {
+  it('a strong-only run, such as a Reviewer, starts on Neon and never falls back to a weaker model', () => {
     const tried = [];
     const result = runWithFallback(['--strong-only', '--mode', 'plan', '-p', 'review'], (args) => {
       expect(args).not.toContain('--strong-only');
@@ -52,8 +55,22 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
       return { status: 1, output: 'quota exceeded' };
     });
     expect(tried).toEqual(STRONG);
-    expect(STRONG).not.toContain('gemini-4-hydrogen-high');
+    expect(STRONG[0]).toBe('gemini-4-neon-high');
+    expect(STRONG.some((model) => /hydrogen/i.test(model))).toBe(false);
     expect(result.status).toBe(OUT_OF_QUOTA);
+  });
+
+  it('AGY_REVIEW_MODELS overrides STRONG', () => {
+    const scriptUrl = new URL('../scripts/agy-run.mjs', import.meta.url).href;
+    const output = execFileSync(
+      process.execPath,
+      ['--input-type=module', '-e', `import { STRONG } from ${JSON.stringify(scriptUrl)}; console.log(JSON.stringify(STRONG));`],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, AGY_REVIEW_MODELS: 'claude-opus-5-5-high, gemini-4-argon-high' },
+      },
+    );
+    expect(JSON.parse(output.trim())).toEqual(['claude-opus-5-5-high', 'gemini-4-argon-high']);
   });
 
   it('exits 4 with a clear message when every model is out of quota, so Claude Code codes on Sonnet or Haiku', () => {
