@@ -203,6 +203,10 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/mobile/src/hooks/
 - useAction.ts: useAction
 - useHideOnScroll.ts: UseHideOnScrollOptions, UseHideOnScrollResult, useHideOnScroll
+- useLatest.ts: useLatest
+
+## apps/mobile/src/lib/
+- slotWindows.ts: WindowId, TimeWindow, windowsFor, firstWindow, shortTime, nearestMinute, …
 
 ## apps/mobile/src/
 - main.tsx

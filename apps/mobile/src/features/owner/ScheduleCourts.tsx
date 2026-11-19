@@ -5,59 +5,18 @@ import {
   type OwnerBookingView,
   type VenueView,
 } from '@monsport/shared';
-import { useState, type KeyboardEvent } from 'react';
+import { useState } from 'react';
 import { Chip } from '../../components/Chip.tsx';
 import { EmptyState } from '../../components/EmptyState.tsx';
 import { SlotRow } from '../../components/SlotRow.tsx';
+import {
+  firstWindow,
+  handleSlotCellKeyDown,
+  shortTime,
+  windowsFor,
+  type WindowId,
+} from '../../lib/slotWindows.ts';
 import type { CourtState, ScheduleNotice } from './useOwnerSchedule.ts';
-
-type WindowId = 'sang' | 'chieu' | 'toi';
-interface TimeWindow {
-  id: WindowId;
-  name: string;
-  from: number;
-  to: number;
-}
-
-const WINDOWS: TimeWindow[] = [
-  { id: 'sang', name: 'Sáng', from: 0, to: 12 * 60 },
-  { id: 'chieu', name: 'Chiều', from: 12 * 60, to: 17 * 60 },
-  { id: 'toi', name: 'Tối', from: 17 * 60, to: 24 * 60 },
-];
-
-function windowsFor(opensAt: number, closesAt: number): TimeWindow[] {
-  return WINDOWS.map((w) => ({
-    ...w,
-    from: Math.max(w.from, opensAt),
-    to: Math.min(w.to, closesAt),
-  })).filter((w) => w.to - w.from >= 30);
-}
-
-function firstWindow(windows: TimeWindow[], date: string, now: Date): WindowId | undefined {
-  if (date === vnDateString(now)) {
-    const minute = minuteOfDayVN(now);
-    const current = windows.find((w) => minute < w.to);
-    if (current) return current.id;
-  }
-  return (windows.find((w) => w.id === 'toi') ?? windows[0])?.id;
-}
-
-const shortTime = (m: number) =>
-  m % 60 === 0 ? String(m / 60) : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
-
-function nearest(list: number[], minute: number): number | undefined {
-  let best: number | undefined;
-  for (const m of list) {
-    if (best === undefined || Math.abs(m - minute) < Math.abs(best - minute)) best = m;
-  }
-  return best;
-}
-
-const focusCell = (courtId: string, minute: number) => {
-  document
-    .querySelector<HTMLElement>(`[data-court-id="${courtId}"] button[data-minute="${minute}"]`)
-    ?.focus();
-};
 
 export interface ScheduleCourtsProps {
   venue: VenueView;
@@ -91,30 +50,6 @@ export function ScheduleCourts({
   const activeId = chosenWindow?.key === windowKey ? chosenWindow.id : firstWindow(windows, date, now);
   const activeWindow = windows.find((w) => w.id === activeId) ?? windows[0];
   const scrollSignal = `${windowKey}|${chosenWindow?.key === windowKey ? chosenWindow.n : 0}`;
-
-  const onCellKeyDown = (event: KeyboardEvent<HTMLButtonElement>, courtIndex: number, minute: number) => {
-    const currentCourt = venue.courts[courtIndex];
-    if (!currentCourt) return;
-    const own = startableOf(currentCourt);
-    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
-      event.preventDefault();
-      const next =
-        event.key === 'ArrowRight' ? own.find((m) => m > minute) : [...own].reverse().find((m) => m < minute);
-      if (next !== undefined) focusCell(currentCourt.id, next);
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      const step = event.key === 'ArrowDown' ? 1 : -1;
-      for (let i = courtIndex + step; i >= 0 && i < venue.courts.length; i += step) {
-        const candidate = venue.courts[i];
-        if (!candidate) continue;
-        const target = nearest(startableOf(candidate), minute);
-        if (target !== undefined) {
-          focusCell(candidate.id, target);
-          return;
-        }
-      }
-    }
-  };
 
   return (
     <>
@@ -208,7 +143,9 @@ export function ScheduleCourts({
                 onPick={(start) => onPickSlot(court, start)}
                 scrollToMinute={activeWindow?.from}
                 scrollSignal={scrollSignal}
-                onCellKeyDown={(event, minute) => onCellKeyDown(event, courtIndex, minute)}
+                onCellKeyDown={(event, minute) =>
+                  handleSlotCellKeyDown(event, venue.courts, startableOf, courtIndex, minute)
+                }
               />
             )}
           </section>
