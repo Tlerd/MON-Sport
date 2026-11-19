@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Clock } from '../database/clock.js';
 import type { PrismaService } from '../database/prisma.service.js';
 import type { NotificationsService } from '../notifications/notifications.service.js';
+import { BUSY } from './booking-sync.js';
 import { OwnerBookingsService } from './owner-bookings.service.js';
 import type { VenueScope } from './venue-scope.js';
 
@@ -41,6 +42,18 @@ describe('forOwner', () => {
     };
     expect(await service(prisma).forOwner(OWNER, 'PENDING')).toEqual([]);
     expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it('answers 409 BUSY after a second 40P01, and does not list', async () => {
+    const prisma = {
+      $executeRaw: vi.fn().mockRejectedValue(deadlock()),
+      booking: { findMany: vi.fn() },
+    };
+    const error = await service(prisma).forOwner(OWNER, 'PENDING').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as ConflictException).message).toBe(BUSY);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
+    expect(prisma.booking.findMany).not.toHaveBeenCalled();
   });
 
   it('does not retry another error', async () => {
