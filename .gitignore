@@ -14,3 +14,5 @@ apps/api/src/generated/
 !.agents/skills/agent-workflow/
 # Screenshots and reports of the verify-flow skill.
 verify-output/
+# Code graph of graphify (`pnpm graph`). Each agent builds it on its own machine.
+graphify-out/

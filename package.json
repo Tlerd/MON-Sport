@@ -9,6 +9,7 @@
   "scripts": {
     "check": "node scripts/check.mjs",
     "map": "node scripts/gen-map.mjs",
+    "graph": "graphify update .",
     "db:start": "node scripts/db-local.mjs",
     "dev:api": "pnpm --filter @monsport/api dev",
     "dev:mobile": "pnpm --filter @monsport/mobile dev",

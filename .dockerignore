@@ -9,3 +9,5 @@ apps/api/src/generated
 .claude
 .gemini
 docs
+graphify-out
+verify-output
