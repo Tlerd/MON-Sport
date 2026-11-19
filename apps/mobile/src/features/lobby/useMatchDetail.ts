@@ -1,6 +1,7 @@
 import { ApiError, errorMessage, api } from '@monsport/client';
 import type { MatchDetailView, MatchRequestView, MatchView, SessionUser } from '@monsport/shared';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLatest } from '../../hooks/useLatest.ts';
 
 export interface UseMatchDetailOptions {
   user: SessionUser | null | undefined;
@@ -24,8 +25,8 @@ export function useMatchDetail({ user, joinedRows, reload, openSessionLogin }: U
 
   const detailReqCounter = useRef(0);
   const requestReqCounters = useRef<Record<string, number>>({});
-  const roleRef = useRef(role);
-  const userIdRef = useRef(userId);
+  const roleRef = useLatest(role);
+  const userIdRef = useLatest(userId);
   const detailTargetIdRef = useRef<string | null>(null);
   const detailRef = useRef<MatchDetailView | null>(null);
   const requestsRef = useRef<Record<string, 'PENDING' | 'REJECTED'>>({});
@@ -33,8 +34,6 @@ export function useMatchDetail({ user, joinedRows, reload, openSessionLogin }: U
   useLayoutEffect(() => {
     detailRef.current = detail;
     requestsRef.current = requests;
-    roleRef.current = role;
-    userIdRef.current = userId;
     detailTargetIdRef.current = detailTarget?.id ?? null;
   });
 

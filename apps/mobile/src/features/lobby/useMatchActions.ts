@@ -1,6 +1,7 @@
 import { ApiError, errorMessage, api } from '@monsport/client';
 import type { MatchDetailView, MatchView, SessionUser } from '@monsport/shared';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useLatest } from '../../hooks/useLatest.ts';
 import { REQUEST_REJECTED_TEXT } from './LobbyMatchCard.tsx';
 
 export interface UseMatchActionsOptions {
@@ -48,14 +49,12 @@ export function useMatchActions(opts: UseMatchActionsOptions) {
   const userId = user?.id;
   const role = user?.role;
   const pendingJoinRef = useRef<string | null>(null);
-  const roleRef = useRef(role);
-  const userIdRef = useRef(userId);
+  const roleRef = useLatest(role);
+  const userIdRef = useLatest(userId);
   const leaveTargetIdRef = useRef<string | null>(null);
   const cancelTargetIdRef = useRef<string | null>(null);
 
   useLayoutEffect(() => {
-    roleRef.current = role;
-    userIdRef.current = userId;
     leaveTargetIdRef.current = leaveTarget?.id ?? null;
     cancelTargetIdRef.current = cancelTarget?.id ?? null;
   });

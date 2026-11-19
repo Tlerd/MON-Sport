@@ -831,4 +831,27 @@ describe('ScheduleScreen', () => {
     });
     expect(await within(section).findByText('Chị Hương')).toBeDefined();
   });
+
+  it('renders Buổi window chips and moves focus between slot cells with ArrowRight and ArrowDown', async () => {
+    mockStandardApi();
+    renderScreen(OWNER);
+
+    const windowGroup = await screen.findByRole('group', { name: 'Buổi' });
+    const windowChips = within(windowGroup).getAllByRole('button');
+    expect(windowChips.map((c) => c.textContent)).toEqual(['Sáng 6–12', 'Chiều 12–17', 'Tối 17–22']);
+    expect(windowChips[1]!.getAttribute('aria-pressed')).toBe('true');
+
+    await waitFor(() =>
+      expect(buttonMinutes(rowOf('Sân 2'))).toEqual([930, 960, 990, 1020, 1200, 1230, 1260]),
+    );
+
+    const start = within(rowOf('Sân 1')).getByRole('button', { name: 'Sân 1 16:00' });
+    start.focus();
+    fireEvent.keyDown(start, { key: 'ArrowRight' });
+    const next = within(rowOf('Sân 1')).getByRole('button', { name: 'Sân 1 16:30' });
+    expect(document.activeElement).toBe(next);
+
+    fireEvent.keyDown(next, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(within(rowOf('Sân 2')).getByRole('button', { name: 'Sân 2 16:30' }));
+  });
 });

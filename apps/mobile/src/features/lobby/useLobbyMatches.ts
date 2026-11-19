@@ -1,6 +1,7 @@
 import { api, ApiError } from '@monsport/client';
 import type { MatchView, SessionUser, Sport } from '@monsport/shared';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLatest } from '../../hooks/useLatest.ts';
 
 export function useLobbyMatches(user: SessionUser | null | undefined) {
   const [sport, setSport] = useState<Sport | undefined>(undefined);
@@ -15,18 +16,14 @@ export function useLobbyMatches(user: SessionUser | null | undefined) {
   const userId = user?.id;
   const role = user?.role;
   const isPlayer = role === 'USER';
-  const signedIn = user !== undefined;
+  const sessionKnown = user !== undefined;
 
   const reqCounter = useRef(0);
   const inFlight = useRef(false);
   const pending = useRef(false);
   const expiredShown = useRef(false);
   const fetchedSinceExpiry = useRef(false);
-  const roleRef = useRef(role);
-
-  useLayoutEffect(() => {
-    roleRef.current = role;
-  });
+  const roleRef = useLatest(role);
 
   const openSessionLogin = useCallback(() => {
     if (!expiredShown.current) {
@@ -135,10 +132,10 @@ export function useLobbyMatches(user: SessionUser | null | undefined) {
   }, [userId]);
 
   useEffect(() => {
-    if (!signedIn && userId === undefined) return;
+    if (!sessionKnown) return;
     fetchedSinceExpiry.current = true;
     fetchAll();
-  }, [userId, signedIn, fetchAll]);
+  }, [userId, sessionKnown, fetchAll]);
 
   useEffect(() => {
     if (loginTick === 0) return;
