@@ -47,4 +47,5 @@ export function denyFraming(res: Response): void {
     ? csp.replace(/frame-ancestors [^;]*/, "frame-ancestors 'none'")
     : [csp, "frame-ancestors 'none'"].filter(Boolean).join(';');
   res.setHeader('Content-Security-Policy', denied);
+  res.setHeader('X-Frame-Options', 'DENY');
 }

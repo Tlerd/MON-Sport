@@ -84,6 +84,7 @@ describe('serveWeb: the container serves the built web app', () => {
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).not.toContain("frame-ancestors 'self'");
     expect(csp).toContain("script-src 'self'");
+    expect(res.headers['x-frame-options']).toBe('DENY');
   });
 
   it("AC-20: another page has no frame-ancestors 'none', and an unknown /.well-known path is a 404, not index.html", async () => {

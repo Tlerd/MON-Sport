@@ -3,4 +3,3 @@
 10037	FAIL	(Server Leaks Information via X-Powered-By)
 10038	FAIL	(Content Security Policy Header Not Set)
 10063	FAIL	(Permissions Policy Header Not Set)
-10035	FAIL	(Strict-Transport-Security Header Not Set)
