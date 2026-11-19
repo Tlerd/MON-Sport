@@ -43,7 +43,7 @@ export function nearestMinute(list: number[], minute: number): number | undefine
   return best;
 }
 
-export const focusSlotCell = (courtId: string, minute: number) => {
+const focusSlotCell = (courtId: string, minute: number) => {
   document
     .querySelector<HTMLElement>(`[data-court-id="${courtId}"] button[data-minute="${minute}"]`)
     ?.focus();
