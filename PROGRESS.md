@@ -22,7 +22,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 1. `harness/secret-scan.test.mjs` and `harness/boundaries.test.mjs` each timed out once at 5000 ms under load, and `VenueScreen.test.tsx` AC-9 fails under load: each gets one rerun (fix ladder). The AC-31 flake of `google-auth.e2e.test.ts` is fixed (PR #232).
 2. Swarm step (`agent-workflow`): trials so far (17.4 min swarm against 13.2 min one coder; a second swarm 11.8 min, no baseline) keep the rule as it is. Try a larger fan-out before you widen it.
-3. Large-file split (2026-11-19, PRs #282 to #286 and `chore/source-file-size-limit`): `harness/source-size.test.mjs` fails a non-test source file under `apps/*/src` or `packages/*/src` (not `apps/api/src/generated/`) over 300 lines. Split such a file into a hook, a helper, or a part. Accepted lows for follow-up: no test pins the 409 `BUSY` of `forOwner` on a second deadlock (#284); the AC-7 fixture in `apps/web/src/app/venues-book.test.tsx` changed in the move (#285). The #286 lows are closed by `chore/mobile-lobby-ref-and-slot-helpers` (`useLatest`, `sessionKnown`, `apps/mobile/src/lib/slotWindows.ts`).
+3. Large-file split (2026-11-19, PRs #282 to #286 and `chore/source-file-size-limit`): `harness/source-size.test.mjs` fails a non-test source file under `apps/*/src` or `packages/*/src` (not `apps/api/src/generated/`) over 300 lines. Split such a file into a hook, a helper, or a part. Accepted low for follow-up: the AC-7 fixture in `apps/web/src/app/venues-book.test.tsx` changed in the move (#285). The #286 lows are closed by `chore/mobile-lobby-ref-and-slot-helpers` (`useLatest`, `sessionKnown`, `apps/mobile/src/lib/slotWindows.ts`).
 
 ## Next step
 
