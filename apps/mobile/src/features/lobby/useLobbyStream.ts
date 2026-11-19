@@ -1,14 +1,12 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { useLatest } from '../../hooks/useLatest.ts';
 
 const STREAM_URL = '/api/matches/stream';
 const DEBOUNCE_MS = 500;
 const MAX_WAIT_MS = 1000;
 
 export function useLobbyStream(onChange: () => void, enabled = true): void {
-  const onChangeRef = useRef(onChange);
-  useLayoutEffect(() => {
-    onChangeRef.current = onChange;
-  });
+  const onChangeRef = useLatest(onChange);
 
   useEffect(() => {
     if (!enabled || typeof EventSource === 'undefined') return;
