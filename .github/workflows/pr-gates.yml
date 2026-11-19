@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   gates:
-    runs-on: [self-hosted, monsport-local]
+    runs-on: ubuntu-latest
     env:
       PR_BODY: ${{ github.event.pull_request.body }}
       BASE: origin/${{ github.base_ref }}
