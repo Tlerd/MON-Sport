@@ -13,6 +13,7 @@ For rules and layout, read `AGENTS.md`. For the next step, read `PROGRESS.md`.
 ## apps/api/src/
 - app.module.ts: AppModule
 - main.ts
+- security-headers.ts: applySecurityHeaders, denyFraming
 - serve-web.ts: serveMobile, serveWeb
 - setup-app.ts: setupApp
 

@@ -81,6 +81,18 @@ jobs:
           fi
           node scripts/secret-scan.mjs --range "$range"
 
+  # Known vulnerabilities in pnpm-lock.yaml. It runs for every change, because new advisories appear without a code change.
+  # osv-scanner.toml holds each ignored advisory with its reason and an end date.
+  deps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: No known vulnerability in the lockfile
+        run: >-
+          docker run --rm --volume "$GITHUB_WORKSPACE:/src:ro" ghcr.io/google/osv-scanner:v2.7.1
+          scan source --config /src/osv-scanner.toml --lockfile /src/pnpm-lock.yaml
+
   check:
     needs: changes
     if: needs.changes.outputs.check == 'true'
@@ -149,6 +161,11 @@ jobs:
           done
           docker logs monsport-ci-app
           exit 1
+      # OWASP ZAP baseline: a passive scan of the production image. .zap/rules.tsv makes a missing security header fail.
+      - name: The ZAP baseline scan finds no failing rule
+        run: >-
+          docker run --rm --network host --volume "$GITHUB_WORKSPACE/.zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.17.0
+          zap-baseline.py -t http://localhost:8080/ -m 2 -c rules.tsv -I
       # The booking flows run in a real browser against the production image, before any merge can deploy it.
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7

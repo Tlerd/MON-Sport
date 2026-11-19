@@ -1,0 +1,32 @@
+# Read by the job "deps" in .github/workflows/ci.yml. Each entry needs a reason and an end date.
+# Review each entry before its date: upgrade the package, or write a new reason.
+
+[[IgnoredVulns]]
+id = "GHSA-q7qp-rjg7-q26m"
+effectiveUntil = 2027-02-19
+reason = "multer comes with @nestjs/platform-express. The API has no upload route, so no request reaches multer."
+
+[[IgnoredVulns]]
+id = "GHSA-w74x-v6f9-j3xg"
+effectiveUntil = 2027-02-19
+reason = "fast-uri comes with the prisma CLI (ajv in @prisma/dev). It does not run in the request path."
+
+[[IgnoredVulns]]
+id = "GHSA-wjr9-j795-jxcr"
+effectiveUntil = 2027-02-19
+reason = "fast-uri comes with the prisma CLI (ajv in @prisma/dev). It does not run in the request path."
+
+[[IgnoredVulns]]
+id = "GHSA-333x-w4r6-6crp"
+effectiveUntil = 2027-02-19
+reason = "fast-uri comes with the prisma CLI (ajv in @prisma/dev). It does not run in the request path."
+
+[[IgnoredVulns]]
+id = "GHSA-xhq7-xmqj-769h"
+effectiveUntil = 2027-02-19
+reason = "fast-uri comes with the prisma CLI (ajv in @prisma/dev). It does not run in the request path."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+effectiveUntil = 2027-02-19
+reason = "minimatch 9 comes with @swc/cli, a build tool. The fix is minimatch 11, a major version that @swc/cli does not take yet."
