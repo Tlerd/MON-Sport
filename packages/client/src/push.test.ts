@@ -77,26 +77,32 @@ describe('disablePush', () => {
   });
 
   it('resolves and clears the stored user when subscription.endpoint getter throws', async () => {
+    const endpoint = vi.fn(() => {
+      throw new Error('endpoint failed');
+    });
     const store = stubSubscription('user-3', {
       get endpoint(): string {
-        throw new Error('endpoint failed');
+        return endpoint();
       },
       unsubscribe: () => Promise.resolve(true),
     });
 
     await expect(disablePush()).resolves.toBeUndefined();
+    expect(endpoint).toHaveBeenCalledTimes(1);
     expect(store.has(USER_KEY)).toBe(false);
   });
 
   it('resolves and clears the stored user when unsubscribe() throws synchronously', async () => {
+    const unsubscribe = vi.fn(() => {
+      throw new Error('unsubscribe failed');
+    });
     const store = stubSubscription('user-4', {
       endpoint: 'https://push.example/sub',
-      unsubscribe() {
-        throw new Error('unsubscribe failed');
-      },
+      unsubscribe,
     });
 
     await expect(disablePush()).resolves.toBeUndefined();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(store.has(USER_KEY)).toBe(false);
   });
 });

@@ -36,7 +36,7 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
   });
 
   it('tries the next model after a quota failure, and stops at the first other result', () => {
-    const { models } = resolveModels({});
+    const lists = resolveModels({});
     const tried = [];
     const answers = [
       { status: 1, output: 'RESOURCE_EXHAUSTED' },
@@ -48,9 +48,9 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
         tried.push(args[args.indexOf('--model') + 1]);
         return answers.shift();
       },
-      models,
+      lists,
     );
-    expect(tried).toEqual(models.slice(0, 2));
+    expect(tried).toEqual(lists.models.slice(0, 2));
     expect(result.status).toBe(2);
   });
 
@@ -63,7 +63,7 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
   });
 
   it('a strong-only run, such as a Reviewer, starts on Neon and never falls back to a weaker model', () => {
-    const { strong } = resolveModels({});
+    const lists = resolveModels({});
     const tried = [];
     const result = runWithFallback(
       ['--strong-only', '--mode', 'plan', '-p', 'review'],
@@ -72,12 +72,37 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
         tried.push(args[args.indexOf('--model') + 1]);
         return { status: 1, output: 'quota exceeded' };
       },
-      strong,
+      lists,
     );
-    expect(tried).toEqual(strong);
-    expect(strong[0]).toBe('gemini-4-neon-high');
-    expect(strong.some((model) => /hydrogen/i.test(model))).toBe(false);
+    expect(tried).toEqual(lists.strong);
+    expect(lists.strong[0]).toBe('gemini-4-neon-high');
+    expect(lists.strong.some((model) => /hydrogen/i.test(model))).toBe(false);
     expect(result.status).toBe(OUT_OF_QUOTA);
+  });
+
+  it('picks strong only when --strong-only is set, and models otherwise', () => {
+    const lists = { models: ['m1'], strong: ['s1'] };
+    const triedStrong = [];
+    runWithFallback(
+      ['--strong-only', '-p', 'review'],
+      (args) => {
+        triedStrong.push(args[args.indexOf('--model') + 1]);
+        return { status: 0, output: '' };
+      },
+      lists,
+    );
+    expect(triedStrong).toEqual(['s1']);
+
+    const triedModels = [];
+    runWithFallback(
+      ['-p', 'task'],
+      (args) => {
+        triedModels.push(args[args.indexOf('--model') + 1]);
+        return { status: 0, output: '' };
+      },
+      lists,
+    );
+    expect(triedModels).toEqual(['m1']);
   });
 
   it('AGY_MODELS and AGY_REVIEW_MODELS override the defaults in resolveModels', () => {
@@ -95,8 +120,8 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
   });
 
   it('exits 4 with a clear message when every model is out of quota, so Claude Code codes on Sonnet or Haiku', () => {
-    const { models } = resolveModels({});
-    const result = runWithFallback(['-p', 'task'], () => ({ status: 1, output: 'quota exceeded' }), models);
+    const lists = resolveModels({});
+    const result = runWithFallback(['-p', 'task'], () => ({ status: 1, output: 'quota exceeded' }), lists);
     expect(OUT_OF_QUOTA).toBe(4);
     expect(result.status).toBe(OUT_OF_QUOTA);
     expect(result.output).toMatch(/every model is out of quota/);
