@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
+import { denyFraming } from './security-headers.js';
 
 export function serveMobile(app: NestExpressApplication, dir: string): void {
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -32,7 +33,7 @@ export function serveWeb(app: NestExpressApplication, dir: string): void {
     const p = req.path.toLowerCase();
     const page = (req.method === 'GET' || req.method === 'HEAD') && !p.startsWith('/api/') && p !== '/api';
     if (page && !req.path.includes('.') && req.accepts(['html', 'json']) === 'html') {
-      if (p === '/ket-noi-ai' || p.startsWith('/ket-noi-ai/')) res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+      if (p === '/ket-noi-ai' || p.startsWith('/ket-noi-ai/')) denyFraming(res);
       res.sendFile(index);
     } else next();
   });

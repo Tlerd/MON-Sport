@@ -16,3 +16,8 @@ minimumReleaseAgeExclude:
   - '@prisma/fetch-engine@7.10.1'
   - '@prisma/get-platform@7.10.1'
   - prisma@7.10.1
+minimumReleaseAge: 1440
+blockExoticSubdeps: true
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  - prisma@7.10.1

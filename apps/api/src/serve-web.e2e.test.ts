@@ -80,12 +80,15 @@ describe('serveWeb: the container serves the built web app', () => {
   it("AC-20: /ket-noi-ai/cho-phep answers index.html with Content-Security-Policy: frame-ancestors 'none'", async () => {
     const res = await request(app.getHttpServer()).get('/ket-noi-ai/cho-phep').set('Accept', 'text/html').expect(200);
     expect(res.text).toContain('id="root"');
-    expect(res.headers['content-security-policy']).toBe("frame-ancestors 'none'");
+    const csp = res.headers['content-security-policy'] ?? '';
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).not.toContain("frame-ancestors 'self'");
+    expect(csp).toContain("script-src 'self'");
   });
 
-  it('AC-20: another page has no frame-ancestors header, and an unknown /.well-known path is a 404, not index.html', async () => {
+  it("AC-20: another page has no frame-ancestors 'none', and an unknown /.well-known path is a 404, not index.html", async () => {
     const page = await request(app.getHttpServer()).get('/chu-san/yeu-cau').set('Accept', 'text/html').expect(200);
-    expect(page.headers['content-security-policy']).toBeUndefined();
+    expect(page.headers['content-security-policy']).not.toContain("frame-ancestors 'none'");
     const res = await request(app.getHttpServer()).get('/.well-known/khong-co').set('Accept', 'text/html').expect(404);
     expect(res.text).not.toContain('id="root"');
   });
@@ -186,5 +189,61 @@ describe('serveMobile: the container serves the mobile app under /app/', () => {
     } finally {
       await appNoMobile.close();
     }
+  });
+});
+
+describe('setupApp: security headers on every response', () => {
+  let app: NestExpressApplication;
+
+  beforeAll(async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'monsport-web-'));
+    writeFileSync(join(dir, 'index.html'), '<!doctype html><div id="root"></div>');
+    const moduleRef = await Test.createTestingModule({ imports: [TestModule] }).compile();
+    app = setupApp(moduleRef.createNestApplication<NestExpressApplication>());
+    serveWeb(app, dir);
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app?.close();
+  });
+
+  const page = () => request(app.getHttpServer()).get('/san').set('Accept', 'text/html').expect(200);
+  const api = () => request(app.getHttpServer()).get('/api/ping').expect(200);
+
+  it('SH-1: a page and an API answer have no X-Powered-By header', async () => {
+    expect((await page()).headers['x-powered-by']).toBeUndefined();
+    expect((await api()).headers['x-powered-by']).toBeUndefined();
+  });
+
+  it('SH-2: the page has a Content-Security-Policy that allows only its own scripts and the Google fonts', async () => {
+    const csp = (await page()).headers['content-security-policy'] ?? '';
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("frame-ancestors 'self'");
+    expect(csp).toContain('https://fonts.googleapis.com');
+    expect(csp).toContain('https://fonts.gstatic.com');
+  });
+
+  it('SH-3: the CSP has no form-action and no upgrade-insecure-requests, so OAuth redirects and local http runs work', async () => {
+    const csp = (await page()).headers['content-security-policy'] ?? '';
+    expect(csp).not.toContain('form-action');
+    expect(csp).not.toContain('upgrade-insecure-requests');
+  });
+
+  it('SH-4: the page and the API send nosniff, SAMEORIGIN, HSTS, a referrer policy, and a permissions policy', async () => {
+    for (const res of [await page(), await api()]) {
+      expect(res.headers['x-content-type-options']).toBe('nosniff');
+      expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
+      expect(res.headers['strict-transport-security']).toContain('max-age=');
+      expect(res.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+      expect(res.headers['permissions-policy']).toContain('camera=()');
+      expect(res.headers['permissions-policy']).toContain('geolocation=()');
+    }
+  });
+
+  it('SH-5: no Cross-Origin-Opener-Policy, so the OAuth consent page keeps its opener', async () => {
+    expect((await page()).headers['cross-origin-opener-policy']).toBeUndefined();
   });
 });
