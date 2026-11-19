@@ -9,7 +9,7 @@ Web app to book sports courts and join matches. Venue owners confirm bookings by
 - `pnpm dev:api` and `pnpm dev:web`: start the API on port 3000 and the web app, which sends `/api` to the API.
 - `pnpm db:start`: starts the local Postgres on port 55432. Copy `apps/api/.env.example` to `apps/api/.env`. The API tests need it.
 - `pnpm map`: rewrites `@map.md`, the list of code files with their exported names. Read it to find a file. `pnpm check` fails when it is stale.
-- `pnpm graph`: rebuilds the code graph in `graphify-out/` (10 to 20 s, no LLM). It needs `uv tool install graphifyy` once. Run it before you trace code. `graphify explain "<name>"` lists the callers and imports of a function, a class, or a hook, with file and line. `graphify path "<A>" "<B>"` shows how two names connect. Use `grep` for literal text. Skip free-text `graphify query`: its answers are long and noisy.
+- `pnpm graph`: rebuilds the code graph in `graphify-out/` (10 to 20 s, no LLM). It needs `uv tool install graphifyy` once, and it is optional. A session that may write runs it before it traces code. A read-only session queries the graph that is there. `graphify explain "<name>"` lists the callers and imports of a function, a class, or a hook, with file and line. `graphify path "<A>" "<B>"` shows how two names connect. Use `grep` for literal text. Skip free-text `graphify query`: its answers are long and noisy.
 
 Work is done when `pnpm check` passes. The git hook and CI run the same command. When a command hangs or fails, read `docs/known-issues.md`.
 
