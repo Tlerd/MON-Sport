@@ -41,6 +41,9 @@ describe('disablePush', () => {
 
   it('resolves and clears the stored user when navigator.serviceWorker access throws', async () => {
     const store = stubStorage('user-1');
+    const has = vi.fn(() => {
+      throw new Error('serviceWorker blocked');
+    });
     vi.stubGlobal('PushManager', class {});
     vi.stubGlobal('Notification', { permission: 'granted' });
     vi.stubGlobal(
@@ -48,9 +51,7 @@ describe('disablePush', () => {
       new Proxy(
         {},
         {
-          has() {
-            throw new Error('serviceWorker blocked');
-          },
+          has,
           get() {
             throw new Error('serviceWorker blocked');
           },
@@ -59,20 +60,25 @@ describe('disablePush', () => {
     );
 
     await expect(disablePush()).resolves.toBeUndefined();
+    expect(has).toHaveBeenCalledTimes(1);
     expect(store.has(USER_KEY)).toBe(false);
   });
 
   it('resolves and clears the stored user when navigator.serviceWorker getter throws', async () => {
     const store = stubStorage('user-2');
+    const serviceWorker = vi.fn((): never => {
+      throw new Error('serviceWorker getter failed');
+    });
     vi.stubGlobal('PushManager', class {});
     vi.stubGlobal('Notification', { permission: 'granted' });
     vi.stubGlobal('navigator', {
       get serviceWorker(): never {
-        throw new Error('serviceWorker getter failed');
+        return serviceWorker();
       },
     });
 
     await expect(disablePush()).resolves.toBeUndefined();
+    expect(serviceWorker).toHaveBeenCalledTimes(1);
     expect(store.has(USER_KEY)).toBe(false);
   });
 

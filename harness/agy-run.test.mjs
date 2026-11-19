@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_MODELS,
   DEFAULT_REVIEW_MODELS,
@@ -135,5 +135,20 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
     expect(weeklyStop(week(99, -60), now), 'a window that has reset no longer counts').toBeNull();
     expect(weeklyStop(null, now), 'no usage data').toBeNull();
     expect(weeklyStop(week(90), now, 90), 'USAGE_STOP_PERCENT moves the line').toMatch(/90%/);
+  });
+
+  it('returns status 1 with the empty-list message without calling run when the model list is empty', () => {
+    const lists = { models: [], strong: [] };
+    const run = vi.fn();
+
+    expect(runWithFallback(['-p', 'task'], run, lists)).toEqual({
+      status: 1,
+      output: 'agy-run: no model in AGY_MODELS',
+    });
+    expect(runWithFallback(['--strong-only', '-p', 'review'], run, lists)).toEqual({
+      status: 1,
+      output: 'agy-run: no model in AGY_REVIEW_MODELS',
+    });
+    expect(run).not.toHaveBeenCalled();
   });
 });
