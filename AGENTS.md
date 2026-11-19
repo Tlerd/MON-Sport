@@ -62,14 +62,15 @@ An agent merges a ready pull request with `node scripts/merge.mjs <n>` only, in 
 
 ## Agent roles
 
-The session model is the Planner and the Reviewer. The skill `agent-workflow` holds the coder order, the review rounds, and the subagents.
+The session model is the Planner, and it gives the last review of each pull request before the merge. agy on `gemini-4-neon-high` is the Reviewer, and agy codes, Hydrogen first. The skill `agent-workflow` holds the coder order, the review rounds, and the fallbacks.
 
 | Role | Does | Never |
 |---|---|---|
 | Planner | Reads the brief and the code. Writes a plan that lists each file to change | Edits a file |
 | Reader | Finds and reads files. Use the cheap read-only `Explore` agent for a search over several files | Edits a file, or changes state |
 | Coder | Writes the tests first, then the code the plan lists. Runs `pnpm check` | Edits a path the brief does not list |
-| Reviewer | A fresh session. Reads `REVIEW.md` first. Rates each finding high, medium, or low | Edits, commits, or pushes |
+| Reviewer | A fresh agy session on `gemini-4-neon-high` (`node scripts/agy-run.mjs --strong-only --mode plan`). Reads `REVIEW.md` first. Rates each finding high, medium, or low | Edits, commits, or pushes |
+| Last review | The session model. Reads the Reviewer output and the diff, decides each finding, posts the review with its marker, then merges | Writes the code |
 
 ## Never
 

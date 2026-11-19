@@ -106,15 +106,19 @@ export async function enablePush(userId: string): Promise<void> {
   storeUser(userId);
 }
 
+async function disable(): Promise<void> {
+  if (!pushSupported()) return;
+  const subscription = await currentSubscription();
+  if (!subscription) return;
+  const { endpoint } = subscription;
+  await subscription.unsubscribe().catch(() => undefined);
+  const body: PushUnsubscribeRequest = { endpoint };
+  await api('/api/push/subscriptions', { method: 'DELETE', json: body });
+}
+
 export async function disablePush(): Promise<void> {
   try {
-    if (!pushSupported()) return;
-    const subscription = await currentSubscription().catch(() => null);
-    if (!subscription) return;
-    const { endpoint } = subscription;
-    await subscription.unsubscribe().catch(() => undefined);
-    const body: PushUnsubscribeRequest = { endpoint };
-    await api('/api/push/subscriptions', { method: 'DELETE', json: body }).catch(() => undefined);
+    await disable().catch(() => undefined);
   } finally {
     clearStoredUser();
   }

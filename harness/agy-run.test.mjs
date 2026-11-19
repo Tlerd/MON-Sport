@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { MODELS, OUT_OF_QUOTA, STRONG, buildArgs, hitQuota, quotaText, runWithFallback, weeklyStop } from '../scripts/agy-run.mjs';
+import {
+  DEFAULT_MODELS,
+  DEFAULT_REVIEW_MODELS,
+  OUT_OF_QUOTA,
+  buildArgs,
+  hitQuota,
+  quotaText,
+  resolveModels,
+  runWithFallback,
+  weeklyStop,
+} from '../scripts/agy-run.mjs';
 
 describe('agy-run: an agy model that runs out of quota hands over to the next one', () => {
-  it('the first model is Sonnet at medium effort, and every other model is a high variant', () => {
-    expect(MODELS.length).toBeGreaterThan(1);
-    expect(MODELS[0]).toBe('claude-sonnet-5-5-medium');
-    for (const model of MODELS.slice(1)) expect(model).toMatch(/-high$/);
+  it('the first model is Hydrogen, before Argon, and every model carries its effort', () => {
+    const { models } = resolveModels({});
+    expect(models.length).toBeGreaterThan(1);
+    expect(models[0]).toBe('gemini-4-hydrogen-high');
+    expect(models).toContain('gemini-4-argon-high');
+    expect(models.indexOf('gemini-4-hydrogen-high')).toBeLessThan(models.indexOf('gemini-4-argon-high'));
+    for (const model of models) expect(model).toMatch(/-(medium|high)$/);
   });
 
   it('drops the model and effort of the caller, and sets the effort of the model', () => {
@@ -23,16 +36,21 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
   });
 
   it('tries the next model after a quota failure, and stops at the first other result', () => {
+    const { models } = resolveModels({});
     const tried = [];
     const answers = [
       { status: 1, output: 'RESOURCE_EXHAUSTED' },
       { status: 2, output: 'test failed' },
     ];
-    const result = runWithFallback(['-p', 'task'], (args) => {
-      tried.push(args[args.indexOf('--model') + 1]);
-      return answers.shift();
-    });
-    expect(tried).toEqual(MODELS.slice(0, 2));
+    const result = runWithFallback(
+      ['-p', 'task'],
+      (args) => {
+        tried.push(args[args.indexOf('--model') + 1]);
+        return answers.shift();
+      },
+      models,
+    );
+    expect(tried).toEqual(models.slice(0, 2));
     expect(result.status).toBe(2);
   });
 
@@ -44,20 +62,41 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
     expect(hitQuota({ status: 1, output: quotaText({ stdout: '', stderr }) })).toBe(true);
   });
 
-  it('a strong-only run, such as a Reviewer, never falls back to a weaker model', () => {
+  it('a strong-only run, such as a Reviewer, starts on Neon and never falls back to a weaker model', () => {
+    const { strong } = resolveModels({});
     const tried = [];
-    const result = runWithFallback(['--strong-only', '--mode', 'plan', '-p', 'review'], (args) => {
-      expect(args).not.toContain('--strong-only');
-      tried.push(args[args.indexOf('--model') + 1]);
-      return { status: 1, output: 'quota exceeded' };
-    });
-    expect(tried).toEqual(STRONG);
-    expect(STRONG).not.toContain('gemini-4-hydrogen-high');
+    const result = runWithFallback(
+      ['--strong-only', '--mode', 'plan', '-p', 'review'],
+      (args) => {
+        expect(args).not.toContain('--strong-only');
+        tried.push(args[args.indexOf('--model') + 1]);
+        return { status: 1, output: 'quota exceeded' };
+      },
+      strong,
+    );
+    expect(tried).toEqual(strong);
+    expect(strong[0]).toBe('gemini-4-neon-high');
+    expect(strong.some((model) => /hydrogen/i.test(model))).toBe(false);
     expect(result.status).toBe(OUT_OF_QUOTA);
   });
 
+  it('AGY_MODELS and AGY_REVIEW_MODELS override the defaults in resolveModels', () => {
+    expect(DEFAULT_MODELS).toContain('gemini-4-hydrogen-high');
+    expect(DEFAULT_REVIEW_MODELS).toContain('gemini-4-neon-high');
+    expect(
+      resolveModels({
+        AGY_MODELS: 'gemini-4-argon-high, gemini-4-hydrogen-high',
+        AGY_REVIEW_MODELS: 'claude-opus-5-5-high, gemini-4-argon-high',
+      }),
+    ).toEqual({
+      models: ['gemini-4-argon-high', 'gemini-4-hydrogen-high'],
+      strong: ['claude-opus-5-5-high', 'gemini-4-argon-high'],
+    });
+  });
+
   it('exits 4 with a clear message when every model is out of quota, so Claude Code codes on Sonnet or Haiku', () => {
-    const result = runWithFallback(['-p', 'task'], () => ({ status: 1, output: 'quota exceeded' }));
+    const { models } = resolveModels({});
+    const result = runWithFallback(['-p', 'task'], () => ({ status: 1, output: 'quota exceeded' }), models);
     expect(OUT_OF_QUOTA).toBe(4);
     expect(result.status).toBe(OUT_OF_QUOTA);
     expect(result.output).toMatch(/every model is out of quota/);
