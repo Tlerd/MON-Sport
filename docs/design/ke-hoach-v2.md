@@ -21,7 +21,7 @@ Mọi mục lấy từ bảng "Out of scope" của intake V1. Cột "Lý do cắ
 | W4 | Trình độ người chơi | "Chưa cần" | Có: một trường và bộ lọc | Thấp. Cần W1 để có ý nghĩa khi duyệt người vào trận |
 | W5 | Điểm uy tín | Cắt B2: 3 ngày | Có: sự kiện và điểm | Cần W1 (rời trận, vắng mặt). Cần luật tính điểm từ bạn |
 | W6 | Thanh toán trong app | "Bản đầu chỉ cần chạy được" | Có | Tiền và pháp lý. Cần ADR, nhà cung cấp và bạn duyệt |
-| W7 | MCP cho AI đặt sân | Không có trong intake V1 | Có: token và client OAuth | Chờ bạn duyệt ADR 0008 (`HUMAN_DECISIONS.md`, dòng 26) |
+| W7 | MCP cho AI đặt sân | Không có trong intake V1 | Có: token và client OAuth | Xong: ADR 0008 đã duyệt, F-036 tới F-038 chạy trên live. Chủ sân nối claude.ai ngày 19/11/2026 |
 
 Mục nhỏ của web, làm khi tiện (mặc định hiện chạy, `HUMAN_DECISIONS.md`):
 
@@ -35,7 +35,7 @@ Mục nhỏ của web, làm khi tiện (mặc định hiện chạy, `HUMAN_DECI
 2. **W2.** Chủ sân phải nhập tay từng buổi. Đây là việc lặp lại nhiều nhất của chủ sân.
 3. **W3.** Cần khi một chủ sân có người trực sân.
 4. **W4, rồi W5.** Cần W1 xong. W5 cần bạn chốt luật tính điểm.
-5. **W6 và W7** chỉ bắt đầu khi bạn duyệt. Agent không code hai mục này khi chưa có duyệt.
+5. **W7** đã xong (F-036 tới F-038). **W6** chỉ bắt đầu khi bạn duyệt. Agent không code W6 khi chưa có duyệt.
 
 Mỗi tính năng chia thành các bước theo quy ước `feat/<issue>-<step>-<slug>`: schema và hợp đồng, API, màn web, luồng `verify-flow`. Số brief bắt đầu từ F-028.
 
