@@ -48,7 +48,7 @@ function sourceFile(input, path = 'file.tsx') {
   return typeof input === 'string' ? ts.createSourceFile(path, input, ts.ScriptTarget.Latest, true, scriptKind(path)) : input;
 }
 
-function findAstLines(input, match, path = 'file.tsx') {
+function collectAstLines(input, match, path = 'file.tsx') {
   const sf = sourceFile(input, path);
   const lines = [];
   const visit = (node) => {
@@ -57,7 +57,11 @@ function findAstLines(input, match, path = 'file.tsx') {
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  return [...new Set(lines)].sort((a, b) => a - b);
+  return lines.sort((a, b) => a - b);
+}
+
+function findAstLines(input, match, path = 'file.tsx') {
+  return [...new Set(collectAstLines(input, match, path))];
 }
 
 function unwrapParens(node) {
@@ -66,17 +70,19 @@ function unwrapParens(node) {
   return current;
 }
 
+const isCast = (node) => ts.isAsExpression(node) || ts.isTypeAssertionExpression(node);
+
 function findAnyLines(input, path = 'file.tsx') {
   return findAstLines(input, (node, sf) => (node.kind === ts.SyntaxKind.AnyKeyword ? node.getStart(sf) : null), path);
 }
 
 function findDoubleCastLines(input, path = 'file.tsx') {
-  return findAstLines(
+  return collectAstLines(
     input,
     (node, sf) => {
-      if (!ts.isAsExpression(node)) return null;
+      if (!isCast(node)) return null;
       const inner = unwrapParens(node.expression);
-      if (!ts.isAsExpression(inner) || inner.type.kind !== ts.SyntaxKind.UnknownKeyword) return null;
+      if (!isCast(inner) || inner.type.kind !== ts.SyntaxKind.UnknownKeyword) return null;
       return inner.type.getStart(sf);
     },
     path,
@@ -208,6 +214,8 @@ test('matchers detect forbidden patterns and ignore valid code', () => {
       'a.ts',
     ),
   ).toEqual([1, 2, 4]);
+  expect(findDoubleCastLines('const a = x as unknown as A, b = y as unknown as B;', 'a.ts')).toEqual([1, 1]);
+  expect(findDoubleCastLines('const x = <A><unknown>v;', 'a.ts')).toEqual([1]);
   expect(findDoubleCastLines('const x = v as unknown;', 'a.ts')).toEqual([]);
 
   expect(

@@ -17,6 +17,23 @@ function stubStorage(userId: string) {
   return store;
 }
 
+function stubSubscription(userId: string, subscription: { readonly endpoint: string; unsubscribe: () => Promise<boolean> }) {
+  const store = stubStorage(userId);
+  vi.stubGlobal('PushManager', class {});
+  vi.stubGlobal('Notification', { permission: 'granted' });
+  vi.stubGlobal('navigator', {
+    serviceWorker: {
+      getRegistration: () =>
+        Promise.resolve({
+          pushManager: {
+            getSubscription: () => Promise.resolve(subscription),
+          },
+        }),
+    },
+  });
+  return store;
+}
+
 describe('disablePush', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -59,26 +76,23 @@ describe('disablePush', () => {
     expect(store.has(USER_KEY)).toBe(false);
   });
 
-  it('resolves and clears the stored user when subscription.endpoint or unsubscribe throws synchronously', async () => {
-    const store = stubStorage('user-3');
-    vi.stubGlobal('PushManager', class {});
-    vi.stubGlobal('Notification', { permission: 'granted' });
-    vi.stubGlobal('navigator', {
-      serviceWorker: {
-        getRegistration: () =>
-          Promise.resolve({
-            pushManager: {
-              getSubscription: () =>
-                Promise.resolve({
-                  get endpoint(): string {
-                    throw new Error('endpoint failed');
-                  },
-                  unsubscribe() {
-                    throw new Error('unsubscribe failed');
-                  },
-                }),
-            },
-          }),
+  it('resolves and clears the stored user when subscription.endpoint getter throws', async () => {
+    const store = stubSubscription('user-3', {
+      get endpoint(): string {
+        throw new Error('endpoint failed');
+      },
+      unsubscribe: () => Promise.resolve(true),
+    });
+
+    await expect(disablePush()).resolves.toBeUndefined();
+    expect(store.has(USER_KEY)).toBe(false);
+  });
+
+  it('resolves and clears the stored user when unsubscribe() throws synchronously', async () => {
+    const store = stubSubscription('user-4', {
+      endpoint: 'https://push.example/sub',
+      unsubscribe() {
+        throw new Error('unsubscribe failed');
       },
     });
 

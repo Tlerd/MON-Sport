@@ -17,12 +17,18 @@ import { pathToFileURL } from 'node:url';
 
 const parseList = (raw) => raw.split(',').map((model) => model.trim()).filter(Boolean);
 
-export const MODELS = parseList(
-  process.env.AGY_MODELS || 'gemini-4-hydrogen-high,gemini-4-argon-high,claude-sonnet-5-5-medium,claude-opus-5-5-high,claude-sonnet-5-5-high',
-);
-export const STRONG = parseList(
-  process.env.AGY_REVIEW_MODELS || 'gemini-4-neon-high,claude-opus-5-5-high,gemini-4-argon-high',
-);
+export const DEFAULT_MODELS =
+  'gemini-4-hydrogen-high,gemini-4-argon-high,claude-sonnet-5-5-medium,claude-opus-5-5-high,claude-sonnet-5-5-high';
+export const DEFAULT_REVIEW_MODELS = 'gemini-4-neon-high,claude-opus-5-5-high,gemini-4-argon-high';
+
+export function resolveModels(env = process.env) {
+  return {
+    models: parseList(env.AGY_MODELS || DEFAULT_MODELS),
+    strong: parseList(env.AGY_REVIEW_MODELS || DEFAULT_REVIEW_MODELS),
+  };
+}
+
+export const { models: MODELS, strong: STRONG } = resolveModels(process.env);
 
 const QUOTA = /RESOURCE_EXHAUSTED|quota|\b429\b|rate.?limit|usage limit|too many requests|exhausted/i;
 const TAIL_LINES = 20;
@@ -63,8 +69,8 @@ export const quotaText = ({ stderr }) => String(stderr ?? '').trimEnd().split(/\
 
 export const hitQuota = ({ status, output }) => status !== 0 && QUOTA.test(output);
 
-export function runWithFallback(args, run) {
-  const models = args.includes('--strong-only') ? STRONG : MODELS;
+export function runWithFallback(args, run, list) {
+  const models = list ?? (args.includes('--strong-only') ? STRONG : MODELS);
   if (!models.length) {
     return { status: 1, output: args.includes('--strong-only') ? 'agy-run: no model in AGY_REVIEW_MODELS' : 'agy-run: no model in AGY_MODELS' };
   }

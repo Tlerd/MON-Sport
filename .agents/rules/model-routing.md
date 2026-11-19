@@ -15,5 +15,5 @@ AGENTS.md defines the roles. This file maps them to Antigravity models.
 - Plan mode keeps the planner and the reviewer read only. Never give them `--dangerously-skip-permissions`.
 - To wait for CI or a scheduled check, use the `schedule` tool, not a sleep loop.
 - "Fix ladder" in `.agents/skills/agent-workflow/SKILL.md` is for Claude Code sessions. In Antigravity, when `pnpm check` fails after a coding step, retry once on the session model, then hand the step back to Claude Code with the failing lines. Exit 3 still stops the run.
-- Claude Code is the Planner and the Reviewer, and it sends each coding step here through `node scripts/agy-run.mjs`. Exit 4 means every agy model is out of quota, and Claude Code then codes the step on Sonnet or Haiku.
+- Claude Code plans and gives the last review before the merge; it sends each coding step and each Reviewer round through `node scripts/agy-run.mjs`; on exit 4 it codes on the backend or frontend subagent (Sonnet, then Haiku) and reviews with the reviewer subagent.
 - Keep the task list of the run, and mark each item done. At the end of each turn, read the list again, and do each open item that nothing blocks. Time matters: do not spend time that can be avoided.
