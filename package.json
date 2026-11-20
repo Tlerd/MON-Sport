@@ -11,6 +11,7 @@
     "map": "node scripts/gen-map.mjs",
     "graph": "graphify update .",
     "db:start": "node scripts/db-local.mjs",
+    "db:sql": "node scripts/db-sql.mjs",
     "dev:api": "pnpm --filter @monsport/api dev",
     "dev:mobile": "pnpm --filter @monsport/mobile dev",
     "dev:web": "pnpm --filter @monsport/web dev",
