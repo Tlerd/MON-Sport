@@ -1,10 +1,11 @@
 import { addDaysYmd, vnDateString } from '@monsport/shared';
-import type { MatchView, Sport } from '@monsport/shared';
+import type { MatchView, SkillLevel, Sport } from '@monsport/shared';
 import { dayChipLabel } from './booking.ts';
 
 export interface LobbyFilter {
   sport?: Sport;
   date?: string;
+  level?: SkillLevel;
 }
 
 export interface LobbyCard {
@@ -39,7 +40,8 @@ export function lobbyMatches(
       ({ match }) =>
         Date.parse(match.startAt) > now.getTime() &&
         (filter.sport === undefined || match.sport === filter.sport) &&
-        (filter.date === undefined || vnDateString(new Date(match.startAt)) === filter.date),
+        (filter.date === undefined || vnDateString(new Date(match.startAt)) === filter.date) &&
+        (filter.level === undefined || match.hostSkillLevel === filter.level),
     )
     .sort((a, b) => byStart(a.match, b.match));
 }

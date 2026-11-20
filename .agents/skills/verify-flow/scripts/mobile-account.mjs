@@ -100,6 +100,7 @@ export default async function mobileAccount(run) {
         await dialog.getByLabel('Tên', { exact: true }).fill('Kiểm tra');
         await dialog.getByLabel('Số điện thoại', { exact: true }).fill('0900000000');
         await dialog.getByLabel('Mật khẩu', { exact: true }).fill('KiemTra#2026');
+        await dialog.getByLabel('Trình độ', { exact: true }).selectOption('ADVANCED');
         assert(!(await dialog.getByLabel(CONSENT).isChecked()), 'The consent box is ticked');
         await dialog.locator('button[type=submit]').click();
         const alert = dialog.getByRole('alert');

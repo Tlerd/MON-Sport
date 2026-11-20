@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as clientModule from '@monsport/client';
 import { ApiError } from '@monsport/client';
-import { Messages, PRIVACY_NOTICE } from '@monsport/shared';
+import { Messages, PRIVACY_NOTICE, SKILL_LEVEL_LABELS, SKILL_LEVEL_REQUIRED_MESSAGE } from '@monsport/shared';
 import { SessionProvider, useSession } from '../../app/session.tsx';
 import { RegisterSheet } from './RegisterSheet.tsx';
 
@@ -40,10 +40,11 @@ function renderSheet(onClose = vi.fn()) {
   return onClose;
 }
 
-function fillForm(consent: boolean) {
+function fillForm(consent: boolean, skillLevel: string = 'ADVANCED') {
   fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Lan' } });
   fireEvent.change(screen.getByLabelText('Số điện thoại'), { target: { value: '0912345678' } });
   fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'Sanbong#2026' } });
+  fireEvent.change(screen.getByLabelText('Trình độ'), { target: { value: skillLevel } });
   const box = screen.getByLabelText(CONSENT_LABEL) as HTMLInputElement;
   if (consent !== box.checked) fireEvent.click(box);
 }
@@ -100,7 +101,7 @@ describe('RegisterSheet', () => {
     expect(posts[0][1]).toEqual(
       expect.objectContaining({
         method: 'POST',
-        json: { name: 'Lan', phone: '0912345678', password: 'Sanbong#2026', consent: true },
+        json: { name: 'Lan', phone: '0912345678', password: 'Sanbong#2026', consent: true, skillLevel: 'ADVANCED' },
       }),
     );
     expect((screen.getByRole('button', { name: /Đang tạo/ }) as HTMLButtonElement).disabled).toBe(true);
@@ -173,6 +174,61 @@ describe('RegisterSheet', () => {
     expect(['90vh', '90dvh']).toContain(scroller!.style.maxHeight);
     for (const el of form.querySelectorAll<HTMLElement>('input[type=text], input[type=tel], input[type=password]'))
       expect(el.style.width).toBe('100%');
+  });
+
+  it('AC-1: shows a "Trình độ" select with Mới chơi, Trung bình, Khá and none chosen', () => {
+    mockApi(async () => ({}));
+    renderSheet();
+
+    const select = screen.getByLabelText('Trình độ') as HTMLSelectElement;
+    expect(select.tagName).toBe('SELECT');
+    expect(select.value).toBe('');
+    const labels = [...select.options].filter((o) => o.value !== '').map((o) => o.textContent);
+    expect(labels).toEqual([
+      SKILL_LEVEL_LABELS.BEGINNER,
+      SKILL_LEVEL_LABELS.INTERMEDIATE,
+      SKILL_LEVEL_LABELS.ADVANCED,
+    ]);
+    expect(labels).toEqual(['Mới chơi', 'Trung bình', 'Khá']);
+    expect(parseInt(select.style.height, 10)).toBeGreaterThanOrEqual(44);
+  });
+
+  it('AC-2: without a level shows "Chọn trình độ", sends no request, and clears the error once a level is picked', async () => {
+    mockApi(async () => ({}));
+    renderSheet();
+    await waitFor(() => expect(clientModule.api).toHaveBeenCalledWith('/api/auth/me'));
+    vi.mocked(clientModule.api).mockClear();
+
+    fillForm(true, '');
+    await act(async () => {
+      fireEvent.click(submitButton());
+    });
+
+    expect(clientModule.api).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toBe(SKILL_LEVEL_REQUIRED_MESSAGE);
+    expect(SKILL_LEVEL_REQUIRED_MESSAGE).toBe('Chọn trình độ');
+
+    fireEvent.change(screen.getByLabelText('Trình độ'), { target: { value: 'BEGINNER' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('AC-3: choosing Khá posts skillLevel ADVANCED to /api/auth/register', async () => {
+    mockApi(async () => ({ id: 'u1', name: 'Lan', role: 'USER' }));
+    renderSheet();
+    await waitFor(() => expect(clientModule.api).toHaveBeenCalledWith('/api/auth/me'));
+    vi.mocked(clientModule.api).mockClear();
+
+    fillForm(true, '');
+    fireEvent.change(screen.getByLabelText('Trình độ'), { target: { value: 'ADVANCED' } });
+    await act(async () => {
+      fireEvent.click(submitButton());
+    });
+
+    const posts = vi.mocked(clientModule.api).mock.calls.filter(([p]) => p === '/api/auth/register');
+    expect(posts).toHaveLength(1);
+    expect(posts[0][1]).toEqual(
+      expect.objectContaining({ method: 'POST', json: expect.objectContaining({ skillLevel: 'ADVANCED' }) }),
+    );
   });
 
   it('D-1: renders the error alert right above the submit button', async () => {

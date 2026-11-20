@@ -1,6 +1,13 @@
 import { api } from '@monsport/client';
-import { Messages, PRIVACY_NOTICE, type SessionUser } from '@monsport/shared';
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import {
+  Messages,
+  PRIVACY_NOTICE,
+  SKILL_LEVEL_LABELS,
+  SKILL_LEVEL_REQUIRED_MESSAGE,
+  SkillLevel,
+  type SessionUser,
+} from '@monsport/shared';
+import { useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { useAction } from '../../hooks/useAction.ts';
 import { useSession } from '../../app/session.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
@@ -33,7 +40,9 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [skillLevel, setSkillLevel] = useState<SkillLevel | ''>('');
   const [consent, setConsent] = useState(false);
+  const skillRef = useRef<HTMLSelectElement>(null);
   const { run, busy, error, setError } = useAction();
 
   const handleSubmit = async (e: FormEvent) => {
@@ -43,10 +52,15 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
       setError(Messages.consent);
       return;
     }
+    if (skillLevel === '') {
+      setError(SKILL_LEVEL_REQUIRED_MESSAGE);
+      skillRef.current?.focus();
+      return;
+    }
     await run(async () => {
       const registered = await api<SessionUser | undefined>('/api/auth/register', {
         method: 'POST',
-        json: { name, phone, password, consent: true },
+        json: { name, phone, password, consent: true, skillLevel },
       });
       if (registered?.id) login(registered);
       await refresh();
@@ -115,6 +129,32 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
           </p>
         </div>
 
+        <div>
+          <label htmlFor="register-skill-level" style={labelStyle}>
+            Trình độ
+          </label>
+          <select
+            id="register-skill-level"
+            ref={skillRef}
+            aria-invalid={error === SKILL_LEVEL_REQUIRED_MESSAGE || undefined}
+            aria-describedby={error === SKILL_LEVEL_REQUIRED_MESSAGE ? 'register-error' : undefined}
+            value={skillLevel}
+            onChange={(e) => {
+              const picked = SkillLevel.safeParse(e.target.value);
+              setSkillLevel(picked.success ? picked.data : '');
+              if (picked.success && error === SKILL_LEVEL_REQUIRED_MESSAGE) setError(null);
+            }}
+            style={inputStyle}
+          >
+            <option value="">{SKILL_LEVEL_REQUIRED_MESSAGE}</option>
+            {SkillLevel.options.map((level) => (
+              <option key={level} value={level}>
+                {SKILL_LEVEL_LABELS[level]}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
           {NOTICE_PARAGRAPHS.map((text) => (
             <p key={text} style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-ink-muted)' }}>
@@ -137,7 +177,7 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
         </div>
 
         {error && (
-          <p style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">
+          <p id="register-error" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">
             {error}
           </p>
         )}

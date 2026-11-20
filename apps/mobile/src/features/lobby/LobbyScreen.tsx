@@ -28,6 +28,8 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
     setSport,
     date,
     setDate,
+    level,
+    setLevel,
     rows,
     setRows,
     joinedRows,
@@ -116,7 +118,7 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
   const chips = lobbyChips(now);
   const joinedById = new Map(joinedRows.map((m) => [m.id, m]));
   const mergedFeed = rows?.map((m) => joinedById.get(m.id) ?? m);
-  const cards = mergedFeed ? lobbyMatches(mergedFeed, joinedRows, now, { sport, date }, userId) : undefined;
+  const cards = mergedFeed ? lobbyMatches(mergedFeed, joinedRows, now, { sport, date, level }, userId) : undefined;
   const detailOpen = detailTarget !== null && leaveTarget === null && cancelTarget === null;
   const shownMatch = detail ?? detailTarget;
   const detailApproval = (detail?.joinMode ?? detailTarget?.joinMode) === 'APPROVAL';
@@ -130,10 +132,15 @@ export function LobbyScreen({ now: nowProp }: LobbyScreenProps) {
       <LobbyFilters
         sport={sport}
         date={date}
+        level={level}
         chips={chips}
         onSportChange={(next) => {
           setCardErrors({});
           setSport(next);
+        }}
+        onLevelChange={(next) => {
+          setCardErrors({});
+          setLevel(next);
         }}
         onDateChange={(next) => {
           setCardErrors({});

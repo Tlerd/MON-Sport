@@ -26,7 +26,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 
 ## Next step for agents
 
-1. App port of W2 to W5: the app has no skill level (F-029), weekly booking (F-030), or reputation (F-032) yet. A STAFF user sees "Dùng web cho nhân viên" (F-031). Write a brief per feature, in the order of `docs/design/ke-hoach-v2.md`.
+1. App port of W2 to W5: skill level is on the app (F-039). The app has no weekly booking (F-030) or reputation (F-032) yet. A STAFF user sees "Dùng web cho nhân viên" (F-031). Write a brief per feature, in the order of `docs/design/ke-hoach-v2.md`.
 2. Open lows, checked in the code on 2026-11-19 (each still holds):
    - ADR 0008, Options item 1 (line 24), still says PAT runs over stdio; line 12 says Streamable HTTP.
    - `AccessTokensService.authenticate` repeats the rule of `validWhere` and loads the whole `User` row (PR #270).
