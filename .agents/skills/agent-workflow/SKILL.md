@@ -30,7 +30,7 @@ Use it when a change to a shared part (`packages/shared`, `packages/client`, a s
 3. Choose the coder for the call sites:
    - 3 or more feature folders or modules, and each needs more than an import change (new logic, new tests): run a swarm.
    - Otherwise: one coder, by the coder order above.
-4. Run the swarm in one command, so `AGY_MODELS` holds for this run only. Bash: `AGY_MODELS=gemini-4-hydrogen-high node scripts/agy-run.mjs --mode accept-edits --output-format json --print-timeout 45m -p "/swarm <task>"`. PowerShell: `$env:AGY_MODELS='gemini-4-hydrogen-high'; node scripts/agy-run.mjs <same args>; $c=$LASTEXITCODE; Remove-Item Env:AGY_MODELS; exit $c`, so exit 3 and 4 reach you. Confirm the stderr line `agy-run: ran on gemini-4-hydrogen-high`. The task says:
+4. Run the swarm in one command, so `AGY_MODELS` holds for this run only. Bash: `AGY_MODELS=gemini-4-hydrogen-high node scripts/agy-run.mjs --mode accept-edits --output-format json --print-timeout 45m -p "/swarm <task>"`. PowerShell: `$env:AGY_MODELS='gemini-4-hydrogen-high'; node scripts/agy-run.mjs <same args>; $c=$LASTEXITCODE; Remove-Item Env:AGY_MODELS; exit $c`, so exit 4 reaches you. Confirm the stderr line `agy-run: ran on gemini-4-hydrogen-high`. The task says:
    - Every worker and the verifier run on `gemini-4-hydrogen-high`.
    - One worker for each feature folder or module, with the files it owns. No two workers own one file.
    - A worker runs `pnpm --filter <package> typecheck`, and the tests of its own files only in `apps/web`, `apps/mobile`, or `packages/*`. API tests share one database per checkout, so they run only in the verifier's `pnpm check`.
@@ -57,7 +57,7 @@ This section is for Claude Code sessions. Use it when `pnpm check` fails after t
 | 3 | The same subagent with `model: fable` | 1 | Stop: see the last rule |
 
 - One attempt is one fix and one run of `pnpm check`.
-- `agy-run.mjs` exit 3 is the weekly stop line: commit, write the next step in `PROGRESS.md`, and stop. Never climb past it. Exit 4 (agy out of quota) skips rung 0.
+- Past the weekly Claude line, `agy-run.mjs` runs on the Gemini models only (`HUMAN_DECISIONS.md`, row 75). Exit 4 (every agy model out of quota) skips rung 0.
 - A hard failure is a deadlock (`40P01`), a race, a flaky test with no known cause, or a failure across several modules. It climbs to rung 3 after one attempt on rung 2.
 - A step on money, concurrency, the schema, or personal data skips rung 1.
 - A failure only in a test known to be flaky (`PROGRESS.md`) gets one rerun before rung 0.

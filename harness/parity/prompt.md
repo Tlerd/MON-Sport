@@ -13,7 +13,7 @@ Each answer is short: a command, a name, or one sentence.
 7. reviewer_model: which model does the Reviewer use for a schema change?
 8. lock_order: the row locks, in order, before a booking insert on an owner path.
 9. time_zone: the time zone of opening hours and slots, and the file that handles it.
-10. weekly_stop: the weekly usage at which every run stops, in percent.
+10. weekly_stop: the weekly Claude usage, in percent, past which Claude stops and agy runs on Gemini only.
 11. never_push: the one branch you never push to.
 12. ci_wait: how do you wait for the checks of a pull request?
 13. open_decisions: the file that holds the decisions that only the user can make.
