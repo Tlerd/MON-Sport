@@ -61,7 +61,7 @@ export class AuthController {
     if (!input.success) throw new BadRequestException('Số điện thoại hoặc mật khẩu không hợp lệ');
     refuseWhenThrottled(res, await this.throttle.consumeLogin(input.data.phone, req.ip));
     const user = await this.prisma.user.findUnique({ where: { phone: input.data.phone } });
-    const passwordOk = await this.passwords.verify(user?.passwordHash ?? (await NO_USER_HASH), input.data.password);
+    const passwordOk = (await this.passwords.verify(user?.passwordHash ?? (await NO_USER_HASH), input.data.password)) && !!user?.passwordHash;
     if (!user || user.deletedAt || !passwordOk)
       throw new UnauthorizedException('Sai số điện thoại hoặc mật khẩu');
     await this.throttle.loginSucceeded(input.data.phone);

@@ -5,7 +5,7 @@ import { deleteBranchArgs, latestChecks, mergeArgs, mergeBlockers, mergeResult, 
 
 const HEAD = 'abc1234def5678abc1234def5678abc1234def56';
 const green = [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }];
-const marker = (head = HEAD, high = 0, medium = 0) => ({ body: `Review.\n<!-- review head=${head} high=${high} medium=${medium} -->` });
+const marker = (head = HEAD, high = 0, medium = 0, authorAssociation = 'OWNER') => ({ authorAssociation, body: `Review.\n<!-- review head=${head} high=${high} medium=${medium} -->` });
 const pr = (more = {}) => ({ state: 'OPEN', isDraft: false, baseRefName: 'main', headRefName: 'feat/1-1-x', headRefOid: HEAD, statusCheckRollup: green, comments: [marker()], ...more });
 
 test('a green open pull request with a clean marker for its head has no blocker', () => {
@@ -51,16 +51,28 @@ test('a closed, draft, or main pull request blocks', () => {
 
 // AGENTS.md "Autonomy": after 2 review rounds an open finding is recorded and the work continues.
 test('an accepted marker lets an open finding pass only after 2 review rounds', () => {
-  const accepted = { body: `<!-- review-accepted head=${HEAD.slice(0, 7)} -->` };
+  const accepted = { authorAssociation: 'OWNER', body: `<!-- review-accepted head=${HEAD.slice(0, 7)} -->` };
   const round1 = marker('1111111111', 0, 1);
   const round2 = marker(HEAD, 0, 1);
   expect(mergeBlockers(pr({ comments: [round2, accepted] }))).toHaveLength(1);
   expect(mergeBlockers(pr({ comments: [round1, round2, accepted] }))).toEqual([]);
-  expect(mergeBlockers(pr({ comments: [round1, round2, { body: '<!-- review-accepted head=0000000 -->' }] }))).toHaveLength(1);
+  expect(mergeBlockers(pr({ comments: [round1, round2, { authorAssociation: 'OWNER', body: '<!-- review-accepted head=0000000 -->' }] }))).toHaveLength(1);
+});
+
+test('a marker or an accepted marker from an outside commenter is ignored', () => {
+  expect(mergeBlockers(pr({ comments: [marker(HEAD, 0, 0, 'NONE')] }))).toHaveLength(1);
+  expect(mergeBlockers(pr({ comments: [marker(HEAD, 1, 0), marker(HEAD, 0, 0, 'CONTRIBUTOR')] }))).toHaveLength(1);
+  expect(mergeBlockers(pr({ comments: [marker(HEAD, 0, 0, 'COLLABORATOR')] }))).toEqual([]);
+  const outsideAccept = { authorAssociation: 'NONE', body: `<!-- review-accepted head=${HEAD.slice(0, 7)} -->` };
+  expect(mergeBlockers(pr({ comments: [marker('1111111111', 0, 1), marker(HEAD, 0, 1), outsideAccept] }))).toHaveLength(1);
+});
+
+test('a pull request from a fork blocks', () => {
+  expect(mergeBlockers(pr({ isCrossRepository: true }))).toHaveLength(1);
 });
 
 test('two markers for one head are one round, so a retried comment does not accept a finding', () => {
-  const accepted = { body: `<!-- review-accepted head=${HEAD.slice(0, 7)} -->` };
+  const accepted = { authorAssociation: 'OWNER', body: `<!-- review-accepted head=${HEAD.slice(0, 7)} -->` };
   expect(mergeBlockers(pr({ comments: [marker(HEAD, 0, 1), marker(HEAD, 0, 1), accepted] }))).toHaveLength(1);
 });
 

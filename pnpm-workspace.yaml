@@ -21,3 +21,5 @@ blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:
   - prisma@7.10.1
+overrides:
+  effect@3.20.0: 3.22.4
