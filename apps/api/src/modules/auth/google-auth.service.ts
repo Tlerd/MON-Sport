@@ -111,7 +111,7 @@ export class GoogleAuthService {
     if (retryAfter !== null) return { retryAfter };
     const input = GoogleLinkStartRequest.safeParse(body);
     if (!input.success) throw new UnauthorizedException('Sai số điện thoại hoặc mật khẩu');
-    const passwordOk = await this.passwords.verify(user.passwordHash ?? (await NO_USER_HASH), input.data.password);
+    const passwordOk = (await this.passwords.verify(user.passwordHash ?? (await NO_USER_HASH), input.data.password)) && !!user.passwordHash;
     if (!passwordOk) throw new UnauthorizedException('Sai số điện thoại hoặc mật khẩu');
     await this.throttle.loginSucceeded(user.phone);
     return { retryAfter: null, ...(await this.buildFlow(oidcConfig, 'link', user.id)) };

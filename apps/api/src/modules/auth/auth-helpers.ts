@@ -1,10 +1,11 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Messages } from '@monsport/shared';
 import { hash } from '@node-rs/argon2';
+import { randomBytes } from 'node:crypto';
 import type { Response } from 'express';
 import { issueSession, SESSION_COOKIE, SESSION_MS } from './session.js';
 
-export const NO_USER_HASH = hash('no-user-has-this-phone');
+export const NO_USER_HASH = hash(randomBytes(32).toString('hex'));
 
 export const KNOWN_GOOGLE_ERRORS = new Set(['access_denied', 'state', 'token', 'taken', 'session', 'locked', 'config']);
 

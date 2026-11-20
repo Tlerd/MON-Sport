@@ -9,6 +9,7 @@
 // The marker is the last line of the Reviewer comment, see REVIEW.md:
 //   <!-- review head=<sha> high=<n> medium=<n> -->
 // It guards against a forgotten review. It does not stop an agent that writes a marker without a review.
+// Only markers from OWNER, MEMBER, or COLLABORATOR comments count, and a pull request from a fork is refused.
 // After the merge it reads the state on GitHub, deletes the head branch on the remote, and leaves the local
 // checkout as it is. Exit 0 means merged, even when a later step only warns. Exit 1 means not merged.
 // Exit 3 means the state could not be read after the merge command.
@@ -27,9 +28,13 @@ export function reviewMarker(text = '') {
 // The agent then posts `<!-- review-accepted head=<sha> -->` and writes the finding in PROGRESS.md.
 const sameHead = (a, b) => a.startsWith(b) || b.startsWith(a);
 
+// The repository is public, so anyone can comment. Only a comment by someone with write access counts as a marker.
+const TRUSTED = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+const trustedComments = (pr) => (pr.comments ?? []).filter((c) => TRUSTED.has(c.authorAssociation));
+
 function acceptedAfterTwoRounds(pr, rounds) {
   if (rounds < 2) return false;
-  const accepted = (pr.comments ?? []).flatMap((c) => [...(c.body ?? '').matchAll(/<!--\s*review-accepted\s+head=([0-9a-f]{7,40})\s*-->/g)].map((m) => m[1]));
+  const accepted = trustedComments(pr).flatMap((c) => [...(c.body ?? '').matchAll(/<!--\s*review-accepted\s+head=([0-9a-f]{7,40})\s*-->/g)].map((m) => m[1]));
   return accepted.some((head) => sameHead(pr.headRefOid, head));
 }
 
@@ -85,11 +90,12 @@ export function mergeBlockers(pr) {
   if (pr.state !== 'OPEN') blockers.push(`the pull request is ${pr.state}`);
   if (pr.isDraft) blockers.push('the pull request is a draft');
   if (pr.headRefName === 'main') blockers.push('the head branch is main');
+  if (pr.isCrossRepository) blockers.push('the pull request comes from a fork; its checks run its own workflow files, so merge it by hand after a review');
   if (pr.baseRefName !== 'main') blockers.push(`the base is ${pr.baseRefName}, not main; merge the pull request of ${pr.baseRefName} first, then set the base with gh pr edit <n> --base main`);
   const checks = ciState(latestChecks(pr.statusCheckRollup));
   if (checks !== 'green') blockers.push(`checks are ${checks}; wait for green with gh pr checks <n> --watch --fail-fast`);
 
-  const markers = (pr.comments ?? []).map((c) => reviewMarker(c.body)).filter(Boolean);
+  const markers = trustedComments(pr).map((c) => reviewMarker(c.body)).filter(Boolean);
   const mine = markers.filter((m) => sameHead(pr.headRefOid, m.head));
   const latest = mine.at(-1);
   if (!latest) blockers.push(`no Reviewer marker for head ${pr.headRefOid.slice(0, 7)}; run a Reviewer round on this head`);

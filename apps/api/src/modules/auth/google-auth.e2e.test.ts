@@ -671,6 +671,12 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
       .expect(401);
 
     expect(res.body.message).toBe('Sai số điện thoại hoặc mật khẩu');
+
+    const sentinel = await http()
+      .post('/api/auth/login')
+      .send({ phone: '0901112233', password: 'no-user-has-this-phone' })
+      .expect(401);
+    expect(sentinel.headers['set-cookie']).toBeUndefined();
   });
 
   it('AC-16: Lan chỉ có Google', async () => {
@@ -690,6 +696,12 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
       .expect(400);
 
     expect(res.body.message).toBe('Hãy đặt mật khẩu trước khi gỡ Google');
+
+    await http()
+      .post('/api/auth/google/link-start')
+      .set('Cookie', `session=${session}`)
+      .send({ password: 'no-user-has-this-phone' })
+      .expect(401);
   });
 
   it('AC-17: An có mật khẩu và googleSub "g-222"', async () => {
