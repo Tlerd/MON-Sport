@@ -39,6 +39,7 @@ test('psqlArgs stops on the first error, never holds the password, and runs -c o
   const t = localTarget('postgresql://monsport:s3cret@localhost:55432/monsport_dev');
   const sqlArgs = psqlArgs(t, { sql: 'select 1' });
   expect(sqlArgs).toContain('ON_ERROR_STOP=1');
+  expect(sqlArgs[0]).toBe('-X');
   expect(sqlArgs.slice(-2)).toEqual(['-c', 'select 1']);
   expect(sqlArgs.join(' ')).not.toContain('s3cret');
   expect(psqlArgs(t, { file: 'q.sql' }).slice(-2)).toEqual(['-f', 'q.sql']);
