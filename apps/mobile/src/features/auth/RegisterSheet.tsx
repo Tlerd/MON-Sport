@@ -7,7 +7,7 @@ import {
   SkillLevel,
   type SessionUser,
 } from '@monsport/shared';
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { useAction } from '../../hooks/useAction.ts';
 import { useSession } from '../../app/session.tsx';
 import { Sheet } from '../../components/Sheet.tsx';
@@ -42,6 +42,7 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
   const [password, setPassword] = useState('');
   const [skillLevel, setSkillLevel] = useState<SkillLevel | ''>('');
   const [consent, setConsent] = useState(false);
+  const skillRef = useRef<HTMLSelectElement>(null);
   const { run, busy, error, setError } = useAction();
 
   const handleSubmit = async (e: FormEvent) => {
@@ -53,6 +54,7 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
     }
     if (skillLevel === '') {
       setError(SKILL_LEVEL_REQUIRED_MESSAGE);
+      skillRef.current?.focus();
       return;
     }
     await run(async () => {
@@ -133,6 +135,9 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
           </label>
           <select
             id="register-skill-level"
+            ref={skillRef}
+            aria-invalid={error === SKILL_LEVEL_REQUIRED_MESSAGE || undefined}
+            aria-describedby={error === SKILL_LEVEL_REQUIRED_MESSAGE ? 'register-error' : undefined}
             value={skillLevel}
             onChange={(e) => {
               const picked = SkillLevel.safeParse(e.target.value);
@@ -141,7 +146,7 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
             }}
             style={inputStyle}
           >
-            <option value="" />
+            <option value="">{SKILL_LEVEL_REQUIRED_MESSAGE}</option>
             {SkillLevel.options.map((level) => (
               <option key={level} value={level}>
                 {SKILL_LEVEL_LABELS[level]}
@@ -172,7 +177,7 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
         </div>
 
         {error && (
-          <p style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">
+          <p id="register-error" style={{ margin: 0, font: 'var(--font-meta)', color: 'var(--color-status-no)' }} role="alert">
             {error}
           </p>
         )}

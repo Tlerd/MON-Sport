@@ -206,10 +206,11 @@ export default async function mobileLobby(run) {
         await khá.click();
         const rows = await (await filtered).json();
         assert(Array.isArray(rows) && rows.every((m) => m.hostSkillLevel === 'ADVANCED'), 'GET /api/matches?level=ADVANCED returned a match of another level');
-        const cards = page.locator('article[data-match-id]');
-        await page.waitForFunction((n) => document.querySelectorAll('article[data-match-id]').length === n, rows.length);
-        const texts = await cards.allTextContents();
-        assert(texts.every((t) => t.includes('Trình độ: Khá')), `A card without "Trình độ: Khá" (${size})`);
+        await page
+          .waitForFunction(() => [...document.querySelectorAll('article[data-match-id]')].every((el) => el.textContent.includes('Trình độ: Khá')), null, { timeout: 10_000 })
+          .catch(() => undefined);
+        const texts = await page.locator('article[data-match-id]').allTextContents();
+        assert(texts.every((t) => t.includes('Trình độ: Khá')), `A card without "Trình độ: Khá" (${size}), joined rows included`);
         const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
         assert(scrollWidth <= width, `Sideways scroll with the level filter (${size}): ${scrollWidth} > ${width}`);
         const cleared = page.waitForResponse((r) => r.url().includes('/api/matches') && !r.url().includes('level=') && !r.url().includes('/joined'));

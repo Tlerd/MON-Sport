@@ -162,7 +162,7 @@ export function LobbyMatchCard({
         <span>{sportName}</span>
         <span>·</span>
         <span>Host: {match.hostName}</span>
-        {match.hostSkillLevel && <span>Trình độ: {SKILL_LEVEL_LABELS[match.hostSkillLevel]}</span>}
+        {match.hostSkillLevel && <span>· Trình độ: {SKILL_LEVEL_LABELS[match.hostSkillLevel]}</span>}
         {isHost && (
           <span style={{ ...badgeStyle, color: 'var(--color-ink)', backgroundColor: 'var(--color-line)' }}>
             Bạn là host
