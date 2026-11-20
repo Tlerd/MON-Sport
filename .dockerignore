@@ -11,3 +11,4 @@ apps/api/src/generated
 docs
 graphify-out
 verify-output
+.security-audit
