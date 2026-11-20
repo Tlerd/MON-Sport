@@ -1,3 +1,7 @@
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_MODELS,
@@ -142,14 +146,14 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
     const lists = activeLists(resolveModels({}), 'weekly usage 95%');
     expect(lists.models.length).toBeGreaterThan(0);
     expect(lists.models.every((model) => !/^claude-/.test(model))).toBe(true);
-    expect(lists.models[0]).toBe('gemini-4-hydrogen-high');
+    expect(lists.models).toEqual(['gemini-4-hydrogen-high', 'gemini-4-argon-high']);
     expect(lists.strong).toEqual(['gemini-4-neon-high', 'gemini-4-argon-high']);
     expect(activeLists(resolveModels({}), null), 'below the line every model stays').toEqual(resolveModels({}));
   });
 
   it('a Reviewer past the Claude line skips Opus and still never falls to a weaker model', () => {
     const tried = [];
-    runWithFallback(
+    const result = runWithFallback(
       ['--strong-only', '-p', 'review'],
       (args) => {
         tried.push(args[args.indexOf('--model') + 1]);
@@ -158,6 +162,20 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
       activeLists(resolveModels({}), 'weekly usage 99%'),
     );
     expect(tried).toEqual(['gemini-4-neon-high', 'gemini-4-argon-high']);
+    expect(result.status).toBe(OUT_OF_QUOTA);
+  });
+
+  it('--check-usage past the Claude line exits 0 and says agy runs on Gemini only', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'usage-guard-'));
+    const resetsAt = Math.floor(Date.now() / 1000) + 3600;
+    writeFileSync(join(dir, 'state.json'), JSON.stringify({ rate_limits: { seven_day: { used_percentage: 97, resets_at: resetsAt } } }));
+    const r = spawnSync(process.execPath, ['scripts/agy-run.mjs', '--check-usage'], {
+      encoding: 'utf8',
+      env: { ...process.env, USAGE_GUARD_DIR: dir },
+    });
+    rmSync(dir, { recursive: true, force: true });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/Gemini models only/);
   });
 
   it('returns status 1 with the empty-list message without calling run when the model list is empty', () => {

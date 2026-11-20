@@ -49,7 +49,7 @@ export function weeklyStop(state, now, stopPercent = STOP_PERCENT) {
   const week = state?.rate_limits?.seven_day;
   if (typeof week?.used_percentage !== 'number' || !(week.resets_at > now)) return null;
   if (week.used_percentage < stopPercent) return null;
-  return `weekly usage ${Math.round(week.used_percentage)}% (stop line ${stopPercent}%). Work starts again after the reset at ${new Date(week.resets_at * 1000).toISOString()}`;
+  return `weekly usage ${Math.round(week.used_percentage)}% (stop line ${stopPercent}%). Claude resets at ${new Date(week.resets_at * 1000).toISOString()}`;
 }
 
 function readState() {
