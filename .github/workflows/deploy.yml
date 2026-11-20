@@ -34,17 +34,17 @@ jobs:
           head=$(gh api "repos/${{ github.repository }}/commits/main" --jq .sha)
           if [ "$head" = "$WANT" ]; then echo "deploy=true" >> "$GITHUB_OUTPUT"; else echo "main moved to $head, skip $WANT"; fi
       - if: steps.latest.outputs.deploy == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
       - if: steps.latest.outputs.deploy == 'true'
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
       - if: steps.latest.outputs.deploy == 'true'
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
       # The revision that serves now. A failed health check sends the traffic back to it.
       - id: previous
         if: steps.latest.outputs.deploy == 'true'
@@ -56,7 +56,7 @@ jobs:
             echo "commit=$(gcloud run revisions describe "${{ steps.previous.outputs.revision }}" --region asia-southeast1 --format='value(metadata.labels.commit)')" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.latest.outputs.deploy == 'true'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
       - id: needed
@@ -82,7 +82,7 @@ jobs:
       # Concurrency is set here, so a deploy never goes back to the default of 80 (docs/deploy-gcp.md).
       - id: deploy
         if: steps.latest.outputs.deploy == 'true' && steps.needed.outputs.deploy == 'true'
-        uses: google-github-actions/deploy-cloudrun@v3
+        uses: google-github-actions/deploy-cloudrun@2028e2d7d30a78c6910e0632e48dd561b064884d # v3.0.1
         with:
           service: monsport
           region: asia-southeast1
