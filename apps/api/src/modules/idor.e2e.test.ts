@@ -13,6 +13,10 @@ import { PrismaService } from './database/prisma.service.js';
 const vn = (hhmm: string) => `2026-11-20T${hhmm}:00+07:00`;
 const clock = { at: new Date(vn('10:00')), now() { return this.at; } };
 const DENIED = [403, 404];
+const expectDenied = (res: request.Response) => {
+  expect(DENIED).toContain(res.status);
+  expect(String(res.body?.message ?? '')).not.toMatch(/^Cannot /);
+};
 
 let app: INestApplication;
 let db: PrismaService;
@@ -77,7 +81,7 @@ describe('user resources', () => {
   it('IDOR-1: userB cannot cancel the booking of userA (POST /api/bookings/:id/cancel)', async () => {
     const id = await booking('userA', 'courtA', 'PENDING');
     const res = await as('userB')(http().post(`/api/bookings/${id}/cancel`));
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect(await db.booking.findUniqueOrThrow({ where: { id } })).toMatchObject({ status: 'PENDING', cancelledAt: null });
   });
 
@@ -85,7 +89,7 @@ describe('user resources', () => {
     const bookingId = await booking('userA', 'courtA', 'PENDING');
     const note = await db.notification.create({ data: { userId: ids.userA, type: 'BOOKING_REQUESTED', bookingId } });
     const res = await as('userB')(http().post(`/api/notifications/${note.id}/read`));
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect((await db.notification.findUniqueOrThrow({ where: { id: note.id } })).readAt).toBeNull();
   });
 
@@ -94,7 +98,7 @@ describe('user resources', () => {
       data: { userId: ids.userA, name: 'bot', scope: 'READ', prefix: 'mst_abcdefgh', tokenHash: 'a'.repeat(64), expiresAt: new Date(vn('23:00')) },
     });
     const res = await as('userB')(http().delete(`/api/me/access-tokens/${token.id}`));
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect((await db.accessToken.findUniqueOrThrow({ where: { id: token.id } })).revokedAt).toBeNull();
   });
 
@@ -110,7 +114,7 @@ describe('user resources', () => {
       },
     });
     const res = await as('userB')(http().delete(`/api/me/oauth-connections/${conn.id}`));
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect((await db.oAuthConnection.findUniqueOrThrow({ where: { id: conn.id } })).revokedAt).toBeNull();
   });
 });
@@ -129,14 +133,14 @@ describe('match host', () => {
   it('IDOR-5: userB cannot list the join requests of a match hosted by userA (GET /api/matches/:id/requests)', async () => {
     const id = await hosted();
     const res = await as('userB')(http().get(`/api/matches/${id}/requests`));
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect(JSON.stringify(res.body)).not.toContain(ids.admin);
   });
 
   it('IDOR-6: userB cannot approve a join request of a match hosted by userA (POST /api/matches/:id/requests/:userId/approve)', async () => {
     const id = await hosted();
     const res = await as('userB')(http().post(`/api/matches/${id}/requests/${ids.admin}/approve`));
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect((await db.matchPlayer.findUniqueOrThrow({ where: { matchId_userId: { matchId: id, userId: ids.admin } } })).status).toBe('PENDING');
     expect((await db.match.findUniqueOrThrow({ where: { id } })).joinedCount).toBe(1);
   });
@@ -144,7 +148,7 @@ describe('match host', () => {
   it('IDOR-7: userB cannot cancel a match hosted by userA (POST /api/matches/:id/cancel)', async () => {
     const id = await hosted();
     const res = await as('userB')(http().post(`/api/matches/${id}/cancel`));
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect((await db.match.findUniqueOrThrow({ where: { id } })).status).not.toBe('CANCELLED');
   });
 });
@@ -153,42 +157,43 @@ describe('owner resources', () => {
   it('IDOR-8: ownerB cannot update the venue of ownerA (PATCH /api/owner/venues/:id)', async () => {
     const before = await db.venue.findUniqueOrThrow({ where: { id: ids.venueA } });
     const res = await as('ownerB')(http().patch(`/api/owner/venues/${ids.venueA}`)).send({ opensAt: 420 });
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect(await db.venue.findUniqueOrThrow({ where: { id: ids.venueA } })).toEqual(before);
   });
 
   it('IDOR-9: ownerB cannot confirm a booking at the venue of ownerA (POST /api/owner/bookings/:id/confirm)', async () => {
     const id = await booking('userA', 'courtA', 'PENDING');
     const res = await as('ownerB')(http().post(`/api/owner/bookings/${id}/confirm`));
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect(await db.booking.findUniqueOrThrow({ where: { id } })).toMatchObject({ status: 'PENDING', confirmedAt: null });
   });
 
   it('IDOR-10: ownerB cannot reject a booking at the venue of ownerA (POST /api/owner/bookings/:id/reject)', async () => {
     const id = await booking('userA', 'courtA', 'PENDING');
     const res = await as('ownerB')(http().post(`/api/owner/bookings/${id}/reject`)).send({});
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect((await db.booking.findUniqueOrThrow({ where: { id } })).status).toBe('PENDING');
   });
 
   it('IDOR-11: ownerB cannot mark a booking at the venue of ownerA as paid (PATCH /api/owner/bookings/:id/paid)', async () => {
     const id = await booking('userA', 'courtA', 'CONFIRMED');
     const res = await as('ownerB')(http().patch(`/api/owner/bookings/${id}/paid`)).send({ paidAtVenue: true });
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect((await db.booking.findUniqueOrThrow({ where: { id } })).paidAtVenue).toBe(false);
   });
 
   it('IDOR-12: ownerB cannot read the financials of the venue of ownerA (GET /api/owner/venues/:id/financials)', async () => {
     await booking('userA', 'courtA', 'CONFIRMED');
     const res = await as('ownerB')(http().get(`/api/owner/venues/${ids.venueA}/financials`));
-    expect(DENIED).toContain(res.status);
-    expect(res.body).not.toHaveProperty('chart');
+    expectDenied(res);
+    expect(res.body).not.toHaveProperty('chartData');
+    expect(res.body).not.toHaveProperty('revenue');
   });
 
   it('IDOR-13: ownerB cannot lock a staff member of ownerA (POST /api/owner/staff/:id/lock)', async () => {
     const staff = await db.user.create({ data: { name: 'staff', phone: '0933333333', role: 'STAFF', staffVenueId: ids.venueA } });
     const res = await as('ownerB')(http().post(`/api/owner/staff/${staff.id}/lock`));
-    expect(DENIED).toContain(res.status);
+    expectDenied(res);
     expect((await db.user.findUniqueOrThrow({ where: { id: staff.id } })).lockedAt).toBeNull();
   });
 });
