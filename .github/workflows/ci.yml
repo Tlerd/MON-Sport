@@ -26,10 +26,10 @@ jobs:
       check: ${{ steps.filter.outputs.check }}
       image: ${{ steps.filter.outputs.image }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
       - id: filter
@@ -53,10 +53,10 @@ jobs:
       BASE_REF: ${{ github.base_ref }}
       BEFORE: ${{ github.event.before }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
       - name: Install gitleaks (pinned version, checked against its SHA-256)
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: No known vulnerability in the lockfile
         run: >-
           docker run --rm --volume "$GITHUB_WORKSPACE:/src:ro" ghcr.io/google/osv-scanner:v2.7.1
@@ -115,9 +115,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://monsport:monsport@localhost:55442/monsport_test
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -145,7 +145,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: docker build --tag monsport .
       - name: Start the image
         run: >-
@@ -167,8 +167,8 @@ jobs:
           docker run --rm --network host --volume "$GITHUB_WORKSPACE/.zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.17.0
           zap-baseline.py -t http://localhost:8080/ -m 2 -c rules.tsv -I
       # The booking flows run in a real browser against the production image, before any merge can deploy it.
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -186,7 +186,7 @@ jobs:
         env:
           VERIFY_BROWSER: chrome
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: verify-flow
           path: verify-output/
