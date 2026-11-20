@@ -5,9 +5,10 @@
 // starts again on the next model of the list. Any other result, pass or fail, ends the run.
 // `--strong-only` keeps a Reviewer run on STRONG: it fails rather than review on a weaker one.
 // AGY_MODELS and AGY_REVIEW_MODELS (comma-separated) replace MODELS and STRONG.
-// It also obeys the weekly stop line of the Claude usage guard (94%, USAGE_STOP_PERCENT), so agy and
-// Claude stop together. `--check-usage` only checks that line: exit 0 to go on, exit 3 to stop.
-// Exit 4 means every agy model is out of quota: Claude Code then codes on Sonnet or Haiku, or uses the reviewer subagent.
+// Past the weekly line of the Claude usage guard (94%, USAGE_STOP_PERCENT), it drops every claude-* model and
+// keeps running on the Gemini models, so agy goes on when Claude is out (owner, 2026-11-20).
+// `--check-usage` only reports that line, and exits 0.
+// Exit 4 means every model of the list is out of quota: wait for a reset, or let Claude Code code on Sonnet or Haiku.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -35,8 +36,13 @@ const TAIL_LINES = 20;
 
 const STATE_FILE = join(process.env.USAGE_GUARD_DIR || join(homedir(), '.claude', 'usage-guard'), 'state.json');
 const STOP_PERCENT = Number(process.env.USAGE_STOP_PERCENT || 94);
-const STOPPED = 3;
 export const OUT_OF_QUOTA = 4;
+
+const notClaude = (model) => !/^claude-/.test(model);
+
+export function activeLists(lists, claudeStop) {
+  return claudeStop ? { models: lists.models.filter(notClaude), strong: lists.strong.filter(notClaude) } : lists;
+}
 
 // Returns the reason to stop, or null. A window counts only while its reset time is in the future.
 export function weeklyStop(state, now, stopPercent = STOP_PERCENT) {
@@ -85,18 +91,15 @@ export function runWithFallback(args, run, lists = { models: MODELS, strong: STR
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const stop = weeklyStop(readState(), Math.floor(Date.now() / 1000));
-  if (stop) {
-    process.stderr.write(`agy-run: stopped: ${stop}. Commit the work, write the next step in PROGRESS.md, and stop.
-`);
-    process.exit(STOPPED);
-  }
+  if (stop) process.stderr.write(`agy-run: Claude is past its line: ${stop}. Running on the Gemini models only.\n`);
   if (process.argv.includes('--check-usage')) process.exit(0);
+  const lists = activeLists({ models: MODELS, strong: STRONG }, stop);
   const result = runWithFallback(process.argv.slice(2), (args) => {
     const r = spawnSync('agy', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
     process.stdout.write(r.stdout ?? '');
     process.stderr.write(r.stderr ?? '');
     return { status: r.status ?? 1, output: quotaText(r) };
-  });
+  }, lists);
   if (result.model) process.stderr.write(`agy-run: ran on ${result.model}\n`);
   else process.stderr.write(`${result.output}\n`);
   // Exit 4 means only "every model is out of quota". An exit 4 of agy itself becomes 1.

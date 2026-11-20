@@ -3,6 +3,7 @@ import {
   DEFAULT_MODELS,
   DEFAULT_REVIEW_MODELS,
   OUT_OF_QUOTA,
+  activeLists,
   buildArgs,
   hitQuota,
   quotaText,
@@ -127,7 +128,7 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
     expect(result.output).toMatch(/every model is out of quota/);
   });
 
-  it('stops every agy run at 94% of the weekly Claude limit, as the usage guard does', () => {
+  it('reads the 94% line of the weekly Claude limit, as the usage guard does', () => {
     const now = 1_800_000_000;
     const week = (pct, resetIn = 3600) => ({ rate_limits: { seven_day: { used_percentage: pct, resets_at: now + resetIn } } });
     expect(weeklyStop(week(94), now)).toMatch(/weekly usage 94%/);
@@ -135,6 +136,28 @@ describe('agy-run: an agy model that runs out of quota hands over to the next on
     expect(weeklyStop(week(99, -60), now), 'a window that has reset no longer counts').toBeNull();
     expect(weeklyStop(null, now), 'no usage data').toBeNull();
     expect(weeklyStop(week(90), now, 90), 'USAGE_STOP_PERCENT moves the line').toMatch(/90%/);
+  });
+
+  it('past the Claude line, agy keeps running on the Gemini models only (owner, 2026-11-20)', () => {
+    const lists = activeLists(resolveModels({}), 'weekly usage 95%');
+    expect(lists.models.length).toBeGreaterThan(0);
+    expect(lists.models.every((model) => !/^claude-/.test(model))).toBe(true);
+    expect(lists.models[0]).toBe('gemini-4-hydrogen-high');
+    expect(lists.strong).toEqual(['gemini-4-neon-high', 'gemini-4-argon-high']);
+    expect(activeLists(resolveModels({}), null), 'below the line every model stays').toEqual(resolveModels({}));
+  });
+
+  it('a Reviewer past the Claude line skips Opus and still never falls to a weaker model', () => {
+    const tried = [];
+    runWithFallback(
+      ['--strong-only', '-p', 'review'],
+      (args) => {
+        tried.push(args[args.indexOf('--model') + 1]);
+        return { status: 1, output: 'quota exceeded' };
+      },
+      activeLists(resolveModels({}), 'weekly usage 99%'),
+    );
+    expect(tried).toEqual(['gemini-4-neon-high', 'gemini-4-argon-high']);
   });
 
   it('returns status 1 with the empty-list message without calling run when the model list is empty', () => {
