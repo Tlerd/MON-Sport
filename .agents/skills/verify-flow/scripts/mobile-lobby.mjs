@@ -197,6 +197,29 @@ export default async function mobileLobby(run) {
         return `${size} scrollWidth ${scrollWidth} <= ${innerWidth}, all targets >= 44px`;
       });
 
+      // F-039 AC-4 to AC-7, AC-9: the level filter sends level, each card shown carries that level, and a second tap clears it.
+      await run.step(FLOW, `filter Phòng chờ by Khá (${size}): level=ADVANCED, every card "Trình độ: Khá"`, page, async () => {
+        const all = page.getByRole('button', { name: 'Mọi trình độ', exact: true });
+        const khá = page.getByRole('button', { name: 'Khá', exact: true });
+        assert((await all.getAttribute('aria-pressed')) === 'true', '"Mọi trình độ" is not selected by default');
+        const filtered = page.waitForResponse((r) => r.url().includes('/api/matches?') && r.url().includes('level=ADVANCED'));
+        await khá.click();
+        const rows = await (await filtered).json();
+        assert(Array.isArray(rows) && rows.every((m) => m.hostSkillLevel === 'ADVANCED'), 'GET /api/matches?level=ADVANCED returned a match of another level');
+        const cards = page.locator('article[data-match-id]');
+        await page.waitForFunction((n) => document.querySelectorAll('article[data-match-id]').length === n, rows.length);
+        const texts = await cards.allTextContents();
+        assert(texts.every((t) => t.includes('Trình độ: Khá')), `A card without "Trình độ: Khá" (${size})`);
+        const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+        assert(scrollWidth <= width, `Sideways scroll with the level filter (${size}): ${scrollWidth} > ${width}`);
+        const cleared = page.waitForResponse((r) => r.url().includes('/api/matches') && !r.url().includes('level=') && !r.url().includes('/joined'));
+        await khá.click();
+        await cleared;
+        assert((await all.getAttribute('aria-pressed')) === 'true', 'A second tap on "Khá" did not go back to "Mọi trình độ"');
+        await matchCards.first().waitFor({ state: 'visible' });
+        return `${size} ${rows.length} card(s) at Khá, cleared back to Mọi trình độ`;
+      });
+
       // AC-12: a second player requests, the host approves in the sheet, the player sees the seat.
       // Without a second player (live, no VERIFY_PLAYER2_*) the part is skipped and the flow goes on.
       let p2;

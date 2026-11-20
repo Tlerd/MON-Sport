@@ -1,4 +1,4 @@
-import type { Sport } from '@monsport/shared';
+import { SKILL_LEVEL_LABELS, SkillLevel, type Sport } from '@monsport/shared';
 import { Chip } from '../../components/Chip.tsx';
 import { ContextBar } from '../../components/ContextBar.tsx';
 import { IconBadminton, IconFootball, SPORT_LABEL } from '../../components/SportIcon.tsx';
@@ -6,12 +6,14 @@ import { IconBadminton, IconFootball, SPORT_LABEL } from '../../components/Sport
 export interface LobbyFiltersProps {
   sport: Sport | undefined;
   date: string | undefined;
+  level: SkillLevel | undefined;
   chips: { ymd: string; label: string }[];
   onSportChange: (sport: Sport | undefined) => void;
+  onLevelChange: (level: SkillLevel | undefined) => void;
   onDateChange: (date: string | undefined) => void;
 }
 
-export function LobbyFilters({ sport, date, chips, onSportChange, onDateChange }: LobbyFiltersProps) {
+export function LobbyFilters({ sport, date, level, chips, onSportChange, onLevelChange, onDateChange }: LobbyFiltersProps) {
   return (
     <ContextBar aria-label="Bộ lọc phòng chờ">
       <Chip selected={sport === undefined} onClick={() => onSportChange(undefined)}>
@@ -31,6 +33,18 @@ export function LobbyFilters({ sport, date, chips, onSportChange, onDateChange }
       >
         {SPORT_LABEL.FOOTBALL}
       </Chip>
+      <Chip selected={level === undefined} onClick={() => onLevelChange(undefined)}>
+        Mọi trình độ
+      </Chip>
+      {SkillLevel.options.map((option) => (
+        <Chip
+          key={option}
+          selected={level === option}
+          onClick={() => onLevelChange(level === option ? undefined : option)}
+        >
+          {SKILL_LEVEL_LABELS[option]}
+        </Chip>
+      ))}
       <Chip selected={date === undefined} onClick={() => onDateChange(undefined)}>
         Tất cả ngày
       </Chip>

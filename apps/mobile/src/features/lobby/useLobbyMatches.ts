@@ -1,11 +1,12 @@
 import { api, ApiError } from '@monsport/client';
-import type { MatchView, SessionUser, Sport } from '@monsport/shared';
+import type { MatchView, SessionUser, SkillLevel, Sport } from '@monsport/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLatest } from '../../hooks/useLatest.ts';
 
 export function useLobbyMatches(user: SessionUser | null | undefined) {
   const [sport, setSport] = useState<Sport | undefined>(undefined);
   const [date, setDate] = useState<string | undefined>(undefined);
+  const [level, setLevel] = useState<SkillLevel | undefined>(undefined);
   const [rows, setRows] = useState<MatchView[] | undefined>(undefined);
   const [joinedRows, setJoinedRows] = useState<MatchView[]>([]);
   const [failed, setFailed] = useState(false);
@@ -51,6 +52,7 @@ export function useLobbyMatches(user: SessionUser | null | undefined) {
     const params = new URLSearchParams();
     if (sport) params.set('sport', sport);
     if (date) params.set('date', date);
+    if (level) params.set('level', level);
     const qs = params.toString();
     const feed = api<MatchView[]>('/api/matches' + (qs ? `?${qs}` : ''));
     const joined = isPlayer
@@ -88,7 +90,7 @@ export function useLobbyMatches(user: SessionUser | null | undefined) {
       }
       finish();
     });
-  }, [sport, date, isPlayer, openSessionLogin]);
+  }, [sport, date, level, isPlayer, openSessionLogin]);
 
   const fetchRef = useLatest(fetchAll);
 
@@ -149,6 +151,8 @@ export function useLobbyMatches(user: SessionUser | null | undefined) {
     setSport,
     date,
     setDate,
+    level,
+    setLevel,
     rows,
     setRows,
     joinedRows,

@@ -1,5 +1,12 @@
 import { api } from '@monsport/client';
-import { Messages, PRIVACY_NOTICE, type SessionUser } from '@monsport/shared';
+import {
+  Messages,
+  PRIVACY_NOTICE,
+  SKILL_LEVEL_LABELS,
+  SKILL_LEVEL_REQUIRED_MESSAGE,
+  SkillLevel,
+  type SessionUser,
+} from '@monsport/shared';
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { useAction } from '../../hooks/useAction.ts';
 import { useSession } from '../../app/session.tsx';
@@ -33,6 +40,7 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [skillLevel, setSkillLevel] = useState<SkillLevel | ''>('');
   const [consent, setConsent] = useState(false);
   const { run, busy, error, setError } = useAction();
 
@@ -43,10 +51,14 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
       setError(Messages.consent);
       return;
     }
+    if (skillLevel === '') {
+      setError(SKILL_LEVEL_REQUIRED_MESSAGE);
+      return;
+    }
     await run(async () => {
       const registered = await api<SessionUser | undefined>('/api/auth/register', {
         method: 'POST',
-        json: { name, phone, password, consent: true },
+        json: { name, phone, password, consent: true, skillLevel },
       });
       if (registered?.id) login(registered);
       await refresh();
@@ -113,6 +125,29 @@ export function RegisterSheet({ open, onClose, onRegistered, onSwitchToLogin }: 
           <p id="register-password-hint" style={hintStyle}>
             Ít nhất 8 ký tự
           </p>
+        </div>
+
+        <div>
+          <label htmlFor="register-skill-level" style={labelStyle}>
+            Trình độ
+          </label>
+          <select
+            id="register-skill-level"
+            value={skillLevel}
+            onChange={(e) => {
+              const picked = SkillLevel.safeParse(e.target.value);
+              setSkillLevel(picked.success ? picked.data : '');
+              if (picked.success && error === SKILL_LEVEL_REQUIRED_MESSAGE) setError(null);
+            }}
+            style={inputStyle}
+          >
+            <option value="" />
+            {SkillLevel.options.map((level) => (
+              <option key={level} value={level}>
+                {SKILL_LEVEL_LABELS[level]}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>

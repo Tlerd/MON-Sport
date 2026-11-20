@@ -112,6 +112,14 @@ describe('lobby helpers', () => {
     });
   });
 
+  it('AC-5: applies the host level to joined rows too, and a host without a level shows only without a filter', () => {
+    const khá = makeMatch(10, { hostSkillLevel: 'ADVANCED' });
+    const trungBinh = makeMatch(11, { hostSkillLevel: 'INTERMEDIATE' });
+    const none = makeMatch(12, { hostSkillLevel: null });
+    expect(ids(lobbyMatches([khá], [trungBinh, none], now, { level: 'ADVANCED' }))).toEqual([khá.id]);
+    expect(ids(lobbyMatches([khá], [trungBinh, none], now, {})).sort()).toEqual([khá.id, trungBinh.id, none.id].sort());
+  });
+
   it('AC-2: a late night match belongs to its Asia/Ho_Chi_Minh date', () => {
     inEachTz(() => {
       const late = makeMatch(9, { startAt: '2026-11-03T23:30:00+07:00' });

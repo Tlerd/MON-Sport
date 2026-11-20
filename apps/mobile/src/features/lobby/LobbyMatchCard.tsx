@@ -1,6 +1,6 @@
 import { CheckCircle2, Clock, Users } from 'lucide-react';
 import { dayHeading, formatVnd, hhmm, type LobbyCard } from '@monsport/client';
-import { minuteOfDayVN, userCancelDecision, vnDateString, type MatchView } from '@monsport/shared';
+import { minuteOfDayVN, SKILL_LEVEL_LABELS, userCancelDecision, vnDateString, type MatchView } from '@monsport/shared';
 import { SPORT_LABEL, SportIcon } from '../../components/SportIcon.tsx';
 
 export interface LobbyMatchCardProps {
@@ -162,6 +162,7 @@ export function LobbyMatchCard({
         <span>{sportName}</span>
         <span>·</span>
         <span>Host: {match.hostName}</span>
+        {match.hostSkillLevel && <span>Trình độ: {SKILL_LEVEL_LABELS[match.hostSkillLevel]}</span>}
         {isHost && (
           <span style={{ ...badgeStyle, color: 'var(--color-ink)', backgroundColor: 'var(--color-line)' }}>
             Bạn là host

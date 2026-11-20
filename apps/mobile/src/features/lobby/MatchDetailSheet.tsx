@@ -1,6 +1,7 @@
 import { dayHeading, formatVnd, hhmm } from '@monsport/client';
 import {
   minuteOfDayVN,
+  SKILL_LEVEL_LABELS,
   userCancelDecision,
   vnDateString,
   type MatchDetailView,
@@ -80,6 +81,11 @@ export function MatchDetailSheet({
           <div className="tnum" style={{ font: 'var(--font-numeric)', color: 'var(--color-ink-muted)', minWidth: 0 }}>
             {`${hhmm(minuteOfDayVN(new Date(shownMatch.startAt)))}–${hhmm(minuteOfDayVN(new Date(shownMatch.endAt)))} · ${shownMatch.joinedCount}/${shownMatch.capacity} suất · ${formatVnd(shownMatch.pricePerSlot)}/suất`}
           </div>
+          {shownMatch.hostSkillLevel && (
+            <div style={{ font: 'var(--font-body)', minWidth: 0 }}>
+              {`Trình độ: ${SKILL_LEVEL_LABELS[shownMatch.hostSkillLevel]}`}
+            </div>
+          )}
           {isGuest ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', minWidth: 0 }}>
               <p style={{ margin: 0, font: 'var(--font-body)' }}>Đăng nhập để xem người chơi</p>
