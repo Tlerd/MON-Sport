@@ -16,3 +16,6 @@ apps/api/src/generated/
 verify-output/
 # Code graph of graphify (`pnpm graph`). Each agent builds it on its own machine.
 graphify-out/
+
+# Security audit runs (findings stay off the public repository)
+/.security-audit/
