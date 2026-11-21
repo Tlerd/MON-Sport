@@ -7,15 +7,19 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from 'vitest';
 
 const config = fileURLToPath(new URL('../.dependency-cruiser.cjs', import.meta.url));
+const cache = new Map();
 
 function violations(fixture) {
-  const cwd = fileURLToPath(new URL(`./fixtures/${fixture}/`, import.meta.url));
-  const result = spawnSync(`depcruise apps packages --config "${config}" --output-type json`, {
-    cwd,
-    shell: true,
-    encoding: 'utf8',
-  });
-  return JSON.parse(result.stdout).summary.violations;
+  if (!cache.has(fixture)) {
+    const cwd = fileURLToPath(new URL(`./fixtures/${fixture}/`, import.meta.url));
+    const result = spawnSync(`depcruise apps packages --config "${config}" --output-type json`, {
+      cwd,
+      shell: true,
+      encoding: 'utf8',
+    });
+    cache.set(fixture, JSON.parse(result.stdout).summary.violations);
+  }
+  return cache.get(fixture);
 }
 
 function violatedRules(fixture) {

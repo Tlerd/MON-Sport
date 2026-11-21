@@ -27,14 +27,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 ## Next step for agents
 
 1. App port of W2 to W5: skill level is on the app (F-039). The app has no weekly booking (F-030) or reputation (F-032) yet. A STAFF user sees "Dùng web cho nhân viên" (F-031). Write a brief per feature, in the order of `docs/design/ke-hoach-v2.md`.
-2. Open lows, checked in the code on 2026-11-19 (each still holds):
-   - ADR 0008, Options item 1 (line 24), still says PAT runs over stdio; line 12 says Streamable HTTP.
-   - `AccessTokensService.authenticate` repeats the rule of `validWhere` and loads the whole `User` row (PR #270).
-   - `matches.service.ts` `detail` and `match-players.service.ts` `listRequests` hold the same `syncMatch` closure.
-   - Web `useMatchActions.ts`: a failed request decision does not reload the request list. Web `useMatchDetail.ts`: the busy set resets when a match is closed and reopened.
-   - `lobby-approval.mjs` puts the live requester name in the verify report. `stats.service.ts`: admin active users of the week drop a player who joined, left, and asked again (the request `upsert` sets `PENDING`).
-   - Not checked again: deferred mobile lows F-022 D-8, F-023 D-1 (waits for question 2), F-025 D-8, F-026 D-6 to D-8.
-3. Flaky under load, one rerun each (fix ladder): `harness/secret-scan.test.mjs`, `harness/boundaries.test.mjs` (5000 ms), and `VenueScreen.test.tsx` AC-9 (scrollTo called 4 times instead of 2).
-4. Harness: maintain phase 1 (plan on branch `docs/ke-hoach-maintain`, no `chore/maintain-detect` branch yet) and the fix-ladder log. Swarm step: try a larger fan-out before you widen the rule (trials: 17.4 min against 13.2 min one coder; 11.8 min, no baseline).
-5. Security follow-ups (baseline, audit run-1 and run-2, branch protection, pinned Actions, and IDOR tests in `COMPLETED.md`): review the monthly Dependabot pull request for Actions like any other. Strix is not used (owner, 2026-11-20).
-6. Web UI rules: `docs/design/web-ui-v3/` gives the look, `docs/design/web-responsive.md` the layout by width, and `DESIGN.md` is for `apps/mobile` only. A control with no feature shows "Sắp ra mắt" and needs an intake change and a brief. Source files stay at 300 lines or fewer (`harness/source-size.test.mjs`).
+2. Open lows: deferred mobile lows F-022 D-8, F-023 D-1 (waits for question 2), F-025 D-8, F-026 D-6 to D-8 (the 7 checked lows and 3 flaky tests were fixed in `fix/open-lows-and-flaky-tests`).
+3. Harness: maintain phase 1 (plan in `docs/design/ke-hoach-maintain.md`, no `chore/maintain-detect` branch yet) and the fix-ladder log. Swarm step: try a larger fan-out before you widen the rule (trials: 17.4 min against 13.2 min one coder; 11.8 min, no baseline).
+4. Security follow-ups (baseline, audit run-1 and run-2, branch protection, pinned Actions, and IDOR tests in `COMPLETED.md`): review the monthly Dependabot pull request for Actions like any other. Strix is not used (owner, 2026-11-20).
+5. Web UI rules: `docs/design/web-ui-v3/` gives the look, `docs/design/web-responsive.md` the layout by width, and `DESIGN.md` is for `apps/mobile` only. A control with no feature shows "Sắp ra mắt" and needs an intake change and a brief. Source files stay at 300 lines or fewer (`harness/source-size.test.mjs`).

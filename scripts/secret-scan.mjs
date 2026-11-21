@@ -156,6 +156,8 @@ function withoutCrlfWarning(env) {
  * Runs the scan. status is "ok", "leak", "missing" (no binary), or "error" (gitleaks or git failed).
  * env is the environment of gitleaks and its git calls. A test passes one without GIT_* for its temporary repository.
  */
+const SCAN_TIMEOUT_MS = 20_000;
+
 export function scan({ cwd, config, range, bin = findGitleaks(), env = process.env }) {
   // The policy runs before gitleaks, so CI checks it too: a pull request that loosens .gitleaks.toml fails here.
   const problems = setupProblems({ cwd, config });
@@ -164,20 +166,26 @@ export function scan({ cwd, config, range, bin = findGitleaks(), env = process.e
   if (range) {
     // A pull request or a push always has a commit, so an empty range means a wrong range. Git counts the commits:
     // gitleaks does not count a commit without text lines, such as a deletion or a merge.
-    const count = spawnSync('git', ['rev-list', '--count', range], { cwd, env, encoding: 'utf8' });
+    const count = spawnSync('git', ['rev-list', '--count', range], { cwd, env, encoding: 'utf8', timeout: SCAN_TIMEOUT_MS });
     if (count.status !== 0) return { status: 'error', output: `git rev-list ${range} failed: ${(count.stderr || count.error?.message || '').trim()}` };
     if (Number(count.stdout.trim()) === 0) return { status: 'error', output: `The range ${range} has no commits.` };
   }
   const outputs = [];
   for (const args of scanArgs({ config, range })) {
     // Exit 1 means leaks (the default --exit-code). Any other non-zero code is an error.
-    const res = spawnSync(bin, args, { cwd, encoding: 'utf8', env: { ...withoutCrlfWarning(env), NO_COLOR: '1' } });
+    const res = spawnSync(bin, args, {
+      cwd,
+      encoding: 'utf8',
+      timeout: SCAN_TIMEOUT_MS,
+      env: { ...withoutCrlfWarning(env), NO_COLOR: '1' },
+    });
     // gitleaks colors REDACTED even with NO_COLOR, so strip the ANSI codes.
     const output = `${res.stdout ?? ''}${res.stderr ?? ''}`.replace(/\x1b\[[0-9;]*m/g, '').trim();
     // gitleaks also exits 1 when it cannot load the config. That is an error to fix, not a secret to remove.
+    if (res.error) return { status: 'error', output: [output, res.error.message].filter(Boolean).join('\n') };
     if (/^\S+ FTL /m.test(output)) return { status: 'error', output };
     if (res.status === 1) return { status: 'leak', output };
-    if (res.status !== 0) return { status: 'error', output: output || res.error?.message || `gitleaks exited ${res.status}` };
+    if (res.status !== 0) return { status: 'error', output: output || `gitleaks exited ${res.status}` };
     if (gitFailed(output)) return { status: 'error', output };
     outputs.push(output);
   }

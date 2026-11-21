@@ -113,13 +113,24 @@ export class AccessTokensService {
 
   async authenticate(secret: string): Promise<AccessTokenContext | null> {
     if (!secret.startsWith(ACCESS_TOKEN_PREFIX) || secret.length > MAX_SECRET_LENGTH) return null;
-    const row = await this.prisma.accessToken.findUnique({ where: { tokenHash: hashToken(secret) }, include: { user: true } });
+    const row = await this.prisma.accessToken.findUnique({
+      where: { tokenHash: hashToken(secret) },
+      select: {
+        id: true,
+        userId: true,
+        scope: true,
+        lastUsedAt: true,
+        user: { select: { id: true, role: true, lockedAt: true, deletedAt: true, sessionsValidFrom: true } },
+      },
+    });
     if (!row) return null;
     const now = this.clock.now();
     const { user } = row;
-    if (row.revokedAt || row.expiresAt.getTime() <= now.getTime()) return null;
-    if (user.lockedAt || user.deletedAt) return null;
-    if (user.sessionsValidFrom && row.createdAt.getTime() < user.sessionsValidFrom.getTime()) return null;
+    if (user.role !== 'USER' || user.lockedAt || user.deletedAt) return null;
+    const valid = await this.prisma.accessToken.count({
+      where: { id: row.id, ...this.validWhere(row.userId, user.sessionsValidFrom, now) },
+    });
+    if (valid === 0) return null;
     if (!row.lastUsedAt || now.getTime() - row.lastUsedAt.getTime() > LAST_USED_STEP_MS) {
       await this.prisma.accessToken.updateMany({ where: { id: row.id }, data: { lastUsedAt: now } });
     }

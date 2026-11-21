@@ -9,7 +9,7 @@ import {
   userCancelDecision,
 } from '@monsport/shared';
 import { Prisma } from '../../generated/prisma/client.js';
-import { expireBookings, finishPastMatches, lockVenueOf } from '../bookings/booking-sync.js';
+import { expireBookings, finishPastMatches, lockVenueOf, syncMatchByBooking } from '../bookings/booking-sync.js';
 import { Clock } from '../database/clock.js';
 import { conflictOnDeadlock, PrismaService, retryOnDeadlock } from '../database/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
@@ -182,11 +182,7 @@ export class MatchesService {
       throw new NotFoundException(MATCH_NOT_FOUND);
     }
     const now = this.clock.now();
-    const syncMatch = async () => {
-      await expireBookings(this.prisma, Prisma.sql`id = ${found.bookingId}::uuid`, now);
-      await finishPastMatches(this.prisma, Prisma.sql`b.id = ${found.bookingId}::uuid`, now);
-    };
-    await retryOnDeadlock(syncMatch, BUSY);
+    await syncMatchByBooking(this.prisma, found.bookingId, now);
     const row = await this.prisma.match.findUnique({
       where: { id: matchId },
       include: WITH_DETAIL_RELATIONS,
