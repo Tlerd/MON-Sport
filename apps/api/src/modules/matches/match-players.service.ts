@@ -15,9 +15,9 @@ import {
   REQUEST_NOT_PENDING_MESSAGE,
 } from '@monsport/shared';
 import { Prisma } from '../../generated/prisma/client.js';
-import { expireBookings, finishPastMatches, lockVenueOf } from '../bookings/booking-sync.js';
+import { expireBookings, finishPastMatches, lockVenueOf, syncMatchByBooking } from '../bookings/booking-sync.js';
 import { Clock } from '../database/clock.js';
-import { conflictOnDeadlock, PrismaService, retryOnDeadlock } from '../database/prisma.service.js';
+import { conflictOnDeadlock, PrismaService } from '../database/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { BUSY, MATCH_NOT_FOUND, NOT_HOST, REQUEST_NOT_FOUND } from './match-messages.js';
 import { loadRequests, type MatchDetailRow, type RequestRow, toMatchDetailView, WITH_DETAIL_RELATIONS } from './match-views.js';
@@ -48,7 +48,7 @@ export class MatchPlayersService {
       where: { id: matchId },
       include: {
         booking: { select: { status: true, startAt: true } },
-        players: { where: { userId }, select: { status: true } },
+        players: { where: { userId }, select: { status: true, leftAt: true } },
       },
     });
   }
@@ -83,7 +83,7 @@ export class MatchPlayersService {
               await tx.matchPlayer.upsert({
                 where: { matchId_userId: { matchId, userId } },
                 create: { matchId, userId, status: 'PENDING', joinedAt: now, leftAt: null },
-                update: { status: 'PENDING', joinedAt: now, leftAt: null },
+                update: { status: 'PENDING', joinedAt: now },
               });
               await this.notifications?.createNotification(tx, {
                 userId: current.hostId,
@@ -134,7 +134,11 @@ export class MatchPlayersService {
           const current = await this.lockMatchForPlayer(tx, found.booking.courtId, found.bookingId, matchId, userId, now);
           if (current.hostId === userId) return { kind: 'host_cannot_leave' };
           if (current.players[0]?.status === 'PENDING') {
-            await tx.matchPlayer.delete({ where: { matchId_userId: { matchId, userId } } });
+            if (current.players[0].leftAt !== null) {
+              await tx.matchPlayer.update({ where: { matchId_userId: { matchId, userId } }, data: { status: 'LEFT' } });
+            } else {
+              await tx.matchPlayer.delete({ where: { matchId_userId: { matchId, userId } } });
+            }
             await tx.$executeRaw`SELECT pg_notify('lobby', ${matchId})`;
             const unchanged = await tx.match.findUniqueOrThrow({ where: { id: matchId }, include: WITH_DETAIL_RELATIONS });
             return { kind: 'left', match: unchanged, requests: await loadRequests(tx, matchId, userId) };
@@ -167,11 +171,7 @@ export class MatchPlayersService {
     if (!found) throw new NotFoundException(MATCH_NOT_FOUND);
     if (found.hostId !== userId) throw new ForbiddenException(NOT_HOST);
     const now = this.clock.now();
-    const syncMatch = async () => {
-      await expireBookings(this.prisma, Prisma.sql`id = ${found.bookingId}::uuid`, now);
-      await finishPastMatches(this.prisma, Prisma.sql`b.id = ${found.bookingId}::uuid`, now);
-    };
-    await retryOnDeadlock(syncMatch, BUSY);
+    await syncMatchByBooking(this.prisma, found.bookingId, now);
     const fresh = await this.prisma.match.findUnique({
       where: { id: matchId },
       select: { status: true, booking: { select: { startAt: true } } },

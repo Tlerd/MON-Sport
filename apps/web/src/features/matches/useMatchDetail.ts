@@ -79,7 +79,6 @@ export function useMatchDetail({ matches, user, tranParam = null, onSelectTran }
       setExpandedId(m.id);
       setDetail(null);
       setRequestsState({ matchId: null, items: [] });
-      setBusyRequestUserIds(new Set());
       setDetailError('');
       setActionError('');
 
@@ -96,7 +95,6 @@ export function useMatchDetail({ matches, user, tranParam = null, onSelectTran }
     setExpandedId(null);
     setDetail(null);
     setRequestsState({ matchId: null, items: [] });
-    setBusyRequestUserIds(new Set());
     setDetailError('');
     setActionError('');
   }, []);

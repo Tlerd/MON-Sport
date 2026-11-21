@@ -21,7 +21,7 @@ Intake hiện không nói về AI agent hay MCP. Mọi chức năng đã có s�
 
 ## Options
 
-1. **Một máy chủ MCP trong API, hai cách nối.** Công cụ gọi service hiện có. Cách A dùng PAT qua stdio. Cách B dùng OAuth qua Streamable HTTP.
+1. **Một máy chủ MCP trong API, hai cách nối.** Công cụ gọi service hiện có. Cách A dùng PAT qua Streamable HTTP với header `Authorization: Bearer`. Cách B dùng OAuth qua Streamable HTTP.
    - Một lớp công cụ, không chép luật.
    - Cách B đòi một máy chủ OAuth: bảng client, mã cấp phép, token.
 2. **Một gói riêng `apps/mcp` gọi API qua HTTP.**

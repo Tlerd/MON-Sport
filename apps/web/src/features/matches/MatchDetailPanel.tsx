@@ -182,7 +182,7 @@ export function MatchDetailPanel({
                     ) : (
                       <ul className="queue-list">
                         {requests.map((r) => {
-                          const rowBusy = busyRequestUserIds.has(r.userId);
+                          const rowBusy = busyRequestUserIds.has(`${selectedMatch.id}:${r.userId}`);
                           return (
                             <li key={r.userId} className="queue-row rp">
                               <div className="queue-user">

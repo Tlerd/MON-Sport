@@ -206,7 +206,7 @@ describe('VenueScreen', () => {
     scrollTo.mockClear();
     fireEvent.click(dayChip);
     await waitFor(() => expect(buttonMinutes(rowOf('Sân 1'))).toHaveLength(6));
-    expect(scrollTo).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(2));
     expect(scrollTo).toHaveBeenNthCalledWith(1, { left: 880 });
     expect(scrollTo).toHaveBeenNthCalledWith(2, { left: 880 });
     expect(scrollTo.mock.contexts.map((c) => (c as HTMLElement).getAttribute('data-court-id')).sort()).toEqual(
@@ -215,7 +215,7 @@ describe('VenueScreen', () => {
 
     scrollTo.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Sáng 6–12' }));
-    expect(scrollTo).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(2));
     expect(scrollTo).toHaveBeenNthCalledWith(1, { left: 0 });
     expect(scrollTo).toHaveBeenNthCalledWith(2, { left: 0 });
     expect(scrollTo.mock.contexts.map((c) => (c as HTMLElement).getAttribute('data-court-id')).sort()).toEqual(

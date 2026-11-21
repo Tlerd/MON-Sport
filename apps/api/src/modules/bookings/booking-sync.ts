@@ -175,3 +175,10 @@ export async function finishPastMatches(db: Pick<PrismaService, '$executeRaw'>, 
       ORDER BY m.id FOR UPDATE
     )`;
 }
+
+export async function syncMatchByBooking(prisma: PrismaService, bookingId: string, now: Date): Promise<void> {
+  await retryOnDeadlock(async () => {
+    await expireBookings(prisma, Prisma.sql`id = ${bookingId}::uuid`, now);
+    await finishPastMatches(prisma, Prisma.sql`b.id = ${bookingId}::uuid`, now);
+  }, BUSY);
+}

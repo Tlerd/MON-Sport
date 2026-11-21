@@ -180,4 +180,15 @@ describe('access tokens (F-037 step 2)', () => {
     at('2026-12-31T03:00:00Z');
     expect(await service().authenticate(made.secret)).toBeNull();
   });
+
+  it('authenticate returns null while user is locked or deleted', async () => {
+    const made = (await create('An')).body as CreateAccessTokenResponse;
+    expect(await service().authenticate(made.secret)).not.toBeNull();
+
+    await db.user.update({ where: { id: ids.An }, data: { lockedAt: START } });
+    expect(await service().authenticate(made.secret)).toBeNull();
+
+    await db.user.update({ where: { id: ids.An }, data: { lockedAt: null, deletedAt: START } });
+    expect(await service().authenticate(made.secret)).toBeNull();
+  });
 });

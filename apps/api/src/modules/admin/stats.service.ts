@@ -47,7 +47,8 @@ export class StatsService {
             WHERE "source" = 'APP' AND "createdAt" >= ${from}::timestamptz AND "createdAt" < ${to}::timestamptz
           UNION
           SELECT "userId" FROM "MatchPlayer"
-            WHERE "status" IN ('ACTIVE', 'LEFT') AND "joinedAt" >= ${from}::timestamptz AND "joinedAt" < ${to}::timestamptz
+            WHERE ("status" IN ('ACTIVE', 'LEFT') AND "joinedAt" >= ${from}::timestamptz AND "joinedAt" < ${to}::timestamptz)
+               OR ("leftAt" >= ${from}::timestamptz AND "leftAt" < ${to}::timestamptz)
           UNION
           SELECT "hostId" AS "userId" FROM "Match"
             WHERE "createdAt" >= ${from}::timestamptz AND "createdAt" < ${to}::timestamptz

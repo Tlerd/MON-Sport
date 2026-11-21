@@ -20,6 +20,7 @@ export default async function lobbyApproval(run) {
   const host = await run.session('player');
   const { venue: venueName, court: courtName } = run.accounts;
   let requesterName = `test-${run.stamp}`;
+  const shownName = () => (run.opts.target === 'local' ? requesterName : 'the second player');
 
   let matchId;
   let matchCancelled = false;
@@ -147,10 +148,14 @@ export default async function lobbyApproval(run) {
 
       const queue = host.page.locator('.match-detail .queue-section');
       await queue.getByText('Hàng chờ (1)').waitFor({ state: 'visible', timeout: 2000 });
-      await queue.getByText(requesterName).waitFor({ state: 'visible', timeout: 2000 });
+      if (run.opts.target === 'local') {
+        await queue.getByText(requesterName).waitFor({ state: 'visible', timeout: 2000 });
+      } else {
+        await queue.locator('.queue-row').first().waitFor({ state: 'visible', timeout: 2000 });
+      }
       await queue.getByRole('button', { name: 'Duyệt' }).waitFor({ state: 'visible', timeout: 2000 });
       await queue.getByRole('button', { name: 'Từ chối' }).waitFor({ state: 'visible', timeout: 2000 });
-      return `Hàng chờ (1): ${requesterName}`;
+      return `Hàng chờ (1): ${shownName()}`;
     });
 
     for (const width of [390, 768, 1024, 1440]) {
@@ -210,10 +215,14 @@ export default async function lobbyApproval(run) {
       assert(body.id === matchId, `approved match ${body.id}, not ${matchId}`);
       assert(body.joinedCount === 2, `joinedCount is ${body.joinedCount}, expected 2`);
 
-      await detail.locator('.players-section').getByText(requesterName).waitFor({ state: 'visible' });
+      if (run.opts.target === 'local') {
+        await detail.locator('.players-section').getByText(requesterName).waitFor({ state: 'visible' });
+      } else {
+        await detail.locator('.players-section li').nth(1).waitFor({ state: 'visible' });
+      }
       await queue.getByText('Hàng chờ (0)').waitFor({ state: 'visible' });
       await queue.getByText('Chưa có yêu cầu').waitFor({ state: 'visible' });
-      return `${requesterName} in Người tham gia, joinedCount 2, Hàng chờ (0)`;
+      return `${shownName()} in Người tham gia, joinedCount 2, Hàng chờ (0)`;
     });
 
     await run.step(FLOW, 'second player reloads detail and sees Rời trận', secondPage, async () => {

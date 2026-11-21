@@ -1119,4 +1119,94 @@ describe('Lobby (F-011 and F-012)', () => {
     expect(await within(detailPane as HTMLElement).findByText('Còn 7 suất trống')).toBeTruthy();
     expect(within(detailPane as HTMLElement).getByText('60.000đ/suất')).toBeTruthy();
   });
+
+  it('reloads the request queue after a failed request decision while keeping the error alert', async () => {
+    const hostUser: SessionUser = { id: m1.hostId, name: 'An', role: 'USER' };
+    const lanId = '0199a1b2-0000-7000-8000-000000000105';
+    const mApproval = { ...m1, joinMode: 'APPROVAL' as const, capacity: 4, joinedCount: 1 };
+    const detail: MatchDetailView = {
+      ...mApproval,
+      viewerRole: 'HOST',
+      pendingCount: 1,
+      players: [{ userId: m1.hostId, name: 'An', phone: '0901234567', joinedAt: '2026-11-20T03:00:00.000Z' }],
+    };
+    let reqCalls = 0;
+
+    const fetch = vi.fn((url: string, options?: RequestInit) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mApproval]) });
+      }
+      if (url === `/api/matches/${mApproval.id}`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detail) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests`) {
+        reqCalls += 1;
+        const items = reqCalls === 1
+          ? [{ userId: lanId, name: 'Lan', phone: '0901234568', requestedAt: '2026-11-20T03:05:00.000Z' }]
+          : [];
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(items) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests/${lanId}/approve` && options?.method === 'POST') {
+        return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Yêu cầu đã bị hủy' }) });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby user={hostUser} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByText('Hàng chờ (1)')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Yêu cầu đã bị hủy');
+    expect(await screen.findByText('Hàng chờ (0)')).toBeTruthy();
+    expect(screen.queryByText('Lan')).toBeNull();
+  });
+
+  it('keeps request row buttons disabled across closing and reopening a match while decision is in flight', async () => {
+    const hostUser: SessionUser = { id: m1.hostId, name: 'An', role: 'USER' };
+    const lanId = '0199a1b2-0000-7000-8000-000000000105';
+    const mApproval = { ...m1, joinMode: 'APPROVAL' as const, capacity: 4, joinedCount: 1 };
+    const detail: MatchDetailView = {
+      ...mApproval,
+      viewerRole: 'HOST',
+      pendingCount: 1,
+      players: [{ userId: m1.hostId, name: 'An', phone: '0901234567', joinedAt: '2026-11-20T03:00:00.000Z' }],
+    };
+    const queue = [{ userId: lanId, name: 'Lan', phone: '0901234568', requestedAt: '2026-11-20T03:05:00.000Z' }];
+    let resolveApprove!: (res: { ok: boolean; status: number; json: () => Promise<unknown> }) => void;
+
+    const fetch = vi.fn((url: string, options?: RequestInit) => {
+      if (url === '/api/matches') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mApproval]) });
+      }
+      if (url === `/api/matches/${mApproval.id}`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detail) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests`) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(queue) });
+      }
+      if (url === `/api/matches/${mApproval.id}/requests/${lanId}/approve` && options?.method === 'POST') {
+        return new Promise((res) => {
+          resolveApprove = res;
+        });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(<Lobby user={hostUser} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem chi tiết' }));
+    const approveBtn = await screen.findByRole('button', { name: 'Duyệt' });
+    fireEvent.click(approveBtn);
+    expect((screen.getByRole('button', { name: 'Duyệt' }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng chi tiết' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết' }));
+    const reopenedApprove = (await screen.findByRole('button', { name: 'Duyệt' })) as HTMLButtonElement;
+    expect(reopenedApprove.disabled).toBe(true);
+
+    resolveApprove({ ok: true, status: 200, json: () => Promise.resolve(detail) });
+    await vi.waitFor(() => expect((screen.getByRole('button', { name: 'Duyệt' }) as HTMLButtonElement).disabled).toBe(false));
+  });
 });

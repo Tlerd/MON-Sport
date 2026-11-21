@@ -200,6 +200,46 @@ describe('Admin stats API (F-016 / UC-13)', () => {
     expect(res.body.activeUsers).toBe(2);
   });
 
+  it('keeps an active user counted after joining, leaving, and requesting an APPROVAL match again', async () => {
+    const bId = await booking({
+      who: 'Dũng',
+      source: 'PHONE',
+      status: 'CONFIRMED',
+      startAt: vn('2026-11-21', '18:00'),
+    });
+    const m = await db.match.create({
+      data: {
+        bookingId: bId,
+        hostId: ids['Dũng'],
+        sport: 'BADMINTON',
+        capacity: 4,
+        joinedCount: 1,
+        pricePerSlot: 0,
+        status: 'OPEN',
+        joinMode: 'APPROVAL',
+        createdAt: vn('2026-11-10'),
+      },
+    });
+    clock.at = vn('2026-11-18', '10:00');
+    await db.matchPlayer.create({
+      data: { matchId: m.id, userId: ids['Lan'], status: 'ACTIVE', joinedAt: vn('2026-11-18', '10:00') },
+    });
+    await db.match.update({ where: { id: m.id }, data: { joinedCount: 2 } });
+
+    clock.at = vn('2026-11-18', '11:00');
+    await as('Lan')(http().post(`/api/matches/${m.id}/leave`)).expect(200);
+    clock.at = vn('2026-11-18', '12:00');
+    await as('Lan')(http().post(`/api/matches/${m.id}/join`)).expect(200);
+
+    let res = await getStats('Quản trị', '2026-11-20').expect(200);
+    expect(res.body.activeUsers).toBe(1);
+
+    clock.at = vn('2026-11-18', '13:00');
+    await as('Lan')(http().post(`/api/matches/${m.id}/leave`)).expect(200);
+    res = await getStats('Quản trị', '2026-11-20').expect(200);
+    expect(res.body.activeUsers).toBe(1);
+  });
+
   it('AC-4: counts confirmed bookings and live matches of each venue, sorted by name, overdue pending excluded', async () => {
     const day = '2026-11-17';
     const confirmed: string[] = [];

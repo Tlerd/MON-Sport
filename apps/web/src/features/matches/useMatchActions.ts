@@ -73,8 +73,9 @@ export function useMatchActions({
   }
 
   async function handleRequestDecision(matchId: string, requestUserId: string, action: 'approve' | 'reject') {
+    const busyKey = `${matchId}:${requestUserId}`;
     setActionError('');
-    setBusyRequestUserIds((prev) => new Set(prev).add(requestUserId));
+    setBusyRequestUserIds((prev) => new Set(prev).add(busyKey));
     loadSeqRef.current += 1;
     try {
       const updated = await api<MatchDetailView>(
@@ -109,11 +110,16 @@ export function useMatchActions({
     } catch (e) {
       if (liveStateRef.current.expandedId === matchId) {
         setActionError(errorMessage(e, 'Không thể xử lý yêu cầu'));
+        const reloadSeq = ++loadSeqRef.current;
+        const reqs = await api<MatchRequestView[]>(`/api/matches/${matchId}/requests`).catch(() => null);
+        if (reqs && reloadSeq === loadSeqRef.current && liveStateRef.current.expandedId === matchId) {
+          setRequestsState({ matchId, items: reqs });
+        }
       }
     } finally {
       setBusyRequestUserIds((prev) => {
         const next = new Set(prev);
-        next.delete(requestUserId);
+        next.delete(busyKey);
         return next;
       });
     }

@@ -8,11 +8,10 @@ import {
   RATE_WINDOW_DAYS,
   type RatePlayerRequest,
 } from '@monsport/shared';
-import { Prisma } from '../../generated/prisma/client.js';
-import { expireBookings, finishPastMatches } from '../bookings/booking-sync.js';
+import { syncMatchByBooking } from '../bookings/booking-sync.js';
 import { Clock } from '../database/clock.js';
-import { PrismaService, retryOnDeadlock } from '../database/prisma.service.js';
-import { BUSY, DAY_MS, isUniqueViolation, MATCH_NOT_FOUND, NOT_HOST } from './match-messages.js';
+import { PrismaService } from '../database/prisma.service.js';
+import { DAY_MS, isUniqueViolation, MATCH_NOT_FOUND, NOT_HOST } from './match-messages.js';
 
 @Injectable()
 export class MatchRatingsService {
@@ -33,11 +32,7 @@ export class MatchRatingsService {
       throw new ForbiddenException(NOT_HOST);
     }
     const now = this.clock.now();
-    const syncMatch = async () => {
-      await expireBookings(this.prisma, Prisma.sql`id = ${found.bookingId}::uuid`, now);
-      await finishPastMatches(this.prisma, Prisma.sql`b.id = ${found.bookingId}::uuid`, now);
-    };
-    await retryOnDeadlock(syncMatch, BUSY);
+    await syncMatchByBooking(this.prisma, found.bookingId, now);
 
     const activePlayers = await this.prisma.matchPlayer.findMany({
       where: {
@@ -81,11 +76,7 @@ export class MatchRatingsService {
       throw new NotFoundException(MATCH_NOT_FOUND);
     }
     const now = this.clock.now();
-    const syncMatch = async () => {
-      await expireBookings(this.prisma, Prisma.sql`id = ${found.bookingId}::uuid`, now);
-      await finishPastMatches(this.prisma, Prisma.sql`b.id = ${found.bookingId}::uuid`, now);
-    };
-    await retryOnDeadlock(syncMatch, BUSY);
+    await syncMatchByBooking(this.prisma, found.bookingId, now);
 
     if (found.hostId !== callerId) {
       throw new ForbiddenException(NOT_HOST);
