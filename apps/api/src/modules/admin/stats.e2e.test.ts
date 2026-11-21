@@ -240,6 +240,56 @@ describe('Admin stats API (F-016 / UC-13)', () => {
     expect(res.body.activeUsers).toBe(1);
   });
 
+  it('does not count a week-1 joiner as active in week 2 when they leave or cancel a re-request in week 2', async () => {
+    const bId = await booking({
+      who: 'Dũng',
+      source: 'PHONE',
+      status: 'CONFIRMED',
+      startAt: vn('2026-11-21', '18:00'),
+    });
+    const m = await db.match.create({
+      data: {
+        bookingId: bId,
+        hostId: ids['Dũng'],
+        sport: 'BADMINTON',
+        capacity: 4,
+        joinedCount: 3,
+        pricePerSlot: 0,
+        status: 'OPEN',
+        joinMode: 'APPROVAL',
+        createdAt: vn('2026-11-10'),
+      },
+    });
+    // Lan joined and left in week 1, then re-requested and cancelled in week 2.
+    await db.matchPlayer.create({
+      data: {
+        matchId: m.id,
+        userId: ids['Lan'],
+        status: 'LEFT',
+        joinedAt: vn('2026-11-10', '10:00'),
+        leftAt: vn('2026-11-10', '11:00'),
+      },
+    });
+    // Mai joined in week 1 and left in week 2.
+    await db.matchPlayer.create({
+      data: {
+        matchId: m.id,
+        userId: ids['Mai'],
+        status: 'ACTIVE',
+        joinedAt: vn('2026-11-15', '22:00'),
+      },
+    });
+
+    clock.at = vn('2026-11-18', '10:00');
+    await as('Lan')(http().post(`/api/matches/${m.id}/join`)).expect(200);
+    clock.at = vn('2026-11-18', '11:00');
+    await as('Lan')(http().post(`/api/matches/${m.id}/leave`)).expect(200);
+    await as('Mai')(http().post(`/api/matches/${m.id}/leave`)).expect(200);
+
+    const res = await getStats('Quản trị', '2026-11-20').expect(200);
+    expect(res.body.activeUsers).toBe(0);
+  });
+
   it('AC-4: counts confirmed bookings and live matches of each venue, sorted by name, overdue pending excluded', async () => {
     const day = '2026-11-17';
     const confirmed: string[] = [];

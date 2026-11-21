@@ -135,7 +135,10 @@ export class MatchPlayersService {
           if (current.hostId === userId) return { kind: 'host_cannot_leave' };
           if (current.players[0]?.status === 'PENDING') {
             if (current.players[0].leftAt !== null) {
-              await tx.matchPlayer.update({ where: { matchId_userId: { matchId, userId } }, data: { status: 'LEFT' } });
+              await tx.matchPlayer.update({
+                where: { matchId_userId: { matchId, userId } },
+                data: { status: 'LEFT', joinedAt: current.players[0].leftAt },
+              });
             } else {
               await tx.matchPlayer.delete({ where: { matchId_userId: { matchId, userId } } });
             }

@@ -104,7 +104,6 @@ export default async function lobbyApproval(run) {
         assert(status === 200, `POST /api/auth/login answered ${status}: ${body.message ?? ''}`);
         assert(body.role === 'USER', `the second player has role ${body.role}, the flow needs USER`);
         assert(body.name, 'POST /api/auth/login returned no name');
-        requesterName = body.name;
         return `role ${body.role}`;
       },
     );

@@ -182,9 +182,10 @@ export function scan({ cwd, config, range, bin = findGitleaks(), env = process.e
     // gitleaks colors REDACTED even with NO_COLOR, so strip the ANSI codes.
     const output = `${res.stdout ?? ''}${res.stderr ?? ''}`.replace(/\x1b\[[0-9;]*m/g, '').trim();
     // gitleaks also exits 1 when it cannot load the config. That is an error to fix, not a secret to remove.
+    if (res.error) return { status: 'error', output: [output, res.error.message].filter(Boolean).join('\n') };
     if (/^\S+ FTL /m.test(output)) return { status: 'error', output };
     if (res.status === 1) return { status: 'leak', output };
-    if (res.status !== 0) return { status: 'error', output: output || res.error?.message || `gitleaks exited ${res.status}` };
+    if (res.status !== 0) return { status: 'error', output: output || `gitleaks exited ${res.status}` };
     if (gitFailed(output)) return { status: 'error', output };
     outputs.push(output);
   }
