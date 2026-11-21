@@ -41,6 +41,18 @@ describe('check-log', () => {
     ]);
   });
 
+  test('strips GitHub Actions job/step/timestamp prefixes (and optional BOM) from gh run view --log-failed', () => {
+    const ghLog = [
+      'check\tRun pnpm check\t\uFEFF2026-11-16T02:55:50.9395798Z  FAIL  |mobile| src/features/venues/VenueScreen.test.tsx > VenueScreen > AC-9: scroll',
+      'check\tUNKNOWN STEP\t2026-11-16T02:55:51.0000000Z  FAIL  |api| src/modules/auth/google-auth.e2e.test.ts > Google Auth > AC-31: timing',
+    ].join('\n');
+
+    expect(parseVitestFailures(ghLog)).toEqual([
+      'src/features/venues/VenueScreen.test.tsx > VenueScreen > AC-9: scroll',
+      'src/modules/auth/google-auth.e2e.test.ts > Google Auth > AC-31: timing',
+    ]);
+  });
+
   test('computes deterministic tree hash from working tree without touching real index or GIT_INDEX_FILE', () => {
     const dir = makeTempRepo();
     const realIndexBefore = readFileSync(join(dir, '.git', 'index'));

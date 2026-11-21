@@ -236,6 +236,74 @@ describe('maintain phase 1', () => {
       .join('\n');
     expect(codeOnly).not.toMatch(/shell\s*:\s*true/);
     expect(codeOnly).not.toMatch(/cmd\.exe/i);
-    expect(sanitizeText('call 0901234567 at /api/x?a=1')).toBe('call [redacted-phone] at /api/x');
+    expect(sanitizeText('call 0901234567 at `/api/x?a=1` with Bearer abc==')).toBe(
+      'call [redacted-phone] at `/api/x` with [redacted-token]',
+    );
+  });
+
+  test('deduplicates findings whose target contains a phone number or query string, and skips unchanged comments', () => {
+    const created = [];
+    const commented = [];
+    const actions = {
+      ensureLabels: vi.fn(),
+      appendLog: vi.fn(),
+      createIssue: (title, body) => created.push({ number: 600 + created.length, title, body, comments: [] }),
+      commentIssue: (number, body) => commented.push({ number, body }),
+    };
+    const finding = {
+      metric: 'flaky_test',
+      target: 'google-auth.e2e.test.ts > AC-36: Số 0901112233 at /api/matches?level=EXPERT',
+      value: 2,
+      evidenceLines: ['fail 2 times'],
+      affected: ['google-auth.e2e.test.ts'],
+      proposal: 'Fix flake.',
+      openQuestions: [],
+    };
+
+    const r1 = evaluateAndAct({ findings: [finding], bands, openIssues: [], dryRun: false, now: NOW, actions });
+    expect(r1[0].action).toBe('created');
+    expect(created).toHaveLength(1);
+    expect(created[0].body).not.toContain('0901112233');
+    expect(created[0].body).not.toContain('?level=EXPERT');
+
+    // Second run with same finding matches the created issue and skips duplicate comment.
+    const r2 = evaluateAndAct({ findings: [finding], bands, openIssues: created, dryRun: false, now: NOW, actions });
+    expect(r2[0].action).toBe('unchanged:#600');
+    expect(created).toHaveLength(1);
+    expect(commented).toHaveLength(0);
+
+    // Third run with a higher count comments on #600 instead of creating a duplicate.
+    const r3 = evaluateAndAct({
+      findings: [{ ...finding, value: 3, evidenceLines: ['fail 3 times'] }],
+      bands,
+      openIssues: created,
+      dryRun: false,
+      now: NOW,
+      actions,
+    });
+    expect(r3[0].action).toBe('commented:#600');
+    expect(created).toHaveLength(1);
+    expect(commented).toHaveLength(1);
+  });
+
+  test('skips issue creation and comments when openIssues is null (gh issue list failed)', () => {
+    const actions = {
+      ensureLabels: vi.fn(),
+      appendLog: vi.fn(),
+      createIssue: vi.fn(),
+      commentIssue: vi.fn(),
+    };
+    const res = evaluateAndAct({
+      findings: [{ metric: 'main_fail', target: 'ci', value: 2, evidenceLines: ['2 fails'] }],
+      bands,
+      openIssues: null,
+      dryRun: false,
+      now: NOW,
+      actions,
+    });
+    expect(res).toEqual([{ key: 'main_fail:ci', level: 'diagnose', action: 'skipped:issues-unavailable' }]);
+    expect(actions.appendLog).toHaveBeenCalledTimes(1);
+    expect(actions.createIssue).not.toHaveBeenCalled();
+    expect(actions.commentIssue).not.toHaveBeenCalled();
   });
 });

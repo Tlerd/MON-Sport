@@ -6,6 +6,7 @@
 // Never calls an LLM, never edits repo files, and never passes arguments through cmd.exe on Windows.
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,22 +48,37 @@ export function classifyBand(metric, value, bands = loadBands()) {
 
 export function sanitizeText(text = '') {
   return String(text)
-    .replace(/((?:https?:\/\/[^\s?"'<>)]+|\/[^\s?"'<>)]+))\?[^\s"'<>)]+/g, '$1')
-    .replace(/\b(?:Bearer\s+[A-Za-z0-9._~+/=-]+|ya29\.[A-Za-z0-9._-]+|gh[pousr]_[A-Za-z0-9_]+|mst_[A-Za-z0-9_-]+|mot_[A-Za-z0-9_-]+)\b/gi, '[redacted-token]')
+    .replace(/((?:https?:\/\/[^\s?"'<>`)]+|\/[^\s?"'<>`)]+))\?[^\s"'<>`)]+/g, '$1')
+    .replace(
+      /\b(?:Bearer\s+[A-Za-z0-9._~+/=-]+|ya29\.[A-Za-z0-9._-]+|gh[pousr]_[A-Za-z0-9_]+|mst_[A-Za-z0-9_-]+|mot_[A-Za-z0-9_-]+)(?=$|[\s"'<>`)\]])/gi,
+      '[redacted-token]',
+    )
     .replace(/(?<!\d)(?:\+84\d{9,10}|0\d{9,10})(?!\d)/g, '[redacted-phone]');
 }
 
 export function dedupKey(metric, target) {
-  return `${metric}:${String(target).trim().replace(/\s+/g, ' ')}`;
+  return sanitizeText(`${metric}:${String(target).trim().replace(/\s+/g, ' ')}`);
+}
+
+export function findingSignature({ level, value, evidenceLines = [] }) {
+  const normalized = evidenceLines.map((line) => sanitizeText(line));
+  return createHash('sha256').update(JSON.stringify({ level, value, evidence: normalized })).digest('hex').slice(0, 12);
+}
+
+export function issueHasSignature(issue, sig) {
+  const marker = `<!-- maintain-sig: ${sig} -->`;
+  if (String(issue?.body ?? '').includes(marker)) return true;
+  return (issue?.comments ?? []).some((c) => String(c?.body ?? '').includes(marker));
 }
 
 export function findMatchingIssue(openIssues = [], key) {
-  const marker = `<!-- maintain-key: ${key} -->`;
+  const marker = `<!-- maintain-key: ${sanitizeText(key)} -->`;
   return openIssues.find((issue) => String(issue.body ?? '').includes(marker)) ?? null;
 }
 
 export function formatIssueBody({
   key,
+  sig,
   metric,
   level,
   value,
@@ -78,6 +94,7 @@ export function formatIssueBody({
   const questions = openQuestions.length
     ? openQuestions.map((q) => `- ${q}`).join('\n')
     : '- Chủ dự án chọn: sửa ngay, xếp lịch, hay đóng kèm nhãn `maintain-dismissed`?';
+  const resolvedSig = sig ?? findingSignature({ level, value, evidenceLines });
 
   const body = [
     '## Vấn đề',
@@ -102,13 +119,15 @@ export function formatIssueBody({
     questions,
     '',
     `<!-- maintain-key: ${key} -->`,
+    `<!-- maintain-sig: ${resolvedSig} -->`,
   ].join('\n');
 
   return sanitizeText(body);
 }
 
-export function formatCommentBody({ key, level, value, threshold, window, evidenceLines = [], now = new Date() }) {
+export function formatCommentBody({ key, sig, level, value, threshold, window, evidenceLines = [], now = new Date() }) {
   const evidence = evidenceLines.length ? evidenceLines.map((line) => `- ${line}`).join('\n') : '- Không có thêm chi tiết.';
+  const resolvedSig = sig ?? findingSignature({ level, value, evidenceLines });
   return sanitizeText(
     [
       `Cập nhật lúc \`${now.toISOString()}\`: giá trị **${value}** trong cửa sổ \`${window}\` (mức \`${level}\`, ngưỡng ${threshold}).`,
@@ -116,6 +135,7 @@ export function formatCommentBody({ key, level, value, threshold, window, eviden
       evidence,
       '',
       `<!-- maintain-key: ${key} -->`,
+      `<!-- maintain-sig: ${resolvedSig} -->`,
     ].join('\n'),
   );
 }
@@ -254,7 +274,17 @@ export function evaluateAndAct({ findings = [], bands = loadBands(), openIssues 
       continue;
     }
 
+    if (openIssues === null) {
+      results.push({ key, level, action: 'skipped:issues-unavailable' });
+      continue;
+    }
+
+    const sig = findingSignature({ level, value: finding.value, evidenceLines: finding.evidenceLines });
     const existing = findMatchingIssue(openIssues, key);
+    if (existing && issueHasSignature(existing, sig)) {
+      results.push({ key, level, action: `unchanged:#${existing.number}` });
+      continue;
+    }
     if (dryRun) {
       results.push({ key, level, action: existing ? `dry-run:comment:#${existing.number}` : 'dry-run:create' });
       continue;
@@ -266,6 +296,7 @@ export function evaluateAndAct({ findings = [], bands = loadBands(), openIssues 
     if (existing) {
       const comment = formatCommentBody({
         key,
+        sig,
         level,
         value: finding.value,
         threshold,
@@ -279,6 +310,7 @@ export function evaluateAndAct({ findings = [], bands = loadBands(), openIssues 
       const title = sanitizeText(`[maintain] ${finding.metric}: ${finding.target}`);
       const body = formatIssueBody({
         key,
+        sig,
         metric: finding.metric,
         level,
         value: finding.value,
@@ -321,10 +353,12 @@ function readLocalCheckEntries(env = process.env) {
 async function collectSignals(now) {
   const findings = [];
   const warnings = [];
+  const sinceDate = new Date(now.getTime() - 7 * DAY_MS).toISOString().slice(0, 10);
 
   // 1. main_fail
   const mainRunsRes = execNoShell('gh', [
-    'run', 'list', '--workflow', 'ci', '--branch', 'main', '--event', 'push', '--limit', '100',
+    'run', 'list', '--workflow', 'ci', '--branch', 'main', '--event', 'push',
+    '--created', `>=${sinceDate}`, '--limit', '300',
     '--json', 'databaseId,conclusion,createdAt',
   ]);
   if (mainRunsRes.ok) {
@@ -348,7 +382,8 @@ async function collectSignals(now) {
   // 2. flaky_test (CI reruns + local check.jsonl)
   const ciCounts = new Map();
   const rerunRes = execNoShell('gh', [
-    'run', 'list', '--workflow', 'ci', '--limit', '100', '--json', 'databaseId,attempt,conclusion,createdAt',
+    'run', 'list', '--workflow', 'ci', '--created', `>=${sinceDate}`, '--limit', '300',
+    '--json', 'databaseId,attempt,conclusion,createdAt',
   ]);
   if (rerunRes.ok) {
     const cutoff = now.getTime() - 7 * DAY_MS;
@@ -458,9 +493,13 @@ async function main() {
   for (const w of warnings) console.error(`maintain warn: ${sanitizeText(w)}`);
 
   const issuesRes = execNoShell('gh', [
-    'issue', 'list', '--state', 'open', '--label', 'maintain', '--limit', '100', '--json', 'number,title,body',
+    'issue', 'list', '--state', 'open', '--label', 'maintain', '--limit', '100', '--json', 'number,title,body,comments',
   ]);
-  const openIssues = issuesRes.ok ? JSON.parse(issuesRes.out || '[]') : [];
+  if (!issuesRes.ok) {
+    console.error(`maintain warn: gh issue list failed: ${sanitizeText(issuesRes.err)}`);
+    if (!dryRun) process.exitCode = 1;
+  }
+  const openIssues = issuesRes.ok ? JSON.parse(issuesRes.out || '[]') : null;
   const logFile = maintainLogPath();
 
   const actions = {

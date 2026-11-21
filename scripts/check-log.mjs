@@ -18,11 +18,14 @@ export function checkLogPath(env = process.env, fallbackRoot = ROOT) {
   return join(base, 'monsport', 'check.jsonl');
 }
 
+const GH_LOG_PREFIX = /^[^\t\r\n]+\t[^\t\r\n]+\t\uFEFF?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s*/;
+
 export function parseVitestFailures(output = '') {
   const clean = String(output).replace(ANSI, '');
+  const lines = clean.split(/\r?\n/).map((line) => line.replace(GH_LOG_PREFIX, ''));
   const seen = new Set();
   const detailed = [];
-  for (const line of clean.split(/\r?\n/)) {
+  for (const line of lines) {
     const match = /^\s*FAIL\s+(?:\|[^|\r\n]+\|\s+)?(.+?\s+>\s+.+?)\s*$/.exec(line);
     if (!match) continue;
     const name = match[1].trim();
@@ -33,7 +36,7 @@ export function parseVitestFailures(output = '') {
   }
   if (detailed.length > 0) return detailed;
   const files = [];
-  for (const line of clean.split(/\r?\n/)) {
+  for (const line of lines) {
     const match = /^\s*FAIL\s+(?:\|[^|\r\n]+\|\s+)?([^\s>]+(?:\.[cm]?[jt]sx?))\s*$/.exec(line);
     if (!match) continue;
     const file = match[1].trim();
