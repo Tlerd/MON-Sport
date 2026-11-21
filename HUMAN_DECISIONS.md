@@ -78,6 +78,8 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | 70 | Có cần lệnh stdio (cầu nối cục bộ) như kế hoạch MCP bước 3 không? Claude Code nối thẳng `/api/mcp` bằng HTTP và header `Authorization` | Không làm lệnh stdio | Không | F-037 |
 | 71 | Kết nối OAuth cho MCP: tối đa bao nhiêu kết nối, token sống bao lâu? (F-038) | 10 kết nối còn hiệu lực. Access token 1 giờ. Refresh token xoay vòng, hết hạn sau 30 ngày không dùng. Một kết nối sống tối đa 90 ngày | Không | F-038 |
 | 72 | Máy chủ cấp phép nhận `client_id` (CIMD) từ host nào? (F-038) | Chỉ `claude.ai`. Thêm host bằng biến `OAUTH_CIMD_HOSTS`. Không mở đăng ký client động (DCR) | Không | F-038 |
+| 76 | Có thêm `ANTHROPIC_API_KEY` vào GitHub để chạy vòng Maintain trên workflow `schedule` của GitHub không? | Chạy trên máy dev qua Task Scheduler | Không | `docs/design/ke-hoach-maintain.md` |
+| 77 | Ngoài email của GitHub khi có issue `maintain` mới, có cần gửi thông báo qua Telegram không? | Chỉ email GitHub | Không | `docs/design/ke-hoach-maintain.md` |
 
 ## Việc chỉ người dùng làm được
 
@@ -87,6 +89,7 @@ Cột "Chặn" ghi việc dừng lại vì câu hỏi. "Không" nghĩa là việ
 | Đặt `VERIFY_PLAYER2_PHONE` và `VERIFY_PLAYER2_PASSWORD` (một tài khoản `test-` thứ hai) để chạy luồng `lobby-approval` trên live | Luồng không tự đăng ký tài khoản trên live, vì số điện thoại có thể của người thật. Đã xong ngày 14/11/2026: hai biến nằm trong `D:/runenv/verify.env`, luồng `lobby-approval` chạy trên live với 0 SKIP. |
 | Kiểm UC-14 (Web Push) trên máy Android thật. Lần thử ngày 21/10/2026 thất bại, sửa bởi PR #94 và #101, chưa có lần thử lại | Cần máy thật |
 | Đăng nhập lại trên bản live sau lần deploy F-004 bước 2 (mỗi cookie một khóa) | Phiên của người dùng |
+| Cài tác vụ Task Scheduler `MONSPORT-Maintain` chạy mỗi 30 phút: `node D:\MON-Sport\scripts\maintain.mjs --once` (chọn "Run only when user is logged on") | Cấu hình lâu dài trên máy người dùng và cần token `gh`/`gcloud` trong keyring của người dùng |
 
 ## Đã chốt
 

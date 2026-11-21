@@ -8,6 +8,7 @@ import { connect } from 'node:net';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { acquire, lockPath } from './check-lock.mjs';
+import { recordCheckResult } from './check-log.mjs';
 import { DOC_LIMITS, sizeFailures } from './doc-size.mjs';
 import { hookSkips } from './hook-skip.mjs';
 import { INSTALL_HINT, scan } from './secret-scan.mjs';
@@ -127,13 +128,20 @@ if (unchecked.length) {
   );
 }
 
+const failedSteps = [];
+let testOutput = '';
+
 for (const [name, command] of steps) {
   const { ok, output } = run(command);
+  if (name === 'tests') testOutput = output;
   if (ok) continue;
+  failedSteps.push(name);
   const lines = output.trimEnd().split(/\r?\n/);
   const cut = lines.length > MAX_LINES ? [`... ${lines.length - MAX_LINES} earlier lines cut`] : [];
   failures.push([`FAIL ${name}: ${command}`, ...cut, ...lines.slice(-MAX_LINES)].join('\n'));
 }
+
+recordCheckResult({ root, ok: failures.length === 0, failedSteps, testOutput });
 
 if (failures.length === 0) {
   if (!hook) {

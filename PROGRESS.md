@@ -27,7 +27,7 @@ This file holds what git and the tests cannot show. Rewrite it in place when the
 ## Next step for agents
 
 1. App port of W2 to W5: skill level is on the app (F-039). The app has no weekly booking (F-030) or reputation (F-032) yet. A STAFF user sees "Dùng web cho nhân viên" (F-031). Write a brief per feature, in the order of `docs/design/ke-hoach-v2.md`.
-2. Open lows: deferred mobile lows F-022 D-8, F-023 D-1 (waits for question 2), F-025 D-8, F-026 D-6 to D-8 (the 7 checked lows and 3 flaky tests were fixed in `fix/open-lows-and-flaky-tests`).
-3. Harness: maintain phase 1 (plan in `docs/design/ke-hoach-maintain.md`, no `chore/maintain-detect` branch yet) and the fix-ladder log. Swarm step: try a larger fan-out before you widen the rule (trials: 17.4 min against 13.2 min one coder; 11.8 min, no baseline).
+2. Open lows: deferred mobile lows F-022 D-8, F-023 D-1 (waits for question 2), F-025 D-8, F-026 D-6 to D-8; dedicated `MatchPlayer.requestedAt` schema slice for the PR #315 round-2 cross-week `ACTIVE` (week 1) -> `LEFT` (week 2) -> `PENDING` (week 2) active-user edge case.
+3. Harness: maintain phase 1 done (`scripts/maintain.mjs`, `scripts/check-log.mjs`); next is maintain phase 2 (`chore/maintain-diagnose` in `docs/design/ke-hoach-maintain.md`) and the fix-ladder log. Swarm step: try a larger fan-out before you widen the rule (trials: 17.4 min against 13.2 min one coder; 11.8 min, no baseline).
 4. Security follow-ups (baseline, audit run-1 and run-2, branch protection, pinned Actions, and IDOR tests in `COMPLETED.md`): review the monthly Dependabot pull request for Actions like any other. Strix is not used (owner, 2026-11-20).
 5. Web UI rules: `docs/design/web-ui-v3/` gives the look, `docs/design/web-responsive.md` the layout by width, and `DESIGN.md` is for `apps/mobile` only. A control with no feature shows "Sắp ra mắt" and needs an intake change and a brief. Source files stay at 300 lines or fewer (`harness/source-size.test.mjs`).

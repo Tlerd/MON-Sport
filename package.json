@@ -8,6 +8,7 @@
   },
   "scripts": {
     "check": "node scripts/check.mjs",
+    "maintain": "node scripts/maintain.mjs",
     "map": "node scripts/gen-map.mjs",
     "graph": "graphify update .",
     "db:start": "node scripts/db-local.mjs",
