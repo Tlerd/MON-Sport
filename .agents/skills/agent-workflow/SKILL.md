@@ -120,6 +120,13 @@ After a merge, if `@map.md` on `main` is stale, open `chore/map-refresh` with `p
 - You may create test data on the live service. Give each test account the name prefix `test-`.
 - End each run with a short report: what is done, the pull requests merged, each one still open with the reason, the assumptions, the service URL, what is next.
 
+## Maintain
+
+- `pnpm maintain --once` reads CI and live signals (`scripts/maintain-bands.json`) and opens or updates issues labelled `maintain`.
+- Triage: the owner decides whether to fix now, schedule, or close with the label `maintain-dismissed` (review that metric's band on the next maintain edit).
+- Fix an accepted `maintain` issue on `fix/<slug>` through the normal PR, Reviewer, and `node scripts/merge.mjs <n>` flow. Never add `.skip`, `.only`, or `.todo`.
+- Add at least one regression test whose name includes the issue number, for example `#402: ...`.
+
 ## Other
 
 - Antigravity maps the roles in `.agents/rules/model-routing.md` and runs CLI tasks through `node scripts/agy-run.mjs`.

@@ -1,0 +1,6 @@
+{
+  "main_fail": { "window": "7d", "log": 1, "diagnose": 2, "propose": null },
+  "flaky_test": { "window": "7d", "log": 1, "diagnose": 2, "propose": 3 },
+  "live_5xx": { "window": "1h", "log": 1, "diagnose": 5, "propose": null },
+  "live_health": { "window": "2 checks", "log": null, "diagnose": 1, "propose": null }
+}
