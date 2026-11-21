@@ -1,17 +1,22 @@
 import { Injectable, type MessageEvent, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import pg from 'pg';
 import { interval, map, merge, Observable, startWith, Subject } from 'rxjs';
+import { ipBucket } from '../auth/throttle.service.js';
 
 const PING_INTERVAL_MS = 25_000;
 const RECONNECT_DELAY_MS = 1_000;
 const DEFAULT_MAX_STREAMS = 40;
+const DEFAULT_MAX_STREAMS_PER_IP = 4;
 const RETRY_WHEN_FULL_MS = 30_000;
 const RETRY_WHEN_OPEN_MS = 3_000;
 
-function maxStreams(): number {
-  const value = Number(process.env.LOBBY_STREAM_MAX);
-  return Number.isInteger(value) && value > 0 ? value : DEFAULT_MAX_STREAMS;
+function positiveIntEnv(raw: string | undefined, fallback: number): number {
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
 }
+
+const maxStreams = () => positiveIntEnv(process.env.LOBBY_STREAM_MAX, DEFAULT_MAX_STREAMS);
+const maxStreamsPerIp = () => positiveIntEnv(process.env.LOBBY_STREAM_MAX_PER_IP, DEFAULT_MAX_STREAMS_PER_IP);
 
 @Injectable()
 export class LobbyEvents implements OnModuleInit, OnModuleDestroy {
@@ -20,6 +25,7 @@ export class LobbyEvents implements OnModuleInit, OnModuleDestroy {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
   private open = 0;
+  private readonly openByIp = new Map<string, number>();
 
   async onModuleInit(): Promise<void> {
     await this.connect();
@@ -39,22 +45,28 @@ export class LobbyEvents implements OnModuleInit, OnModuleDestroy {
     this.events.complete();
   }
 
-  stream(): Observable<MessageEvent> {
+  stream(ip?: string): Observable<MessageEvent> {
+    const bucket = ipBucket(ip);
     const pings = interval(PING_INTERVAL_MS).pipe(
       startWith(0),
       map((_, index): MessageEvent => (index === 0 ? { type: 'ping', data: '', retry: RETRY_WHEN_OPEN_MS } : { type: 'ping', data: '' })),
     );
     const merged = merge(pings, this.events.asObservable());
     return new Observable<MessageEvent>((subscriber) => {
-      if (this.open >= maxStreams()) {
+      const bucketCount = this.openByIp.get(bucket) ?? 0;
+      if (this.open >= maxStreams() || bucketCount >= maxStreamsPerIp()) {
         subscriber.next({ type: 'ping', data: '', retry: RETRY_WHEN_FULL_MS });
         subscriber.complete();
         return undefined;
       }
       this.open++;
+      this.openByIp.set(bucket, bucketCount + 1);
       const inner = merged.subscribe(subscriber);
       return () => {
         this.open--;
+        const remaining = (this.openByIp.get(bucket) ?? 1) - 1;
+        if (remaining <= 0) this.openByIp.delete(bucket);
+        else this.openByIp.set(bucket, remaining);
         inner.unsubscribe();
       };
     });

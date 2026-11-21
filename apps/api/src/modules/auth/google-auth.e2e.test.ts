@@ -1920,4 +1920,58 @@ describe('Google Auth flow and OTP endpoints (F-004 AC-1 to AC-47)', () => {
       .send({ name: 'T', phone: '0901234567', code: '000000', consent: true })
       .expect(409);
   });
+
+  it('throttles repeated /google/complete probes on unregistered phones by sub (25/hr) and IP (30/15m)', async () => {
+    const subCookie = `google_pending=${issueSignedJson(GOOGLE_PENDING_COOKIE, {
+      typ: 'google_pending',
+      sub: 'g-probe-sub',
+      email: 'probe@example.com',
+      name: 'Probe',
+      exp: now.getTime() + 60 * 60_000,
+    })}`;
+    for (let i = 1; i <= 25; i++) {
+      await http()
+        .post('/api/auth/google/complete')
+        .set('X-Forwarded-For', `198.51.100.${i}`)
+        .set('Cookie', subCookie)
+        .send({ name: 'Probe', phone: `09020000${String(i).padStart(2, '0')}`, code: '000000', consent: true })
+        .expect(400);
+    }
+    await http()
+      .post('/api/auth/google/complete')
+      .set('X-Forwarded-For', '198.51.100.99')
+      .set('Cookie', subCookie)
+      .send({ name: 'Probe', phone: '0902000099', code: '000000', consent: true })
+      .expect(429);
+
+    const ip = '203.0.113.120';
+    for (let i = 1; i <= 30; i++) {
+      const p = issueSignedJson(GOOGLE_PENDING_COOKIE, {
+        typ: 'google_pending',
+        sub: `g-probe-ip-${i}`,
+        email: 'probe@example.com',
+        name: 'Probe',
+        exp: now.getTime() + 60 * 60_000,
+      });
+      await http()
+        .post('/api/auth/google/complete')
+        .set('X-Forwarded-For', ip)
+        .set('Cookie', `google_pending=${p}`)
+        .send({ name: 'Probe', phone: `09030000${String(i).padStart(2, '0')}`, code: '000000', consent: true })
+        .expect(400);
+    }
+    const p31 = issueSignedJson(GOOGLE_PENDING_COOKIE, {
+      typ: 'google_pending',
+      sub: 'g-probe-ip-31',
+      email: 'probe@example.com',
+      name: 'Probe',
+      exp: now.getTime() + 60 * 60_000,
+    });
+    await http()
+      .post('/api/auth/google/complete')
+      .set('X-Forwarded-For', ip)
+      .set('Cookie', `google_pending=${p31}`)
+      .send({ name: 'Probe', phone: '0903000099', code: '000000', consent: true })
+      .expect(429);
+  });
 });

@@ -103,4 +103,18 @@ describe('ConsentScreen (F-038)', () => {
     expect(await screen.findByText('Bạn không có quyền làm việc này')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Cho phép' })).toBeNull();
   });
+
+  it('encodes special characters in yeu-cau before passing tiep to /dang-nhap', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) })));
+    render(
+      <MemoryRouter initialEntries={['/ket-noi-ai/cho-phep?yeu-cau=abc%26x%3D1']}>
+        <Routes>
+          <Route path="/ket-noi-ai/cho-phep" element={<ConsentScreen user={null} />} />
+          <Route path="/dang-nhap" element={<Probe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    const where = await screen.findByTestId('where');
+    expect(where.textContent).toBe('/dang-nhap?tiep=%2Fket-noi-ai%2Fcho-phep%3Fyeu-cau%3Dabc%2526x%253D1');
+  });
 });

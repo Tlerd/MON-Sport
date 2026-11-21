@@ -11,7 +11,7 @@ export const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
 
 export function resolveGoogleError(code: string | null | undefined): string | null {
   if (!code) return null;
-  return GOOGLE_ERROR_MESSAGES[code] ?? GOOGLE_ERROR_MESSAGES.unknown;
+  return Object.hasOwn(GOOGLE_ERROR_MESSAGES, code) ? GOOGLE_ERROR_MESSAGES[code] : GOOGLE_ERROR_MESSAGES.unknown;
 }
 
 export const GOOGLE_SESSION_EXPIRED = 'Phiên Google đã hết hạn, hãy thử lại.';

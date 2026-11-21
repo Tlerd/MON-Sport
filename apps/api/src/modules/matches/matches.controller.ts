@@ -25,6 +25,7 @@ import {
   type PlayerRatingView,
   RatePlayerRequest,
 } from '@monsport/shared';
+import type { Request } from 'express';
 import type { Observable } from 'rxjs';
 import { type AuthedRequest, Roles, SessionGuard } from '../auth/session.guard.js';
 import { LobbyEvents } from './lobby-events.service.js';
@@ -51,8 +52,8 @@ export class MatchesController {
   }
 
   @Sse('stream')
-  stream(): Observable<MessageEvent> {
-    return this.lobbyEvents.stream();
+  stream(@Req() req: Request): Observable<MessageEvent> {
+    return this.lobbyEvents.stream(req.ip);
   }
 
   @Get('joined')
