@@ -50,7 +50,7 @@ export function sanitizeText(text = '') {
   return String(text)
     .replace(/((?:https?:\/\/[^\s?"'<>`)]+|\/[^\s?"'<>`)]+))\?[^\s"'<>`)]+/g, '$1')
     .replace(
-      /\b(?:Bearer\s+[A-Za-z0-9._~+/=-]+|ya29\.[A-Za-z0-9._-]+|gh[pousr]_[A-Za-z0-9_]+|mst_[A-Za-z0-9_-]+|mot_[A-Za-z0-9_-]+)(?=$|[\s"'<>`)\]])/gi,
+      /\b(?:Bearer\s+[A-Za-z0-9._~+/=-]+|ya29\.[A-Za-z0-9._-]+|gh[pousr]_[A-Za-z0-9_]+|mst_[A-Za-z0-9_-]+|mot_[A-Za-z0-9_-]+)/gi,
       '[redacted-token]',
     )
     .replace(/(?<!\d)(?:\+84\d{9,10}|0\d{9,10})(?!\d)/g, '[redacted-phone]');

@@ -239,6 +239,9 @@ describe('maintain phase 1', () => {
     expect(sanitizeText('call 0901234567 at `/api/x?a=1` with Bearer abc==')).toBe(
       'call [redacted-phone] at `/api/x` with [redacted-token]',
     );
+    expect(sanitizeText('Bearer abc==, mst_abc123; ghp_abc123: {mot_abc123} ya29.abc123:')).toBe(
+      '[redacted-token], [redacted-token]; [redacted-token]: {[redacted-token]} [redacted-token]:',
+    );
   });
 
   test('deduplicates findings whose target contains a phone number or query string, and skips unchanged comments', () => {
@@ -248,7 +251,10 @@ describe('maintain phase 1', () => {
       ensureLabels: vi.fn(),
       appendLog: vi.fn(),
       createIssue: (title, body) => created.push({ number: 600 + created.length, title, body, comments: [] }),
-      commentIssue: (number, body) => commented.push({ number, body }),
+      commentIssue: (number, body) => {
+        commented.push({ number, body });
+        created.find((issue) => issue.number === number)?.comments.push({ body });
+      },
     };
     const finding = {
       metric: 'flaky_test',
@@ -273,8 +279,9 @@ describe('maintain phase 1', () => {
     expect(commented).toHaveLength(0);
 
     // Third run with a higher count comments on #600 instead of creating a duplicate.
+    const updatedFinding = { ...finding, value: 3, evidenceLines: ['fail 3 times'] };
     const r3 = evaluateAndAct({
-      findings: [{ ...finding, value: 3, evidenceLines: ['fail 3 times'] }],
+      findings: [updatedFinding],
       bands,
       openIssues: created,
       dryRun: false,
@@ -283,6 +290,18 @@ describe('maintain phase 1', () => {
     });
     expect(r3[0].action).toBe('commented:#600');
     expect(created).toHaveLength(1);
+    expect(commented).toHaveLength(1);
+
+    // Fourth run with the same updated finding matches the comment signature and skips duplicate comment.
+    const r4 = evaluateAndAct({
+      findings: [updatedFinding],
+      bands,
+      openIssues: created,
+      dryRun: false,
+      now: NOW,
+      actions,
+    });
+    expect(r4[0].action).toBe('unchanged:#600');
     expect(commented).toHaveLength(1);
   });
 
