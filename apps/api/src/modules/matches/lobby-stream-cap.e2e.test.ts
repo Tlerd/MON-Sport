@@ -28,6 +28,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   delete process.env.LOBBY_STREAM_MAX;
+  delete process.env.LOBBY_STREAM_MAX_PER_IP;
   for (const request of requests) request.destroy();
   await app?.close();
 });
@@ -35,10 +36,11 @@ afterAll(async () => {
 type Reply = { status: number | undefined; contentType: string; body: string; ended: boolean };
 
 /** Reads the stream until the server ends it, or until `waitMs` has passed. Returns what came. */
-function read(waitMs: number): Promise<{ reply: Reply; request: http.ClientRequest }> {
+function read(waitMs: number, ip?: string): Promise<{ reply: Reply; request: http.ClientRequest }> {
   return new Promise((resolve, reject) => {
     const reply: Reply = { status: undefined, contentType: '', body: '', ended: false };
-    const request = http.get(`http://127.0.0.1:${port}/api/matches/stream`, (res) => {
+    const headers = ip ? { 'X-Forwarded-For': ip } : undefined;
+    const request = http.get(`http://127.0.0.1:${port}/api/matches/stream`, { headers }, (res) => {
       reply.status = res.statusCode;
       reply.contentType = String(res.headers['content-type'] ?? '');
       const timer = setTimeout(() => resolve({ reply, request }), waitMs);
@@ -80,5 +82,29 @@ describe('lobby stream cap over HTTP', () => {
       if (!admitted) await new Promise((resolve) => setTimeout(resolve, 100));
     }
     expect(admitted).toBe(true);
+  });
+
+  it('caps a single IP without refusing another IP over HTTP', async () => {
+    process.env.LOBBY_STREAM_MAX = '4';
+    process.env.LOBBY_STREAM_MAX_PER_IP = '1';
+    try {
+      const ipA = await read(300, '203.0.113.71');
+      expect(ipA.reply.ended).toBe(false);
+      expect(ipA.reply.body).toContain(OPEN_RETRY);
+
+      const ipASecond = await read(2_000, '203.0.113.71');
+      expect(ipASecond.reply.ended).toBe(true);
+      expect(ipASecond.reply.body).toContain(FULL_RETRY);
+
+      const ipB = await read(300, '203.0.113.72');
+      expect(ipB.reply.ended).toBe(false);
+      expect(ipB.reply.body).toContain(OPEN_RETRY);
+
+      ipA.request.destroy();
+      ipB.request.destroy();
+    } finally {
+      process.env.LOBBY_STREAM_MAX = '1';
+      delete process.env.LOBBY_STREAM_MAX_PER_IP;
+    }
   });
 });

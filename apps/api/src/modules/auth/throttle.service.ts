@@ -13,6 +13,8 @@ export const LIMITS = {
   'otp-ip': { max: 10, windowMs: 60 * 60_000 },
   'otp-sub': { max: 5, windowMs: 60 * 60_000 },
   'otp-phone': { max: 5, windowMs: 60 * 60_000 },
+  'complete-ip': { max: 30, windowMs: 15 * 60_000 },
+  'complete-sub': { max: 25, windowMs: 60 * 60_000 },
   'mcp-call': { max: 60, windowMs: 60_000 },
   'mcp-write': { max: 10, windowMs: 60_000 },
   'oauth-authorize-ip': { max: 60, windowMs: 60_000 },
@@ -80,6 +82,12 @@ export class ThrottleService {
 
   async consumeOtpRequest(ip: string | undefined, sub: string): Promise<number | null> {
     const retryAfter = (await this.hit('otp-ip', ipBucket(ip))) ?? (await this.hit('otp-sub', sub));
+    await this.cleanupOld();
+    return retryAfter;
+  }
+
+  async consumeGoogleComplete(ip: string | undefined, sub: string): Promise<number | null> {
+    const retryAfter = (await this.hit('complete-ip', ipBucket(ip))) ?? (await this.hit('complete-sub', sub));
     await this.cleanupOld();
     return retryAfter;
   }

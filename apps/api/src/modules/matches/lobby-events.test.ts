@@ -9,10 +9,10 @@ import { LobbyEvents } from './lobby-events.service.js';
 const RETRY_MS = 30_000;
 const RETRY_OPEN_MS = 3_000;
 
-function listen(lobby: LobbyEvents) {
+function listen(lobby: LobbyEvents, ip?: string) {
   const events: MessageEvent[] = [];
   const state = { completed: false };
-  const subscription = lobby.stream().subscribe({
+  const subscription = lobby.stream(ip).subscribe({
     next: (event) => events.push(event),
     complete: () => {
       state.completed = true;
@@ -28,6 +28,7 @@ const refused = (client: ReturnType<typeof listen>) => client.state.completed &&
 describe('lobby SSE cap', () => {
   afterEach(() => {
     delete process.env.LOBBY_STREAM_MAX;
+    delete process.env.LOBBY_STREAM_MAX_PER_IP;
   });
 
   it('ends a stream past the cap with one retry ping, and a client that leaves frees its slot', () => {
@@ -69,14 +70,45 @@ describe('lobby SSE cap', () => {
     only.subscription.unsubscribe();
   });
 
-  it('allows 40 streams when the variable is unset or not a positive integer', () => {
+  it('allows 40 streams across IPs when the variable is unset or not a positive integer', () => {
     for (const value of [undefined, '', 'abc', '0', '-3', '1.5']) {
       if (value === undefined) delete process.env.LOBBY_STREAM_MAX;
       else process.env.LOBBY_STREAM_MAX = value;
       const lobby = new LobbyEvents();
-      const open = Array.from({ length: 40 }, () => listen(lobby));
+      const open = Array.from({ length: 40 }, (_, i) => listen(lobby, `198.51.100.${i + 1}`));
       expect(open.every(admitted)).toBe(true);
-      expect(refused(listen(lobby))).toBe(true);
+      expect(refused(listen(lobby, '198.51.100.200'))).toBe(true);
+      for (const client of open) client.subscription.unsubscribe();
+    }
+  });
+
+  it('caps streams per IP without starving another IP, and frees the IP slot on unsubscribe', () => {
+    process.env.LOBBY_STREAM_MAX = '10';
+    process.env.LOBBY_STREAM_MAX_PER_IP = '2';
+    const lobby = new LobbyEvents();
+    const a1 = listen(lobby, '203.0.113.10');
+    const a2 = listen(lobby, '::ffff:203.0.113.10');
+    const a3 = listen(lobby, '203.0.113.10');
+    const b1 = listen(lobby, '203.0.113.11');
+    expect(admitted(a1)).toBe(true);
+    expect(admitted(a2)).toBe(true);
+    expect(refused(a3)).toBe(true);
+    expect(admitted(b1)).toBe(true);
+    a1.subscription.unsubscribe();
+    const a4 = listen(lobby, '203.0.113.10');
+    expect(admitted(a4)).toBe(true);
+    expect(refused(listen(lobby, '203.0.113.10'))).toBe(true);
+    for (const client of [a2, a4, b1]) client.subscription.unsubscribe();
+  });
+
+  it('defaults to 4 streams per IP when LOBBY_STREAM_MAX_PER_IP is unset or invalid', () => {
+    for (const value of [undefined, '', 'abc', '0', '-1']) {
+      if (value === undefined) delete process.env.LOBBY_STREAM_MAX_PER_IP;
+      else process.env.LOBBY_STREAM_MAX_PER_IP = value;
+      const lobby = new LobbyEvents();
+      const open = Array.from({ length: 4 }, () => listen(lobby, '203.0.113.50'));
+      expect(open.every(admitted)).toBe(true);
+      expect(refused(listen(lobby, '203.0.113.50'))).toBe(true);
       for (const client of open) client.subscription.unsubscribe();
     }
   });

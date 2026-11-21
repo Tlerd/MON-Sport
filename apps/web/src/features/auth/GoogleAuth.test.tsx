@@ -262,6 +262,10 @@ describe('Google Auth Web Screens (F-004)', () => {
       render(<LoginForm onLogin={vi.fn()} />);
       expect((await screen.findByRole('alert')).textContent).toBe(message);
     }
+    cleanup();
+    window.history.pushState({}, '', '/?google_error=constructor');
+    render(<LoginForm onLogin={vi.fn()} />);
+    expect((await screen.findByRole('alert')).textContent).toBe(GOOGLE_ERROR_MESSAGES.unknown);
   });
 
   it('signed-in account area shows link and unlink Google buttons and handles unlink 400', async () => {

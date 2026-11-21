@@ -1,6 +1,8 @@
-import { api, ApiError } from '@monsport/client';
+import { api, ApiError, disablePush, resyncPush } from '@monsport/client';
 import type { SessionUser } from '@monsport/shared';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+
+const PUSH_OFF_LIMIT_MS = 5000;
 
 export interface SessionContextType {
   user: SessionUser | null | undefined;
@@ -30,11 +32,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     fetchMe();
   }, []);
 
+  const userId = user?.id;
+  useEffect(() => {
+    if (userId) void resyncPush(userId);
+  }, [userId]);
+
   const login = (newUser: SessionUser) => {
     setUser(newUser);
   };
 
   const logout = async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      disablePush().catch(() => undefined),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, PUSH_OFF_LIMIT_MS);
+      }),
+    ]);
+    clearTimeout(timer);
     try {
       await api('/api/auth/logout', { method: 'POST' });
     } catch (err) {

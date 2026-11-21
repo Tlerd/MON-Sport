@@ -226,6 +226,8 @@ export class GoogleAuthService {
     if (!input.success) throw new BadRequestException(errorMessage(input.error));
     const blocked = await this.throttle.otpRequestBlocked(ip, pending.sub);
     if (blocked !== null) throw new OtpThrottleException(blocked);
+    const completeBlocked = await this.throttle.consumeGoogleComplete(ip, pending.sub);
+    if (completeBlocked !== null) throw new OtpThrottleException(completeBlocked);
     const existing = await this.prisma.user.findUnique({ where: { phone: input.data.phone } });
     if (existing) {
       const retryAfter = await this.throttle.consumeOtpRequest(ip, pending.sub);

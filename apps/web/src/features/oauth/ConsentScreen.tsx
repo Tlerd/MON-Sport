@@ -17,7 +17,7 @@ export function ConsentScreen({ user }: { user: SessionUser | null | undefined }
 
   useEffect(() => {
     if (user === null) {
-      const back = `/ket-noi-ai/cho-phep?yeu-cau=${id}`;
+      const back = `/ket-noi-ai/cho-phep?yeu-cau=${encodeURIComponent(id)}`;
       navigate(`/dang-nhap?tiep=${encodeURIComponent(back)}`, { replace: true });
     }
   }, [user, id, navigate]);
